@@ -1,0 +1,6 @@
+[
+  {"id": 1, "title": "Prepare Payroll", "assignedTo": 2, "status": "In Progress"},
+  {"id": 2, "title": "Update Website", "assignedTo": 3, "status": "Pending"},
+  {"id": 3, "title": "Recruitment Drive", "assignedTo": 1, "status": "Completed"},
+  {"id": 4, "title": "Client Follow-up", "assignedTo": 4, "status": "In Progress"}
+] 

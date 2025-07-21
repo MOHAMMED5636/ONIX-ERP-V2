@@ -1,0 +1,5 @@
+[
+  {"id": 1, "message": "Task 'Update Website' assigned to John Smith.", "type": "task", "date": "2025-07-12"},
+  {"id": 2, "message": "Leave request for Sara Youssef approved.", "type": "leave", "date": "2025-06-16"},
+  {"id": 3, "message": "New employee Fatima Noor added.", "type": "employee", "date": "2025-07-01"}
+] 

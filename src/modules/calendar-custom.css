@@ -1,0 +1,50 @@
+.calendar-attractive .react-calendar {
+  background: transparent;
+  border: none;
+}
+.calendar-attractive .react-calendar__tile {
+  border-radius: 0.75rem;
+  transition: background 0.2s, color 0.2s;
+  font-weight: 500;
+  color: #374151;
+}
+.calendar-attractive .react-calendar__tile--now {
+  background: #e0e7ff;
+  color: #3730a3;
+  font-weight: bold;
+}
+.calendar-attractive .react-calendar__tile--active {
+  background: #6366f1;
+  color: #fff;
+  font-weight: bold;
+}
+.calendar-attractive .react-calendar__tile--hasActive {
+  background: #c7d2fe;
+}
+.calendar-attractive .react-calendar__tile:enabled:hover,
+.calendar-attractive .react-calendar__tile:enabled:focus {
+  background: #f3f4f6;
+  color: #4f46e5;
+}
+.calendar-attractive .react-calendar__navigation button {
+  color: #6366f1;
+  font-weight: bold;
+  border-radius: 0.5rem;
+  margin: 0 2px;
+  transition: background 0.2s;
+}
+.calendar-attractive .react-calendar__navigation button:enabled:hover,
+.calendar-attractive .react-calendar__navigation button:enabled:focus {
+  background: #e0e7ff;
+}
+.calendar-attractive .react-calendar__month-view__weekdays {
+  text-transform: uppercase;
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.calendar-attractive .react-calendar__tile--rangeStart,
+.calendar-attractive .react-calendar__tile--rangeEnd {
+  background: #818cf8;
+  color: #fff;
+} 
