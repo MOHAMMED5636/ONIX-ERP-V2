@@ -120,11 +120,12 @@ export default function Login() {
         password === "admin123"
       ) {
         setLoading(false);
+        localStorage.setItem('isAuthenticated', 'true');
         navigate("/dashboard", { state: { lang, dir } });
       } else {
         setLoading(false);
         setLoginError(lang === "en" ? "Invalid username or password." : "اسم المستخدم أو كلمة المرور غير صحيحة.");
-      }
+      } 
     }
   };
 

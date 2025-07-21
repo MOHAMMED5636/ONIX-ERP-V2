@@ -1,7 +1,15 @@
 import React, { useState } from "react";
-import { PaperClipIcon, EllipsisHorizontalIcon, PlusIcon } from "@heroicons/react/24/outline";
+import {
+  PaperClipIcon,
+  EllipsisHorizontalIcon,
+  PlusIcon,
+  ChatBubbleLeftRightIcon,
+  ChatBubbleLeftIcon,
+  XMarkIcon,
+  AtSymbolIcon,
+  PaperAirplaneIcon
+} from "@heroicons/react/24/outline";
 import TaskDrawer from "./TaskDrawer";
-import { ChatBubbleLeftRightIcon, ChatBubbleLeftIcon, XMarkIcon, AtSymbolIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';

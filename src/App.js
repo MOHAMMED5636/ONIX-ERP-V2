@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Dashboard from "./modules/Dashboard";
 import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
@@ -64,12 +64,26 @@ function MainLayout() {
   );
 }
 
+// PrivateRoute component for protecting routes
+function PrivateRoute({ children }) {
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const location = useLocation();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/*" element={<MainLayout />} />
+        <Route path="/*" element={
+          <PrivateRoute>
+            <MainLayout /> 
+          </PrivateRoute>
+        } />
       </Routes>
     </Router>
   );
