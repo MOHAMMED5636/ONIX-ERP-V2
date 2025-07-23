@@ -14,6 +14,7 @@
     "date-fns": "^2.30.0",
     "i18next": "^22.4.9",
     "react": "^18.2.0",
+    "react-beautiful-dnd": "^13.1.1",
     "react-calendar": "^6.0.0",
     "react-date-range": "^1.4.0",
     "react-dom": "^18.2.0",

@@ -1063,7 +1063,13 @@ export default function MainTable() {
 
   function handleShowAddColumnMenu(e) {
     const rect = e.target.getBoundingClientRect();
-    setAddColumnMenuPos({ x: rect.left, y: rect.bottom });
+    const dropdownWidth = 288; // w-72 in px
+    let left = rect.left;
+    if (left + dropdownWidth > window.innerWidth) {
+      left = window.innerWidth - dropdownWidth - 16; // 16px margin from right
+      if (left < 0) left = 0;
+    }
+    setAddColumnMenuPos({ x: left, y: rect.bottom });
     setShowAddColumnMenu(true);
   }
   function handleAddColumn(type) {
@@ -1138,6 +1144,7 @@ export default function MainTable() {
                 <tr>
                   {columnOrder.map(key => {
                     const col = columns.find(c => c.key === key);
+                    if (!col) return null;
                     return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
                   })}
                   <th key="add-column" className="px-2 py-2 text-center">
@@ -1158,6 +1165,7 @@ export default function MainTable() {
                 <tr className="bg-blue-50">
       {columnOrder.map((colKey, idx) => {
                     const col = columns.find(c => c.key === colKey);
+                    if (!col) return null;
       return (
                       <td key={col.key} className="px-3 py-2 align-middle">
                         {col.key === "task" ? (
@@ -1365,6 +1373,7 @@ export default function MainTable() {
                   <tr className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
                     {columnOrder.map((colKey, idx) => {
                       const col = columns.find(c => c.key === colKey);
+                      if (!col) return null;
                       return (
                         <td key={col.key} className="px-3 py-3 align-middle">
                           {col.key === 'task' && idx === 0 ? (
@@ -1412,6 +1421,7 @@ export default function MainTable() {
                             <tr>
                               {columnOrder.map(colKey => {
                                 const col = columns.find(c => c.key === colKey);
+                                if (!col) return null;
     return (
                                   <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>{col.label}</th>
                                 );
@@ -1423,6 +1433,7 @@ export default function MainTable() {
                               <tr key={sub.id} className="transition-all duration-300 bg-white hover:bg-blue-50 border-b border-gray-200">
                                 {columnOrder.map(colKey => {
                                   const col = columns.find(c => c.key === colKey);
+                                  if (!col) return null;
                                   return (
                                     <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
                                       {renderSubtaskCell(col, sub, task, subIdx)}
@@ -1444,6 +1455,7 @@ export default function MainTable() {
                                   >
                                     {columnOrder.map(colKey => {
                                       const col = columns.find(c => c.key === colKey);
+                                      if (!col) return null;
                                       return (
                                         <div key={col.key} className="flex-1">
                                           <label className="block text-xs font-medium text-gray-700 mb-1">{col.label}:</label>
@@ -1552,6 +1564,7 @@ export default function MainTable() {
           <tr>
             {columnOrder.map(key => {
               const col = columns.find(c => c.key === key);
+              if (!col) return null;
               return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
             })}
             <th key="add-column" className="px-2 py-2 text-center">
@@ -1573,6 +1586,7 @@ export default function MainTable() {
             <tr className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
               {columnOrder.map((colKey, idx) => {
                 const col = columns.find(c => c.key === colKey);
+                if (!col) return null;
                 return (
                   <td key={col.key} className="px-3 py-3 align-middle">
                     {col.key === 'task' && idx === 0 ? (
@@ -1610,6 +1624,7 @@ export default function MainTable() {
                       <tr>
                         {columnOrder.map(colKey => {
                           const col = columns.find(c => c.key === colKey);
+                          if (!col) return null;
                           return (
                             <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>{col.label}</th>
                           );
@@ -1631,6 +1646,7 @@ export default function MainTable() {
                         <tr key={sub.id} className="transition-all duration-300 bg-white hover:bg-blue-50 border-b border-gray-200">
                           {columnOrder.map(colKey => {
                             const col = columns.find(c => c.key === colKey);
+                            if (!col) return null;
                             return (
                               <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
                                 {renderSubtaskCell(col, sub, task, subIdx)}
