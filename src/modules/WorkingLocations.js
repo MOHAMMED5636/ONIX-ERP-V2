@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { PencilSquareIcon, TrashIcon, MapPinIcon, BuildingOfficeIcon, UsersIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 // Lazy load react-leaflet and leaflet to avoid issues if not installed
 let MapContainer, TileLayer, Marker, useMapEvents;
 try {
@@ -47,6 +49,27 @@ function MapPicker({ lat, lng, onPick, onClose }) {
         )}
       </div>
     </div>
+  );
+}
+
+
+function DraggableHeader({ column, id, index }) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+
+  return (
+    <th
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={`py-3 px-3 font-semibold text-gray-500 text-xs uppercase tracking-wider text-left whitespace-nowrap bg-white select-none cursor-grab ${isDragging ? 'opacity-60' : ''}`}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      scope="col"
+    >
+      {column.label}
+    </th>
   );
 }
 
