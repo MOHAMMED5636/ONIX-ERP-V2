@@ -149,7 +149,7 @@ export default function Navbar({ onMenuToggle }) {
       {/* Right section: Controls */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* ERP Admin title - hidden on small mobile */}
-        <span className="hidden sm:flex items-center font-bold text-indigo-700 text-lg sm:text-xl tracking-tight px-3 py-1 rounded-full bg-white/70 shadow border border-indigo-100 mr-1 glow-pop">
+        <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold shadow border border-blue-200 hover:bg-blue-100 transition pill-pop relative">
           <UserCircleIcon className="h-6 w-6 text-indigo-400 mr-1" /> ERP {t("Admin")}
         </span>
         {/* Chatroom Button */}
@@ -166,7 +166,7 @@ export default function Navbar({ onMenuToggle }) {
         {/* Language toggle */}
         <button
           onClick={toggleLanguage}
-          className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/70 text-indigo-700 font-bold shadow border border-indigo-200 hover:bg-indigo-100 transition pill-pop"
+          className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold shadow border border-blue-200 hover:bg-blue-100 transition pill-pop relative"
         >
           <GlobeAltIcon className="h-5 w-5" />
           <span className="hidden sm:inline">{lang === "en" ? "EN | ع" : "ع | EN"}</span>
