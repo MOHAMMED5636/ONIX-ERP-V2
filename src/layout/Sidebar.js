@@ -37,7 +37,7 @@ const navItems = [
     label: { en: "Tasks", ar: "المهام" },
     dropdown: true,
     submenus: [
-      { key: "tasks", label: { en: "Task List", ar: "قائمة المهام" }, path: "/tasks" },
+      { key: "tasks", label: { en: "Project List", ar: "قائمة المهام" }, path: "/tasks" },
       { key: "contracts", label: { en: "Contracts", ar: "العقود" }, path: "/contracts" },
       { key: "create-contract", label: { en: "Create Contract", ar: "إنشاء عقد" }, path: "/contracts/create" },
     ],
@@ -132,7 +132,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
       )}
       <aside
         className={`fixed top-0 ${dir === "rtl" ? "right-0" : "left-0"} h-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl border-r border-indigo-100 z-50 transition-all duration-300
-          ${isMobile ? 'w-[90vw] max-w-full transform ' + (collapsed ? '-translate-x-full' : 'translate-x-0') + ' lg:hidden' : (collapsed ? 'w-14 lg:w-14 xl:w-14' : 'w-44 lg:w-44 xl:w-44')}
+          ${isMobile ? 'w-[90vw] max-w-full transform ' + (collapsed ? '-translate-x-full' : 'translate-x-0') + ' lg:hidden' : (collapsed ? 'w-16 lg:w-16 xl:w-16' : 'w-28 lg:w-28 xl:w-28')}
           flex flex-col justify-between`}
         style={isMobile ? { transition: 'transform 0.3s' } : {}}
       >

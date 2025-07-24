@@ -16,8 +16,8 @@ export default function TabBar({ activeTab, setActiveTab }) {
   return (
     <nav className="w-full border-b border-gray-200 bg-white px-4 pt-4 pb-0 overflow-x-auto">
       <ul className="flex gap-2 sm:gap-4 whitespace-nowrap">
-        {tabs.map((tab) => (
-          <li key={tab.key}>
+        {tabs.map((tab, idx) => (
+          <li key={tab.key} className={idx === 0 ? 'ml-2' : ''}>
             <button
               className={`px-4 py-2 rounded-t-md font-medium text-[15px] transition-all duration-150 focus:outline-none ${
                 activeTab === tab.key

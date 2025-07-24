@@ -24,9 +24,10 @@ import { format, addDays, differenceInCalendarDays, isValid } from 'date-fns';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import { DndContext, closestCenter } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable, horizontalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import MapPicker from '../../modules/WorkingLocations.js';
+import ReorderableDropdown from "./ReorderableDropdown";
 
 const initialTasks = [
   {
@@ -44,11 +45,11 @@ const initialTasks = [
     priority: "Low",
     location: "Onix engineering co.",
     checklist: false,
-        rating: 3,
+    rating: 3,
     progress: 50,
-        color: "#60a5fa",
-        subtasks: [
-          {
+    color: "#60a5fa",
+    subtasks: [
+      {
         id: 11,
         name: "Subitem 1",
         referenceNumber: "REF-001-1",
@@ -73,7 +74,7 @@ const initialTasks = [
         category: "Development",
         status: "working",
         owner: "MN",
-            due: "2024-07-19",
+        due: "2024-07-19",
         priority: "Medium",
         timeline: "2024-07-19 – 2024-07-20",
         location: "",
@@ -89,7 +90,7 @@ const initialTasks = [
         category: "Testing",
         status: "not started",
         owner: "AL",
-            due: "2024-07-20",
+        due: "2024-07-20",
         priority: "High",
         timeline: "2024-07-20 – 2024-07-21",
         location: "",
@@ -163,6 +164,25 @@ function GoogleMapPickerDemo({ onPick, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Add this helper component for sortable subtask rows
+function SortableSubtaskRow({ sub, subIdx, task, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
+  return (
+    <tr
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "bg-blue-50" : ""}
+      {...attributes}
+    >
+      {/* Drag handle cell */}
+      <td {...listeners} style={{ cursor: 'grab' }}>
+        <Bars3Icon className="w-5 h-5 text-gray-400" />
+      </td>
+      {children}
+    </tr>
   );
 }
 
@@ -277,11 +297,11 @@ export default function MainTable() {
       tasks.map(t =>
         t.id === taskId
           ? {
-              ...t,
-              subtasks: t.subtasks.map(s =>
-                s.id === subId ? { ...s, status: "done", completed: true } : s
-              )
-            }
+            ...t,
+            subtasks: t.subtasks.map(s =>
+              s.id === subId ? { ...s, status: "done", completed: true } : s
+            )
+          }
           : t
       )
     );
@@ -319,20 +339,20 @@ export default function MainTable() {
       tasks.map(t =>
         t.id === taskId
           ? {
-              ...t,
-        subtasks: [
-                ...t.subtasks,
-                {
-                  id: Date.now(),
-                  ...newSubtask,
-                  completed: false,
-                  checklist: false,
-            rating: 3,
-                  progress: 0,
-                  color: "#60a5fa"
-                }
-              ]
-            }
+            ...t,
+            subtasks: [
+              ...t.subtasks,
+              {
+                id: Date.now(),
+                ...newSubtask,
+                completed: false,
+                checklist: false,
+                rating: 3,
+                progress: 0,
+                color: "#60a5fa"
+              }
+            ]
+          }
           : t
       )
     );
@@ -549,7 +569,7 @@ export default function MainTable() {
     const [showPicker, setShowPicker] = useState(false);
     const start = value?.[0] ? new Date(value[0]) : null;
     const end = value?.[1] ? new Date(value[1]) : null;
-  return (
+    return (
       <div className="relative inline-block">
         <button
           className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
@@ -587,7 +607,7 @@ export default function MainTable() {
   function renderMainCell(col, row, onEdit) {
     switch (col.key) {
       case "task":
-      return (
+        return (
           <input
             className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
             value={row.name}
@@ -613,19 +633,20 @@ export default function MainTable() {
             <option value="Development">Development</option>
             <option value="Testing">Testing</option>
             <option value="Review">Review</option>
-        </select>
-      );
+          </select>
+        );
       case "status":
-      return (
+        return (
           <select
             className={`border rounded px-2 py-1 text-xs font-bold ${statusColors[row.status] || 'bg-gray-200 text-gray-700'}`}
             value={row.status}
             onChange={e => onEdit("status", e.target.value)}
           >
-            <option value="done">Done</option>
-            <option value="working">Working</option>
-            <option value="stuck">Stuck</option>
-            <option value="not started">Not Started</option>
+             <option value="done">Done</option>
+             <option value="suspended">Suspended</option>
+             <option value="cancelled">Cancelled</option>
+             <option value="in progress">In Progress</option>
+            <option value="pending">Pending</option>
           </select>
         );
       case "owner":
@@ -683,10 +704,10 @@ export default function MainTable() {
                 <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
               ))}
             </ul>
-        </div>
-      );
+          </div>
+        );
       case "priority":
-      return (
+        return (
           <select
             className="border rounded px-2 py-1 text-xs font-bold"
             value={row.priority}
@@ -698,7 +719,7 @@ export default function MainTable() {
           </select>
         );
       case "location":
-      return (
+        return (
           <div className="flex items-center gap-1">
             <input
               className="border rounded px-2 py-1 text-sm"
@@ -709,9 +730,9 @@ export default function MainTable() {
             <button type="button" onClick={() => handleOpenMapPicker('main', row.id, null, row.location)} title="Pick on map">
               <MapPinIcon className="w-5 h-5 text-blue-500 hover:text-blue-700" />
             </button>
-        </div>
-      );
-    case "notes":
+          </div>
+        );
+      case "notes":
         return (
           <input
             className="border rounded px-2 py-1 text-sm"
@@ -719,7 +740,7 @@ export default function MainTable() {
             onChange={e => onEdit("notes", e.target.value)}
           />
         );
-    case "autoNumber":
+      case "autoNumber":
         return <span>{row.autoNumber || row.id}</span>;
       case "predecessors":
         return (
@@ -746,11 +767,11 @@ export default function MainTable() {
             onChange={e => onEdit("link", e.target.value)}
           />
         );
-    case "rating":
+      case "rating":
         if (row.status === 'done' && isAdmin) {
           return (
             <span className="flex items-center gap-1">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
                   className={`w-5 h-5 cursor-pointer transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -763,7 +784,7 @@ export default function MainTable() {
         } else if (isAdmin) {
           return (
             <span className="flex items-center gap-1">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
                   className={`w-5 h-5 cursor-pointer transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -776,7 +797,7 @@ export default function MainTable() {
         } else {
           return (
             <span className="flex items-center gap-1">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
                   className={`w-5 h-5 transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -786,13 +807,13 @@ export default function MainTable() {
             </span>
           );
         }
-    case "progress":
-      return (
+      case "progress":
+        return (
           <div className="flex flex-col items-center">
             <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden mb-1">
               <div
                 className="h-2 rounded bg-blue-500 transition-all duration-500"
-                style={{width: `${row.progress}%`}}
+                style={{ width: `${row.progress}%` }}
               ></div>
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-700">{row.progress}%</span>
             </div>
@@ -804,18 +825,18 @@ export default function MainTable() {
               onChange={e => onEdit("progress", Number(e.target.value))}
               className="w-24"
             />
-        </div>
-      );
-    case "color":
-      return (
+          </div>
+        );
+      case "color":
+        return (
           <label className="inline-flex items-center gap-2 cursor-pointer">
-            <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{background: row.color}}></span>
+            <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{ background: row.color }}></span>
             <input
               type="color"
               value={row.color}
               onChange={e => onEdit("color", e.target.value)}
               className="w-6 h-6 p-0 border-0 bg-transparent"
-              style={{visibility: 'hidden', position: 'absolute'}}
+              style={{ visibility: 'hidden', position: 'absolute' }}
             />
             <span className="text-xs text-gray-500">{row.color}</span>
           </label>
@@ -830,15 +851,53 @@ export default function MainTable() {
             <TrashIcon className="w-5 h-5 text-red-500" />
           </button>
         );
-    default:
+      case "plan days":
+        return (
+          <input
+            type="number"
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={row.planDays || ""}
+            onChange={e => onEdit("planDays", e.target.value)}
+            placeholder="Enter plan days"
+          />
+        );
+      case "assign":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={row.assign || ""}
+            onChange={e => onEdit("assign", e.target.value)}
+            placeholder="Enter assignee notes"
+          />
+        );
+      case "notes":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={row.notes || ""}
+            onChange={e => onEdit("notes", e.target.value)}
+            placeholder="Add notes"
+          />
+        );
+      case "remarks":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={row.remarks || ""}
+            onChange={e => onEdit("remarks", e.target.value)}
+            placeholder="Add remarks"
+          />
+        );
+      default:
         return row[col.key] || '';
+    }
   }
-}
 
   function renderSubtaskCell(col, sub, task, subIdx) {
-  switch (col.key) {
+    switch (col.key) {
       case "task":
-  return (
+      case "project name":
+        return (
           <input
             className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
             value={sub.name}
@@ -846,28 +905,31 @@ export default function MainTable() {
             placeholder="Subtask name"
           />
         );
+      case "category":
+      case "task category":
+        return (
+          <ReorderableDropdown
+            label="Task Category"
+            options={[
+              { value: "Design", label: "Design" },
+              { value: "Development", label: "Development" },
+              { value: "Testing", label: "Testing" },
+              { value: "Review", label: "Review" }
+            ]}
+            value={sub.category || "Design"}
+            onChange={val => handleEditSubtask(task.id, sub.id, "category", val)}
+          />
+        );
       case "referenceNumber":
-  return (
+      case "reference number":
+        return (
           <input
             className="border rounded px-2 py-1 text-sm"
             value={sub.referenceNumber || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "referenceNumber", e.target.value)}
           />
         );
-      case "category":
-  return (
-          <select
-            className="border rounded px-2 py-1 text-sm"
-            value={sub.category || "Design"}
-            onChange={e => handleEditSubtask(task.id, sub.id, "category", e.target.value)}
-          >
-            <option value="Design">Design</option>
-            <option value="Development">Development</option>
-            <option value="Testing">Testing</option>
-            <option value="Review">Review</option>
-          </select>
-        );
-    case "status":
+      case "status":
         return (
           <select
             className={`border rounded px-2 py-1 text-xs font-bold ${statusColors[sub.status] || 'bg-gray-200 text-gray-700'}`}
@@ -884,7 +946,7 @@ export default function MainTable() {
         return <span className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm">{sub.owner}</span>;
       case "timeline":
         return <TimelineCell value={sub.timeline} onChange={val => handleEditSubtask(task.id, sub.id, "timeline", val)} />;
-    case "priority":
+      case "priority":
         return <select
           className="border rounded px-2 py-1 text-sm"
           value={sub.priority}
@@ -906,9 +968,9 @@ export default function MainTable() {
             <button type="button" onClick={() => handleOpenMapPicker('sub', task.id, sub.id, sub.location)} title="Pick on map">
               <MapPinIcon className="w-5 h-5 text-blue-500 hover:text-blue-700" />
             </button>
-            </div>
+          </div>
         );
-    case "notes":
+      case "notes":
         return <span className="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded transition"><span>{sub.notes || "Add note"}</span><PencilSquareIcon className="w-4 h-4 text-gray-400" /></span>;
       case "attachments":
         return (
@@ -928,7 +990,8 @@ export default function MainTable() {
             </ul>
           </div>
         );
-    case "autoNumber":
+      case "autoNumber":
+      case "auto #":
         return <span>{subIdx + 1}</span>;
       case "predecessors":
         return <input
@@ -937,7 +1000,7 @@ export default function MainTable() {
           onChange={e => handleEditSubtask(task.id, sub.id, "predecessors", e.target.value)}
         />;
       case "checklist":
-  return (
+        return (
           <input
             type="checkbox"
             checked={!!sub.checklist}
@@ -951,11 +1014,11 @@ export default function MainTable() {
           value={sub.link}
           onChange={e => handleEditSubtask(task.id, sub.id, "link", e.target.value)}
         />;
-    case "rating":
+      case "rating":
         if (sub.status === 'done' && isAdmin) {
           return (
             <span className="flex items-center gap-1">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
                   className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -963,12 +1026,12 @@ export default function MainTable() {
                   fill={i <= sub.rating ? '#facc15' : 'none'}
                 />
               ))}
-      </span>
+            </span>
           );
         } else if (isAdmin) {
           return (
             <span className="flex items-center gap-1">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
                   className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -976,12 +1039,12 @@ export default function MainTable() {
                   fill={i <= sub.rating ? '#facc15' : 'none'}
                 />
               ))}
-    </span>
-  );
+            </span>
+          );
         } else {
-  return (
+          return (
             <span className="flex items-center gap-1">
-              {[1,2,3,4,5].map(i => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
                   className={`w-5 h-5 transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -991,12 +1054,12 @@ export default function MainTable() {
             </span>
           );
         }
-    case "progress":
+      case "progress":
         return <div className="flex flex-col items-center">
           <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden mb-1">
             <div
               className="h-2 rounded bg-blue-500 transition-all duration-500"
-              style={{width: `${sub.progress}%`}}
+              style={{ width: `${sub.progress}%` }}
             ></div>
             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-700">{sub.progress}%</span>
           </div>
@@ -1009,59 +1072,59 @@ export default function MainTable() {
             className="w-24"
           />
         </div>;
-    case "color":
+      case "color":
         return <label className="inline-flex items-center gap-2 cursor-pointer">
-          <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{background: sub.color}}></span>
+          <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{ background: sub.color }}></span>
           <input
             type="color"
             value={sub.color}
             onChange={e => handleEditSubtask(task.id, sub.id, "color", e.target.value)}
             className="w-6 h-6 p-0 border-0 bg-transparent"
-            style={{visibility: 'hidden', position: 'absolute'}}
+            style={{ visibility: 'hidden', position: 'absolute' }}
           />
           <span className="text-xs text-gray-500">{sub.color}</span>
         </label>;
-      case "planDays":
-  return (
+      case "plan days":
+        return (
           <input
             type="number"
-            min={0}
-            className="border rounded px-2 py-1 text-sm w-20 text-center"
-            value={sub.planDays || 0}
-            onChange={e => handleEditSubtask(task.id, sub.id, "planDays", Number(e.target.value))}
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={sub.planDays || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "planDays", e.target.value)}
             placeholder="Enter plan days"
+          />
+        );
+      case "assign":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={sub.assign || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "assign", e.target.value)}
+            placeholder="Enter assignee notes"
+          />
+        );
+      case "notes":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm text-gray-900"
+            value={sub.notes || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "notes", e.target.value)}
+            placeholder="Add notes"
           />
         );
       case "remarks":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm text-gray-900"
             value={sub.remarks || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "remarks", e.target.value)}
-            placeholder="Enter remarks"
+            placeholder="Add remarks"
           />
         );
-      case "assigneeNotes":
-        return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
-            value={sub.assigneeNotes || ""}
-            onChange={e => handleEditSubtask(task.id, sub.id, "assigneeNotes", e.target.value)}
-            placeholder="Enter assignee notes"
-          />
-        );
-      case "delete":
-        return <button
-          className="p-1 rounded hover:bg-red-100 transition"
-          onClick={() => handleDeleteRow(sub.id, task.id)}
-          title="Delete"
-        >
-          <TrashIcon className="w-5 h-5 text-red-500" />
-        </button>;
-    default:
+      default:
         return sub[col.key] || '';
+    }
   }
-}
 
   // Add handleDragEnd function
   function handleDragEnd(event) {
@@ -1118,7 +1181,24 @@ export default function MainTable() {
   }
   const filteredColumnOptions = COLUMN_TYPE_OPTIONS.filter(opt => opt.label.toLowerCase().includes(addColumnSearch.toLowerCase()));
 
-      return (
+  // Add the handler for subtask drag end
+  function handleSubtaskDragEnd(event, taskId) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setTasks(tasks =>
+      tasks.map(task => {
+        if (task.id !== taskId) return task;
+        const oldIndex = task.subtasks.findIndex(sub => sub.id === active.id);
+        const newIndex = task.subtasks.findIndex(sub => sub.id === over.id);
+        return {
+          ...task,
+          subtasks: arrayMove(task.subtasks, oldIndex, newIndex)
+        };
+      })
+    );
+  }
+
+  return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <aside className="w-16 bg-white border-r flex flex-col items-center py-4 space-y-6 shadow-sm">
@@ -1131,12 +1211,12 @@ export default function MainTable() {
         {/* Top Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
           <div className="flex items-center gap-2">
-              <button
+            <button
               className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 font-semibold shadow hover:bg-blue-700 transition"
               onClick={handleAddNewTask}
-              >
+            >
               <PlusIcon className="w-5 h-5" /> New Project
-              </button>
+            </button>
             <div className="flex items-center gap-2 ml-6">
               <div className="relative">
                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-2 top-2 text-gray-400" />
@@ -1194,10 +1274,10 @@ export default function MainTable() {
             <tbody>
               {newTask && (
                 <tr className="bg-blue-50">
-      {columnOrder.map((colKey, idx) => {
+                  {columnOrder.map((colKey, idx) => {
                     const col = columns.find(c => c.key === colKey);
                     if (!col) return null;
-      return (
+                    return (
                       <td key={col.key} className="px-3 py-2 align-middle">
                         {col.key === "task" ? (
                           <input
@@ -1228,10 +1308,12 @@ export default function MainTable() {
                             value={newTask.status}
                             onChange={e => setNewTask({ ...newTask, status: e.target.value })}
                           >
-                            <option value="not started">Not Started</option>
-                            <option value="working">Working</option>
-                            <option value="done">Done</option>
-                            <option value="stuck">Stuck</option>
+                            <option value="Pending">pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Done">Done</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Suspended">Suspended</option>
+
                           </select>
                         ) : col.key === "owner" ? (
                           <input
@@ -1243,7 +1325,7 @@ export default function MainTable() {
                           <div className="flex-1">
                             <label className="block text-xs font-medium text-gray-700 mb-1">Timeline:</label>
                             <TimelineCell value={newTask.timeline} onChange={val => handleEdit(newTask, "timeline", val)} />
-            </div>
+                          </div>
                         ) : col.key === "planDays" ? (
                           <input
                             type="number"
@@ -1334,7 +1416,7 @@ export default function MainTable() {
                           />
                         ) : col.key === "rating" ? (
                           <span className="flex items-center gap-1">
-                            {[1,2,3,4,5].map(i => (
+                            {[1, 2, 3, 4, 5].map(i => (
                               <StarIcon
                                 key={i}
                                 className={`w-5 h-5 cursor-pointer transition ${i <= newTask.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -1348,7 +1430,7 @@ export default function MainTable() {
                             <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden mb-1">
                               <div
                                 className="h-2 rounded bg-blue-500 transition-all duration-500"
-                                style={{width: `${newTask.progress}%`}}
+                                style={{ width: `${newTask.progress}%` }}
                               ></div>
                               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-700">{newTask.progress}%</span>
                             </div>
@@ -1363,45 +1445,45 @@ export default function MainTable() {
                           </div>
                         ) : col.key === "color" ? (
                           <label className="inline-flex items-center gap-2 cursor-pointer">
-                            <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{background: newTask.color}}></span>
+                            <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{ background: newTask.color }}></span>
                             <input
                               type="color"
                               value={newTask.color}
                               onChange={e => setNewTask(nt => ({ ...nt, color: e.target.value }))}
                               className="w-6 h-6 p-0 border-0 bg-transparent"
-                              style={{visibility: 'hidden', position: 'absolute'}}
+                              style={{ visibility: 'hidden', position: 'absolute' }}
                             />
                             <span className="text-xs text-gray-500">{newTask.color}</span>
                           </label>
                         ) : col.key === "delete" ? (
-              <button
-                          className="p-1 rounded hover:bg-red-100 transition"
-                          onClick={() => setNewTask(null)}
-                          title="Cancel"
-                        >
-                          <TrashIcon className="w-5 h-5 text-red-500" />
-              </button>
-                      ) : null}
-        </td>
-      );
-                })}
+                          <button
+                            className="p-1 rounded hover:bg-red-100 transition"
+                            onClick={() => setNewTask(null)}
+                            title="Cancel"
+                          >
+                            <TrashIcon className="w-5 h-5 text-red-500" />
+                          </button>
+                        ) : null}
+                      </td>
+                    );
+                  })}
                   <td>
                     <button
                       className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold"
-        onClick={() => {
+                      onClick={() => {
                         setTasks([newTask, ...tasks]);
                         setNewTask(null);
-        }}
-      >
+                      }}
+                    >
                       Save
                     </button>
-      </td>
-        </tr>
+                  </td>
+                </tr>
               )}
               {filteredTasks.map(task => (
                 <React.Fragment key={task.id}>
                   {/* Main Task Row */}
-                  <tr className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                  <tr className="bg-white  rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
                     {columnOrder.map((colKey, idx) => {
                       const col = columns.find(c => c.key === colKey);
                       if (!col) return null;
@@ -1442,8 +1524,8 @@ export default function MainTable() {
                               else handleEdit(task, field, value);
                             })
                           )}
-      </td>
-    );
+                        </td>
+                      );
                     })}
                     <td key="add-column" className="px-3 py-3 align-middle">
                       <button
@@ -1456,260 +1538,275 @@ export default function MainTable() {
                       </button>
                     </td>
                   </tr>
-                  {/* Subtasks as subtable */}
-                  {expanded[task.id] && (
-                    <tr>
-                      <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
-                        <table className="ml-12 table-fixed min-w-full">
-                          <thead>
-                            <tr>
-                              {columnOrder.map(colKey => {
-                                const col = columns.find(c => c.key === colKey);
-                                if (!col) return null;
-    return (
-                                  <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>{col.label}</th>
-                                );
-                              })}
-        </tr>
-                          </thead>
-        <tbody>
-                            {(task.subtasks || []).map((sub, subIdx) => (
-                              <tr key={sub.id} className="transition-all duration-300 bg-white hover:bg-blue-50 border-b border-gray-200">
+                  {/* Subtasks as subtable - always render */}
+                  <tr>
+                    <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
+                      <table className="ml-12 table-fixed min-w-full">
+                        <thead>
+                          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                              <tr>
+                                <th></th> {/* Drag handle header cell for alignment */}
                                 {columnOrder.map(colKey => {
                                   const col = columns.find(c => c.key === colKey);
                                   if (!col) return null;
-                                  return (
-                                    <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
-                                      {renderSubtaskCell(col, sub, task, subIdx)}
-                                    </td>
-                                  );
+                                  return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
                                 })}
-          </tr>
-        ))}
-                            {/* Add Subtask Button and Form */}
-                            <tr>
-                              <td colSpan={columnOrder.length} className="px-3 py-2">
-                                {showSubtaskForm === task.id ? (
-                                  <form
-                                    className="flex flex-wrap gap-2 items-center"
-                                    onSubmit={e => {
-                                      e.preventDefault();
-                                      handleAddSubtask(task.id);
-                                    }}
+                                <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
+                                  <button
+                                    className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                                    onClick={handleShowAddColumnMenu}
+                                    title="Add column"
+                                    type="button"
                                   >
-                                    {columnOrder.map(colKey => {
-                                      const col = columns.find(c => c.key === colKey);
-                                      if (!col) return null;
-                                      return (
-                                        <div key={col.key} className="flex-1">
-                                          <label className="block text-xs font-medium text-gray-700 mb-1">{col.label}:</label>
-                                          {col.key === "category" ? (
-                                            <select
-                                              className="border rounded px-2 py-1 text-sm"
-                                              value={newSubtask[col.key]}
-                                              onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                            >
-                                              <option value="Design">Design</option>
-                                              <option value="Development">Development</option>
-                                              <option value="Testing">Testing</option>
-                                              <option value="Review">Review</option>
-                                            </select>
-                                          ) : col.key === "status" ? (
-                                            <select
-                                              className="border rounded px-2 py-1 text-sm"
-                                              value={newSubtask[col.key]}
-                                              onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                            >
-                                              <option value="not started">Not Started</option>
-                                              <option value="working">Working</option>
-                                              <option value="done">Done</option>
-                                              <option value="stuck">Stuck</option>
-                                            </select>
-                                          ) : col.key === "timeline" ? (
-                                            <TimelineCell value={newSubtask[col.key]} onChange={val => setNewSubtask(s => ({ ...s, [col.key]: val }))} />
-                                          ) : col.key === "planDays" ? (
+                                    +
+                                  </button>
+                                </th>
+                              </tr>
+                            </SortableContext>
+                          </DndContext>
+                        </thead>
+                        <tbody>
+                          <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
+                            <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
+                              {task.subtasks.map((sub, subIdx) => (
+                                <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
+                                  {columnOrder.map(colKey => {
+                                    const col = columns.find(c => c.key === colKey);
+                                    if (!col) return null;
+                                    return (
+                                      <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>{renderSubtaskCell(col, sub, task, subIdx)}</td>
+                                    );
+                                  })}
+                                </SortableSubtaskRow>
+                              ))}
+                            </SortableContext>
+                          </DndContext>
+                          {/* Add Subtask Button and Form */}
+                          <tr>
+                            <td colSpan={columnOrder.length} className="px-3 py-2">
+                              {showSubtaskForm === task.id ? (
+                                <form
+                                  className="flex flex-wrap gap-2 items-center"
+                                  onSubmit={e => {
+                                    e.preventDefault();
+                                    handleAddSubtask(task.id);
+                                  }}
+                                >
+                                  {columnOrder.map(colKey => {
+                                    const col = columns.find(c => c.key === colKey);
+                                    if (!col) return null;
+                                    return (
+                                      <div key={col.key} className="flex-1">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">{col.label}:</label>
+                                        {col.key === "category" ? (
+                                          <select
+                                            className="border rounded px-2 py-1 text-sm"
+                                            value={newSubtask[col.key]}
+                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                          >
+                                            <option value="Design">Design</option>
+                                            <option value="Development">Development</option>
+                                            <option value="Testing">Testing</option>
+                                            <option value="Review">Review</option>
+                                          </select>
+                                        ) : col.key === "status" ? (
+                                          <select
+                                            className="border rounded px-2 py-1 text-sm"
+                                            value={newSubtask[col.key]}
+                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                          >
+                                            <option value="not started">Not Started</option>
+                                            <option value="working">Working</option>
+                                            <option value="done">Done</option>
+                                            <option value="stuck">Stuck</option>
+                                          </select>
+                                        ) : col.key === "timeline" ? (
+                                          <TimelineCell value={newSubtask[col.key]} onChange={val => setNewSubtask(s => ({ ...s, [col.key]: val }))} />
+                                        ) : col.key === "planDays" ? (
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            className="border rounded px-2 py-1 text-sm w-20 text-center"
+                                            value={newSubtask[col.key] || 0}
+                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: Number(e.target.value) }))}
+                                            placeholder="Enter plan days"
+                                          />
+                                        ) : col.key === "remarks" ? (
+                                          <input
+                                            className="border rounded px-2 py-1 text-sm w-full"
+                                            value={newSubtask[col.key] || ""}
+                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                            placeholder="Enter remarks"
+                                          />
+                                        ) : col.key === "assigneeNotes" ? (
+                                          <input
+                                            className="border rounded px-2 py-1 text-sm w-full"
+                                            value={newSubtask[col.key] || ""}
+                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                            placeholder="Enter assignee notes"
+                                          />
+                                        ) : col.key === "attachments" ? (
+                                          <div>
                                             <input
-                                              type="number"
-                                              min={0}
-                                              className="border rounded px-2 py-1 text-sm w-20 text-center"
-                                              value={newSubtask[col.key] || 0}
-                                              onChange={e => setNewSubtask(s => ({ ...s, [col.key]: Number(e.target.value) }))}
-                                              placeholder="Enter plan days"
+                                              type="file"
+                                              multiple
+                                              onChange={e => {
+                                                const files = Array.from(e.target.files);
+                                                setNewSubtask(s => ({ ...s, attachments: files }));
+                                              }}
                                             />
-                                          ) : col.key === "remarks" ? (
-                                            <input
-                                              className="border rounded px-2 py-1 text-sm w-full"
-                                              value={newSubtask[col.key] || ""}
-                                              onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                              placeholder="Enter remarks"
-                                            />
-                                          ) : col.key === "assigneeNotes" ? (
-                                            <input
-                                              className="border rounded px-2 py-1 text-sm w-full"
-                                              value={newSubtask[col.key] || ""}
-                                              onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                              placeholder="Enter assignee notes"
-                                            />
-                                          ) : col.key === "attachments" ? (
-                                            <div>
-                                              <input
-                                                type="file"
-                                                multiple
-                                                onChange={e => {
-                                                  const files = Array.from(e.target.files);
-                                                  setNewSubtask(s => ({ ...s, attachments: files }));
-                                                }}
-                                              />
-                                              <ul className="mt-1 text-xs text-gray-600">
-                                                {(newSubtask.attachments || []).map((file, idx) => (
-                                                  <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          ) : (
-                                            <input
-                                              className="border rounded px-2 py-1 text-sm"
-                                              value={newSubtask[col.key]}
-                                              onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                            />
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                    <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold">Add</button>
-                                    <button type="button" className="ml-2 text-gray-500 hover:underline text-sm" onClick={() => setShowSubtaskForm(null)}>Cancel</button>
-                                  </form>
-                                ) : (
-                    <button
-                                    className="text-blue-600 hover:underline text-sm font-semibold"
-                                    onClick={() => setShowSubtaskForm(task.id)}
-                    >
-                                    + Add Subtask
-                    </button>
-                                )}
-                </td>
-              </tr>
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+                                            <ul className="mt-1 text-xs text-gray-600">
+                                              {(newSubtask.attachments || []).map((file, idx) => (
+                                                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        ) : (
+                                          <input
+                                            className="border rounded px-2 py-1 text-sm"
+                                            value={newSubtask[col.key]}
+                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                          />
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold">Add</button>
+                                  <button type="button" className="ml-2 text-gray-500 hover:underline text-sm" onClick={() => setShowSubtaskForm(null)}>Cancel</button>
+                                </form>
+                              ) : (
+                                <button
+                                  className="text-blue-600 hover:underline text-sm font-semibold"
+                                  onClick={() => setShowSubtaskForm(task.id)}
+                                >
+                                  + Add Subtask
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
 
-{completedTasks.length > 0 && (
-  <div className="mt-12">
-    <h2 className="text-xl font-bold mb-4">Completed Projects</h2>
-    <table className="min-w-full bg-white rounded-lg shadow border border-gray-200">
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-          <tr>
-            {columnOrder.map(key => {
-              const col = columns.find(c => c.key === key);
-              if (!col) return null;
-              return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-            })}
-            <th key="add-column" className="px-2 py-2 text-center">
-              <button
-                className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                onClick={handleShowAddColumnMenu}
-                title="Add column"
-                type="button"
-              >
-                +
-              </button>
-            </th>
-          </tr>
-        </SortableContext>
-      </DndContext>
-      <tbody>
-        {completedTasks.map(task => (
-          <React.Fragment key={task.id}>
-            <tr className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-              {columnOrder.map((colKey, idx) => {
-                const col = columns.find(c => c.key === colKey);
-                if (!col) return null;
-                return (
-                  <td key={col.key} className="px-3 py-3 align-middle">
-                    {col.key === 'task' && idx === 0 ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                          onClick={() => toggleExpand(task.id)}
-                      className="focus:outline-none"
-                          title={expanded[task.id] ? 'Collapse' : 'Expand'}
-                    >
-                          {expanded[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
-                    </button>
+          {completedTasks.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-xl  font-bold mb-4">Completed Projects</h2>
+              <table className="min-w-full overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
+                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                    <tr>
+                      {columnOrder.map(key => {
+                        const col = columns.find(c => c.key === key);
+                        if (!col) return null;
+                        return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+                      })}
+                      <th key="add-column" className="px-2 py-2 text-center">
                         <button
-                          className="font-bold text-blue-700 hover:underline focus:outline-none"
-                          onClick={() => { setSelectedProject(task); setShowProjectDialog(true); }}
+                          className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                          onClick={handleShowAddColumnMenu}
+                          title="Add column"
+                          type="button"
                         >
-                          {task.name}
+                          +
                         </button>
-                  </div>
-                    ) : (
-                      renderMainCell(col, task, (field, value) => {
-                        if (col.key === 'delete') handleDeleteRow(task.id);
-                        else handleEdit(task, field, value);
-                      })
-                    )}
-                </td>
-                );
-              })}
-              </tr>
-            {/* Subtasks as subtable */}
-            {expanded[task.id] && (
-              <tr>
-                <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
-                  <table className="ml-12 table-fixed min-w-full">
-                    <thead>
-                      <tr>
-                        {columnOrder.map(colKey => {
+                      </th>
+                    </tr>
+                  </SortableContext>
+                </DndContext>
+                <tbody>
+                  {completedTasks.map(task => (
+                    <React.Fragment key={task.id}>
+                      <tr className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                        {columnOrder.map((colKey, idx) => {
                           const col = columns.find(c => c.key === colKey);
                           if (!col) return null;
                           return (
-                            <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>{col.label}</th>
+                            <td key={col.key} className="px-3 py-3 align-middle">
+                              {col.key === 'task' && idx === 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => toggleExpand(task.id)}
+                                    className="focus:outline-none"
+                                    title={expanded[task.id] ? 'Collapse' : 'Expand'}
+                                  >
+                                    {expanded[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
+                                  </button>
+                                  <button
+                                    className="font-bold text-blue-700 hover:underline focus:outline-none"
+                                    onClick={() => { setSelectedProject(task); setShowProjectDialog(true); }}
+                                  >
+                                    {task.name}
+                                  </button>
+                                </div>
+                              ) : (
+                                renderMainCell(col, task, (field, value) => {
+                                  if (col.key === 'delete') handleDeleteRow(task.id);
+                                  else handleEdit(task, field, value);
+                                })
+                              )}
+                            </td>
                           );
                         })}
-                        <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
-                          <button
-                            className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                            onClick={handleShowAddColumnMenu}
-                            title="Add column"
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </th>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {(task.subtasks || []).map((sub, subIdx) => (
-                        <tr key={sub.id} className="transition-all duration-300 bg-white hover:bg-blue-50 border-b border-gray-200">
-                          {columnOrder.map(colKey => {
-                            const col = columns.find(c => c.key === colKey);
-                            if (!col) return null;
-                            return (
-                              <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
-                                {renderSubtaskCell(col, sub, task, subIdx)}
-                              </td>
-                            );
-                          })}
+                      {/* Subtasks as subtable */}
+                      {expanded[task.id] && (
+                        <tr>
+                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
+                            <table className="ml-12 table-fixed min-w-full">
+                              <thead>
+                                <tr>
+                                  {columnOrder.map(colKey => {
+                                    const col = columns.find(c => c.key === colKey);
+                                    if (!col) return null;
+                                    return (
+                                      <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>{col.label}</th>
+                                    );
+                                  })}
+                                  <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
+                                    <button
+                                      className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                                      onClick={handleShowAddColumnMenu}
+                                      title="Add column"
+                                      type="button"
+                                    >
+                                      +
+                                    </button>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
+                                  <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
+                                    {task.subtasks.map((sub, subIdx) => (
+                                      <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
+                                        {columnOrder.map(colKey => {
+                                          const col = columns.find(c => c.key === colKey);
+                                          if (!col) return null;
+                                          return (
+                                            <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>{renderSubtaskCell(col, sub, task, subIdx)}</td>
+                                          );
+                                        })}
+                                      </SortableSubtaskRow>
+                                    ))}
+                                  </SortableContext>
+                                </DndContext>
+                              </tbody>
+                            </table>
+                          </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </td>
-              </tr>
-            )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
-      </div>
-)}
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {/* Simulate creating a task */}
           {showNewTask && (
             <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
@@ -1727,7 +1824,7 @@ export default function MainTable() {
                 >
                   Cancel
                 </button>
-      </div>
+              </div>
             </div>
           )}
           {/* Project Summary Modal */}
@@ -1777,7 +1874,7 @@ export default function MainTable() {
             <div className="text-2xl font-bold mb-2">{selectedProject.name}</div>
             <div className="mb-4 text-sm text-gray-500">Reference #: <span className="font-semibold text-gray-700">{selectedProject.referenceNumber}</span></div>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div><span className="font-semibold">Status:</span> <span className="inline-block px-2 py-1 rounded text-white" style={{background: statusColors[selectedProject.status] || '#ccc'}}>{selectedProject.status}</span></div>
+              <div><span className="font-semibold">Status:</span> <span className="inline-block px-2 py-1 rounded text-white" style={{ background: statusColors[selectedProject.status] || '#ccc' }}>{selectedProject.status}</span></div>
               <div><span className="font-semibold">Owner:</span> {selectedProject.owner}</div>
               <div><span className="font-semibold">Priority:</span> {selectedProject.priority}</div>
               <div><span className="font-semibold">Category:</span> {selectedProject.category}</div>
@@ -1793,7 +1890,7 @@ export default function MainTable() {
             <div className="flex items-center gap-2 mb-2">
               <span className="font-semibold">Rating:</span>
               <span className="flex items-center gap-1">
-                {[1,2,3,4,5].map(i => (
+                {[1, 2, 3, 4, 5].map(i => (
                   <StarIcon
                     key={i}
                     className={`w-5 h-5 ${i <= selectedProject.rating ? 'text-yellow-400' : 'text-gray-300'}`}
@@ -1805,7 +1902,7 @@ export default function MainTable() {
             <div className="flex items-center gap-2">
               <span className="font-semibold">Progress:</span>
               <div className="w-32 h-3 bg-gray-200 rounded relative overflow-hidden">
-                <div className="h-3 rounded bg-blue-500 transition-all duration-500" style={{width: `${selectedProject.progress || 0}%`}}></div>
+                <div className="h-3 rounded bg-blue-500 transition-all duration-500" style={{ width: `${selectedProject.progress || 0}%` }}></div>
               </div>
               <span className="text-xs text-gray-700">{selectedProject.progress || 0}%</span>
             </div>

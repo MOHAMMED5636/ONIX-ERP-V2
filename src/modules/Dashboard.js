@@ -5,6 +5,7 @@ import './calendar-custom.css'; // Custom styles for react-calendar
 import DashboardLayout from "../layout/DashboardLayout";
 import AdminMessagePopup from "../components/AdminMessagePopup";
 import { useLanguage } from "../LanguageContext";
+import onixLogo from '../assets/onix-logo.png';
 
 function PieChart({ colors = ["#a78bfa", "#fbbf24", "#f87171"], size = 80 }) {
   return (
@@ -159,7 +160,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-cyan-50 bg-center bg-no-repeat bg-cover" style={{ backgroundImage: 'url("/onix-bg.png")', opacity: 1 }}>
+    <div className="relative min-h-screen w-full bg-white">
       {/* Faded watermark overlay */}
       <div className="absolute inset-0 bg-white bg-opacity-80 z-10" />
       {/* 0. Add imports for useRef and animated SVG blob */}
@@ -184,9 +185,9 @@ export default function Dashboard() {
           {/* 2. Hero Banner: add user avatar and personalized greeting */}
           <div className="w-full mb-6 sm:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 px-2 sm:px-6 py-4 rounded-2xl bg-gradient-to-r from-indigo-400 via-cyan-400 to-blue-300 shadow-lg animate-fade-in relative overflow-hidden">
             <div className="flex items-center gap-4">
-              <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User Avatar" className="h-14 w-14 rounded-full shadow-lg border-2 border-white bg-white object-cover" />
+              <img src={onixLogo} alt="Onix Logo" className="h-14 w-14 rounded-full shadow-lg border-2 border-white bg-white object-cover" />
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">Welcome back, <span className="font-extrabold">Kaddour</span>!</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">Welcome back to <span className="font-extrabold">Onix Engineering Consultancy</span>!</h1>
                 <p className="text-white text-sm sm:text-base opacity-90">Here’s your company snapshot and quick actions.</p>
               </div>
             </div>
@@ -208,14 +209,14 @@ export default function Dashboard() {
             {/* Main content */}
             <div className="flex-1 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0">
               {/* Summary cards: responsive grid, no overflow */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
                 <DashboardCard
                   title={t('Active Employees')}
                   value={<AnimatedNumber n={61} />}
                   icon={<svg className="h-9 w-9 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m9-4a4 4 0 1 0-8 0 4 4 0 0 0 8 0z" /></svg>}
                   accent={'+5 today'}
-                  gradient="bg-gradient-to-br from-indigo-100 via-white to-cyan-100"
-                  shadow="shadow-indigo-100"
+                  gradient="bg-white"
+                  shadow="shadow-lg"
                   className="w-full"
                 />
                 <DashboardCard
@@ -223,8 +224,8 @@ export default function Dashboard() {
                   value={<AnimatedNumber n={424} />}
                   icon={<svg className="h-9 w-9 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>}
                   accent={'100% valid'}
-                  gradient="bg-gradient-to-br from-yellow-100 via-white to-orange-100"
-                  shadow="shadow-yellow-100"
+                  gradient="bg-white"
+                  shadow="shadow-lg"
                   className="w-full"
                 />
                 <DashboardCard
@@ -246,8 +247,8 @@ export default function Dashboard() {
                   }
                   icon={<svg className="h-9 w-9 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h6m-7 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" /></svg>}
                   accent={'On Time'}
-                  gradient="bg-gradient-to-br from-green-100 via-white to-red-100"
-                  shadow="shadow-green-100"
+                  gradient="bg-white"
+                  shadow="shadow-lg"
                   className="w-full"
                 />
                 <DashboardCard
@@ -255,8 +256,8 @@ export default function Dashboard() {
                   value={<AnimatedNumber n={0} />}
                   icon={<svg className="h-9 w-9 text-pink-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-6-8h6" /></svg>}
                   accent={'!'}
-                  gradient="bg-gradient-to-br from-pink-100 via-white to-purple-100"
-                  shadow="shadow-pink-100"
+                  gradient="bg-white"
+                  shadow="shadow-lg"
                   className="w-full"
                 />
                 <DashboardCard
@@ -276,14 +277,14 @@ export default function Dashboard() {
                   }
                   icon={<svg className="h-9 w-9 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" /></svg>}
                   accent={'+12'}
-                  gradient="bg-gradient-to-br from-blue-100 via-white to-cyan-100"
-                  shadow="shadow-blue-100"
+                  gradient="bg-white"
+                  shadow="shadow-lg"
                   className="sm:col-span-2 lg:col-span-1 w-full"
                 />
               </div>
               
               {/* Balance Sheet & Invoice Pending Payments: responsive grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 w-full">
                 <div className="glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-indigo-100 w-full overflow-x-auto animate-fade-in">
                   <h3 className="flex items-center gap-2 text-lg font-bold text-indigo-700 mb-4"><svg className="h-6 w-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg> Balance Sheet</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full">
@@ -320,8 +321,8 @@ export default function Dashboard() {
               </div>
               
               {/* Unusual Attendance & Reminders: responsive grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 w-full">
-                <div className="glass-card bg-gradient-to-br from-pink-50 via-white to-purple-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-pink-100 w-full overflow-x-auto animate-fade-in mt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 w-full">
+                <div className="glass-card bg-gradient-to-br from-pink-50 via-white to-purple-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-pink-100 w-full overflow-x-auto animate-fade-in">
                   <h3 className="flex items-center gap-2 text-lg font-bold text-pink-700 mb-4"><svg className="h-6 w-6 text-pink-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg> Unusual Attendance</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[400px] text-xs sm:text-sm rounded-xl overflow-hidden border border-pink-100">
@@ -342,7 +343,7 @@ export default function Dashboard() {
                     </table>
                   </div>
                 </div>
-                <div className="glass-card bg-gradient-to-br from-yellow-50 via-white to-orange-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-yellow-100 w-full overflow-x-auto animate-fade-in mt-6">
+                <div className="glass-card bg-gradient-to-br from-yellow-50 via-white to-orange-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-yellow-100 w-full overflow-x-auto animate-fade-in">
                   <h3 className="flex items-center gap-2 text-lg font-bold text-yellow-700 mb-4"><svg className="h-6 w-6 text-yellow-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg> Reminders</h3>
                   <div className="space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200">
