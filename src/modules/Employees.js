@@ -217,7 +217,7 @@ function EmployeeForm({ onBack }) {
               </div>
               <div className="text-lg font-semibold text-gray-700 mt-2 sm:mt-0">Main Information</div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 mb-6 px-1 sm:px-2">
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Employee Type<span className="text-red-500 ml-1">*</span></label>
                 <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.employeeType} onChange={e => handleChange('employeeType', e.target.value)}>
@@ -258,11 +258,11 @@ function EmployeeForm({ onBack }) {
                 </select>
                 {errors.status && <div className="text-red-500 text-xs">{errors.status}</div>}
               </div>
-              <div className="col-span-2 flex flex-col md:flex-row gap-6 items-center mb-2">
-                <button type="button" className={`btn ${form.userAccount ? 'btn-success' : 'btn-primary'}`} onClick={() => setShowUserModal(true)}>
+              <div className="col-span-1 md:col-span-2 flex flex-col md:flex-row gap-2 md:gap-6 items-center mb-2">
+                <button type="button" className={`btn ${form.userAccount ? 'btn-success' : 'btn-primary'} w-full md:w-auto`} onClick={() => setShowUserModal(true)}>
                   {form.userAccount ? 'User Account Created' : 'Create New User Account'}
                 </button>
-                <div className="flex-1">
+                <div className="flex-1 w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Upload Personal Image</label>
                   <input type="file" accept="image/*" onChange={handleImageChange} className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" />
                 </div>
@@ -483,9 +483,9 @@ function EmployeeForm({ onBack }) {
 
   return (
     <EmployeeFormContext.Provider value={ctxValue}>
-      <div className="w-full flex flex-col items-center animate-fade-in">
+      <div className="w-full flex flex-col items-center animate-fade-in px-1 sm:px-2 md:px-4">
         {/* Mobile Stepper */}
-        <div className="w-full lg:hidden mb-6 mt-4 px-2 overflow-x-auto">
+        <div className="w-full lg:hidden mb-4 mt-2 px-1 overflow-x-auto">
           <div className="flex items-center justify-between mb-4 min-w-[400px]">
             <span className="text-xs font-medium text-gray-500">Step {step + 1} of {steps.length}</span>
             <span className="text-xs font-medium text-indigo-600">{steps[step].label}</span>
@@ -499,7 +499,7 @@ function EmployeeForm({ onBack }) {
         </div>
 
         {/* Desktop Stepper */}
-        <div className="w-full relative mb-8 mt-8 px-4 sm:px-6 lg:px-10 hidden lg:block" style={{height: 60}}>
+        <div className="w-full relative mb-6 mt-6 px-2 sm:px-4 lg:px-10 hidden lg:block" style={{height: 60}}>
           {/* Progress line (background) */}
           <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] bg-gray-300 rounded z-0" />
           {/* Progress line (active) */}
@@ -577,15 +577,15 @@ function EmployeeForm({ onBack }) {
         
         <form onSubmit={handleSubmit} className="w-full bg-gradient-to-br from-indigo-50 to-white rounded-2xl shadow-2xl p-2 sm:p-4 lg:p-10 border border-indigo-100 mx-0">
           {renderStep()}
-          <div className="flex flex-col sm:flex-row justify-between mt-8 gap-4">
-            <button type="button" className="btn flex items-center justify-center gap-2 order-2 sm:order-1" onClick={onBack}>
+          <div className="flex flex-col sm:flex-row justify-between mt-6 gap-2 sm:gap-4">
+            <button type="button" className="btn flex items-center justify-center gap-2 order-2 sm:order-1 w-full sm:w-auto" onClick={onBack}>
               <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
               Back to List
             </button>
-            <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2">
-              {step > 0 && <button type="button" className="btn flex items-center justify-center gap-2" onClick={handlePrev}><svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Previous</button>}
-              {step < steps.length - 1 && <button type="button" className="btn btn-primary flex items-center justify-center gap-2" onClick={handleNext}>Next <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></button>}
-              {step === steps.length - 1 && <button type="submit" className="btn btn-success flex items-center justify-center gap-2"><CheckCircleIcon className="h-5 w-5" /> Submit</button>}
+            <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2 w-full sm:w-auto">
+              {step > 0 && <button type="button" className="btn flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handlePrev}><svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Previous</button>}
+              {step < steps.length - 1 && <button type="button" className="btn btn-primary flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handleNext}>Next <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></button>}
+              {step === steps.length - 1 && <button type="submit" className="btn btn-success flex items-center justify-center gap-2 w-full sm:w-auto"><CheckCircleIcon className="h-5 w-5" /> Submit</button>}
             </div>
           </div>
           {submitted && <div className="mt-4 text-green-600 font-bold text-center">Employee submitted successfully!</div>}
@@ -665,7 +665,7 @@ export default function Employees() {
             </div>
             
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto rounded-2xl shadow-2xl bg-white border border-indigo-100">
+            <div className="hidden lg:block overflow-x-auto rounded-2xl shadow-2xl bg-white border border-indigo-100 w-full">
               <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
                 <thead className="bg-indigo-50">
                   <tr>

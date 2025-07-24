@@ -167,6 +167,37 @@ function GoogleMapPickerDemo({ onPick, onClose }) {
 }
 
 export default function MainTable() {
+  // Inline edit state and handlers for Project Name (move to top)
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskName, setEditingTaskName] = useState("");
+  const [selectedProjectForSummary, setSelectedProjectForSummary] = useState(null);
+
+  const handleProjectNameClick = (task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskName(task.name);
+  };
+  const handleProjectNameDoubleClick = (task) => {
+    setSelectedProjectForSummary(task);
+  };
+  const handleProjectNameChange = (e) => setEditingTaskName(e.target.value);
+  const handleProjectNameBlur = (task) => {
+    if (editingTaskName.trim() !== "") {
+      handleEdit(task, 'name', editingTaskName);
+    }
+    setEditingTaskId(null);
+  };
+  const handleProjectNameKeyDown = (e, task) => {
+    if (e.key === "Enter") {
+      if (editingTaskName.trim() !== "") {
+        handleEdit(task, 'name', editingTaskName);
+      }
+      setEditingTaskId(null);
+    } else if (e.key === "Escape") {
+      setEditingTaskId(null);
+    }
+  };
+  const closeProjectSummary = () => setSelectedProjectForSummary(null);
+
   const [tasks, setTasks] = useState(initialTasks);
   const [search, setSearch] = useState("");
   const [showNewTask, setShowNewTask] = useState(false);
@@ -1385,12 +1416,25 @@ export default function MainTable() {
                               >
                                 {expanded[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
                               </button>
-                              <button
-                                className="font-bold text-blue-700 hover:underline focus:outline-none"
-                                onClick={() => { setSelectedProject(task); setShowProjectDialog(true); }}
-                              >
-                                {task.name}
-                              </button>
+                              {editingTaskId === task.id ? (
+                                <input
+                                  type="text"
+                                  value={editingTaskName}
+                                  autoFocus
+                                  onChange={handleProjectNameChange}
+                                  onBlur={() => handleProjectNameBlur(task)}
+                                  onKeyDown={e => handleProjectNameKeyDown(e, task)}
+                                  className="border rounded px-1 py-0.5 text-sm w-full"
+                                />
+                              ) : (
+                                <span
+                                  className="font-bold text-blue-700 hover:underline focus:outline-none cursor-pointer"
+                                  onClick={() => handleProjectNameClick(task)}
+                                  onDoubleClick={() => handleProjectNameDoubleClick(task)}
+                                >
+                                  {task.name}
+                                </span>
+                              )}
                             </div>
                           ) : (
                             renderMainCell(col, task, (field, value) => {
@@ -1684,6 +1728,26 @@ export default function MainTable() {
                   Cancel
                 </button>
       </div>
+            </div>
+          )}
+          {/* Project Summary Modal */}
+          {selectedProjectForSummary && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] relative">
+                <button onClick={closeProjectSummary} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
+                <h2 className="text-lg font-bold mb-2">Project Summary</h2>
+                <div className="mb-2"><b>Name:</b> {selectedProjectForSummary.name}</div>
+                <div className="mb-2"><b>Reference Number:</b> {selectedProjectForSummary.referenceNumber}</div>
+                <div className="mb-2"><b>Category:</b> {selectedProjectForSummary.category}</div>
+                <div className="mb-2"><b>Status:</b> {selectedProjectForSummary.status}</div>
+                <div className="mb-2"><b>Owner:</b> {selectedProjectForSummary.owner}</div>
+                <div className="mb-2"><b>Timeline:</b> {selectedProjectForSummary.timeline && selectedProjectForSummary.timeline.join(' - ')}</div>
+                <div className="mb-2"><b>Plan Days:</b> {selectedProjectForSummary.planDays}</div>
+                <div className="mb-2"><b>Remarks:</b> {selectedProjectForSummary.remarks}</div>
+                <div className="mb-2"><b>Assignee Notes:</b> {selectedProjectForSummary.assigneeNotes}</div>
+                <div className="mb-2"><b>Priority:</b> {selectedProjectForSummary.priority}</div>
+                <div className="mb-2"><b>Location:</b> {selectedProjectForSummary.location}</div>
+              </div>
             </div>
           )}
         </div>

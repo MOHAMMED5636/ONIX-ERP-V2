@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 const owners = [
@@ -49,6 +49,47 @@ export default function CreateTask() {
       setForm(f => ({ ...f, [name]: value }));
     }
   };
+
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskName, setEditingTaskName] = useState("");
+  const [summaryTask, setSummaryTask] = useState(null);
+  const clickTimerRef = useRef(null);
+
+  const handleEdit = (task, field, value) => {
+    // Update your task list state here
+    // Example:
+    // setTasks(prev =>
+    //   prev.map(t =>
+    //     t.id === task.id ? { ...t, [field]: value } : t
+    //   )
+    // );
+  };
+
+  const handleTaskNameClick = (task) => {
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = setTimeout(() => {
+      setEditingTaskId(task.id);
+      setEditingTaskName(task.name);
+    }, 200);
+  };
+  const handleTaskNameDoubleClick = (task) => {
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    setSummaryTask(task);
+  };
+  const handleTaskNameChange = (e) => setEditingTaskName(e.target.value);
+  const handleTaskNameBlur = (task) => {
+    handleEdit(task, "name", editingTaskName);
+    setEditingTaskId(null);
+  };
+  const handleTaskNameKeyDown = (e, task) => {
+    if (e.key === "Enter") {
+      handleEdit(task, "name", editingTaskName);
+      setEditingTaskId(null);
+    } else if (e.key === "Escape") {
+      setEditingTaskId(null);
+    }
+  };
+  const closeSummary = () => setSummaryTask(null);
 
   return (
     <div className="w-full h-full px-2 sm:px-4 md:px-8 py-2 sm:py-4 md:py-8 flex flex-col">

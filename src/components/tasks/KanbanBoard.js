@@ -99,6 +99,10 @@ export default function KanbanBoard() {
     dateFrom: '',
     dateTo: '',
   });
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskName, setEditingTaskName] = useState("");
+  const [summaryTask, setSummaryTask] = useState(null);
+  let clickTimer = null;
 
   // Handle filter input changes
   const handleFilterChange = (e) => {
@@ -151,6 +155,34 @@ export default function KanbanBoard() {
   };
 
   const grouped = groupTasksByStatus(filteredTasks);
+
+  // Inline edit handlers
+  const handleTaskNameClick = (task) => {
+    // Use timer to distinguish single vs double click
+    if (clickTimer) clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {
+      setEditingTaskId(task.id);
+      setEditingTaskName(task.title);
+    }, 200);
+  };
+  const handleTaskNameDoubleClick = (task) => {
+    if (clickTimer) clearTimeout(clickTimer);
+    setSummaryTask(task);
+  };
+  const handleTaskNameChange = (e) => setEditingTaskName(e.target.value);
+  const handleTaskNameBlur = (task) => {
+    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, title: editingTaskName } : t));
+    setEditingTaskId(null);
+  };
+  const handleTaskNameKeyDown = (e, task) => {
+    if (e.key === "Enter") {
+      setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, title: editingTaskName } : t));
+      setEditingTaskId(null);
+    } else if (e.key === "Escape") {
+      setEditingTaskId(null);
+    }
+  };
+  const closeSummary = () => setSummaryTask(null);
 
   return (
     <div className="w-full">
@@ -289,8 +321,24 @@ export default function KanbanBoard() {
                             className={`bg-white rounded-lg shadow hover:shadow-lg border-l-4 ${col.border} p-3 flex flex-col gap-2 transition-all duration-150 ${snapshot.isDragging ? 'ring-2 ring-blue-300' : ''}`}
                             style={{ minHeight: '110px', ...provided.draggableProps.style }}
                           >
-                            <div className="font-semibold text-gray-800 text-sm line-clamp-2 truncate">
-                              {task.title}
+                            <div
+                              className="font-semibold text-gray-800 text-sm line-clamp-2 truncate cursor-pointer"
+                              onClick={() => handleTaskNameClick(task)}
+                              onDoubleClick={() => handleTaskNameDoubleClick(task)}
+                            >
+                              {editingTaskId === task.id ? (
+                                <input
+                                  type="text"
+                                  value={editingTaskName}
+                                  autoFocus
+                                  onChange={handleTaskNameChange}
+                                  onBlur={() => handleTaskNameBlur(task)}
+                                  onKeyDown={(e) => handleTaskNameKeyDown(e, task)}
+                                  className="border rounded px-1 py-0.5 text-sm w-full"
+                                />
+                              ) : (
+                                task.title
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               <img src={task.assignee.avatar} alt={task.assignee.name} className="w-7 h-7 rounded-full border" />
@@ -320,6 +368,22 @@ export default function KanbanBoard() {
           ))}
         </DragDropContext>
       </div>
+      {/* Summary Modal */}
+      {summaryTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] relative">
+            <button onClick={closeSummary} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
+            <h2 className="text-lg font-bold mb-2">Task Summary</h2>
+            <div className="mb-2"><b>Name:</b> {summaryTask.title}</div>
+            <div className="mb-2"><b>Assignee:</b> {summaryTask.assignee.name}</div>
+            <div className="mb-2"><b>Plan:</b> {summaryTask.plan}</div>
+            <div className="mb-2"><b>Start:</b> {summaryTask.start}</div>
+            <div className="mb-2"><b>Due:</b> {summaryTask.due}</div>
+            <div className="mb-2"><b>Status:</b> {summaryTask.status}</div>
+            <div className="mb-2"><b>Progress:</b> {summaryTask.percent}%</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

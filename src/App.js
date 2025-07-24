@@ -28,22 +28,17 @@ function MainLayout() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Mobile overlay for sidebar */}
-      {!sidebarCollapsed && window.innerWidth < 1024 && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarCollapsed(true)}
-        />
-      )}
-      
+      {/* Overlay is now handled in Sidebar.js, so remove duplicate overlay here */}
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
-      
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${
-        sidebarCollapsed 
-          ? 'lg:ml-16 xl:ml-20' 
-          : 'lg:ml-48 xl:ml-64'
-      }`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 w-full
+        ${
+          sidebarCollapsed
+            ? 'lg:ml-16 xl:ml-20'
+            : 'lg:ml-48 xl:ml-64'
+        }
+      `}>
         <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
-        <main className="flex-1 p-2 sm:p-4 lg:p-6">
+        <main className="flex-1 p-2 sm:p-4 lg:p-6 w-full">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
