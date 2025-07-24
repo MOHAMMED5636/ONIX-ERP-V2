@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { UserCircleIcon, PhoneIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 
 const translations = {
   en: {
@@ -57,50 +58,64 @@ export default function ForgotPassword({ lang, dir, onBack }) {
   };
 
   return (
-    <div className="w-full max-w-xs mx-auto" dir={dir}>
-      <form onSubmit={handleSend} className="space-y-6 mt-4">
-        <h2 className="text-xl font-semibold text-cyan-700 mb-4 text-center">{t.forgot}</h2>
+    <div className="w-full max-w-xs mx-auto glass-card rounded-2xl shadow-2xl p-6 animate-fade-in" dir={dir}>
+      <form onSubmit={handleSend} className="space-y-6 mt-2">
+        <h2 className="text-2xl font-bold text-cyan-700 mb-4 text-center animate-fade-in">{t.forgot}</h2>
         <div>
-          <label className="block text-gray-700 mb-1" htmlFor="fp-username">{t.username}</label>
-          <input
-            id="fp-username"
-            type="text"
-            className={`w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-gray-50 ${errors.username ? "border-red-400" : ""}`}
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            placeholder={t.userPlaceholder}
-            dir={dir}
-          />
+          <label className="block text-gray-700 mb-1 font-semibold" htmlFor="fp-username">{t.username}</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"><UserCircleIcon className="h-5 w-5" /></span>
+            <input
+              id="fp-username"
+              type="text"
+              className={`w-full pl-10 pr-4 py-2 rounded-full border bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-400 text-sm shadow-sm transition-all duration-200 ${errors.username ? "border-red-400" : "border-cyan-100 focus:border-cyan-400"}`}
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder={t.userPlaceholder}
+              dir={dir}
+            />
+          </div>
           {errors.username && <div className="text-red-500 text-xs mt-1">{t.username} {errors.username}</div>}
         </div>
         <div>
-          <label className="block text-gray-700 mb-1" htmlFor="fp-mobile">{t.mobile}</label>
-          <input
-            id="fp-mobile"
-            type="text"
-            className={`w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-gray-50 ${errors.mobile ? "border-red-400" : ""}`}
-            value={mobile}
-            onChange={e => setMobile(e.target.value)}
-            placeholder={t.mobilePlaceholder}
-            dir={dir}
-          />
+          <label className="block text-gray-700 mb-1 font-semibold" htmlFor="fp-mobile">{t.mobile}</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"><PhoneIcon className="h-5 w-5" /></span>
+            <input
+              id="fp-mobile"
+              type="text"
+              className={`w-full pl-10 pr-4 py-2 rounded-full border bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-400 text-sm shadow-sm transition-all duration-200 ${errors.mobile ? "border-red-400" : "border-cyan-100 focus:border-cyan-400"}`}
+              value={mobile}
+              onChange={e => setMobile(e.target.value)}
+              placeholder={t.mobilePlaceholder}
+              dir={dir}
+            />
+          </div>
           {errors.mobile && <div className="text-red-500 text-xs mt-1">{t.mobile} {errors.mobile}</div>}
         </div>
         <button
           type="submit"
-          className="w-full bg-cyan-700 hover:bg-cyan-800 text-white font-semibold py-2 rounded shadow transition"
+          className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-600 hover:to-indigo-600 text-white font-bold py-2 rounded-full shadow-lg transition-all flex items-center justify-center gap-2 text-lg forgot-pop"
         >
+          <ArrowPathIcon className="h-6 w-6" />
           {t.send}
         </button>
         <button
           type="button"
           onClick={onBack}
-          className="w-full mt-2 text-cyan-700 hover:underline text-sm"
+          className="w-full mt-2 text-cyan-700 hover:underline text-sm font-semibold forgot-pop"
         >
           {t.back}
         </button>
-        {sent && <div className="text-green-600 text-center mt-2">{t.sent}</div>}
+        {sent && <div className="text-green-600 text-center mt-2 animate-fade-in">{t.sent}</div>}
       </form>
+      <style>{`
+        .glass-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); }
+        .animate-fade-in { animation: fadeIn 0.7s cubic-bezier(.4,0,.2,1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none; } }
+        .forgot-pop { transition: color 0.2s, text-decoration 0.2s; }
+        .forgot-pop:hover { color: #0e7490; text-decoration: underline; }
+      `}</style>
     </div>
   );
 } 
