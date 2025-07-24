@@ -87,14 +87,14 @@ function RightWidgetBox({ onDateClick }) {
           <li><a href="#" className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 hover:bg-indigo-100 text-indigo-600 font-semibold shadow transition group"><svg className="h-4 w-4 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg> Inspection Reports</a></li>
           <li><a href="#" className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 hover:bg-indigo-100 text-indigo-600 font-semibold shadow transition group"><svg className="h-4 w-4 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg> Payments</a></li>
           <li><a href="#" className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 hover:bg-indigo-100 text-indigo-600 font-semibold shadow transition group"><svg className="h-4 w-4 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h6m-7 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" /></svg> Building Services</a></li>
-        </ul>
+      </ul>
       </div>
       <div className="border-t border-cyan-100 pt-3 text-xs text-gray-400">Company: ONIX Engineering</div>
       {/* Calendar Section */}
       <div className="mt-2">
         <h4 className="flex items-center gap-2 font-bold text-cyan-700 mb-3 text-base sm:text-lg"><svg className="h-6 w-6 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h6m-7 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" /></svg> Calendar</h4>
         <div className="glass-card bg-white/80 rounded-2xl shadow-lg p-2 border border-cyan-100">
-          <CalendarWidget onDateClick={onDateClick} />
+      <CalendarWidget onDateClick={onDateClick} />
         </div>
       </div>
     </aside>
@@ -290,26 +290,26 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 bg-white/70 rounded-lg px-2">
                       <svg className="h-5 w-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>
                       <select className="border-0 bg-transparent focus:ring-0 w-full text-xs sm:text-sm">
-                        <option>Furnitures and fittings</option>
-                      </select>
+                      <option>Furnitures and fittings</option>
+                    </select>
                     </div>
                     <div className="flex items-center gap-2 bg-white/70 rounded-lg px-2">
                       <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>
                       <select className="border-0 bg-transparent focus:ring-0 w-full text-xs sm:text-sm">
-                        <option>Loans</option>
-                      </select>
+                      <option>Loans</option>
+                    </select>
                     </div>
                     <div className="flex items-center gap-2 bg-white/70 rounded-lg px-2">
                       <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>
                       <select className="border-0 bg-transparent focus:ring-0 w-full text-xs sm:text-sm">
-                        <option>Clients</option>
-                      </select>
+                      <option>Clients</option>
+                    </select>
                     </div>
                     <div className="flex items-center gap-2 bg-white/70 rounded-lg px-2">
                       <svg className="h-5 w-5 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>
                       <select className="border-0 bg-transparent focus:ring-0 w-full text-xs sm:text-sm">
-                        <option>Imprest and Insurance</option>
-                      </select>
+                      <option>Imprest and Insurance</option>
+                    </select>
                     </div>
                   </div>
                 </div>

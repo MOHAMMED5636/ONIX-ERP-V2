@@ -200,125 +200,127 @@ export default function Navbar({ onMenuToggle }) {
 
       {/* Admin Modal */}
       {showAdminModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 overflow-y-auto p-4">
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-3xl relative my-8 max-h-[90vh] overflow-y-auto">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-2xl font-bold"
-              onClick={() => setShowAdminModal(false)}
-              aria-label="Close"
-            >
-              &times;
-            </button>
-            
-            {/* Profile Header */}
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 mb-6">
-              <img src={admin.avatar} alt={admin.name} className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-indigo-200 shadow" />
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
-                <div>
-                  <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Name:</span> {admin.name}</div>
-                  <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Job Title:</span> {admin.jobTitle}</div>
-                  <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Middle Name:</span> {admin.middleName}</div>
-                </div>
-                <div>
-                  <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Status:</span> <span className={admin.status === "Active" ? "text-green-600" : "text-red-600"}>{admin.status}</span></div>
-                  <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">ID:</span> {admin.id}</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4 min-h-screen" onClick={() => setShowAdminModal(false)}>
+          <div className="flex flex-col justify-center items-center w-full min-h-screen">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-3xl relative max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-2xl font-bold"
+                onClick={() => setShowAdminModal(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+              
+              {/* Profile Header */}
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 mb-6">
+                <img src={admin.avatar} alt={admin.name} className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-indigo-200 shadow" />
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
+                  <div>
+                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Name:</span> {admin.name}</div>
+                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Job Title:</span> {admin.jobTitle}</div>
+                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Middle Name:</span> {admin.middleName}</div>
+                  </div>
+                  <div>
+                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Status:</span> <span className={admin.status === "Active" ? "text-green-600" : "text-red-600"}>{admin.status}</span></div>
+                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">ID:</span> {admin.id}</div>
+                  </div>
                 </div>
               </div>
+              
+              {/* Collapsible Sections */}
+              {/* Contacts */}
+              <Section title="Contacts" open={openSection.contacts} onClick={() => toggleSection('contacts')}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Mobile 1:</span> {admin.contacts.mobile}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Email:</span> <a href={`mailto:${admin.contacts.email}`} className="text-blue-600 underline">{admin.contacts.email}</a></div>
+                </div>
+              </Section>
+              
+              {/* Company Details */}
+              <Section title="Company Details" open={openSection.company} onClick={() => toggleSection('company')}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Department:</span> {admin.company.department}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Line Manager:</span> {admin.company.manager}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Joining Date:</span> {admin.company.joiningDate}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Exit Date:</span> {admin.company.exitDate || '-'}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Years of Service:</span> {admin.company.yearsOfService}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Attendance Program:</span> {admin.company.attendance}</div>
+                </div>
+              </Section>
+              
+              {/* Personal Details */}
+              <Section title="Personal Details" open={openSection.personal} onClick={() => toggleSection('personal')}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Gender:</span> {admin.personal.gender}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Nationality:</span> {admin.personal.nationality}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Birth Day:</span> {admin.personal.birthDay}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Marital Status:</span> {admin.personal.maritalStatus}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Children Count:</span> {admin.personal.children}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Current Address:</span> {admin.personal.currentAddress}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Permanent Address:</span> {admin.personal.permanentAddress}</div>
+                </div>
+              </Section>
+              
+              {/* Passport Details */}
+              <Section title="Passport Details" open={openSection.passport} onClick={() => toggleSection('passport')}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Passport Number:</span> {admin.passport.number}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Passport Issue Date:</span> {admin.passport.issueDate}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Passport Expiry Date:</span> {admin.passport.expiryDate}</div>
+                </div>
+              </Section>
+              
+              {/* Residency Details */}
+              <Section title="Residency Details" open={openSection.residency} onClick={() => toggleSection('residency')}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Sponsor Company:</span> {admin.residency.sponsorCompany}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Issue Date:</span> {admin.residency.issueDate}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Expiry Date:</span> {admin.residency.expiryDate}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Visa Number:</span> {admin.residency.visaNumber}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Employment Sponsor Company:</span> {admin.residency.employmentSponsor}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">National ID Number:</span> {admin.residency.nationalId}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">National ID Expiry:</span> {admin.residency.nationalIdExpiry}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Company:</span> {admin.residency.insuranceCompany}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Card Number:</span> {admin.residency.insuranceCard}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Expiry Date:</span> {admin.residency.insuranceExpiry}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Number:</span> {admin.residency.drivingLicenceNumber || '-'}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Issue Date:</span> {admin.residency.drivingLicenceIssue || '-'}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Expiry Date:</span> {admin.residency.drivingLicenceExpiry || '-'}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Labour Id Number:</span> {admin.residency.labourId || '-'}</div>
+                  <div className="text-sm sm:text-base"><span className="font-semibold">Labour Id Expiry Date:</span> {admin.residency.labourIdExpiry || '-'}</div>
+                </div>
+              </Section>
+              
+              {/* Documents */}
+              <Section title="Documents" open={openSection.documents} onClick={() => toggleSection('documents')}>
+                <div className="flex flex-wrap gap-3 sm:gap-4">
+                  {admin.documents.map((doc, idx) => (
+                    <div key={idx} className="flex flex-col items-center border rounded-lg p-2 bg-gray-50 shadow-sm w-28 sm:w-32">
+                      <div className="text-3xl sm:text-4xl text-red-400 mb-1">📄</div>
+                      <div className="text-xs font-semibold mb-1 text-center">{doc.name}</div>
+                      <div className="text-xs text-gray-500 mb-1">{doc.date}</div>
+                      <button className="text-xs text-blue-600 underline">Download</button>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+              
+              {/* Policy Acknowledgements */}
+              <Section title="Policy Acknowledgements" open={openSection.policy} onClick={() => toggleSection('policy')}>
+                <div className="flex flex-col gap-2">
+                  {admin.policyAcknowledgements.map((p, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm sm:text-base">
+                      <span>{p.name}</span>
+                      {p.acknowledged ? (
+                        <span className="text-green-600">✔</span>
+                      ) : (
+                        <span className="text-red-600">✖</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Section>
             </div>
-            
-            {/* Collapsible Sections */}
-            {/* Contacts */}
-            <Section title="Contacts" open={openSection.contacts} onClick={() => toggleSection('contacts')}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div className="text-sm sm:text-base"><span className="font-semibold">Mobile 1:</span> {admin.contacts.mobile}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Email:</span> <a href={`mailto:${admin.contacts.email}`} className="text-blue-600 underline">{admin.contacts.email}</a></div>
-              </div>
-            </Section>
-            
-            {/* Company Details */}
-            <Section title="Company Details" open={openSection.company} onClick={() => toggleSection('company')}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div className="text-sm sm:text-base"><span className="font-semibold">Department:</span> {admin.company.department}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Line Manager:</span> {admin.company.manager}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Joining Date:</span> {admin.company.joiningDate}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Exit Date:</span> {admin.company.exitDate || '-'}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Years of Service:</span> {admin.company.yearsOfService}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Attendance Program:</span> {admin.company.attendance}</div>
-              </div>
-            </Section>
-            
-            {/* Personal Details */}
-            <Section title="Personal Details" open={openSection.personal} onClick={() => toggleSection('personal')}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div className="text-sm sm:text-base"><span className="font-semibold">Gender:</span> {admin.personal.gender}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Nationality:</span> {admin.personal.nationality}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Birth Day:</span> {admin.personal.birthDay}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Marital Status:</span> {admin.personal.maritalStatus}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Children Count:</span> {admin.personal.children}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Current Address:</span> {admin.personal.currentAddress}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Permanent Address:</span> {admin.personal.permanentAddress}</div>
-              </div>
-            </Section>
-            
-            {/* Passport Details */}
-            <Section title="Passport Details" open={openSection.passport} onClick={() => toggleSection('passport')}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div className="text-sm sm:text-base"><span className="font-semibold">Passport Number:</span> {admin.passport.number}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Passport Issue Date:</span> {admin.passport.issueDate}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Passport Expiry Date:</span> {admin.passport.expiryDate}</div>
-              </div>
-            </Section>
-            
-            {/* Residency Details */}
-            <Section title="Residency Details" open={openSection.residency} onClick={() => toggleSection('residency')}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                <div className="text-sm sm:text-base"><span className="font-semibold">Residency Sponsor Company:</span> {admin.residency.sponsorCompany}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Residency Issue Date:</span> {admin.residency.issueDate}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Residency Expiry Date:</span> {admin.residency.expiryDate}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Residency Visa Number:</span> {admin.residency.visaNumber}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Employment Sponsor Company:</span> {admin.residency.employmentSponsor}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">National ID Number:</span> {admin.residency.nationalId}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">National ID Expiry:</span> {admin.residency.nationalIdExpiry}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Company:</span> {admin.residency.insuranceCompany}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Card Number:</span> {admin.residency.insuranceCard}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Expiry Date:</span> {admin.residency.insuranceExpiry}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Number:</span> {admin.residency.drivingLicenceNumber || '-'}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Issue Date:</span> {admin.residency.drivingLicenceIssue || '-'}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Expiry Date:</span> {admin.residency.drivingLicenceExpiry || '-'}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Labour Id Number:</span> {admin.residency.labourId || '-'}</div>
-                <div className="text-sm sm:text-base"><span className="font-semibold">Labour Id Expiry Date:</span> {admin.residency.labourIdExpiry || '-'}</div>
-              </div>
-            </Section>
-            
-            {/* Documents */}
-            <Section title="Documents" open={openSection.documents} onClick={() => toggleSection('documents')}>
-              <div className="flex flex-wrap gap-3 sm:gap-4">
-                {admin.documents.map((doc, idx) => (
-                  <div key={idx} className="flex flex-col items-center border rounded-lg p-2 bg-gray-50 shadow-sm w-28 sm:w-32">
-                    <div className="text-3xl sm:text-4xl text-red-400 mb-1">📄</div>
-                    <div className="text-xs font-semibold mb-1 text-center">{doc.name}</div>
-                    <div className="text-xs text-gray-500 mb-1">{doc.date}</div>
-                    <button className="text-xs text-blue-600 underline">Download</button>
-                  </div>
-                ))}
-              </div>
-            </Section>
-            
-            {/* Policy Acknowledgements */}
-            <Section title="Policy Acknowledgements" open={openSection.policy} onClick={() => toggleSection('policy')}>
-              <div className="flex flex-col gap-2">
-                {admin.policyAcknowledgements.map((p, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm sm:text-base">
-                    <span>{p.name}</span>
-                    {p.acknowledged ? (
-                      <span className="text-green-600">✔</span>
-                    ) : (
-                      <span className="text-red-600">✖</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Section>
           </div>
         </div>
       )}

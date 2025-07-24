@@ -32,9 +32,9 @@ function MainLayout() {
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       <div className={`flex-1 flex flex-col transition-all duration-300 w-full
         ${
-          sidebarCollapsed
-            ? 'lg:ml-16 xl:ml-20'
-            : 'lg:ml-48 xl:ml-64'
+        sidebarCollapsed 
+          ? 'lg:ml-8 xl:ml-8' 
+          : 'lg:ml-28 xl:ml-28'
         }
       `}>
         <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
