@@ -1435,7 +1435,7 @@ export default function MainTable() {
           </div>
           {/* Table */}
           <div className="flex-1 flex flex-col">
-            <div className="w-full px-4 py-0 bg-white rounded-lg shadow">
+            <div className="w-full px-4 py-0 bg-white rounded-lg shadow overflow-x-auto">
               <table className="w-full table-auto bg-white rounded-lg">
                 {/* Table header */}
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -1877,7 +1877,7 @@ export default function MainTable() {
             </div>
           )}
           {completedTasks.length > 0 && (
-            <div className="w-full px-4 py-0 mt-1 bg-white rounded-lg shadow">
+            <div className="w-full px-4 py-0 mt-1 bg-white rounded-lg shadow overflow-x-auto">
               <table className="w-full table-auto bg-white rounded-lg">
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
