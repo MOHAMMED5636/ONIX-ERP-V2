@@ -116,6 +116,14 @@ function AdminMessageModal({ open, onClose, message }) {
         </button>
         <h2 className="text-lg sm:text-xl font-bold text-indigo-700 mb-2">{message.title}</h2>
         <div className="text-sm sm:text-base text-gray-700 mb-2">{message.body}</div>
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+          >
+            Got it
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -148,7 +156,8 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(null);
   // Admin message popup state
   const [showAdminMsg, setShowAdminMsg] = useState(() => {
-    return localStorage.getItem('adminMsgRead') !== 'true';
+    // Disable the modal by default for now
+    return false; // localStorage.getItem('adminMsgRead') !== 'true';
   });
   const adminMessage = {
     title: t('Welcome to the ERP Dashboard!'),

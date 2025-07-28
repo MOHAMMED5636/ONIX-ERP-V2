@@ -81,7 +81,7 @@ export default function Navbar({ onMenuToggle }) {
   };
   
   return (
-    <header className="w-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl flex items-center justify-between px-3 sm:px-6 py-3 z-40 border-b border-indigo-100 backdrop-blur-md">
+    <header className="w-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl flex items-center px-3 sm:px-6 py-4 z-40 border-b border-indigo-100 backdrop-blur-md">
       {/* Left section: Menu button and Logo */}
       <div className="flex items-center gap-3">
         {/* Mobile menu button */}
@@ -100,7 +100,7 @@ export default function Navbar({ onMenuToggle }) {
       </div>
 
       {/* Center section: Search bar */}
-      <div className="flex-1 flex justify-center max-w-md mx-4">
+      <div className="flex-1 min-w-0 flex justify-center items-center max-w-md mx-4">
         {/* Mobile search toggle */}
         <button
           onClick={() => setShowSearch(!showSearch)}
@@ -147,11 +147,9 @@ export default function Navbar({ onMenuToggle }) {
       `}</style>
 
       {/* Right section: Controls */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-4 ml-auto">
         {/* ERP Admin title - hidden on small mobile */}
-        <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold shadow border border-blue-200 hover:bg-blue-100 transition pill-pop relative">
-          <UserCircleIcon className="h-6 w-6 text-indigo-400 mr-1" /> ERP {t("Admin")}
-        </span>
+        {/* Removed Admin and Logout controls for Sidebar migration */}
         {/* Chatroom Button */}
         <button
           onClick={() => navigate("/project-chat")}
@@ -172,23 +170,6 @@ export default function Navbar({ onMenuToggle }) {
           <span className="hidden sm:inline">{lang === "en" ? "EN | ع" : "ع | EN"}</span>
           <span className="sm:hidden">{lang === "en" ? "EN" : "ع"}</span>
         </button>
-        {/* Profile button */}
-        <button 
-          className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 text-indigo-700 font-bold shadow border border-indigo-200 hover:bg-indigo-100 transition pill-pop focus:outline-none" 
-          onClick={() => setShowAdminModal(true)}
-        >
-          <img src={admin.avatar} alt="Admin" className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border-2 border-indigo-200 shadow mr-1" />
-          <span className="hidden sm:inline font-medium">Admin</span>
-          <svg className="h-4 w-4 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-        </button>
-        {/* Logout button */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-50 text-red-600 font-bold shadow border border-red-200 hover:bg-red-100 transition pill-pop"
-        >
-          <ArrowRightOnRectangleIcon className="h-5 w-5" />
-          <span className="hidden sm:inline">Logout</span>
-        </button>
       </div>
       <style>{`
         .glass-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); }
@@ -200,29 +181,45 @@ export default function Navbar({ onMenuToggle }) {
 
       {/* Admin Modal */}
       {showAdminModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4 min-h-screen" onClick={() => setShowAdminModal(false)}>
-          <div className="flex flex-col justify-center items-center w-full min-h-screen">
-            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-3xl relative max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4" onClick={() => setShowAdminModal(false)}>
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Admin Profile</h2>
               <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-2xl font-bold"
+                className="text-gray-400 hover:text-red-500 text-2xl font-bold"
                 onClick={() => setShowAdminModal(false)}
                 aria-label="Close"
               >
                 &times;
               </button>
-              
+            </div>
+            
+            <div className="p-6 space-y-6">
               {/* Profile Header */}
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 mb-6">
-                <img src={admin.avatar} alt={admin.name} className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-indigo-200 shadow" />
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
-                  <div>
-                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Name:</span> {admin.name}</div>
-                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Job Title:</span> {admin.jobTitle}</div>
-                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Middle Name:</span> {admin.middleName}</div>
-                  </div>
-                  <div>
-                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">Status:</span> <span className={admin.status === "Active" ? "text-green-600" : "text-red-600"}>{admin.status}</span></div>
-                    <div className="mb-2 text-sm sm:text-base"><span className="font-semibold">ID:</span> {admin.id}</div>
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                <img src={admin.avatar} alt={admin.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-200 shadow" />
+                <div className="flex-1 w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Name:</span>
+                      <span className="text-gray-900">{admin.name}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Job Title:</span>
+                      <span className="text-gray-900">{admin.jobTitle}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Middle Name:</span>
+                      <span className="text-gray-900">{admin.middleName}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Status:</span>
+                      <span className={admin.status === "Active" ? "text-green-600" : "text-red-600"}>{admin.status}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">ID:</span>
+                      <span className="text-gray-900">{admin.id}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -230,76 +227,175 @@ export default function Navbar({ onMenuToggle }) {
               {/* Collapsible Sections */}
               {/* Contacts */}
               <Section title="Contacts" open={openSection.contacts} onClick={() => toggleSection('contacts')}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Mobile 1:</span> {admin.contacts.mobile}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Email:</span> <a href={`mailto:${admin.contacts.email}`} className="text-blue-600 underline">{admin.contacts.email}</a></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Mobile:</span>
+                    <span className="text-gray-900">{admin.contacts.mobile}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Email:</span>
+                    <a href={`mailto:${admin.contacts.email}`} className="text-blue-600 underline">{admin.contacts.email}</a>
+                  </div>
                 </div>
               </Section>
               
               {/* Company Details */}
               <Section title="Company Details" open={openSection.company} onClick={() => toggleSection('company')}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Department:</span> {admin.company.department}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Line Manager:</span> {admin.company.manager}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Joining Date:</span> {admin.company.joiningDate}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Exit Date:</span> {admin.company.exitDate || '-'}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Years of Service:</span> {admin.company.yearsOfService}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Attendance Program:</span> {admin.company.attendance}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Department:</span>
+                    <span className="text-gray-900">{admin.company.department}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Line Manager:</span>
+                    <span className="text-gray-900">{admin.company.manager}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Joining Date:</span>
+                    <span className="text-gray-900">{admin.company.joiningDate}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Exit Date:</span>
+                    <span className="text-gray-900">{admin.company.exitDate || '-'}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Years of Service:</span>
+                    <span className="text-gray-900">{admin.company.yearsOfService}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Attendance Program:</span>
+                    <span className="text-gray-900">{admin.company.attendance}</span>
+                  </div>
                 </div>
               </Section>
               
               {/* Personal Details */}
               <Section title="Personal Details" open={openSection.personal} onClick={() => toggleSection('personal')}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Gender:</span> {admin.personal.gender}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Nationality:</span> {admin.personal.nationality}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Birth Day:</span> {admin.personal.birthDay}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Marital Status:</span> {admin.personal.maritalStatus}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Children Count:</span> {admin.personal.children}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Current Address:</span> {admin.personal.currentAddress}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Permanent Address:</span> {admin.personal.permanentAddress}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Gender:</span>
+                    <span className="text-gray-900">{admin.personal.gender}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Nationality:</span>
+                    <span className="text-gray-900">{admin.personal.nationality}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Birth Day:</span>
+                    <span className="text-gray-900">{admin.personal.birthDay}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Marital Status:</span>
+                    <span className="text-gray-900">{admin.personal.maritalStatus}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Children Count:</span>
+                    <span className="text-gray-900">{admin.personal.children}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Current Address:</span>
+                    <span className="text-gray-900">{admin.personal.currentAddress}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Permanent Address:</span>
+                    <span className="text-gray-900">{admin.personal.permanentAddress}</span>
+                  </div>
                 </div>
               </Section>
               
               {/* Passport Details */}
               <Section title="Passport Details" open={openSection.passport} onClick={() => toggleSection('passport')}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Passport Number:</span> {admin.passport.number}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Passport Issue Date:</span> {admin.passport.issueDate}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Passport Expiry Date:</span> {admin.passport.expiryDate}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Passport Number:</span>
+                    <span className="text-gray-900">{admin.passport.number}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Issue Date:</span>
+                    <span className="text-gray-900">{admin.passport.issueDate}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Expiry Date:</span>
+                    <span className="text-gray-900">{admin.passport.expiryDate}</span>
+                  </div>
                 </div>
               </Section>
               
               {/* Residency Details */}
               <Section title="Residency Details" open={openSection.residency} onClick={() => toggleSection('residency')}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Sponsor Company:</span> {admin.residency.sponsorCompany}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Issue Date:</span> {admin.residency.issueDate}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Expiry Date:</span> {admin.residency.expiryDate}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Residency Visa Number:</span> {admin.residency.visaNumber}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Employment Sponsor Company:</span> {admin.residency.employmentSponsor}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">National ID Number:</span> {admin.residency.nationalId}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">National ID Expiry:</span> {admin.residency.nationalIdExpiry}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Company:</span> {admin.residency.insuranceCompany}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Card Number:</span> {admin.residency.insuranceCard}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Insurance Expiry Date:</span> {admin.residency.insuranceExpiry}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Number:</span> {admin.residency.drivingLicenceNumber || '-'}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Issue Date:</span> {admin.residency.drivingLicenceIssue || '-'}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Driving Licence Expiry Date:</span> {admin.residency.drivingLicenceExpiry || '-'}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Labour Id Number:</span> {admin.residency.labourId || '-'}</div>
-                  <div className="text-sm sm:text-base"><span className="font-semibold">Labour Id Expiry Date:</span> {admin.residency.labourIdExpiry || '-'}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Sponsor Company:</span>
+                    <span className="text-gray-900">{admin.residency.sponsorCompany}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Issue Date:</span>
+                    <span className="text-gray-900">{admin.residency.issueDate}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Expiry Date:</span>
+                    <span className="text-gray-900">{admin.residency.expiryDate}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Visa Number:</span>
+                    <span className="text-gray-900">{admin.residency.visaNumber}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Employment Sponsor:</span>
+                    <span className="text-gray-900">{admin.residency.employmentSponsor}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">National ID:</span>
+                    <span className="text-gray-900">{admin.residency.nationalId}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">National ID Expiry:</span>
+                    <span className="text-gray-900">{admin.residency.nationalIdExpiry}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Insurance Company:</span>
+                    <span className="text-gray-900">{admin.residency.insuranceCompany}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Insurance Card:</span>
+                    <span className="text-gray-900">{admin.residency.insuranceCard}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Insurance Expiry:</span>
+                    <span className="text-gray-900">{admin.residency.insuranceExpiry}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Driving Licence:</span>
+                    <span className="text-gray-900">{admin.residency.drivingLicenceNumber || '-'}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Driving Licence Issue:</span>
+                    <span className="text-gray-900">{admin.residency.drivingLicenceIssue || '-'}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Driving Licence Expiry:</span>
+                    <span className="text-gray-900">{admin.residency.drivingLicenceExpiry || '-'}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Labour ID:</span>
+                    <span className="text-gray-900">{admin.residency.labourId || '-'}</span>
+                  </div>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="font-semibold text-gray-700">Labour ID Expiry:</span>
+                    <span className="text-gray-900">{admin.residency.labourIdExpiry || '-'}</span>
+                  </div>
                 </div>
               </Section>
               
               {/* Documents */}
               <Section title="Documents" open={openSection.documents} onClick={() => toggleSection('documents')}>
-                <div className="flex flex-wrap gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {admin.documents.map((doc, idx) => (
-                    <div key={idx} className="flex flex-col items-center border rounded-lg p-2 bg-gray-50 shadow-sm w-28 sm:w-32">
-                      <div className="text-3xl sm:text-4xl text-red-400 mb-1">📄</div>
-                      <div className="text-xs font-semibold mb-1 text-center">{doc.name}</div>
-                      <div className="text-xs text-gray-500 mb-1">{doc.date}</div>
-                      <button className="text-xs text-blue-600 underline">Download</button>
+                    <div key={idx} className="flex flex-col items-center border rounded-lg p-3 bg-gray-50 shadow-sm">
+                      <div className="text-2xl text-red-400 mb-2">📄</div>
+                      <div className="text-xs font-semibold mb-1 text-center truncate w-full">{doc.name}</div>
+                      <div className="text-xs text-gray-500 mb-2">{doc.date}</div>
+                      <button className="text-xs text-blue-600 underline hover:text-blue-800">Download</button>
                     </div>
                   ))}
                 </div>
@@ -307,14 +403,14 @@ export default function Navbar({ onMenuToggle }) {
               
               {/* Policy Acknowledgements */}
               <Section title="Policy Acknowledgements" open={openSection.policy} onClick={() => toggleSection('policy')}>
-                <div className="flex flex-col gap-2">
+                <div className="space-y-2">
                   {admin.policyAcknowledgements.map((p, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm sm:text-base">
-                      <span>{p.name}</span>
+                    <div key={idx} className="flex items-center justify-between">
+                      <span className="text-gray-900">{p.name}</span>
                       {p.acknowledged ? (
-                        <span className="text-green-600">✔</span>
+                        <span className="text-green-600 text-lg">✔</span>
                       ) : (
-                        <span className="text-red-600">✖</span>
+                        <span className="text-red-600 text-lg">✖</span>
                       )}
                     </div>
                   ))}
@@ -331,15 +427,15 @@ export default function Navbar({ onMenuToggle }) {
 // Collapsible Section Component
 function Section({ title, open, onClick, children }) {
   return (
-    <div className="mb-4 border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-hidden">
       <button
-        className="w-full flex justify-between items-center px-3 sm:px-4 py-2 sm:py-3 bg-gray-100 hover:bg-indigo-50 transition font-semibold text-left text-sm sm:text-base"
+        className="w-full flex justify-between items-center px-4 py-3 bg-gray-50 hover:bg-gray-100 transition font-semibold text-left text-sm"
         onClick={onClick}
       >
-        <span>{title}</span>
-        <span>{open ? "▲" : "▼"}</span>
+        <span className="text-gray-900">{title}</span>
+        <span className="text-gray-500">{open ? "▲" : "▼"}</span>
       </button>
-      {open && <div className="px-3 sm:px-4 py-3 bg-white">{children}</div>}
+      {open && <div className="px-4 py-4 bg-white">{children}</div>}
     </div>
   );
 } 

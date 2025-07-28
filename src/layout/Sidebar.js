@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
 import {
   HomeIcon,
@@ -13,6 +13,8 @@ import {
   XMarkIcon,
   ChatBubbleLeftRightIcon,
   BriefcaseIcon,
+  ArrowRightOnRectangleIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
@@ -82,6 +84,8 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -111,6 +115,71 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
     name: "Kaddour",
     avatar: "https://randomuser.me/api/portraits/men/32.jpg",
     status: "Online"
+  };
+
+  // Mock admin profile data (copied from Navbar)
+  const admin = {
+    name: "Kaddour Alksadour",
+    jobTitle: "Building Architect",
+    middleName: "Ahmed",
+    status: "Active",
+    id: "021002",
+    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    contacts: {
+      mobile: "+971-5034-859",
+      email: "archkadd@hotmail.com"
+    },
+    company: {
+      department: "Architecture Department",
+      manager: "John Doe",
+      joiningDate: "2/8/2021",
+      exitDate: "",
+      yearsOfService: "4.45",
+      attendance: "ONIX TIMING"
+    },
+    personal: {
+      gender: "M",
+      nationality: "Syrian Arab Republic",
+      birthDay: "1/21/1991",
+      maritalStatus: "Married",
+      children: 2,
+      currentAddress: "Dubai",
+      permanentAddress: "Dubai"
+    },
+    passport: {
+      number: "N015340713",
+      issueDate: "4/16/2022",
+      expiryDate: "10/15/2024"
+    },
+    residency: {
+      sponsorCompany: "ONIX",
+      issueDate: "3/9/2023",
+      expiryDate: "3/8/2025",
+      visaNumber: "784-1991-183517-2",
+      employmentSponsor: "ONIX",
+      nationalId: "784-1991-183517-2",
+      nationalIdExpiry: "3/8/2025",
+      insuranceCompany: "MED NET",
+      insuranceCard: "097110119351793801",
+      insuranceExpiry: "8/14/2025",
+      drivingLicenceNumber: "",
+      drivingLicenceIssue: "",
+      drivingLicenceExpiry: "",
+      labourId: "",
+      labourIdExpiry: ""
+    },
+    documents: [
+      { name: "PID 2025.pdf", type: "PDF", date: "01/01/2025" },
+      { name: "VISA 2023.pdf", type: "PDF", date: "01/01/2023" },
+      { name: "PASSPORT 2027.pdf", type: "PDF", date: "01/01/2027" },
+      { name: "GRADUATION CERT.pdf", type: "PDF", date: "01/01/2020" }
+    ],
+    policyAcknowledgements: [
+      { name: "DRESS CODE", acknowledged: false }
+    ]
+  };
+  const handleLogout = () => {
+    navigate("/login");
   };
 
   return (
@@ -151,9 +220,12 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
             </button>
             {showProfileMenu && (
               <div className="absolute left-0 right-0 mt-14 bg-white rounded-xl shadow-lg border border-indigo-100 z-50 flex flex-col text-sm animate-fade-in" onClick={e => e.stopPropagation()}>
-                <button className="px-4 py-2 hover:bg-indigo-50 text-left">My Profile</button>
-                <button className="px-4 py-2 hover:bg-indigo-50 text-left">Settings</button>
-                <button className="px-4 py-2 hover:bg-red-50 text-left text-red-600">Logout</button>
+                <button className="px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => setShowAdminModal(true)}>
+                  <UserCircleIcon className="inline-block w-5 h-5 mr-2 text-indigo-400" /> Admin
+                </button>
+                <button className="px-4 py-2 hover:bg-red-50 text-left text-red-600" onClick={handleLogout}>
+                  <ArrowRightOnRectangleIcon className="inline-block w-5 h-5 mr-2 text-red-400" /> Logout
+                </button>
               </div>
             )}
           </div>
@@ -263,6 +335,53 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
           .nav-pop:hover, .nav-pop:focus { box-shadow: 0 2px 8px 0 #a5b4fc33; }
         `}</style>
       </aside>
+      {showAdminModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4" onClick={() => setShowAdminModal(false)}>
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Admin Profile</h2>
+              <button
+                className="text-gray-400 hover:text-red-500 text-2xl font-bold"
+                onClick={() => setShowAdminModal(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Profile Header */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                <img src={admin.avatar} alt={admin.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-200 shadow" />
+                <div className="flex-1 w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Name:</span>
+                      <span className="text-gray-900">{admin.name}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Job Title:</span>
+                      <span className="text-gray-900">{admin.jobTitle}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Middle Name:</span>
+                      <span className="text-gray-900">{admin.middleName}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">Status:</span>
+                      <span className={admin.status === "Active" ? "text-green-600" : "text-red-600"}>{admin.status}</span>
+                    </div>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="font-semibold text-gray-700">ID:</span>
+                      <span className="text-gray-900">{admin.id}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* ...rest of the admin modal content as in Navbar... */}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 } 

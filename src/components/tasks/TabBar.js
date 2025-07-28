@@ -14,7 +14,7 @@ const tabs = [
 
 export default function TabBar({ activeTab, setActiveTab }) {
   return (
-    <nav className="w-full border-b border-gray-200 bg-white px-4 pt-4 pb-0 overflow-x-auto">
+    <nav className="w-full border-b border-gray-200 bg-white px-4 pb-0 overflow-x-auto">
       <ul className="flex gap-2 sm:gap-4 whitespace-nowrap">
         {tabs.map((tab, idx) => (
           <li key={tab.key} className={idx === 0 ? 'ml-2' : ''}>

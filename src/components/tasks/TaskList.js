@@ -7,7 +7,7 @@ import KanbanBoard from "./KanbanBoard";
 export default function TaskList() {
   const [activeTab, setActiveTab] = useState("main-table");
   return (
-    <div className="w-full min-h-screen bg-white flex flex-col">
+    <div className="w-full bg-white flex flex-col">
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
       <ActionControls />
       {activeTab === "main-table" && <MainTable />}

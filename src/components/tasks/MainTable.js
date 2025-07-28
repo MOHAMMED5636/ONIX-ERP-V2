@@ -44,6 +44,11 @@ const initialTasks = [
     attachments: [],
     priority: "Low",
     location: "Onix engineering co.",
+    plotNumber: "PLOT-001",
+    community: "Downtown District",
+    projectType: "Residential",
+    projectFloor: "5",
+    developerProject: "Onix Development",
     checklist: false,
     rating: 3,
     progress: 50,
@@ -62,6 +67,11 @@ const initialTasks = [
         attachments: [],
         priority: "Low",
         location: "",
+        plotNumber: "PLOT-001-1",
+        community: "Downtown District",
+        projectType: "Residential",
+        projectFloor: "5",
+        developerProject: "Onix Development",
         completed: false,
         checklist: false,
         rating: 2,
@@ -241,7 +251,9 @@ export default function MainTable() {
   const [editingSubtask, setEditingSubtask] = useState({}); // {subId_colKey: true}
   const [editSubValue, setEditSubValue] = useState("");
   const [showAddColumnDropdown, setShowAddColumnDropdown] = useState(false);
-  const [expanded, setExpanded] = useState({}); // {taskId: true/false}
+  // Add two separate expanded state objects
+  const [expandedActive, setExpandedActive] = useState({}); // For active projects
+  const [expandedCompleted, setExpandedCompleted] = useState({}); // For completed projects
   const [newTask, setNewTask] = useState(null);
   // Add a state for rating prompt
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
@@ -294,16 +306,19 @@ export default function MainTable() {
   }
   function handleMarkSubtaskComplete(taskId, subId) {
     setTasks(tasks =>
-      tasks.map(t =>
-        t.id === taskId
-          ? {
-            ...t,
-            subtasks: t.subtasks.map(s =>
-              s.id === subId ? { ...s, status: "done", completed: true } : s
-            )
-          }
-          : t
-      )
+      tasks.map(t => {
+        if (t.id !== taskId) return t;
+        const updatedSubtasks = t.subtasks.map(s =>
+          s.id === subId ? { ...s, status: "done", completed: true } : s
+        );
+        // Check if all subtasks are done
+        const allDone = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.status === 'done');
+        return {
+          ...t,
+          subtasks: updatedSubtasks,
+          status: allDone ? 'done' : t.status
+        };
+      })
     );
   }
   function handleCreateTask() {
@@ -411,7 +426,15 @@ export default function MainTable() {
             prevEnd = updatedSubtasks[i].timeline && isValid(updatedSubtasks[i].timeline[1]) ? new Date(updatedSubtasks[i].timeline[1]) : prevEnd;
           }
         }
-        return { ...t, subtasks: updatedSubtasks };
+        // If all subtasks are done, set main task status to 'done'
+        const allDone = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.status === 'done');
+        // Calculate average progress of subtasks
+        let avgProgress = t.progress;
+        if (updatedSubtasks.length > 0) {
+          const total = updatedSubtasks.reduce((sum, s) => sum + (typeof s.progress === 'number' ? s.progress : 0), 0);
+          avgProgress = Math.round(total / updatedSubtasks.length);
+        }
+        return { ...t, subtasks: updatedSubtasks, status: allDone ? 'done' : t.status, progress: avgProgress };
       })
     );
   }
@@ -421,8 +444,13 @@ export default function MainTable() {
     setEditSubValue(value);
   }
 
-  function toggleExpand(taskId) {
-    setExpanded(exp => ({ ...exp, [taskId]: !exp[taskId] }));
+  // Update toggleExpand to accept a type (active/completed)
+  function toggleExpand(taskId, type = 'active') {
+    if (type === 'active') {
+      setExpandedActive(exp => ({ ...exp, [taskId]: !exp[taskId] }));
+    } else {
+      setExpandedCompleted(exp => ({ ...exp, [taskId]: !exp[taskId] }));
+    }
   }
 
   function handleDeleteRow(id, parentTaskId = null) {
@@ -446,7 +474,7 @@ export default function MainTable() {
       referenceNumber: "",
       category: "Design",
       status: "not started",
-      owner: "",
+      owner: "AL",
       timeline: [null, null],
       planDays: 0,
       remarks: "",
@@ -454,6 +482,11 @@ export default function MainTable() {
       attachments: [],
       priority: "Low",
       location: "",
+      plotNumber: "",
+      community: "",
+      projectType: "Residential",
+      projectFloor: "",
+      developerProject: "",
       notes: "",
       autoNumber: tasks.length + 1,
       predecessors: "",
@@ -541,6 +574,11 @@ export default function MainTable() {
     { key: 'attachments', label: 'ATTACHMENTS' },
     { key: 'priority', label: 'PRIORITY' },
     { key: 'location', label: 'LOCATION' },
+    { key: 'plotNumber', label: 'PLOT NUMBER' },
+    { key: 'community', label: 'COMMUNITY' },
+    { key: 'projectType', label: 'PROJECT TYPE' },
+    { key: 'projectFloor', label: 'PROJECT FLOOR' },
+    { key: 'developerProject', label: 'DEVELOPER PROJECT' },
     { key: 'autoNumber', label: 'AUTO #' },
     { key: 'predecessors', label: 'PREDECESSORS' },
     { key: 'checklist', label: 'CHECKLIST' },
@@ -556,11 +594,28 @@ export default function MainTable() {
   const defaultColumnOrder = columns.map(col => col.key);
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('columnOrder');
-    return saved ? JSON.parse(saved) : defaultColumnOrder;
+    const parsed = saved ? JSON.parse(saved) : defaultColumnOrder;
+    
+    // Ensure all new columns are included in the order
+    const allColumns = [...new Set([...parsed, ...defaultColumnOrder])];
+    return allColumns;
   });
   useEffect(() => {
     localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
   }, [columnOrder]);
+
+  // Force refresh column order when component mounts to include new fields
+  useEffect(() => {
+    const currentOrder = columnOrder;
+    const allColumns = columns.map(col => col.key);
+    const missingColumns = allColumns.filter(col => !currentOrder.includes(col));
+    
+    if (missingColumns.length > 0) {
+      const newOrder = [...currentOrder, ...missingColumns];
+      setColumnOrder(newOrder);
+      localStorage.setItem('columnOrder', JSON.stringify(newOrder));
+    }
+  }, [columns]);
 
   const completedTasks = tasks.filter(t => t.status === "done");
 
@@ -651,11 +706,17 @@ export default function MainTable() {
         );
       case "owner":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-16 text-center"
-            value={row.owner}
+          <select
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.owner || ""}
             onChange={e => onEdit("owner", e.target.value)}
-          />
+          >
+            <option value="">Select owner</option>
+            <option value="MN">MN</option>
+            <option value="SA">SA</option>
+            <option value="AL">AL</option>
+            {/* Add all possible users here */}
+          </select>
         );
       case "timeline":
         return <TimelineCell value={row.timeline} onChange={val => onEdit("timeline", val)} />;
@@ -731,6 +792,56 @@ export default function MainTable() {
               <MapPinIcon className="w-5 h-5 text-blue-500 hover:text-blue-700" />
             </button>
           </div>
+        );
+      case "plotNumber":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.plotNumber || ""}
+            onChange={e => onEdit("plotNumber", e.target.value)}
+            placeholder="Enter plot number"
+          />
+        );
+      case "community":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.community || ""}
+            onChange={e => onEdit("community", e.target.value)}
+            placeholder="Enter community"
+          />
+        );
+      case "projectType":
+        return (
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={row.projectType || "Residential"}
+            onChange={e => onEdit("projectType", e.target.value)}
+          >
+            <option value="Residential">Residential</option>
+            <option value="Commercial">Commercial</option>
+            <option value="Industrial">Industrial</option>
+            <option value="Mixed Use">Mixed Use</option>
+            <option value="Infrastructure">Infrastructure</option>
+          </select>
+        );
+      case "projectFloor":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.projectFloor || ""}
+            onChange={e => onEdit("projectFloor", e.target.value)}
+            placeholder="Enter project floor"
+          />
+        );
+      case "developerProject":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.developerProject || ""}
+            onChange={e => onEdit("developerProject", e.target.value)}
+            placeholder="Enter developer project"
+          />
         );
       case "notes":
         return (
@@ -808,6 +919,8 @@ export default function MainTable() {
           );
         }
       case "progress":
+        // If there are subtasks, make progress read-only and show average
+        const hasSubtasks = row.subtasks && row.subtasks.length > 0;
         return (
           <div className="flex flex-col items-center">
             <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden mb-1">
@@ -824,6 +937,8 @@ export default function MainTable() {
               value={row.progress}
               onChange={e => onEdit("progress", Number(e.target.value))}
               className="w-24"
+              disabled={hasSubtasks}
+              readOnly={hasSubtasks}
             />
           </div>
         );
@@ -970,6 +1085,56 @@ export default function MainTable() {
             </button>
           </div>
         );
+      case "plotNumber":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.plotNumber || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "plotNumber", e.target.value)}
+            placeholder="Enter plot number"
+          />
+        );
+      case "community":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.community || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "community", e.target.value)}
+            placeholder="Enter community"
+          />
+        );
+      case "projectType":
+        return (
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={sub.projectType || "Residential"}
+            onChange={e => handleEditSubtask(task.id, sub.id, "projectType", e.target.value)}
+          >
+            <option value="Residential">Residential</option>
+            <option value="Commercial">Commercial</option>
+            <option value="Industrial">Industrial</option>
+            <option value="Mixed Use">Mixed Use</option>
+            <option value="Infrastructure">Infrastructure</option>
+          </select>
+        );
+      case "projectFloor":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.projectFloor || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "projectFloor", e.target.value)}
+            placeholder="Enter project floor"
+          />
+        );
+      case "developerProject":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.developerProject || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "developerProject", e.target.value)}
+            placeholder="Enter developer project"
+          />
+        );
       case "notes":
         return <span className="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded transition"><span>{sub.notes || "Add note"}</span><PencilSquareIcon className="w-4 h-4 text-gray-400" /></span>;
       case "attachments":
@@ -1090,7 +1255,7 @@ export default function MainTable() {
             type="number"
             className="border rounded px-2 py-1 text-sm text-gray-900"
             value={sub.planDays || ""}
-            onChange={e => handleEditSubtask(task.id, sub.id, "planDays", e.target.value)}
+            onChange={e => handleEditSubtask(task.id, sub.id, "planDays", Number(e.target.value))}
             placeholder="Enter plan days"
           />
         );
@@ -1119,6 +1284,15 @@ export default function MainTable() {
             value={sub.remarks || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "remarks", e.target.value)}
             placeholder="Add remarks"
+          />
+        );
+      case "assigneeNotes":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.assigneeNotes || ""}
+            onChange={e => handleEditSubtask(task.id, sub.id, "assigneeNotes", e.target.value)}
+            placeholder="Enter assignee notes"
           />
         );
       default:
@@ -1181,6 +1355,13 @@ export default function MainTable() {
   }
   const filteredColumnOptions = COLUMN_TYPE_OPTIONS.filter(opt => opt.label.toLowerCase().includes(addColumnSearch.toLowerCase()));
 
+  // Function to reset column order to include all columns
+  function resetColumnOrder() {
+    const allColumns = columns.map(col => col.key);
+    setColumnOrder(allColumns);
+    localStorage.setItem('columnOrder', JSON.stringify(allColumns));
+  }
+
   // Add the handler for subtask drag end
   function handleSubtaskDragEnd(event, taskId) {
     const { active, over } = event;
@@ -1199,505 +1380,505 @@ export default function MainTable() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex bg-gray-50">
       {/* Sidebar */}
       <aside className="w-16 bg-white border-r flex flex-col items-center py-4 space-y-6 shadow-sm">
-        <UserCircleIcon className="w-8 h-8 text-blue-500" />
-        <CalendarIcon className="w-6 h-6 text-gray-400" />
-        <MapPinIcon className="w-6 h-6 text-gray-400" />
+        {/* Icons removed as requested */}
       </aside>
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
-          <div className="flex items-center gap-2">
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 font-semibold shadow hover:bg-blue-700 transition"
-              onClick={handleAddNewTask}
-            >
-              <PlusIcon className="w-5 h-5" /> New Project
-            </button>
-            <div className="flex items-center gap-2 ml-6">
-              <div className="relative">
-                <MagnifyingGlassIcon className="w-5 h-5 absolute left-2 top-2 text-gray-400" />
-                <input
-                  className="pl-8 pr-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-blue-200"
-                  placeholder="Search"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
+      <main className="flex flex-col">
+        <div className="max-w-7xl w-full mx-auto px-4 pt-0 pb-0">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between px-6 py-1 border-b bg-white">
+            {/* Scroll indicator */}
+            <div className="text-xs text-gray-500 ml-4">
+              💡 Tip: Scroll horizontally to see all columns including Plot Number, Community, Project Type, etc.
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 font-semibold shadow hover:bg-blue-700 transition"
+                onClick={handleAddNewTask}
+              >
+                <PlusIcon className="w-5 h-5" /> New Project
+              </button>
+              <div className="flex items-center gap-2 ml-6">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 absolute left-2 top-2 text-gray-400" />
+                  <input
+                    className="pl-8 pr-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Search"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
               </div>
-              <button className="p-2 rounded hover:bg-blue-50">
-                <FunnelIcon className="w-5 h-5 text-gray-400" />
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition"
+                onClick={resetColumnOrder}
+                title="Reset columns to show all fields"
+              >
+                Show All Columns
               </button>
-              <button className="p-2 rounded hover:bg-blue-50">
-                <AdjustmentsHorizontalIcon className="w-5 h-5 text-gray-400" />
-              </button>
+              <div className="relative">
+                <button className="p-2 rounded-full hover:bg-blue-100 transition" onClick={() => setShowAddColumnDropdown(v => !v)}>
+                  <PlusIcon className="w-5 h-5 text-blue-600" />
+                </button>
+                {showAddColumnDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+                    <div className="p-2 text-gray-700">(Dropdown: Add column)</div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          <div className="relative">
-            <button className="p-2 rounded-full hover:bg-blue-100 transition" onClick={() => setShowAddColumnDropdown(v => !v)}>
-              <PlusIcon className="w-5 h-5 text-blue-600" />
-            </button>
-            {showAddColumnDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
-                <div className="p-2 text-gray-700">(Dropdown: Add column)</div>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Table */}
-        <div className="flex-1 overflow-x-auto p-6">
-          <table className="min-w-full bg-white rounded-lg shadow border border-gray-200">
-            {/* Table header */}
-            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                <tr>
-                  {columnOrder.map(key => {
-                    const col = columns.find(c => c.key === key);
-                    if (!col) return null;
-                    return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-                  })}
-                  <th key="add-column" className="px-2 py-2 text-center">
-                    <button
-                      className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                      onClick={handleShowAddColumnMenu}
-                      title="Add column"
-                      type="button"
-                    >
-                      +
-                    </button>
-                  </th>
-                </tr>
-              </SortableContext>
-            </DndContext>
-            <tbody>
-              {newTask && (
-                <tr className="bg-blue-50">
-                  {columnOrder.map((colKey, idx) => {
-                    const col = columns.find(c => c.key === colKey);
-                    if (!col) return null;
-                    return (
-                      <td key={col.key} className="px-3 py-2 align-middle">
-                        {col.key === "task" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.name}
-                            onChange={e => setNewTask({ ...newTask, name: e.target.value })}
-                          />
-                        ) : col.key === "referenceNumber" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm w-full"
-                            value={newTask.referenceNumber || ""}
-                            onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
-                          />
-                        ) : col.key === "category" ? (
-                          <select
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.category}
-                            onChange={e => setNewTask({ ...newTask, category: e.target.value })}
-                          >
-                            <option value="Design">Design</option>
-                            <option value="Development">Development</option>
-                            <option value="Testing">Testing</option>
-                            <option value="Review">Review</option>
-                          </select>
-                        ) : col.key === "status" ? (
-                          <select
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.status}
-                            onChange={e => setNewTask({ ...newTask, status: e.target.value })}
-                          >
-                            <option value="Pending">pending</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Done">Done</option>
-                            <option value="Cancelled">Cancelled</option>
-                            <option value="Suspended">Suspended</option>
-
-                          </select>
-                        ) : col.key === "owner" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.owner}
-                            onChange={e => setNewTask({ ...newTask, owner: e.target.value })}
-                          />
-                        ) : col.key === "timeline" ? (
-                          <div className="flex-1">
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Timeline:</label>
-                            <TimelineCell value={newTask.timeline} onChange={val => handleEdit(newTask, "timeline", val)} />
-                          </div>
-                        ) : col.key === "planDays" ? (
-                          <input
-                            type="number"
-                            min={0}
-                            className="border rounded px-2 py-1 text-sm w-20 text-center"
-                            value={newTask.planDays || 0}
-                            onChange={e => setNewTask(nt => ({ ...nt, planDays: Number(e.target.value) }))}
-                            placeholder="Enter plan days"
-                          />
-                        ) : col.key === "remarks" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm w-full"
-                            value={newTask.remarks || ""}
-                            onChange={e => setNewTask(nt => ({ ...nt, remarks: e.target.value }))}
-                            placeholder="Enter remarks"
-                          />
-                        ) : col.key === "assigneeNotes" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm w-full"
-                            value={newTask.assigneeNotes || ""}
-                            onChange={e => setNewTask(nt => ({ ...nt, assigneeNotes: e.target.value }))}
-                            placeholder="Enter assignee notes"
-                          />
-                        ) : col.key === "attachments" ? (
-                          <div>
-                            <input
-                              type="file"
-                              multiple
-                              onChange={e => {
-                                const files = Array.from(e.target.files);
-                                setNewTask(nt => ({ ...nt, attachments: files }));
-                              }}
-                            />
-                            <ul className="mt-1 text-xs text-gray-600">
-                              {(newTask.attachments || []).map((file, idx) => (
-                                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : col.key === "priority" ? (
-                          <select
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.priority}
-                            onChange={e => setNewTask({ ...newTask, priority: e.target.value })}
-                          >
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                          </select>
-                        ) : col.key === "location" ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              className="border rounded px-2 py-1 text-sm"
-                              value={newTask.location}
-                              onChange={e => setNewTask({ ...newTask, location: e.target.value })}
-                              placeholder="Enter location or pick on map"
-                            />
-                            <button type="button" onClick={() => handleOpenMapPicker('main', newTask.id, null, newTask.location)} title="Pick on map">
-                              <MapPinIcon className="w-5 h-5 text-blue-500 hover:text-blue-700" />
-                            </button>
-                          </div>
-                        ) : col.key === "notes" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.notes}
-                            onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
-                          />
-                        ) : col.key === "autoNumber" ? (
-                          <span>{newTask.autoNumber}</span>
-                        ) : col.key === "predecessors" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.predecessors}
-                            onChange={e => setNewTask({ ...newTask, predecessors: e.target.value })}
-                          />
-                        ) : col.key === "checklist" ? (
-                          <input
-                            type="checkbox"
-                            checked={!!newTask.checklist}
-                            onChange={e => setNewTask(nt => ({ ...nt, checklist: e.target.checked }))}
-                            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                        ) : col.key === "link" ? (
-                          <input
-                            className="border rounded px-2 py-1 text-sm"
-                            value={newTask.link}
-                            onChange={e => setNewTask({ ...newTask, link: e.target.value })}
-                          />
-                        ) : col.key === "rating" ? (
-                          <span className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map(i => (
-                              <StarIcon
-                                key={i}
-                                className={`w-5 h-5 cursor-pointer transition ${i <= newTask.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                                onClick={() => setNewTask(nt => ({ ...nt, rating: i }))}
-                                fill={i <= newTask.rating ? '#facc15' : 'none'}
+          {/* Table */}
+          <div className="flex-1 flex flex-col">
+            <div className="w-full px-4 py-0 bg-white rounded-lg shadow">
+              <table className="w-full table-auto bg-white rounded-lg">
+                {/* Table header */}
+                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                    <tr>
+                      {columnOrder.map(key => {
+                        const col = columns.find(c => c.key === key);
+                        if (!col) return null;
+                        return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+                      })}
+                      <th key="add-column" className="px-2 py-2 text-center">
+                        <button
+                          className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                          onClick={handleShowAddColumnMenu}
+                          title="Add column"
+                          type="button"
+                        >
+                          +
+                        </button>
+                      </th>
+                    </tr>
+                  </SortableContext>
+                </DndContext>
+                <tbody>
+                  {newTask && (
+                    <tr className="bg-blue-50">
+                      {columnOrder.map((colKey, idx) => {
+                        const col = columns.find(c => c.key === colKey);
+                        if (!col) return null;
+                        return (
+                          <td key={col.key} className="px-3 py-2 align-middle">
+                            {col.key === "task" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm"
+                                value={newTask.name}
+                                onChange={e => setNewTask({ ...newTask, name: e.target.value })}
                               />
-                            ))}
-                          </span>
-                        ) : col.key === "progress" ? (
-                          <div className="flex flex-col items-center">
-                            <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden mb-1">
-                              <div
-                                className="h-2 rounded bg-blue-500 transition-all duration-500"
-                                style={{ width: `${newTask.progress}%` }}
-                              ></div>
-                              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-700">{newTask.progress}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min={0}
-                              max={100}
-                              value={newTask.progress}
-                              onChange={e => setNewTask(nt => ({ ...nt, progress: Number(e.target.value) }))}
-                              className="w-24"
-                            />
-                          </div>
-                        ) : col.key === "color" ? (
-                          <label className="inline-flex items-center gap-2 cursor-pointer">
-                            <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{ background: newTask.color }}></span>
-                            <input
-                              type="color"
-                              value={newTask.color}
-                              onChange={e => setNewTask(nt => ({ ...nt, color: e.target.value }))}
-                              className="w-6 h-6 p-0 border-0 bg-transparent"
-                              style={{ visibility: 'hidden', position: 'absolute' }}
-                            />
-                            <span className="text-xs text-gray-500">{newTask.color}</span>
-                          </label>
-                        ) : col.key === "delete" ? (
-                          <button
-                            className="p-1 rounded hover:bg-red-100 transition"
-                            onClick={() => setNewTask(null)}
-                            title="Cancel"
-                          >
-                            <TrashIcon className="w-5 h-5 text-red-500" />
-                          </button>
-                        ) : null}
-                      </td>
-                    );
-                  })}
-                  <td>
-                    <button
-                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold"
-                      onClick={() => {
-                        setTasks([newTask, ...tasks]);
-                        setNewTask(null);
-                      }}
-                    >
-                      Save
-                    </button>
-                  </td>
-                </tr>
-              )}
-              {filteredTasks.map(task => (
-                <React.Fragment key={task.id}>
-                  {/* Main Task Row */}
-                  <tr className="bg-white  rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                    {columnOrder.map((colKey, idx) => {
-                      const col = columns.find(c => c.key === colKey);
-                      if (!col) return null;
-                      return (
-                        <td key={col.key} className="px-3 py-3 align-middle">
-                          {col.key === 'task' && idx === 0 ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => toggleExpand(task.id)}
-                                className="focus:outline-none"
-                                title={expanded[task.id] ? 'Collapse' : 'Expand'}
+                            ) : col.key === "referenceNumber" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.referenceNumber || ""}
+                                onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
+                              />
+                            ) : col.key === "category" ? (
+                              <select
+                                className="border rounded px-2 py-1 text-sm"
+                                value={newTask.category}
+                                onChange={e => setNewTask({ ...newTask, category: e.target.value })}
                               >
-                                {expanded[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
-                              </button>
-                              {editingTaskId === task.id ? (
+                                <option value="Design">Design</option>
+                                <option value="Development">Development</option>
+                                <option value="Testing">Testing</option>
+                                <option value="Review">Review</option>
+                              </select>
+                            ) : col.key === "status" ? (
+                              <select
+                                className="border rounded px-2 py-1 text-sm"
+                                value={newTask.status}
+                                onChange={e => setNewTask({ ...newTask, status: e.target.value })}
+                              >
+                                <option value="Pending">pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Done">Done</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Suspended">Suspended</option>
+                              </select>
+                            ) : col.key === "owner" ? (
+                              <select
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.owner || ""}
+                                onChange={e => setNewTask({ ...newTask, owner: e.target.value })}
+                              >
+                                <option value="">Select owner</option>
+                                <option value="MN">MN</option>
+                                <option value="SA">SA</option>
+                                <option value="AL">AL</option>
+                                {/* Add all possible users here */}
+                              </select>
+                            ) : col.key === "timeline" ? (
+                              <div className="flex-1">
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Timeline:</label>
+                                <TimelineCell value={newTask.timeline} onChange={val => handleEdit(newTask, "timeline", val)} />
+                              </div>
+                            ) : col.key === "planDays" ? (
+                              <input
+                                type="number"
+                                min={0}
+                                className="border rounded px-2 py-1 text-sm w-20 text-center"
+                                value={newTask.planDays || 0}
+                                onChange={e => setNewTask(nt => ({ ...nt, planDays: Number(e.target.value) }))}
+                                placeholder="Enter plan days"
+                              />
+                            ) : col.key === "remarks" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.remarks || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, remarks: e.target.value }))}
+                                placeholder="Enter remarks"
+                              />
+                            ) : col.key === "assigneeNotes" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.assigneeNotes || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, assigneeNotes: e.target.value }))}
+                                placeholder="Enter assignee notes"
+                              />
+                            ) : col.key === "attachments" ? (
+                              <div>
                                 <input
-                                  type="text"
-                                  value={editingTaskName}
-                                  autoFocus
-                                  onChange={handleProjectNameChange}
-                                  onBlur={() => handleProjectNameBlur(task)}
-                                  onKeyDown={e => handleProjectNameKeyDown(e, task)}
-                                  className="border rounded px-1 py-0.5 text-sm w-full"
-                                />
-                              ) : (
-                                <span
-                                  className="font-bold text-blue-700 hover:underline focus:outline-none cursor-pointer"
-                                  onClick={() => handleProjectNameClick(task)}
-                                  onDoubleClick={() => handleProjectNameDoubleClick(task)}
-                                >
-                                  {task.name}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            renderMainCell(col, task, (field, value) => {
-                              if (col.key === 'delete') handleDeleteRow(task.id);
-                              else handleEdit(task, field, value);
-                            })
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td key="add-column" className="px-3 py-3 align-middle">
-                      <button
-                        className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                        onClick={handleShowAddColumnMenu}
-                        title="Add column"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </td>
-                  </tr>
-                  {/* Subtasks as subtable - always render */}
-                  <tr>
-                    <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
-                      <table className="ml-12 table-fixed min-w-full">
-                        <thead>
-                          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                              <tr>
-                                <th></th> {/* Drag handle header cell for alignment */}
-                                {columnOrder.map(colKey => {
-                                  const col = columns.find(c => c.key === colKey);
-                                  if (!col) return null;
-                                  return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-                                })}
-                                <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
-                                  <button
-                                    className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                                    onClick={handleShowAddColumnMenu}
-                                    title="Add column"
-                                    type="button"
-                                  >
-                                    +
-                                  </button>
-                                </th>
-                              </tr>
-                            </SortableContext>
-                          </DndContext>
-                        </thead>
-                        <tbody>
-                          <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
-                            <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
-                              {task.subtasks.map((sub, subIdx) => (
-                                <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
-                                  {columnOrder.map(colKey => {
-                                    const col = columns.find(c => c.key === colKey);
-                                    if (!col) return null;
-                                    return (
-                                      <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>{renderSubtaskCell(col, sub, task, subIdx)}</td>
-                                    );
-                                  })}
-                                </SortableSubtaskRow>
-                              ))}
-                            </SortableContext>
-                          </DndContext>
-                          {/* Add Subtask Button and Form */}
-                          <tr>
-                            <td colSpan={columnOrder.length} className="px-3 py-2">
-                              {showSubtaskForm === task.id ? (
-                                <form
-                                  className="flex flex-wrap gap-2 items-center"
-                                  onSubmit={e => {
-                                    e.preventDefault();
-                                    handleAddSubtask(task.id);
+                                  type="file"
+                                  multiple
+                                  onChange={e => {
+                                    const files = Array.from(e.target.files);
+                                    setNewTask(nt => ({ ...nt, attachments: files }));
                                   }}
-                                >
-                                  {columnOrder.map(colKey => {
-                                    const col = columns.find(c => c.key === colKey);
-                                    if (!col) return null;
-                                    return (
-                                      <div key={col.key} className="flex-1">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">{col.label}:</label>
-                                        {col.key === "category" ? (
-                                          <select
-                                            className="border rounded px-2 py-1 text-sm"
-                                            value={newSubtask[col.key]}
-                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                          >
-                                            <option value="Design">Design</option>
-                                            <option value="Development">Development</option>
-                                            <option value="Testing">Testing</option>
-                                            <option value="Review">Review</option>
-                                          </select>
-                                        ) : col.key === "status" ? (
-                                          <select
-                                            className="border rounded px-2 py-1 text-sm"
-                                            value={newSubtask[col.key]}
-                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                          >
-                                            <option value="not started">Not Started</option>
-                                            <option value="working">Working</option>
-                                            <option value="done">Done</option>
-                                            <option value="stuck">Stuck</option>
-                                          </select>
-                                        ) : col.key === "timeline" ? (
-                                          <TimelineCell value={newSubtask[col.key]} onChange={val => setNewSubtask(s => ({ ...s, [col.key]: val }))} />
-                                        ) : col.key === "planDays" ? (
-                                          <input
-                                            type="number"
-                                            min={0}
-                                            className="border rounded px-2 py-1 text-sm w-20 text-center"
-                                            value={newSubtask[col.key] || 0}
-                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: Number(e.target.value) }))}
-                                            placeholder="Enter plan days"
-                                          />
-                                        ) : col.key === "remarks" ? (
-                                          <input
-                                            className="border rounded px-2 py-1 text-sm w-full"
-                                            value={newSubtask[col.key] || ""}
-                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                            placeholder="Enter remarks"
-                                          />
-                                        ) : col.key === "assigneeNotes" ? (
-                                          <input
-                                            className="border rounded px-2 py-1 text-sm w-full"
-                                            value={newSubtask[col.key] || ""}
-                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                            placeholder="Enter assignee notes"
-                                          />
-                                        ) : col.key === "attachments" ? (
-                                          <div>
-                                            <input
-                                              type="file"
-                                              multiple
-                                              onChange={e => {
-                                                const files = Array.from(e.target.files);
-                                                setNewSubtask(s => ({ ...s, attachments: files }));
-                                              }}
-                                            />
-                                            <ul className="mt-1 text-xs text-gray-600">
-                                              {(newSubtask.attachments || []).map((file, idx) => (
-                                                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-                                              ))}
-                                            </ul>
-                                          </div>
-                                        ) : (
-                                          <input
-                                            className="border rounded px-2 py-1 text-sm"
-                                            value={newSubtask[col.key]}
-                                            onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                                          />
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                  <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold">Add</button>
-                                  <button type="button" className="ml-2 text-gray-500 hover:underline text-sm" onClick={() => setShowSubtaskForm(null)}>Cancel</button>
-                                </form>
-                              ) : (
-                                <button
-                                  className="text-blue-600 hover:underline text-sm font-semibold"
-                                  onClick={() => setShowSubtaskForm(task.id)}
-                                >
-                                  + Add Subtask
+                                />
+                                <ul className="mt-1 text-xs text-gray-600">
+                                  {(newTask.attachments || []).map((file, idx) => (
+                                    <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : col.key === "priority" ? (
+                              <select
+                                className="border rounded px-2 py-1 text-sm"
+                                value={newTask.priority}
+                                onChange={e => setNewTask({ ...newTask, priority: e.target.value })}
+                              >
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                              </select>
+                            ) : col.key === "location" ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  className="border rounded px-2 py-1 text-sm"
+                                  value={newTask.location}
+                                  onChange={e => setNewTask({ ...newTask, location: e.target.value })}
+                                  placeholder="Enter location or pick on map"
+                                />
+                                <button type="button" onClick={() => handleOpenMapPicker('main', newTask.id, null, newTask.location)} title="Pick on map">
+                                  <MapPinIcon className="w-5 h-5 text-blue-500 hover:text-blue-700" />
                                 </button>
+                              </div>
+                            ) : col.key === "plotNumber" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.plotNumber || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, plotNumber: e.target.value }))}
+                                placeholder="Enter plot number"
+                              />
+                            ) : col.key === "community" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.community || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, community: e.target.value }))}
+                                placeholder="Enter community"
+                              />
+                            ) : col.key === "projectType" ? (
+                              <select
+                                className="border rounded px-2 py-1 text-sm"
+                                value={newTask.projectType || "Residential"}
+                                onChange={e => setNewTask(nt => ({ ...nt, projectType: e.target.value }))}
+                              >
+                                <option value="Residential">Residential</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Industrial">Industrial</option>
+                                <option value="Mixed Use">Mixed Use</option>
+                                <option value="Infrastructure">Infrastructure</option>
+                              </select>
+                            ) : col.key === "projectFloor" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.projectFloor || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, projectFloor: e.target.value }))}
+                                placeholder="Enter project floor"
+                              />
+                            ) : col.key === "developerProject" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm w-full"
+                                value={newTask.developerProject || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, developerProject: e.target.value }))}
+                                placeholder="Enter developer project"
+                              />
+                            ) : col.key === "notes" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm"
+                                value={newTask.notes}
+                                onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+                              />
+                            ) : col.key === "autoNumber" ? (
+                              <span>{newTask.autoNumber}</span>
+                            ) : col.key === "predecessors" ? (
+                              <input
+                                className="border rounded px-2 py-1 text-sm"
+                                    value={newTask.predecessors || ""}
+                                    onChange={e => setNewTask(nt => ({ ...nt, predecessors: e.target.value }))}
+                                    placeholder="Enter predecessors"
+                                  />
+                            ) : null}
+                          </td>
+                        );
+                      })}
+                          <td key="add-column" className="px-3 py-3 align-middle">
+                        <button
+                              className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                              onClick={handleShowAddColumnMenu}
+                              title="Add column"
+                              type="button"
+                            >
+                              +
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                  {filteredTasks.map(task => (
+                    <React.Fragment key={task.id}>
+                      {/* Main Task Row */}
+                      <tr className="bg-white  rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                        {columnOrder.map((colKey, idx) => {
+                          const col = columns.find(c => c.key === colKey);
+                          if (!col) return null;
+                          return (
+                            <td key={col.key} className="px-3 py-3 align-middle">
+                              {col.key === 'task' && idx === 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => toggleExpand(task.id, 'active')}
+                                    className="focus:outline-none"
+                                    title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
+                                  >
+                                    {expandedActive[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
+                                  </button>
+                                  {editingTaskId === task.id ? (
+                                    <input
+                                      type="text"
+                                      value={editingTaskName}
+                                      autoFocus
+                                      onChange={handleProjectNameChange}
+                                      onBlur={() => handleProjectNameBlur(task)}
+                                      onKeyDown={e => handleProjectNameKeyDown(e, task)}
+                                      className="border rounded px-1 py-0.5 text-sm w-full"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="font-bold text-blue-700 hover:underline focus:outline-none cursor-pointer"
+                                      onClick={() => handleProjectNameClick(task)}
+                                      onDoubleClick={() => handleProjectNameDoubleClick(task)}
+                                    >
+                                      {task.name}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                renderMainCell(col, task, (field, value) => {
+                                  if (col.key === 'delete') handleDeleteRow(task.id);
+                                  else handleEdit(task, field, value);
+                                })
                               )}
                             </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-
+                          );
+                        })}
+                        <td key="add-column" className="px-3 py-3 align-middle">
+                          <button
+                            className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                            onClick={handleShowAddColumnMenu}
+                            title="Add column"
+                            type="button"
+                          >
+                            +
+                          </button>
+                        </td>
+                      </tr>
+                      {/* Subtasks as subtable - always render */}
+                      {expandedActive[task.id] && (
+                        <tr>
+                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
+                            <table className="ml-12 table-fixed min-w-full">
+                              <thead>
+                                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                                    <tr>
+                                      <th></th> {/* Drag handle header cell for alignment */}
+                                      {columnOrder.map(colKey => {
+                                        const col = columns.find(c => c.key === colKey);
+                                        if (!col) return null;
+                                        return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+                                      })}
+                                      <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
+                                        <button
+                                          className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                                          onClick={handleShowAddColumnMenu}
+                                          title="Add column"
+                                          type="button"
+                                        >
+                                          +
+                                        </button>
+                                      </th>
+                                    </tr>
+                                  </SortableContext>
+                                </DndContext>
+                              </thead>
+                              <tbody>
+                                <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
+                                  <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
+                                    {task.subtasks.map((sub, subIdx) => (
+                                      <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
+                                        {columnOrder.map(colKey => {
+                                          const col = columns.find(c => c.key === colKey);
+                                          if (!col) return null;
+                                          return (
+                                            <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>{renderSubtaskCell(col, sub, task, subIdx)}</td>
+                                          );
+                                        })}
+                                      </SortableSubtaskRow>
+                                    ))}
+                                  </SortableContext>
+                                </DndContext>
+                                {/* Add Subtask Button and Form */}
+                                <tr>
+                                  <td colSpan={columnOrder.length} className="px-3 py-2">
+                                    {showSubtaskForm === task.id ? (
+                                      <form
+                                        className="flex flex-wrap gap-2 items-center"
+                                        onSubmit={e => {
+                                          e.preventDefault();
+                                          handleAddSubtask(task.id);
+                                        }}
+                                      >
+                                        {columnOrder.map(colKey => {
+                                          const col = columns.find(c => c.key === colKey);
+                                          if (!col) return null;
+                                          return (
+                                            <div key={col.key} className="flex-1">
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">{col.label}:</label>
+                                              {col.key === "category" ? (
+                                                <select
+                                                  className="border rounded px-2 py-1 text-sm"
+                                                  value={newSubtask[col.key]}
+                                                  onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                >
+                                                  <option value="Design">Design</option>
+                                                  <option value="Development">Development</option>
+                                                  <option value="Testing">Testing</option>
+                                                  <option value="Review">Review</option>
+                                                </select>
+                                              ) : col.key === "status" ? (
+                                                <select
+                                                  className="border rounded px-2 py-1 text-sm"
+                                                  value={newSubtask[col.key]}
+                                                  onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                >
+                                                  <option value="not started">Not Started</option>
+                                                  <option value="working">Working</option>
+                                                  <option value="done">Done</option>
+                                                  <option value="stuck">Stuck</option>
+                                                </select>
+                                              ) : col.key === "timeline" ? (
+                                                <TimelineCell value={newSubtask[col.key]} onChange={val => setNewSubtask(s => ({ ...s, [col.key]: val }))} />
+                                              ) : col.key === "planDays" ? (
+                                                <input
+                                                  type="number"
+                                                  min={0}
+                                                  className="border rounded px-2 py-1 text-sm w-20 text-center"
+                                                  value={newSubtask[col.key] || 0}
+                                                  onChange={e => setNewSubtask(s => ({ ...s, [col.key]: Number(e.target.value) }))}
+                                                  placeholder="Enter plan days"
+                                                />
+                                              ) : col.key === "remarks" ? (
+                                                <input
+                                                  className="border rounded px-2 py-1 text-sm w-full"
+                                                  value={newSubtask[col.key] || ""}
+                                                  onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                  placeholder="Enter remarks"
+                                                />
+                                              ) : col.key === "assigneeNotes" ? (
+                                                <input
+                                                  className="border rounded px-2 py-1 text-sm w-full"
+                                                  value={newSubtask[col.key] || ""}
+                                                  onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                  placeholder="Enter assignee notes"
+                                                />
+                                              ) : col.key === "attachments" ? (
+                                                <div>
+                                                  <input
+                                                    type="file"
+                                                    multiple
+                                                    onChange={e => {
+                                                      const files = Array.from(e.target.files);
+                                                      setNewSubtask(s => ({ ...s, attachments: files }));
+                                                    }}
+                                                  />
+                                                  <ul className="mt-1 text-xs text-gray-600">
+                                                    {(newSubtask.attachments || []).map((file, idx) => (
+                                                      <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              ) : (
+                                                <input
+                                                  className="border rounded px-2 py-1 text-sm"
+                                                  value={newSubtask[col.key]}
+                                                  onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                />
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                        <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold">Add</button>
+                                        <button type="button" className="ml-2 text-gray-500 hover:underline text-sm" onClick={() => setShowSubtaskForm(null)}>Cancel</button>
+                                      </form>
+                                    ) : (
+                                      <button
+                                        className="text-blue-600 hover:underline text-sm font-semibold"
+                                        onClick={() => setShowSubtaskForm(task.id)}
+                                      >
+                                        + Add Subtask
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
           {completedTasks.length > 0 && (
-            <div className="mt-12">
-              <h2 className="text-xl  font-bold mb-4">Completed Projects</h2>
-              <table className="min-w-full overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
+            <div className="mt-12 flex items-center gap-2">
+              <h2 className="text-2xl font-extrabold bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                <svg className="w-7 h-7 text-green-400 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Completed Projects
+              </h2>
+            </div>
+          )}
+          {completedTasks.length > 0 && (
+            <div className="w-full px-4 py-0 mt-1 bg-white rounded-lg shadow">
+              <table className="w-full table-auto bg-white rounded-lg">
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                     <tr>
@@ -1731,11 +1912,11 @@ export default function MainTable() {
                               {col.key === 'task' && idx === 0 ? (
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => toggleExpand(task.id)}
+                                    onClick={() => toggleExpand(task.id, 'completed')}
                                     className="focus:outline-none"
-                                    title={expanded[task.id] ? 'Collapse' : 'Expand'}
+                                    title={expandedCompleted[task.id] ? 'Collapse' : 'Expand'}
                                   >
-                                    {expanded[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
+                                    {expandedCompleted[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
                                   </button>
                                   <button
                                     className="font-bold text-blue-700 hover:underline focus:outline-none"
@@ -1754,8 +1935,8 @@ export default function MainTable() {
                           );
                         })}
                       </tr>
-                      {/* Subtasks as subtable */}
-                      {expanded[task.id] && (
+                      {/* Subtasks as subtable - only render if expandedCompleted[task.id] */}
+                      {expandedCompleted[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
                             <table className="ml-12 table-fixed min-w-full">
@@ -1829,21 +2010,66 @@ export default function MainTable() {
           )}
           {/* Project Summary Modal */}
           {selectedProjectForSummary && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] relative">
-                <button onClick={closeProjectSummary} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800">&times;</button>
-                <h2 className="text-lg font-bold mb-2">Project Summary</h2>
-                <div className="mb-2"><b>Name:</b> {selectedProjectForSummary.name}</div>
-                <div className="mb-2"><b>Reference Number:</b> {selectedProjectForSummary.referenceNumber}</div>
-                <div className="mb-2"><b>Category:</b> {selectedProjectForSummary.category}</div>
-                <div className="mb-2"><b>Status:</b> {selectedProjectForSummary.status}</div>
-                <div className="mb-2"><b>Owner:</b> {selectedProjectForSummary.owner}</div>
-                <div className="mb-2"><b>Timeline:</b> {selectedProjectForSummary.timeline && selectedProjectForSummary.timeline.join(' - ')}</div>
-                <div className="mb-2"><b>Plan Days:</b> {selectedProjectForSummary.planDays}</div>
-                <div className="mb-2"><b>Remarks:</b> {selectedProjectForSummary.remarks}</div>
-                <div className="mb-2"><b>Assignee Notes:</b> {selectedProjectForSummary.assigneeNotes}</div>
-                <div className="mb-2"><b>Priority:</b> {selectedProjectForSummary.priority}</div>
-                <div className="mb-2"><b>Location:</b> {selectedProjectForSummary.location}</div>
+            <div className="fixed inset-0 z-50 flex justify-end bg-black bg-opacity-40">
+              <div className="bg-white h-full w-full max-w-4xl shadow-2xl rounded-l-2xl p-0 overflow-y-auto relative flex flex-col">
+                {/* Accent bar */}
+                <div className="h-3 w-full bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-400 rounded-tl-2xl" />
+                <button
+                  onClick={closeProjectSummary}
+                  className="absolute top-6 right-8 text-gray-400 hover:text-red-500 text-3xl font-bold z-10"
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+                <div className="p-16 pt-10 flex-1 flex flex-col">
+                  <h2 className="text-3xl font-extrabold mb-2 text-gray-900 tracking-tight">{selectedProjectForSummary.name}</h2>
+                  <div className="text-base text-gray-500 mb-8">Reference #: <span className="font-semibold text-gray-700">{selectedProjectForSummary.referenceNumber}</span></div>
+                  <div className="space-y-8">
+                    {/* Project Info Section */}
+                    <div>
+                      <div className="text-lg font-semibold text-blue-700 mb-4 flex items-center gap-2">
+                        <svg className="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>
+                        Project Info
+                      </div>
+                      <div className="space-y-2">
+                        <div><span className="text-gray-500">Category: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.category}</span></div>
+                        <div><span className="text-gray-500">Type: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectType}</span></div>
+                        <div><span className="text-gray-500">Plot Number: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.plotNumber}</span></div>
+                        <div><span className="text-gray-500">Community: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.community}</span></div>
+                        <div><span className="text-gray-500">Project Floor: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectFloor}</span></div>
+                        <div><span className="text-gray-500">Developer Project: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.developerProject}</span></div>
+                      </div>
+                    </div>
+                    <hr className="my-4 border-gray-200" />
+                    {/* Status Section */}
+                    <div>
+                      <div className="text-lg font-semibold text-cyan-700 mb-4 flex items-center gap-2">
+                        <svg className="h-6 w-6 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+                        Status
+                      </div>
+                      <div className="space-y-2">
+                        <div><span className="text-gray-500">Status: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.status}</span></div>
+                        <div><span className="text-gray-500">Owner: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.owner}</span></div>
+                        <div><span className="text-gray-500">Priority: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.priority}</span></div>
+                        <div><span className="text-gray-500">Timeline: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.timeline && selectedProjectForSummary.timeline.join(' - ')}</span></div>
+                        <div><span className="text-gray-500">Plan Days: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.planDays}</span></div>
+                      </div>
+                    </div>
+                    <hr className="my-4 border-gray-200" />
+                    {/* Other Info Section */}
+                    <div>
+                      <div className="text-lg font-semibold text-indigo-700 mb-4 flex items-center gap-2">
+                        <svg className="h-6 w-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h6m-7 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" /></svg>
+                        Other Info
+                      </div>
+                      <div className="space-y-2">
+                        <div><span className="text-gray-500">Location: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.location}</span></div>
+                        <div><span className="text-gray-500">Remarks: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.remarks}</span></div>
+                        <div><span className="text-gray-500">Assignee Notes: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.assigneeNotes}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1881,6 +2107,11 @@ export default function MainTable() {
               <div><span className="font-semibold">Timeline:</span> {selectedProject.timeline && selectedProject.timeline[0] && selectedProject.timeline[1] ? `${format(new Date(selectedProject.timeline[0]), 'MMM d, yyyy')} – ${format(new Date(selectedProject.timeline[1]), 'MMM d, yyyy')}` : '—'}</div>
               <div><span className="font-semibold">Plan Days:</span> {selectedProject.planDays}</div>
               <div><span className="font-semibold">Location:</span> {selectedProject.location}</div>
+              <div><span className="font-semibold">Plot Number:</span> {selectedProject.plotNumber}</div>
+              <div><span className="font-semibold">Community:</span> {selectedProject.community}</div>
+              <div><span className="font-semibold">Project Type:</span> {selectedProject.projectType}</div>
+              <div><span className="font-semibold">Project Floor:</span> {selectedProject.projectFloor}</div>
+              <div><span className="font-semibold">Developer Project:</span> {selectedProject.developerProject}</div>
               <div><span className="font-semibold">Remarks:</span> {selectedProject.remarks}</div>
               <div><span className="font-semibold">Assignee Notes:</span> {selectedProject.assigneeNotes}</div>
               <div><span className="font-semibold">Checklist:</span> <input type="checkbox" checked={!!selectedProject.checklist} readOnly className="w-5 h-5 text-blue-600 border-gray-300 rounded" /></div>

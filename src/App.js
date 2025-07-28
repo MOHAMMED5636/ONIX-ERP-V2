@@ -16,6 +16,7 @@ import Contracts from "./pages/Contracts";
 
 function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
+  const location = useLocation();
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -25,10 +26,11 @@ function MainLayout() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Hide Navbar only for /tasks route
+  const hideNavbar = location.pathname.startsWith("/tasks");
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Mobile overlay for sidebar */}
-      {/* Overlay is now handled in Sidebar.js, so remove duplicate overlay here */}
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       <div className={`flex-1 flex flex-col transition-all duration-300 w-full
         ${
@@ -37,8 +39,8 @@ function MainLayout() {
           : 'lg:ml-28 xl:ml-28'
         }
       `}>
-        <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
-        <main className="flex-1 p-2 sm:p-4 lg:p-6 w-full">
+        {!hideNavbar && <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />}
+        <main className="flex-1 w-full">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
