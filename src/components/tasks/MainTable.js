@@ -1382,9 +1382,7 @@ export default function MainTable() {
   return (
     <div className="flex bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-16 bg-white border-r flex flex-col items-center py-4 space-y-6 shadow-sm">
-        {/* Icons removed as requested */}
-      </aside>
+     
       {/* Main Content */}
       <main className="flex flex-col">
         <div className="max-w-7xl w-full mx-auto px-4 pt-0 pb-0">
