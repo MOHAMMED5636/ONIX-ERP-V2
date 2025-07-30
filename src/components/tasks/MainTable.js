@@ -264,6 +264,7 @@ export default function MainTable() {
   const [mapPickerCoords, setMapPickerCoords] = useState({ lat: null, lng: null });
   // Add GoogleMapPicker demo modal
   const [googleMapPickerOpen, setGoogleMapPickerOpen] = useState(false);
+  const [projectStartDate, setProjectStartDate] = useState(new Date()); // Add project start date state
 
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
@@ -553,6 +554,55 @@ export default function MainTable() {
     }
     setGoogleMapPickerOpen(false);
   }
+
+  // Helper: Calculate timelines based on predecessors
+  function calculateTaskTimelines(tasks, projectStartDate) {
+    // Build a lookup for tasks by id
+    const taskMap = {};
+    tasks.forEach(t => { taskMap[t.id] = t; });
+
+    // Helper to parse predecessor ids (comma/space separated)
+    function getPredecessorIds(predecessors) {
+      if (!predecessors) return [];
+      return predecessors
+        .toString()
+        .split(/[, ]+/)
+        .map(s => Number(s))
+        .filter(n => !isNaN(n));
+    }
+
+    // Calculate timelines for each task
+    return tasks.map(task => {
+      let startDate = projectStartDate;
+      const predIds = getPredecessorIds(task.predecessors);
+      if (predIds.length > 0) {
+        // Find latest end date among predecessors
+        let latestEnd = null;
+        predIds.forEach(pid => {
+          const predTask = taskMap[pid];
+          if (predTask && predTask.timeline && predTask.timeline[1]) {
+            const predEnd = new Date(predTask.timeline[1]);
+            if (!latestEnd || predEnd > latestEnd) latestEnd = predEnd;
+          }
+        });
+        if (latestEnd) {
+          startDate = addDays(latestEnd, 1);
+        }
+      }
+      // Calculate end date
+      const duration = task.planDays > 0 ? task.planDays : 1;
+      const endDate = addDays(startDate, duration - 1);
+      return {
+        ...task,
+        timeline: [startDate, endDate]
+      };
+    });
+  }
+
+  // Recalculate timelines whenever tasks or projectStartDate change
+  useEffect(() => {
+    setTasks(ts => calculateTaskTimelines(ts, projectStartDate));
+  }, [projectStartDate, /* optionally: tasks.length, tasks.map(t=>t.planDays), tasks.map(t=>t.predecessors), etc. */]);
 
   const filteredTasks = tasks.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -1385,7 +1435,7 @@ export default function MainTable() {
      
       {/* Main Content */}
       <main className="flex flex-col">
-        <div className="max-w-7xl w-full mx-auto px-4 pt-0 pb-0">
+        <div className="w-full px-4 pt-0 pb-0">
           {/* Top Bar */}
           <div className="flex items-center justify-between px-6 py-1 border-b bg-white">
             {/* Scroll indicator */}
@@ -2222,4 +2272,4 @@ function DraggableHeader({ col, colKey }) {
       </span>
     </th>
   );
-} 
+}
