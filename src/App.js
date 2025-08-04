@@ -13,6 +13,13 @@ import JobTitles from "./modules/JobTitles";
 import WorkingLocations from "./modules/WorkingLocations";
 import Task from "./pages/Task";
 import Contracts from "./pages/Contracts";
+import TaskCategoryList from "./components/tasks/TaskCategoryList";
+import CompaniesPage from "./components/companies/CompaniesPage";
+import CreateCompanyPage from "./components/companies/CreateCompanyPage";
+import SubDepartmentsPage from "./modules/SubDepartmentsPage";
+import PositionsPage from "./modules/PositionsPage";
+import JobTitlesPage from "./modules/JobTitlesPage";
+import EmployeeSectionPage from "./modules/EmployeeSectionPage";
 
 function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
@@ -49,10 +56,17 @@ function MainLayout() {
             <Route path="/employees" element={<Employees />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/departments" element={<Departments />} />
+            <Route path="/company-resources/departments/:departmentId" element={<SubDepartmentsPage />} />
+            <Route path="/company-resources/departments/:departmentId/positions/:subDepartmentId" element={<PositionsPage />} />
+            <Route path="/company-resources/departments/:departmentId/positions/:subDepartmentId/job-titles/:positionId" element={<JobTitlesPage />} />
+            <Route path="/company-resources/departments/:departmentId/positions/:subDepartmentId/job-titles/:positionId/employees/:jobTitleId" element={<EmployeeSectionPage />} />
             <Route path="/job-titles" element={<JobTitles />} />
             <Route path="/working-locations" element={<WorkingLocations />} />
             <Route path="/tasks/*" element={<Task />} />
             <Route path="/contracts/*" element={<Contracts />} />
+            <Route path="/task-categories" element={<TaskCategoryList />} />
+            <Route path="/companies" element={<CompaniesPage />} />
+            <Route path="/companies/create" element={<CreateCompanyPage />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>

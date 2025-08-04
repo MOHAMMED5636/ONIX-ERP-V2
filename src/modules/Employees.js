@@ -1,5 +1,56 @@
 import React, { useState, createContext, useContext } from "react";
 import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
+
+// Custom styles for PhoneInput integration
+const phoneInputStyles = `
+  .react-tel-input .form-control {
+    width: 100% !important;
+    height: 42px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.375rem !important;
+    padding-left: 50px !important;
+    font-size: 0.875rem !important;
+    background-color: white !important;
+  }
+  .react-tel-input .form-control:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 1px #3b82f6 !important;
+    outline: none !important;
+  }
+  .react-tel-input .flag-dropdown {
+    border: 1px solid #d1d5db !important;
+    border-right: none !important;
+    border-radius: 0.375rem 0 0 0.375rem !important;
+    background-color: white !important;
+  }
+  .react-tel-input .flag-dropdown.open {
+    border-color: #3b82f6 !important;
+  }
+  .react-tel-input .selected-flag {
+    height: 42px !important;
+    padding: 0 8px 0 12px !important;
+    border-radius: 0.375rem 0 0 0.375rem !important;
+  }
+  .react-tel-input .country-list {
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.375rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    max-height: 200px !important;
+  }
+  .react-tel-input .country-list .country {
+    padding: 8px 12px !important;
+    font-size: 0.875rem !important;
+  }
+  .react-tel-input .country-list .country:hover {
+    background-color: #f3f4f6 !important;
+  }
+  .react-tel-input .country-list .country.highlight {
+    background-color: #3b82f6 !important;
+    color: white !important;
+  }
+`;
 
 // Demo employee data
 const demoEmployees = [
@@ -15,6 +66,7 @@ function useEmployeeForm() { return useContext(EmployeeFormContext); }
 
 const steps = [
   { label: "Personal Info", icon: UserIcon },
+  { label: "Personal Details", icon: UserIcon },
   { label: "Contact Info", icon: PhoneIcon },
   { label: "Company Info", icon: BriefcaseIcon },
   { label: "Legal Info", icon: IdentificationIcon },
@@ -27,7 +79,6 @@ function EmployeeForm({ onBack }) {
   const [form, setForm] = useState({
     employeeType: "",
     firstName: "",
-    middleName: "",
     lastName: "",
     employeeId: "",
     status: "",
@@ -36,8 +87,11 @@ function EmployeeForm({ onBack }) {
     gender: "",
     maritalStatus: "",
     nationality: "",
+    currentAddress: "",
+    permanentAddress: "",
+    childrenCount: "",
     birthday: "",
-    contacts: [{ type: "phone", value: "" }],
+    contacts: [{ type: "phone", value: "", countryCode: "ae" }],
     emails: [""],
     department: "",
     jobTitle: "",
@@ -78,14 +132,25 @@ function EmployeeForm({ onBack }) {
   // Context value
   const ctxValue = { form, setForm };
 
+  // Helper function to format phone number for submission
+  const formatPhoneForSubmission = (phoneNumber, countryCode) => {
+    // Remove any non-digit characters except the + sign
+    const cleaned = phoneNumber.replace(/[^\d+]/g, '');
+    // Ensure it starts with + if it doesn't already
+    return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+  };
+
   // Handlers
   const handleChange = (field, value) => setForm({ ...form, [field]: value });
-  const handleContactChange = (idx, value) => {
+  const handleContactChange = (idx, value, countryCode = null) => {
     const contacts = [...form.contacts];
     contacts[idx].value = value;
+    if (countryCode) {
+      contacts[idx].countryCode = countryCode;
+    }
     setForm({ ...form, contacts });
   };
-  const handleAddContact = () => setForm({ ...form, contacts: [...form.contacts, { type: "phone", value: "" }] });
+  const handleAddContact = () => setForm({ ...form, contacts: [...form.contacts, { type: "phone", value: "", countryCode: "ae" }] });
   const handleRemoveContact = (idx) => setForm({ ...form, contacts: form.contacts.filter((_, i) => i !== idx) });
   const handleEmailChange = (idx, value) => {
     const emails = [...form.emails];
@@ -117,26 +182,34 @@ function EmployeeForm({ onBack }) {
     if (step === 0) {
       if (!form.employeeType) errs.employeeType = "Required";
       if (!form.firstName) errs.firstName = "Required";
-      if (!form.middleName) errs.middleName = "Required";
       if (!form.lastName) errs.lastName = "Required";
       if (!form.employeeId) errs.employeeId = "Required";
       if (!form.status) errs.status = "Required";
     }
     if (step === 1) {
-      if (!form.contacts[0].value) errs.contacts = "At least one phone required";
-      if (!form.emails[0]) errs.emails = "At least one email required";
+      if (!form.gender) errs.gender = "Required";
+      if (!form.maritalStatus) errs.maritalStatus = "Required";
+      if (!form.nationality) errs.nationality = "Required";
+      if (!form.currentAddress) errs.currentAddress = "Required";
+      if (!form.permanentAddress) errs.permanentAddress = "Required";
+      if (!form.childrenCount) errs.childrenCount = "Required";
+      if (!form.birthday) errs.birthday = "Required";
     }
     if (step === 2) {
+      if (!form.contacts[0].value) errs.contacts = "At least one phone required";
+      if (form.contacts[0].value && form.contacts[0].value.length < 8) errs.contacts = "Phone number must be at least 8 digits";
+      if (!form.emails[0]) errs.emails = "At least one email required";
+    }
+    if (step === 3) {
       if (!form.company) errs.company = "Required";
       if (!form.department) errs.department = "Required";
       if (!form.jobTitle) errs.jobTitle = "Required";
       if (!form.attendanceProgram) errs.attendanceProgram = "Required";
       if (!form.joiningDate) errs.joiningDate = "Required";
-      if (!form.exitDate) errs.exitDate = "Required";
       if (!form.workingLocations || form.workingLocations.length === 0) errs.workingLocations = "Required";
       if (!form.manager) errs.manager = "Required";
     }
-    if (step === 3) {
+    if (step === 4) {
       // Passport
       if (!form.passportNumber) errs.passportNumber = "Required";
       if (!form.passportIssue) errs.passportIssue = "Required";
@@ -167,6 +240,19 @@ function EmployeeForm({ onBack }) {
   const handlePrev = () => setStep((s) => s - 1);
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Format phone numbers for submission
+    const formattedContacts = form.contacts.map(contact => ({
+      ...contact,
+      value: formatPhoneForSubmission(contact.value, contact.countryCode)
+    }));
+    
+    const submissionData = {
+      ...form,
+      contacts: formattedContacts
+    };
+    
+    console.log('Submitting employee data:', submissionData);
     setSubmitted(true);
   };
 
@@ -233,11 +319,7 @@ function EmployeeForm({ onBack }) {
                 <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter first name" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} />
                 {errors.firstName && <div className="text-red-500 text-xs">{errors.firstName}</div>}
               </div>
-              <div className="w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter middle name" value={form.middleName} onChange={e => handleChange('middleName', e.target.value)} />
-                {errors.middleName && <div className="text-red-500 text-xs">{errors.middleName}</div>}
-              </div>
+
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Last Name<span className="text-red-500 ml-1">*</span></label>
                 <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter last name" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} />
@@ -268,21 +350,83 @@ function EmployeeForm({ onBack }) {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end">
-              <button type="button" className="btn btn-primary" onClick={handleNext}>Next</button>
-            </div>
-          </div>
-        );
-      case 1:
-        return (
-          <div>
-            <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><PhoneIcon className="h-6 w-6 text-indigo-400" /> Contact Information</div>
+                     </div>
+         );
+       case 1:
+         return (
+           <div>
+             <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><UserIcon className="h-6 w-6 text-indigo-400" /> Personal Details</div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
+               <div className="w-full">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Gender<span className="text-red-500 ml-1">*</span></label>
+                 <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.gender} onChange={e => handleChange('gender', e.target.value)}>
+                   <option value="">Select gender</option>
+                   <option value="male">Male</option>
+                   <option value="female">Female</option>
+                   <option value="other">Other</option>
+                 </select>
+                 {errors.gender && <div className="text-red-500 text-xs">{errors.gender}</div>}
+               </div>
+               <div className="w-full">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Marital Status<span className="text-red-500 ml-1">*</span></label>
+                 <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.maritalStatus} onChange={e => handleChange('maritalStatus', e.target.value)}>
+                   <option value="">Select marital status</option>
+                   <option value="single">Single</option>
+                   <option value="married">Married</option>
+                   <option value="divorced">Divorced</option>
+                   <option value="widowed">Widowed</option>
+                 </select>
+                 {errors.maritalStatus && <div className="text-red-500 text-xs">{errors.maritalStatus}</div>}
+               </div>
+               <div className="w-full">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Nationality<span className="text-red-500 ml-1">*</span></label>
+                 <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter nationality" value={form.nationality} onChange={e => handleChange('nationality', e.target.value)} />
+                 {errors.nationality && <div className="text-red-500 text-xs">{errors.nationality}</div>}
+               </div>
+               <div className="w-full">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Children Count<span className="text-red-500 ml-1">*</span></label>
+                 <input type="number" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter children count" value={form.childrenCount} onChange={e => handleChange('childrenCount', e.target.value)} min="0" />
+                 {errors.childrenCount && <div className="text-red-500 text-xs">{errors.childrenCount}</div>}
+               </div>
+               <div className="w-full">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Birthday<span className="text-red-500 ml-1">*</span></label>
+                 <input type="date" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.birthday} onChange={e => handleChange('birthday', e.target.value)} />
+                 {errors.birthday && <div className="text-red-500 text-xs">{errors.birthday}</div>}
+               </div>
+               <div className="w-full col-span-1 md:col-span-2">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Current Address<span className="text-red-500 ml-1">*</span></label>
+                 <textarea className="w-full h-[80px] px-4 py-2 text-sm border rounded-md" placeholder="Enter current address" value={form.currentAddress} onChange={e => handleChange('currentAddress', e.target.value)} />
+                 {errors.currentAddress && <div className="text-red-500 text-xs">{errors.currentAddress}</div>}
+               </div>
+               <div className="w-full col-span-1 md:col-span-2">
+                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Permanent Address<span className="text-red-500 ml-1">*</span></label>
+                 <textarea className="w-full h-[80px] px-4 py-2 text-sm border rounded-md" placeholder="Enter permanent address" value={form.permanentAddress} onChange={e => handleChange('permanentAddress', e.target.value)} />
+                 {errors.permanentAddress && <div className="text-red-500 text-xs">{errors.permanentAddress}</div>}
+               </div>
+             </div>
+           </div>
+         );
+       case 2:
+         return (
+           <div>
+             <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><PhoneIcon className="h-6 w-6 text-indigo-400" /> Contact Information</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Phone Numbers<span className="text-red-500 ml-1">*</span></label>
                 {form.contacts.map((c, i) => (
                   <div key={i} className="flex gap-2 mb-2">
-                    <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={c.value} onChange={e => handleContactChange(i, e.target.value)} placeholder="Phone" />
+                    <PhoneInput
+                      country={'ae'}
+                      value={c.value}
+                      onChange={(phone, country) => handleContactChange(i, phone, country.countryCode)}
+                      placeholder="50 123 4567"
+                      enableSearch={true}
+                      searchPlaceholder="Search country..."
+                      preferredCountries={['ae', 'sa', 'kw', 'bh', 'om', 'qa']}
+                      autoFormat={true}
+                      disableSearchIcon={true}
+                      countryCodeEditable={false}
+                    />
                     {form.contacts.length > 1 && <button type="button" className="text-red-500" onClick={() => handleRemoveContact(i)}>Remove</button>}
                   </div>
                 ))}
@@ -301,15 +445,12 @@ function EmployeeForm({ onBack }) {
                 {errors.emails && <div className="text-red-500 text-xs">{errors.emails}</div>}
               </div>
             </div>
-            <div className="flex justify-end">
-              <button type="button" className="btn btn-primary" onClick={handleNext}>Next</button>
-            </div>
           </div>
         );
-      case 2:
-        return (
-          <div>
-            <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><BriefcaseIcon className="h-6 w-6 text-indigo-400" /> Company Information</div>
+             case 3:
+         return (
+           <div>
+             <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><BriefcaseIcon className="h-6 w-6 text-indigo-400" /> Company Information</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Company<span className="text-red-500 ml-1">*</span></label>
@@ -337,12 +478,12 @@ function EmployeeForm({ onBack }) {
                 {errors.joiningDate && <div className="text-red-500 text-xs">{errors.joiningDate}</div>}
               </div>
               <div className="w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Exit Date<span className="text-red-500 ml-1">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Exit Date</label>
                 <input type="date" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.exitDate} onChange={e => handleChange('exitDate', e.target.value)} />
                 {errors.exitDate && <div className="text-red-500 text-xs">{errors.exitDate}</div>}
               </div>
               <div className="w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Working Locations<span className="text-red-500 ml-1">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Company Location<span className="text-red-500 ml-1">*</span></label>
                 <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" multiple value={form.workingLocations} onChange={e => handleMultiSelect('workingLocations', e.target.value)}>
                   <option value="">Select locations</option>
                   <option value="HQ">HQ</option>
@@ -362,15 +503,12 @@ function EmployeeForm({ onBack }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Is Line Manager</label>
               </div>
             </div>
-            <div className="flex justify-end">
-              <button type="button" className="btn btn-primary" onClick={handleNext}>Next</button>
-            </div>
           </div>
         );
-      case 3:
-        return (
-          <div>
-            <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><IdentificationIcon className="h-6 w-6 text-indigo-400" /> Legal Information</div>
+             case 4:
+         return (
+           <div>
+             <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><IdentificationIcon className="h-6 w-6 text-indigo-400" /> Legal Information</div>
             <div className="space-y-4 mb-6">
               {/* Collapsible Section Helper */}
               {[
@@ -422,38 +560,32 @@ function EmployeeForm({ onBack }) {
                       ))}
                     </div>
                   )}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <button type="button" className="btn btn-primary" onClick={handleNext}>Next</button>
-            </div>
-          </div>
+                                 </div>
+               ))}
+             </div>
+           </div>
         );
-      case 4:
-        return (
-          <div>
-            <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><DocumentPlusIcon className="h-6 w-6 text-indigo-400" /> Upload Documents</div>
+             case 5:
+         return (
+           <div>
+             <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><DocumentPlusIcon className="h-6 w-6 text-indigo-400" /> Upload Documents</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
               <div className="w-full col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Upload Documents</label>
                 <input type="file" multiple onChange={handleFileChange} className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" />
-                {form.documents.length > 0 && (
-                  <ul className="mt-2 text-sm text-gray-600">
-                    {form.documents.map((f, i) => <li key={i}>{f.name}</li>)}
-                  </ul>
-                )}
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <button type="button" className="btn btn-primary" onClick={handleNext}>Next</button>
-            </div>
-          </div>
+                                 {form.documents.length > 0 && (
+                   <ul className="mt-2 text-sm text-gray-600">
+                     {form.documents.map((f, i) => <li key={i}>{f.name}</li>)}
+                   </ul>
+                 )}
+               </div>
+             </div>
+           </div>
         );
-      case 5:
-        return (
-          <div>
-            <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><CheckCircleIcon className="h-6 w-6 text-green-500" /> Review & Submit</div>
+             case 6:
+         return (
+           <div>
+             <div className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2"><CheckCircleIcon className="h-6 w-6 text-green-500" /> Review & Submit</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
               <div className="w-full"><b>Gender:</b> {form.gender}</div>
               <div className="w-full"><b>Marital Status:</b> {form.maritalStatus}</div>
@@ -516,40 +648,48 @@ function EmployeeForm({ onBack }) {
                 if (idx === 0) {
                   if (!form.employeeType) errs.employeeType = 'Required';
                   if (!form.firstName) errs.firstName = 'Required';
-                  if (!form.middleName) errs.middleName = 'Required';
                   if (!form.lastName) errs.lastName = 'Required';
                   if (!form.employeeId) errs.employeeId = 'Required';
                   if (!form.status) errs.status = 'Required';
                 }
-                if (idx === 1) {
-                  if (!form.contacts[0].value) errs.contacts = 'At least one phone required';
-                  if (!form.emails[0]) errs.emails = 'At least one email required';
-                }
-                if (idx === 2) {
-                  if (!form.company) errs.company = 'Required';
-                  if (!form.department) errs.department = 'Required';
-                  if (!form.jobTitle) errs.jobTitle = 'Required';
-                  if (!form.attendanceProgram) errs.attendanceProgram = 'Required';
-                  if (!form.joiningDate) errs.joiningDate = 'Required';
-                  if (!form.exitDate) errs.exitDate = 'Required';
-                  if (!form.workingLocations || form.workingLocations.length === 0) errs.workingLocations = 'Required';
-                  if (!form.manager) errs.manager = 'Required';
-                }
-                if (idx === 3) {
-                  if (!form.passportNumber) errs.passportNumber = 'Required';
-                  if (!form.passportIssue) errs.passportIssue = 'Required';
-                  if (!form.passportExpiry) errs.passportExpiry = 'Required';
-                  if (!form.nationalIdNumber) errs.nationalIdNumber = 'Required';
-                  if (!form.nationalIdExpiry) errs.nationalIdExpiry = 'Required';
-                  if (!form.residencyNumber) errs.residencyNumber = 'Required';
-                  if (!form.residencyExpiry) errs.residencyExpiry = 'Required';
-                  if (!form.insuranceNumber) errs.insuranceNumber = 'Required';
-                  if (!form.insuranceExpiry) errs.insuranceExpiry = 'Required';
-                  if (!form.drivingNumber) errs.drivingNumber = 'Required';
-                  if (!form.drivingExpiry) errs.drivingExpiry = 'Required';
-                  if (!form.labourNumber) errs.labourNumber = 'Required';
-                  if (!form.labourExpiry) errs.labourExpiry = 'Required';
-                }
+                                 if (idx === 1) {
+                   if (!form.gender) errs.gender = 'Required';
+                   if (!form.maritalStatus) errs.maritalStatus = 'Required';
+                   if (!form.nationality) errs.nationality = 'Required';
+                   if (!form.currentAddress) errs.currentAddress = 'Required';
+                   if (!form.permanentAddress) errs.permanentAddress = 'Required';
+                   if (!form.childrenCount) errs.childrenCount = 'Required';
+                   if (!form.birthday) errs.birthday = 'Required';
+                 }
+                 if (idx === 2) {
+                   if (!form.contacts[0].value) errs.contacts = 'At least one phone required';
+                   if (!form.emails[0]) errs.emails = 'At least one email required';
+                 }
+                 if (idx === 3) {
+                   if (!form.company) errs.company = 'Required';
+                   if (!form.department) errs.department = 'Required';
+                   if (!form.jobTitle) errs.jobTitle = 'Required';
+                   if (!form.attendanceProgram) errs.attendanceProgram = 'Required';
+                   if (!form.joiningDate) errs.joiningDate = 'Required';
+                   if (!form.exitDate) errs.exitDate = 'Required';
+                   if (!form.workingLocations || form.workingLocations.length === 0) errs.workingLocations = 'Required';
+                   if (!form.manager) errs.manager = 'Required';
+                 }
+                 if (idx === 4) {
+                   if (!form.passportNumber) errs.passportNumber = 'Required';
+                   if (!form.passportIssue) errs.passportIssue = 'Required';
+                   if (!form.passportExpiry) errs.passportExpiry = 'Required';
+                   if (!form.nationalIdNumber) errs.nationalIdNumber = 'Required';
+                   if (!form.nationalIdExpiry) errs.nationalIdExpiry = 'Required';
+                   if (!form.residencyNumber) errs.residencyNumber = 'Required';
+                   if (!form.residencyExpiry) errs.residencyExpiry = 'Required';
+                   if (!form.insuranceNumber) errs.insuranceNumber = 'Required';
+                   if (!form.insuranceExpiry) errs.insuranceExpiry = 'Required';
+                   if (!form.drivingNumber) errs.drivingNumber = 'Required';
+                   if (!form.drivingExpiry) errs.drivingExpiry = 'Required';
+                   if (!form.labourNumber) errs.labourNumber = 'Required';
+                   if (!form.labourExpiry) errs.labourExpiry = 'Required';
+                 }
                 return Object.keys(errs).length === 0;
               });
               const isCompleted = i < step;
@@ -597,6 +737,8 @@ function EmployeeForm({ onBack }) {
           .btn-success { @apply bg-green-600 text-white hover:bg-green-700 border-0; }
           .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(.4,0,.2,1); }
           @keyframes fadeIn { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none; } }
+          
+          ${phoneInputStyles}
         `}</style>
       </div>
     </EmployeeFormContext.Provider>
@@ -605,6 +747,12 @@ function EmployeeForm({ onBack }) {
 
 export default function Employees() {
   const [showForm, setShowForm] = useState(false);
+
+  const handleEmployeeClick = (employee) => {
+    // Navigate to employee details or edit form
+    console.log('Employee clicked:', employee);
+    // You can add navigation here when needed
+  };
   return (
     <div className="w-full h-full flex flex-col">
       {/* Top Section */}
@@ -639,7 +787,12 @@ export default function Employees() {
             {/* Mobile Cards View */}
             <div className="lg:hidden space-y-3 sm:space-y-4 px-2">
               {demoEmployees.map(emp => (
-                <div key={emp.id} className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200 hover:shadow-lg transition">
+                <div 
+                  key={emp.id} 
+                  className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200 hover:shadow-lg hover:shadow-indigo-100 transition-all duration-200 cursor-pointer transform hover:-translate-y-1"
+                  onClick={() => handleEmployeeClick(emp)}
+                  title="Click to view employee details"
+                >
                   <div className="flex items-center gap-3 mb-2 sm:mb-3">
                     <UserIcon className="h-5 w-5 text-indigo-400" />
                     <h3 className="font-semibold text-gray-800 text-sm flex-1">{emp.name}</h3>
@@ -677,7 +830,12 @@ export default function Employees() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {demoEmployees.map(emp => (
-                    <tr key={emp.id} className="hover:bg-indigo-50 transition cursor-pointer">
+                    <tr 
+                      key={emp.id} 
+                      className="hover:bg-indigo-50 transition cursor-pointer group" 
+                      onClick={() => handleEmployeeClick(emp)}
+                      title="Click to view employee details"
+                    >
                       <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap font-semibold flex items-center gap-2">
                         <UserIcon className="h-5 w-5 text-indigo-400" /> {emp.name}
                       </td>

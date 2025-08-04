@@ -323,55 +323,57 @@ export default function MainTable() {
     );
   }
   function handleCreateTask() {
-    setTasks([
-      ...tasks,
-      {
-        id: Date.now(),
-        name: "New Project",
-        referenceNumber: "",
-        category: "Design",
-        status: "not started",
-        owner: "AL",
-        timeline: [null, null],
-        planDays: 0,
-        remarks: "",
-        assigneeNotes: "",
-        attachments: [],
-        priority: "Medium",
-        location: "",
-        checklist: false,
-        rating: 3,
-        progress: 0,
-        color: "#60a5fa",
-        subtasks: [],
-        expanded: false
-      }
-    ]);
+    if (!newTask) return;
+    
+    // Validate required fields
+    if (!newTask.name || newTask.name.trim() === "") {
+      alert("Please enter a project name");
+      return;
+    }
+    
+    // Create the task with current newTask data
+    const taskToAdd = {
+      ...newTask,
+      id: Date.now(),
+      expanded: false
+    };
+    
+    setTasks(tasks => {
+      const updatedTasks = [...tasks, taskToAdd];
+      return calculateTaskTimelines(updatedTasks, projectStartDate);
+    });
+    
+    // Clear the new task form
+    setNewTask(null);
     setShowNewTask(false);
   }
 
   function handleAddSubtask(taskId) {
-    setTasks(tasks =>
-      tasks.map(t =>
+    const newSubtaskData = {
+      id: Date.now(),
+      ...newSubtask,
+      completed: false,
+      checklist: false,
+      rating: 3,
+      progress: 0,
+      color: "#60a5fa",
+      predecessors: ""
+    };
+    
+    setTasks(tasks => {
+      const updatedTasks = tasks.map(t =>
         t.id === taskId
           ? {
             ...t,
             subtasks: [
               ...t.subtasks,
-              {
-                id: Date.now(),
-                ...newSubtask,
-                completed: false,
-                checklist: false,
-                rating: 3,
-                progress: 0,
-                color: "#60a5fa"
-              }
+              newSubtaskData
             ]
           }
           : t
-      )
-    );
+      );
+      return calculateTaskTimelines(updatedTasks, projectStartDate);
+    });
     setShowSubtaskForm(null);
     setNewSubtask({
       name: "",
@@ -390,8 +392,8 @@ export default function MainTable() {
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
-    setTasks(tasks =>
-      tasks.map(t => {
+    setTasks(tasks => {
+      let updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
         const idx = t.subtasks.findIndex(sub => sub.id === subId);
         let updatedSubtasks = t.subtasks.map(sub => ({ ...sub }));
@@ -415,18 +417,7 @@ export default function MainTable() {
             return { ...updatedSubtasks[idx], [col]: value };
           }
         })();
-        // If timeline or planDays changed, update subsequent subtasks
-        if (col === 'timeline' || col === 'planDays') {
-          let prevEnd = updatedSubtasks[idx].timeline && isValid(updatedSubtasks[idx].timeline[1]) ? new Date(updatedSubtasks[idx].timeline[1]) : null;
-          for (let i = idx + 1; i < updatedSubtasks.length; i++) {
-            if (prevEnd && updatedSubtasks[i].planDays > 0) {
-              const newStart = addDays(prevEnd, 1);
-              const newEnd = addDays(newStart, updatedSubtasks[i].planDays - 1);
-              updatedSubtasks[i].timeline = [newStart, newEnd];
-            }
-            prevEnd = updatedSubtasks[i].timeline && isValid(updatedSubtasks[i].timeline[1]) ? new Date(updatedSubtasks[i].timeline[1]) : prevEnd;
-          }
-        }
+        
         // If all subtasks are done, set main task status to 'done'
         const allDone = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.status === 'done');
         // Calculate average progress of subtasks
@@ -436,8 +427,15 @@ export default function MainTable() {
           avgProgress = Math.round(total / updatedSubtasks.length);
         }
         return { ...t, subtasks: updatedSubtasks, status: allDone ? 'done' : t.status, progress: avgProgress };
-      })
-    );
+      });
+      
+      // If predecessors, timeline, or planDays changed, recalculate all timelines
+      if (col === 'predecessors' || col === 'timeline' || col === 'planDays') {
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
+      }
+      
+      return updatedTasks;
+    });
   }
 
   function startEditSubtask(subId, colKey, value) {
@@ -455,17 +453,20 @@ export default function MainTable() {
   }
 
   function handleDeleteRow(id, parentTaskId = null) {
-    if (parentTaskId) {
-      setTasks(tasks =>
-        tasks.map(task =>
+    setTasks(tasks => {
+      let updatedTasks;
+      if (parentTaskId) {
+        updatedTasks = tasks.map(task =>
           task.id === parentTaskId
             ? { ...task, subtasks: task.subtasks.filter(sub => sub.id !== id) }
             : task
-        )
-      );
-    } else {
-      setTasks(tasks => tasks.filter(task => task.id !== id));
-    }
+        );
+      } else {
+        updatedTasks = tasks.filter(task => task.id !== id);
+      }
+      // Recalculate timelines after deletion to ensure proper dependencies
+      return calculateTaskTimelines(updatedTasks, projectStartDate);
+    });
   }
 
   function handleAddNewTask() {
@@ -524,18 +525,12 @@ export default function MainTable() {
           return { ...updatedTasks[idx], [col]: value };
         }
       })();
-      // If timeline or planDays changed, update subsequent tasks
-      if (col === 'timeline' || col === 'planDays') {
-        let prevEnd = updatedTasks[idx].timeline && isValid(updatedTasks[idx].timeline[1]) ? new Date(updatedTasks[idx].timeline[1]) : null;
-        for (let i = idx + 1; i < updatedTasks.length; i++) {
-          if (prevEnd && updatedTasks[i].planDays > 0) {
-            const newStart = addDays(prevEnd, 1);
-            const newEnd = addDays(newStart, updatedTasks[i].planDays - 1);
-            updatedTasks[i].timeline = [newStart, newEnd];
-          }
-          prevEnd = updatedTasks[i].timeline && isValid(updatedTasks[i].timeline[1]) ? new Date(updatedTasks[i].timeline[1]) : prevEnd;
-        }
+      
+      // If predecessors, timeline, or planDays changed, recalculate all timelines
+      if (col === 'predecessors' || col === 'timeline' || col === 'planDays') {
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
       }
+      
       return updatedTasks;
     });
   }
@@ -555,11 +550,35 @@ export default function MainTable() {
     setGoogleMapPickerOpen(false);
   }
 
+  // Handle project start date changes and recalculate all timelines
+  function handleProjectStartDateChange(newStartDate) {
+    setProjectStartDate(newStartDate);
+    // Timeline recalculation will be handled by the useEffect that watches projectStartDate
+  }
+
   // Helper: Calculate timelines based on predecessors
   function calculateTaskTimelines(tasks, projectStartDate) {
-    // Build a lookup for tasks by id
+    // Build a lookup for tasks by id (including subtasks)
     const taskMap = {};
-    tasks.forEach(t => { taskMap[t.id] = t; });
+    const allTasks = [];
+    
+    // Collect all tasks and subtasks
+    tasks.forEach(task => {
+      taskMap[task.id] = task;
+      allTasks.push(task);
+      if (task.subtasks) {
+        task.subtasks.forEach(subtask => {
+          taskMap[subtask.id] = subtask;
+          allTasks.push(subtask);
+        });
+      }
+    });
+
+    // Helper to calculate plan days from timeline
+    function calculatePlanDaysFromTimeline(timeline) {
+      if (!timeline || !timeline[0] || !timeline[1]) return 0;
+      return differenceInCalendarDays(timeline[1], timeline[0]) + 1;
+    }
 
     // Helper to parse predecessor ids (comma/space separated)
     function getPredecessorIds(predecessors) {
@@ -571,10 +590,22 @@ export default function MainTable() {
         .filter(n => !isNaN(n));
     }
 
-    // Calculate timelines for each task
-    return tasks.map(task => {
+    // Calculate timelines for all tasks and subtasks
+    const updatedTaskMap = {};
+    allTasks.forEach(task => {
+      // If task already has a timeline, calculate plan days from it
+      if (task.timeline && task.timeline[0] && task.timeline[1]) {
+        const calculatedPlanDays = calculatePlanDaysFromTimeline(task.timeline);
+        updatedTaskMap[task.id] = {
+          ...task,
+          planDays: task.planDays || calculatedPlanDays
+        };
+        return;
+      }
+      
       let startDate = projectStartDate;
       const predIds = getPredecessorIds(task.predecessors);
+      
       if (predIds.length > 0) {
         // Find latest end date among predecessors
         let latestEnd = null;
@@ -589,20 +620,37 @@ export default function MainTable() {
           startDate = addDays(latestEnd, 1);
         }
       }
+      
       // Calculate end date
       const duration = task.planDays > 0 ? task.planDays : 1;
       const endDate = addDays(startDate, duration - 1);
-      return {
+      
+      // Calculate plan days from timeline if not set
+      const calculatedPlanDays = calculatePlanDaysFromTimeline([startDate, endDate]);
+      
+      updatedTaskMap[task.id] = {
         ...task,
-        timeline: [startDate, endDate]
+        timeline: [startDate, endDate],
+        planDays: task.planDays || calculatedPlanDays
       };
+    });
+
+    // Update main tasks with their updated subtasks
+    return tasks.map(task => {
+      const updatedTask = updatedTaskMap[task.id];
+      if (task.subtasks) {
+        updatedTask.subtasks = task.subtasks.map(subtask => 
+          updatedTaskMap[subtask.id] || subtask
+        );
+      }
+      return updatedTask;
     });
   }
 
   // Recalculate timelines whenever tasks or projectStartDate change
   useEffect(() => {
     setTasks(ts => calculateTaskTimelines(ts, projectStartDate));
-  }, [projectStartDate, /* optionally: tasks.length, tasks.map(t=>t.planDays), tasks.map(t=>t.predecessors), etc. */]);
+  }, [projectStartDate]);
 
   const filteredTasks = tasks.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -670,19 +718,27 @@ export default function MainTable() {
   const completedTasks = tasks.filter(t => t.status === "done");
 
   // Helper renderers for Monday.com style columns
-  function TimelineCell({ value, onChange }) {
+  function TimelineCell({ value, onChange, hasPredecessors = false }) {
     const [showPicker, setShowPicker] = useState(false);
     const start = value?.[0] ? new Date(value[0]) : null;
     const end = value?.[1] ? new Date(value[1]) : null;
     return (
       <div className="relative inline-block">
         <button
-          className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
+          className={`inline-block px-3 py-1 rounded-full text-xs font-bold transition ${
+            hasPredecessors 
+              ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300' 
+              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+          }`}
           onClick={() => setShowPicker(v => !v)}
+          title={hasPredecessors ? 'Timeline calculated from predecessors' : 'Set timeline manually'}
         >
           {start && end
             ? `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`
             : 'Set dates'}
+          {hasPredecessors && (
+            <span className="ml-1 text-xs">🔗</span>
+          )}
         </button>
         {showPicker && (
           <div className="absolute z-50 bg-white border rounded shadow-lg mt-2">
@@ -769,7 +825,8 @@ export default function MainTable() {
           </select>
         );
       case "timeline":
-        return <TimelineCell value={row.timeline} onChange={val => onEdit("timeline", val)} />;
+        const timelineHasPredecessors = row.predecessors && row.predecessors.toString().trim() !== '';
+        return <TimelineCell value={row.timeline} onChange={val => onEdit("timeline", val)} hasPredecessors={timelineHasPredecessors} />;
       case "planDays":
         return (
           <input
@@ -904,12 +961,19 @@ export default function MainTable() {
       case "autoNumber":
         return <span>{row.autoNumber || row.id}</span>;
       case "predecessors":
+        const predecessorsHasValue = row.predecessors && row.predecessors.toString().trim() !== '';
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm"
-            value={row.predecessors}
-            onChange={e => onEdit("predecessors", e.target.value)}
-          />
+          <div className="relative">
+            <input
+              className={`border rounded px-2 py-1 text-sm pr-6 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              value={row.predecessors}
+              onChange={e => onEdit("predecessors", e.target.value)}
+              placeholder="Enter task IDs (e.g., 1, 2, 3)"
+            />
+            {predecessorsHasValue && (
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
+            )}
+          </div>
         );
       case "checklist":
         return (
@@ -1016,13 +1080,13 @@ export default function MainTable() {
             <TrashIcon className="w-5 h-5 text-red-500" />
           </button>
         );
-      case "plan days":
+      case "planDays":
         return (
           <input
             type="number"
             className="border rounded px-2 py-1 text-sm text-gray-900"
-            value={row.planDays || ""}
-            onChange={e => onEdit("planDays", e.target.value)}
+            value={row.planDays || 0}
+            onChange={e => onEdit("planDays", Number(e.target.value))}
             placeholder="Enter plan days"
           />
         );
@@ -1110,7 +1174,8 @@ export default function MainTable() {
       case "owner":
         return <span className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm">{sub.owner}</span>;
       case "timeline":
-        return <TimelineCell value={sub.timeline} onChange={val => handleEditSubtask(task.id, sub.id, "timeline", val)} />;
+        const subTimelineHasPredecessors = sub.predecessors && sub.predecessors.toString().trim() !== '';
+        return <TimelineCell value={sub.timeline} onChange={val => handleEditSubtask(task.id, sub.id, "timeline", val)} hasPredecessors={subTimelineHasPredecessors} />;
       case "priority":
         return <select
           className="border rounded px-2 py-1 text-sm"
@@ -1209,11 +1274,20 @@ export default function MainTable() {
       case "auto #":
         return <span>{subIdx + 1}</span>;
       case "predecessors":
-        return <input
-          className="border rounded px-2 py-1 text-sm"
-          value={sub.predecessors}
-          onChange={e => handleEditSubtask(task.id, sub.id, "predecessors", e.target.value)}
-        />;
+        const subPredecessorsHasValue = sub.predecessors && sub.predecessors.toString().trim() !== '';
+        return (
+          <div className="relative">
+            <input
+              className={`border rounded px-2 py-1 text-sm pr-6 ${subPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              value={sub.predecessors}
+              onChange={e => handleEditSubtask(task.id, sub.id, "predecessors", e.target.value)}
+              placeholder="Enter task IDs (e.g., 1, 2, 3)"
+            />
+            {subPredecessorsHasValue && (
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
+            )}
+          </div>
+        );
       case "checklist":
         return (
           <input
@@ -1299,12 +1373,13 @@ export default function MainTable() {
           />
           <span className="text-xs text-gray-500">{sub.color}</span>
         </label>;
-      case "plan days":
+      case "planDays":
         return (
           <input
             type="number"
-            className="border rounded px-2 py-1 text-sm text-gray-900"
-            value={sub.planDays || ""}
+            min={0}
+            className="border rounded px-2 py-1 text-sm text-gray-900 w-20 text-center"
+            value={sub.planDays || 0}
             onChange={e => handleEditSubtask(task.id, sub.id, "planDays", Number(e.target.value))}
             placeholder="Enter plan days"
           />
@@ -1438,18 +1513,26 @@ export default function MainTable() {
         <div className="w-full px-4 pt-0 pb-0">
           {/* Top Bar */}
           <div className="flex items-center justify-between px-6 py-1 border-b bg-white">
-            {/* Scroll indicator */}
-            <div className="text-xs text-gray-500 ml-4">
-              💡 Tip: Scroll horizontally to see all columns including Plot Number, Community, Project Type, etc.
-            </div>
+            {/* Left side - Show All Columns button and New Project button */}
             <div className="flex items-center gap-2">
+              <button 
+                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition"
+                onClick={resetColumnOrder}
+                title="Reset columns to show all fields"
+              >
+                Show All Columns
+              </button>
               <button
                 className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 font-semibold shadow hover:bg-blue-700 transition"
                 onClick={handleAddNewTask}
               >
                 <PlusIcon className="w-5 h-5" /> New Project
               </button>
-              <div className="flex items-center gap-2 ml-6">
+            </div>
+            
+            {/* Right side - Search, Project Start, and Add Column */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-5 h-5 absolute left-2 top-2 text-gray-400" />
                   <input
@@ -1459,16 +1542,16 @@ export default function MainTable() {
                     onChange={e => setSearch(e.target.value)}
                   />
                 </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Project Start:</label>
+                  <input
+                    type="date"
+                    className="px-3 py-2 border rounded bg-gray-50 focus:ring-2 focus:ring-blue-200 text-sm"
+                    value={format(projectStartDate, 'yyyy-MM-dd')}
+                    onChange={e => handleProjectStartDateChange(new Date(e.target.value))}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition"
-                onClick={resetColumnOrder}
-                title="Reset columns to show all fields"
-              >
-                Show All Columns
-              </button>
               <div className="relative">
                 <button className="p-2 rounded-full hover:bg-blue-100 transition" onClick={() => setShowAddColumnDropdown(v => !v)}>
                   <PlusIcon className="w-5 h-5 text-blue-600" />
@@ -1483,17 +1566,19 @@ export default function MainTable() {
           </div>
           {/* Table */}
           <div className="flex-1 flex flex-col">
-            <div className="w-full px-4 py-0 bg-white rounded-lg shadow overflow-x-auto">
+            <div className="w-full px-4 py-0 bg-white rounded-lg shadow">
               <table className="w-full table-auto bg-white rounded-lg">
                 {/* Table header */}
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                     <tr>
-                      {columnOrder.map(key => {
-                        const col = columns.find(c => c.key === key);
-                        if (!col) return null;
-                        return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-                      })}
+                      {columnOrder
+                        .filter(key => key !== 'category') // Remove TASK CATEGORY header for main tasks
+                        .map(key => {
+                          const col = columns.find(c => c.key === key);
+                          if (!col) return null;
+                          return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+                        })}
                       <th key="add-column" className="px-2 py-2 text-center">
                         <button
                           className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
@@ -1565,7 +1650,15 @@ export default function MainTable() {
                             ) : col.key === "timeline" ? (
                               <div className="flex-1">
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Timeline:</label>
-                                <TimelineCell value={newTask.timeline} onChange={val => handleEdit(newTask, "timeline", val)} />
+                                <TimelineCell value={newTask.timeline} onChange={val => {
+                                  // Update timeline and calculate plan days
+                                  const updatedNewTask = { ...newTask, timeline: val };
+                                  if (val && val[0] && val[1]) {
+                                    const planDays = differenceInCalendarDays(val[1], val[0]) + 1;
+                                    updatedNewTask.planDays = planDays;
+                                  }
+                                  setNewTask(updatedNewTask);
+                                }} />
                               </div>
                             ) : col.key === "planDays" ? (
                               <input
@@ -1573,7 +1666,16 @@ export default function MainTable() {
                                 min={0}
                                 className="border rounded px-2 py-1 text-sm w-20 text-center"
                                 value={newTask.planDays || 0}
-                                onChange={e => setNewTask(nt => ({ ...nt, planDays: Number(e.target.value) }))}
+                                onChange={e => {
+                                  const newPlanDays = Number(e.target.value);
+                                  // Update plan days and recalculate timeline
+                                  const updatedNewTask = { ...newTask, planDays: newPlanDays };
+                                  if (newTask.timeline && newTask.timeline[0] && newPlanDays > 0) {
+                                    const newEnd = addDays(new Date(newTask.timeline[0]), newPlanDays - 1);
+                                    updatedNewTask.timeline = [newTask.timeline[0], newEnd];
+                                  }
+                                  setNewTask(updatedNewTask);
+                                }}
                                 placeholder="Enter plan days"
                               />
                             ) : col.key === "remarks" ? (
@@ -1688,64 +1790,82 @@ export default function MainTable() {
                         );
                       })}
                           <td key="add-column" className="px-3 py-3 align-middle">
-                        <button
-                              className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                              onClick={handleShowAddColumnMenu}
-                              title="Add column"
-                              type="button"
-                            >
-                              +
-                        </button>
-                      </td>
-                    </tr>
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition"
+                                onClick={handleCreateTask}
+                                title="Save new project"
+                              >
+                                Save
+                              </button>
+                              <button
+                                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition"
+                                onClick={() => setNewTask(null)}
+                                title="Cancel new project"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
+                                onClick={handleShowAddColumnMenu}
+                                title="Add column"
+                                type="button"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                   )}
                   {filteredTasks.map(task => (
                     <React.Fragment key={task.id}>
                       {/* Main Task Row */}
                       <tr className="bg-white  rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
-                        {columnOrder.map((colKey, idx) => {
-                          const col = columns.find(c => c.key === colKey);
-                          if (!col) return null;
-                          return (
-                            <td key={col.key} className="px-3 py-3 align-middle">
-                              {col.key === 'task' && idx === 0 ? (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => toggleExpand(task.id, 'active')}
-                                    className="focus:outline-none"
-                                    title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
-                                  >
-                                    {expandedActive[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
-                                  </button>
-                                  {editingTaskId === task.id ? (
-                                    <input
-                                      type="text"
-                                      value={editingTaskName}
-                                      autoFocus
-                                      onChange={handleProjectNameChange}
-                                      onBlur={() => handleProjectNameBlur(task)}
-                                      onKeyDown={e => handleProjectNameKeyDown(e, task)}
-                                      className="border rounded px-1 py-0.5 text-sm w-full"
-                                    />
-                                  ) : (
-                                    <span
-                                      className="font-bold text-blue-700 hover:underline focus:outline-none cursor-pointer"
-                                      onClick={() => handleProjectNameClick(task)}
-                                      onDoubleClick={() => handleProjectNameDoubleClick(task)}
+                        {columnOrder
+                          .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
+                          .map((colKey, idx) => {
+                            const col = columns.find(c => c.key === colKey);
+                            if (!col) return null;
+                            return (
+                              <td key={col.key} className="px-3 py-3 align-middle">
+                                {col.key === 'task' && idx === 0 ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => toggleExpand(task.id, 'active')}
+                                      className="focus:outline-none"
+                                      title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
                                     >
-                                      {task.name}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                renderMainCell(col, task, (field, value) => {
-                                  if (col.key === 'delete') handleDeleteRow(task.id);
-                                  else handleEdit(task, field, value);
-                                })
-                              )}
-                            </td>
-                          );
-                        })}
+                                      {expandedActive[task.id] ? <ChevronDownIcon className="w-4 h-4 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
+                                    </button>
+                                    {editingTaskId === task.id ? (
+                                      <input
+                                        type="text"
+                                        value={editingTaskName}
+                                        autoFocus
+                                        onChange={handleProjectNameChange}
+                                        onBlur={() => handleProjectNameBlur(task)}
+                                        onKeyDown={e => handleProjectNameKeyDown(e, task)}
+                                        className="border rounded px-1 py-0.5 text-sm w-full"
+                                      />
+                                    ) : (
+                                      <span
+                                        className="font-bold text-blue-700 hover:underline focus:outline-none cursor-pointer"
+                                        onClick={() => handleProjectNameClick(task)}
+                                        onDoubleClick={() => handleProjectNameDoubleClick(task)}
+                                      >
+                                        {task.name}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  renderMainCell(col, task, (field, value) => {
+                                    if (col.key === 'delete') handleDeleteRow(task.id);
+                                    else handleEdit(task, field, value);
+                                  })
+                                )}
+                              </td>
+                            );
+                          })}
                         <td key="add-column" className="px-3 py-3 align-middle">
                           <button
                             className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
@@ -1760,7 +1880,7 @@ export default function MainTable() {
                       {/* Subtasks as subtable - always render */}
                       {expandedActive[task.id] && (
                         <tr>
-                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
+                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
                             <table className="ml-12 table-fixed min-w-full">
                               <thead>
                                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -1925,7 +2045,7 @@ export default function MainTable() {
             </div>
           )}
           {completedTasks.length > 0 && (
-            <div className="w-full px-4 py-0 mt-1 bg-white rounded-lg shadow overflow-x-auto">
+            <div className="w-full px-4 py-0 mt-1 bg-white rounded-lg shadow">
               <table className="w-full table-auto bg-white rounded-lg">
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -1986,7 +2106,7 @@ export default function MainTable() {
                       {/* Subtasks as subtable - only render if expandedCompleted[task.id] */}
                       {expandedCompleted[task.id] && (
                         <tr>
-                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50 overflow-x-auto">
+                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
                             <table className="ml-12 table-fixed min-w-full">
                               <thead>
                                 <tr>

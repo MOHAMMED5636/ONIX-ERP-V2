@@ -78,6 +78,12 @@ export default function WorkingLocations() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newLocation, setNewLocation] = useState({ name: '', address: '', city: '', country: '', capacity: '' });
 
+  const handleLocationClick = (location) => {
+    // Navigate to location details or employees at this location
+    console.log('Location clicked:', location);
+    // You can add navigation here when needed
+  };
+
   const handleCreateLocation = () => {
     if (newLocation.name && newLocation.address && newLocation.city && newLocation.country && newLocation.capacity) {
       // Add to demo data
@@ -128,7 +134,12 @@ export default function WorkingLocations() {
           {/* Mobile Cards View */}
           <div className="lg:hidden space-y-4">
             {demoWorkingLocations.map(location => (
-              <div key={location.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200 hover:shadow-lg transition">
+              <div 
+                key={location.id} 
+                className="bg-white rounded-lg shadow-md p-4 border border-gray-200 hover:shadow-lg hover:shadow-indigo-100 transition-all duration-200 cursor-pointer transform hover:-translate-y-1"
+                onClick={() => handleLocationClick(location)}
+                title="Click to view location details"
+              >
                 <div className="flex items-center gap-3 mb-3">
                   <MapPinIcon className="h-5 w-5 text-indigo-400" />
                   <h3 className="font-semibold text-gray-800">{location.name}</h3>
@@ -171,7 +182,12 @@ export default function WorkingLocations() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {demoWorkingLocations.map(location => (
-                  <tr key={location.id} className="hover:bg-indigo-50 transition cursor-pointer">
+                  <tr 
+                    key={location.id} 
+                    className="hover:bg-indigo-50 transition cursor-pointer group" 
+                    onClick={() => handleLocationClick(location)}
+                    title="Click to view location details"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap font-semibold flex items-center gap-2">
                       <MapPinIcon className="h-5 w-5 text-indigo-400" /> {location.name}
                     </td>

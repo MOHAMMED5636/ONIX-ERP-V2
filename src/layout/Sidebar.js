@@ -15,6 +15,8 @@ import {
   BriefcaseIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
+  BuildingOfficeIcon,
+  FolderIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
@@ -32,6 +34,16 @@ const navItems = [
       { key: "working-locations", label: { en: "Working Locations", ar: "أماكن العمل" }, path: "/working-locations" },
     ],
   },
+  // Company Resources dropdown menu
+  {
+    key: "company-resources-menu",
+    icon: BuildingOfficeIcon,
+    label: { en: "Company Resources", ar: "موارد الشركة" },
+    dropdown: true,
+    submenus: [
+      { key: "companies", label: { en: "Companies", ar: "الشركات" }, path: "/companies" },
+    ],
+  },
   // Tasks dropdown menu with Contracts
   {
     key: "tasks-menu",
@@ -42,8 +54,10 @@ const navItems = [
       { key: "tasks", label: { en: "Project List", ar: "قائمة المهام" }, path: "/tasks" },
       { key: "contracts", label: { en: "Contracts", ar: "العقود" }, path: "/contracts" },
       { key: "create-contract", label: { en: "Create Contract", ar: "إنشاء عقد" }, path: "/contracts/create" },
+      { key: "task-categories", label: { en: "Task Category List", ar: "قائمة فئات المهام" }, path: "/task-categories" },
     ],
   },
+  { key: "companies", icon: BriefcaseIcon, label: { en: "Companies", ar: "الشركات" }, path: "/companies" },
   { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/attendance" },
   { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
   { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },
@@ -52,12 +66,14 @@ const navItems = [
 
 const submenuIcons = {
   employees: UsersIcon,
-  departments: ChartPieIcon,
+  departments: FolderIcon,
   'job-titles': ClipboardDocumentListIcon,
   'working-locations': CalendarDaysIcon,
   tasks: ClipboardDocumentListIcon,
   contracts: ClipboardDocumentListIcon,
   'create-contract': ClipboardDocumentListIcon,
+  'task-categories': ClipboardDocumentListIcon,
+  companies: BuildingOfficeIcon,
 };
 
 function Tooltip({ label, children }) {
@@ -255,36 +271,90 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                       <div className="lg:hidden w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
                         {item.submenus.map((submenu) => {
                           const SubIcon = submenuIcons[submenu.key];
-                          return (
-                            <Link
-                              key={submenu.key}
-                              to={submenu.path}
-                              className={`flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border-b border-gray-100 last:border-b-0 ${location.pathname === submenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
-                              onClick={() => setOpenDropdown(null)}
-                            >
-                              <SubIcon className="h-5 w-5 text-indigo-400" />
-                              <span>{submenu.label[lang]}</span>
-                            </Link>
-                          );
+                          if (submenu.dropdown && submenu.submenus) {
+                            // Nested dropdown (like Departments under Company Resources)
+                            return (
+                              <div key={submenu.key} className="border-b border-gray-100 last:border-b-0">
+                                <div className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 font-semibold bg-gray-50">
+                                  <SubIcon className="h-5 w-5 text-indigo-400" />
+                                  <span>{submenu.label[lang]}</span>
+                                </div>
+                                {submenu.submenus.map((nestedSubmenu) => {
+                                  const NestedIcon = submenuIcons[nestedSubmenu.key];
+                                  return (
+                                    <Link
+                                      key={nestedSubmenu.key}
+                                      to={nestedSubmenu.path}
+                                      className={`flex items-center gap-3 px-8 py-2 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === nestedSubmenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                      onClick={() => setOpenDropdown(null)}
+                                    >
+                                      <NestedIcon className="h-4 w-4 text-indigo-400" />
+                                      <span>{nestedSubmenu.label[lang]}</span>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else {
+                            // Regular submenu item
+                            return (
+                              <Link
+                                key={submenu.key}
+                                to={submenu.path}
+                                className={`flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border-b border-gray-100 last:border-b-0 ${location.pathname === submenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                onClick={() => setOpenDropdown(null)}
+                              >
+                                <SubIcon className="h-5 w-5 text-indigo-400" />
+                                <span>{submenu.label[lang]}</span>
+                              </Link>
+                            );
+                          }
                         })}
                       </div>
                       {/* Desktop dropdown - floating */}
-                      <div className="hidden lg:block absolute left-full top-0 ml-2 bg-white shadow-2xl rounded-xl w-48 z-50 border border-gray-100 flex flex-col py-2 animate-fade-in" onClick={e => e.stopPropagation()}>
+                      <div className="hidden lg:block absolute left-full top-0 ml-2 bg-white shadow-2xl rounded-xl w-64 z-50 border border-gray-100 flex flex-col py-2 animate-fade-in" onClick={e => e.stopPropagation()}>
                         {/* Arrow indicator */}
                         <div className="absolute left-0 top-6 -ml-1 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white shadow-lg z-50" />
                         {item.submenus.map((submenu) => {
                           const SubIcon = submenuIcons[submenu.key];
-                          return (
-                            <Link
-                              key={submenu.key}
-                              to={submenu.path}
-                              className={`flex items-center gap-3 px-4 py-2 text-sm text-gray-700 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === submenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
-                              onClick={() => setOpenDropdown(null)}
-                            >
-                              <SubIcon className="h-5 w-5 text-indigo-400" />
-                              <span>{submenu.label[lang]}</span>
-                            </Link>
-                          );
+                          if (submenu.dropdown && submenu.submenus) {
+                            // Nested dropdown (like Departments under Company Resources)
+                            return (
+                              <div key={submenu.key} className="border-b border-gray-100 last:border-b-0">
+                                <div className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 font-semibold bg-gray-50">
+                                  <SubIcon className="h-5 w-5 text-indigo-400" />
+                                  <span>{submenu.label[lang]}</span>
+                                </div>
+                                {submenu.submenus.map((nestedSubmenu) => {
+                                  const NestedIcon = submenuIcons[nestedSubmenu.key];
+                                  return (
+                                    <Link
+                                      key={nestedSubmenu.key}
+                                      to={nestedSubmenu.path}
+                                      className={`flex items-center gap-3 px-8 py-2 text-sm text-gray-600 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === nestedSubmenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                      onClick={() => setOpenDropdown(null)}
+                                    >
+                                      <NestedIcon className="h-4 w-4 text-indigo-400" />
+                                      <span>{nestedSubmenu.label[lang]}</span>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            );
+                          } else {
+                            // Regular submenu item
+                            return (
+                              <Link
+                                key={submenu.key}
+                                to={submenu.path}
+                                className={`flex items-center gap-3 px-4 py-2 text-sm text-gray-700 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === submenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                onClick={() => setOpenDropdown(null)}
+                              >
+                                <SubIcon className="h-5 w-5 text-indigo-400" />
+                                <span>{submenu.label[lang]}</span>
+                              </Link>
+                            );
+                          }
                         })}
                       </div>
                     </>
