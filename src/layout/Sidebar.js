@@ -30,7 +30,6 @@ const navItems = [
     submenus: [
       { key: "employees", label: { en: "Employees", ar: "الموظفون" }, path: "/employees" },
       { key: "departments", label: { en: "Departments", ar: "الأقسام" }, path: "/departments" },
-      { key: "job-titles", label: { en: "Job Titles", ar: "المسميات الوظيفية" }, path: "/job-titles" },
       { key: "working-locations", label: { en: "Working Locations", ar: "أماكن العمل" }, path: "/working-locations" },
     ],
   },
@@ -67,7 +66,6 @@ const navItems = [
 const submenuIcons = {
   employees: UsersIcon,
   departments: FolderIcon,
-  'job-titles': ClipboardDocumentListIcon,
   'working-locations': CalendarDaysIcon,
   tasks: ClipboardDocumentListIcon,
   contracts: ClipboardDocumentListIcon,

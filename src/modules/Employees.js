@@ -1,7 +1,9 @@
 import React, { useState, createContext, useContext } from "react";
-import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 // Custom styles for PhoneInput integration
 const phoneInputStyles = `
@@ -747,36 +749,103 @@ function EmployeeForm({ onBack }) {
 
 export default function Employees() {
   const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
 
   const handleEmployeeClick = (employee) => {
     // Navigate to employee details or edit form
     console.log('Employee clicked:', employee);
     // You can add navigation here when needed
   };
+
+  const handleBackToPositions = () => {
+    // Navigate back to the positions page
+    navigate(-1);
+  };
   return (
     <div className="w-full h-full flex flex-col">
-      {/* Top Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 px-4 sm:px-6 lg:px-10 border-b bg-white shadow-sm gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-          <UserIcon className="h-6 w-6 sm:h-7 sm:w-7 text-indigo-500" /> 
-          Employees
-        </h1>
+      <Breadcrumbs names={{}} />
+      
+      {/* Enhanced Top Section - Employee Directory */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-6 px-4 sm:px-6 lg:px-10 gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleBackToPositions}
+            className="p-3 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
+            title="Back to Positions"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </button>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <UserIcon className="h-6 w-6 sm:h-7 sm:w-7 text-indigo-500" /> 
+            Employee Directory
+          </h2>
+        </div>
         <button
-          className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center"
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 w-full sm:w-auto justify-center transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
           onClick={() => setShowForm(true)}
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          Create Employee
+          + Create Employee
         </button>
       </div>
       
-      {/* Attractive Section Header */}
+      {/* Enhanced Section Header - Employees Management */}
       <div className="w-full px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-3 mb-6 sm:mb-8 mt-6 sm:mt-8 bg-gradient-to-r from-blue-100 to-indigo-50 rounded-lg px-4 sm:px-6 py-3 sm:py-4 border-l-4 border-blue-500 shadow-sm">
-          <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 tracking-tight">Employees</h2>
+        <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl shadow-2xl p-8 relative overflow-hidden mb-8">
+          {/* Decorative background elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -translate-y-16 translate-x-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full translate-y-12 -translate-x-12"></div>
+          <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-white opacity-10 rounded-full"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-4 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                <UsersIcon className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <p className="text-indigo-100 text-lg">View and manage all employees in your organization</p>
+              </div>
+            </div>
+            
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white bg-opacity-20 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white bg-opacity-30 rounded-xl">
+                    <UserIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-white">{demoEmployees.length}</div>
+                    <div className="text-indigo-100 text-sm">Total Employees</div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white bg-opacity-30 rounded-xl">
+                    <BriefcaseIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-white">4</div>
+                    <div className="text-indigo-100 text-sm">Departments</div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white bg-opacity-30 rounded-xl">
+                    <CheckCircleIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-white">{demoEmployees.length}</div>
+                    <div className="text-indigo-100 text-sm">Active Employees</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -784,78 +853,189 @@ export default function Employees() {
       <div className="flex-1 w-full flex justify-center items-start bg-gradient-to-br from-indigo-50 to-white min-h-[60vh] px-4 sm:px-6 lg:px-10">
         {!showForm ? (
           <div className="w-full mt-4 sm:mt-8">
-            {/* Mobile Cards View */}
-            <div className="lg:hidden space-y-3 sm:space-y-4 px-2">
+            {/* Enhanced Mobile Cards View */}
+            <div className="lg:hidden space-y-6">
               {demoEmployees.map(emp => (
                 <div 
                   key={emp.id} 
-                  className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200 hover:shadow-lg hover:shadow-indigo-100 transition-all duration-200 cursor-pointer transform hover:-translate-y-1"
+                  className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-indigo-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02] relative overflow-hidden"
                   onClick={() => handleEmployeeClick(emp)}
                   title="Click to view employee details"
                 >
-                  <div className="flex items-center gap-3 mb-2 sm:mb-3">
-                    <UserIcon className="h-5 w-5 text-indigo-400" />
-                    <h3 className="font-semibold text-gray-800 text-sm flex-1">{emp.name}</h3>
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  <div className="relative p-6">
+                    {/* Header with enhanced styling */}
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
+                        <UserIcon className="h-6 w-6 text-white" />
                   </div>
-                  <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
-                    <div className="flex items-center gap-2">
-                      <BriefcaseIcon className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">{emp.department}</span>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 text-lg group-hover:text-indigo-900 transition-colors">{emp.name}</h3>
+                        <p className="text-gray-500 text-sm">Employee</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <ClipboardDocumentListIcon className="h-4 w-4 text-gray-400" />
-                      <span className="inline-block px-2 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                    </div>
+                    
+                    {/* Enhanced info sections */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                          <BriefcaseIcon className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 text-xs">Department</span>
+                          <div className="text-gray-900 font-semibold">{emp.department}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
+                        <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
+                          <ClipboardDocumentListIcon className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 text-xs">Job Title</span>
+                          <div className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-sm">
                         {emp.jobTitle}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <EnvelopeIcon className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">{emp.email}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-pink-50 to-indigo-50 rounded-xl">
+                        <div className="w-8 h-8 bg-gradient-to-br from-pink-100 to-indigo-100 rounded-lg flex items-center justify-center">
+                          <EnvelopeIcon className="h-4 w-4 text-pink-600" />
+                        </div>
+                        <div>
+                          <span className="text-gray-500 text-xs">Email</span>
+                          <div className="text-gray-900 font-semibold text-sm">{emp.email}</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Action indicator */}
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Click to view details</span>
+                        <div className="flex items-center gap-2 text-indigo-600 text-sm font-semibold group-hover:gap-3 transition-all duration-300">
+                          <span>View Details</span>
+                          <span className="transform group-hover:translate-x-1 transition-transform duration-300">→</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             
-            {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto rounded-2xl shadow-2xl bg-white border border-indigo-100 w-full">
-              <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-                <thead className="bg-indigo-50">
-                  <tr>
-                    <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                    <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                    <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Email</th>
+            {/* Enhanced Desktop Table View */}
+            <div className="hidden lg:block">
+              <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+                      <tr>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employee</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Department</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Job Title</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Contact</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-gray-50">
                   {demoEmployees.map(emp => (
                     <tr 
                       key={emp.id} 
-                      className="hover:bg-indigo-50 transition cursor-pointer group" 
+                          className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 cursor-pointer group" 
                       onClick={() => handleEmployeeClick(emp)}
                       title="Click to view employee details"
                     >
-                      <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap font-semibold flex items-center gap-2">
-                        <UserIcon className="h-5 w-5 text-indigo-400" /> {emp.name}
+                          <td className="px-8 py-6 whitespace-nowrap">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
+                                <UserIcon className="h-6 w-6 text-white" />
+                              </div>
+                              <div>
+                                <div className="font-bold text-gray-900 text-base group-hover:text-indigo-900 transition-colors">{emp.name}</div>
+                                <div className="text-gray-500 text-sm">Employee</div>
+                              </div>
+                            </div>
                       </td>
-                      <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">{emp.department}</td>
-                      <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                        <span className="inline-block px-2 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 shadow-sm">{emp.jobTitle}</span>
+                          <td className="px-8 py-6 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center shadow-sm">
+                                <BriefcaseIcon className="h-5 w-5 text-indigo-600" />
+                              </div>
+                              <div>
+                                <span className="text-gray-900 text-sm font-semibold">{emp.department}</span>
+                                <div className="text-gray-500 text-xs">Department</div>
+                              </div>
+                            </div>
                       </td>
-                      <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap flex items-center gap-2">
-                        <EnvelopeIcon className="h-4 w-4 text-indigo-300" /> {emp.email}
+                          <td className="px-8 py-6 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center shadow-sm">
+                                <ClipboardDocumentListIcon className="h-5 w-5 text-purple-600" />
+                              </div>
+                              <div>
+                                <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-sm">
+                                  {emp.jobTitle}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-pink-100 to-indigo-100 rounded-full flex items-center justify-center shadow-sm">
+                                <EnvelopeIcon className="h-5 w-5 text-pink-600" />
+                              </div>
+                              <div>
+                                <span className="text-gray-900 text-sm font-semibold">{emp.email}</span>
+                                <div className="text-gray-500 text-xs">Email</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 whitespace-nowrap">
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEmployeeClick(emp);
+                                }}
+                                className="p-3 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                title="View Employee"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Handle edit functionality
+                                }}
+                                className="p-3 text-purple-600 hover:bg-purple-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                title="Edit Employee"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                            </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
           <EmployeeForm onBack={() => setShowForm(false)} />
         )}
       </div>
+
     </div>
   );
 } 

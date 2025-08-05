@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, BriefcaseIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, EyeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 const initialDepartments = [
   "Human Resources",
@@ -96,12 +97,13 @@ export default function Departments() {
 
   const handleDepartmentClick = (dept) => {
     if (dept.departmentId) {
-      navigate(`/company-resources/departments/${dept.departmentId}`);
+      navigate(`/company-resources/departments/${dept.departmentId}/sub-departments`);
     }
   };
 
   return (
     <div className="w-full h-full flex flex-col">
+      <Breadcrumbs names={{}} />
       {/* Top Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 px-4 sm:px-6 lg:px-10 border-b bg-white shadow-sm gap-4">
         <div className="flex items-center gap-4">
@@ -135,137 +137,87 @@ export default function Departments() {
         </button>
       </div>
       
-      {/* Attractive Section Header */}
-      <div className="w-full px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-3 mb-6 sm:mb-8 mt-6 sm:mt-8 bg-gradient-to-r from-blue-100 to-indigo-50 rounded-lg px-4 sm:px-6 py-3 sm:py-4 border-l-4 border-blue-500 shadow-sm">
-          <ChartPieIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 tracking-tight">
-              {selectedCompany ? `${selectedCompany.name} Departments` : 'Departments'}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {selectedCompany 
-                ? `Manage departments for ${selectedCompany.name}. Click on any department to view its sub-departments.`
-                : 'Click on any department to view its sub-departments'
-              }
-            </p>
+      {/* Enhanced Section Header */}
+      <div className="w-full px-4 sm:px-6 lg:px-10 mb-8">
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-3xl shadow-2xl p-8">
+          {/* Background decorative elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white bg-opacity-10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white bg-opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="absolute top-1/2 right-8 w-16 h-16 bg-white bg-opacity-5 rounded-full"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white bg-opacity-20 rounded-2xl">
+                  <ChartPieIcon className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-blue-100 text-lg leading-relaxed">Manage departments for ONIX Construction. Click on any department to view its sub-departments and positions.</p>
+                </div>
+              </div>
+              <div className="hidden lg:flex items-center space-x-4">
+                <div className="px-6 py-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                  <span className="text-white text-lg font-semibold">{departments.length} Departments</span>
+                </div>
+                <div className="px-6 py-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                  <span className="text-white text-lg font-semibold">Active</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Stats row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
+                <div className="text-white text-2xl font-bold">{departments.length}</div>
+                <div className="text-blue-100 text-sm">Total Departments</div>
+              </div>
+              <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
+                <div className="text-white text-2xl font-bold">{departments.reduce((sum, dept) => sum + dept.employees, 0)}</div>
+                <div className="text-blue-100 text-sm">Total Employees</div>
+              </div>
+              <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
+                <div className="text-white text-2xl font-bold">{departments.length}</div>
+                <div className="text-blue-100 text-sm">Active Managers</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 w-full flex justify-center items-start bg-gradient-to-br from-indigo-50 to-white min-h-[60vh] px-2 sm:px-6 lg:px-10">
-        <div className="w-full mt-4 sm:mt-8">
-          {/* Mobile Cards View */}
-          <div className="lg:hidden space-y-3 sm:space-y-4">
+      <div className="flex-1 w-full px-4 sm:px-6 lg:px-10">
+        <div className="w-full">
+          {/* Enhanced Mobile Cards View */}
+          <div className="lg:hidden space-y-6">
             {departments.map(dept => (
               <div 
                 key={dept.id} 
-                className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200 hover:shadow-lg hover:shadow-indigo-100 transition-all duration-200 hover:border-indigo-300 cursor-pointer transform hover:-translate-y-1"
+                className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-blue-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02]"
                 onClick={() => handleDepartmentClick(dept)}
                 title="Click to view sub-departments"
               >
-                <div className="flex items-center gap-3 mb-2 sm:mb-3">
-                  <ChartPieIcon className="h-5 w-5 text-indigo-400" />
-                  <h3 className="font-semibold text-gray-800 text-sm flex-1">
-                    {dept.name} <span className="text-xs text-indigo-500">→</span>
-                  </h3>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewDepartment(dept);
-                      }}
-                      className="p-1 text-green-600 hover:bg-green-50 rounded transition"
-                      title="View Department"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditDepartment(dept);
-                      }}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
-                      title="Edit Department"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDepartment(dept);
-                      }}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded transition"
-                      title="Delete Department"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{dept.description}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">Manager: {dept.manager}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4 text-gray-400" />
-                    <span className="inline-block px-2 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
-                      {dept.employees} employees
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto rounded-2xl shadow-2xl bg-white border border-indigo-100">
-            <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-              <thead className="bg-indigo-50">
-                <tr>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Employees</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {departments.map(dept => (
-                  <tr 
-                    key={dept.id} 
-                    className="hover:bg-indigo-50 transition cursor-pointer group" 
-                    onClick={() => handleDepartmentClick(dept)}
-                    title="Click to view sub-departments"
-                  >
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap font-semibold flex items-center gap-2">
-                      <ChartPieIcon className="h-5 w-5 text-indigo-400" /> 
-                      <span>
-                        {dept.name} <span className="text-xs text-indigo-500">→</span>
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">{dept.description}</td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap flex items-center gap-2">
-                      <UserIcon className="h-4 w-4 text-indigo-300" /> {dept.manager}
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                      <span className="inline-block px-2 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 shadow-sm">
-                        {dept.employees} employees
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
+                <div className="relative overflow-hidden">
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  <div className="relative p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                          <ChartPieIcon className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-blue-900 transition-colors">{dept.name}</h3>
+                          <p className="text-gray-500 text-sm">Department</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewDepartment(dept);
                           }}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110"
                           title="View Department"
                         >
                           <EyeIcon className="h-4 w-4" />
@@ -275,7 +227,7 @@ export default function Departments() {
                             e.stopPropagation();
                             handleEditDepartment(dept);
                           }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110"
                           title="Edit Department"
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -285,65 +237,266 @@ export default function Departments() {
                             e.stopPropagation();
                             handleDeleteDepartment(dept);
                           }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
                           title="Delete Department"
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-gray-50 rounded-lg">
+                          <DocumentTextIcon className="h-4 w-4 text-gray-500" />
+                        </div>
+                        <p className="text-gray-600 text-sm leading-relaxed flex-1">{dept.description}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="p-1.5 bg-blue-100 rounded-lg">
+                            <UserIcon className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Manager</p>
+                            <p className="font-semibold text-gray-900 text-sm">{dept.manager}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="p-1.5 bg-green-100 rounded-lg">
+                            <UsersIcon className="h-4 w-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Employees</p>
+                            <p className="font-semibold text-gray-900 text-sm">{dept.employees}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Click to view sub-departments</span>
+                        <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold group-hover:gap-3 transition-all duration-300">
+                          <span>View Details</span>
+                          <span className="transform group-hover:translate-x-1 transition-transform duration-300">→</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Enhanced Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+                    <tr>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Department</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Description</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Manager</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employees</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-50">
+                    {departments.map(dept => (
+                      <tr 
+                        key={dept.id} 
+                        className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 cursor-pointer group" 
+                        onClick={() => handleDepartmentClick(dept)}
+                        title="Click to view sub-departments"
+                      >
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                              <ChartPieIcon className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-900 text-base group-hover:text-blue-900 transition-colors">{dept.name}</div>
+                              <div className="text-gray-500 text-sm">Department</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="max-w-md">
+                            <p className="text-gray-700 text-sm leading-relaxed">{dept.description}</p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center shadow-sm">
+                              <UserIcon className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <span className="text-gray-900 text-sm font-semibold">{dept.manager}</span>
+                              <div className="text-gray-500 text-xs">Manager</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-sm">
+                              <UsersIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-green-100 text-green-700 shadow-sm">
+                                {dept.employees} employees
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDepartment(dept);
+                              }}
+                              className="p-3 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="View Department"
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditDepartment(dept);
+                              }}
+                              className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="Edit Department"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDepartment(dept);
+                              }}
+                              className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="Delete Department"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Create Department Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-1 sm:p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md relative animate-fade-in overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center gap-3 bg-gradient-to-r from-blue-500 to-indigo-500 px-4 sm:px-5 py-3 sm:py-4">
-              <ChartPieIcon className="h-6 w-6 text-white" />
-              <h3 className="text-base sm:text-lg font-bold text-white">Create Department</h3>
-            </div>
-            {/* Modal Body */}
-            <div className="p-3 sm:p-6 bg-gradient-to-br from-indigo-50 to-white">
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Department Name <span className="text-red-500">*</span></label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-blue-300 text-sm" 
-                    placeholder="Enter department name" 
-                    value={newDepartment.name} 
-                    onChange={e => setNewDepartment(f => ({ ...f, name: e.target.value }))} 
-                  />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-1 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md relative animate-fade-in overflow-hidden border border-gray-100">
+            {/* Modal Header with enhanced styling */}
+            <div className="relative overflow-hidden">
+              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-4">
+                <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                  <ChartPieIcon className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Description <span className="text-red-500">*</span></label>
-                  <textarea 
-                    className="input focus:ring-2 focus:ring-blue-300 text-sm" 
-                    rows="3"
-                    placeholder="Enter department description" 
-                    value={newDepartment.description} 
-                    onChange={e => setNewDepartment(f => ({ ...f, description: e.target.value }))} 
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Manager <span className="text-red-500">*</span></label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-blue-300 text-sm" 
-                    placeholder="Enter manager name" 
-                    value={newDepartment.manager} 
-                    onChange={e => setNewDepartment(f => ({ ...f, manager: e.target.value }))} 
-                  />
+                  <h3 className="text-lg font-bold text-white">Create Department</h3>
+                  <p className="text-blue-100 text-sm">Add a new department to your organization</p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white w-full sm:w-auto" onClick={handleCreateDepartment}>Create</button>
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white bg-opacity-10 rounded-full -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white bg-opacity-5 rounded-full -ml-12 -mb-12"></div>
+            </div>
+            
+            {/* Modal Body with enhanced styling */}
+            <div className="p-6 bg-gradient-to-br from-gray-50 via-white to-blue-50">
+              <div className="space-y-5">
+                {/* Department Name Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Department Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 text-sm bg-white shadow-sm" 
+                      placeholder="e.g., Human Resources" 
+                      value={newDepartment.name} 
+                      onChange={e => setNewDepartment(f => ({ ...f, name: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <textarea 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 text-sm bg-white shadow-sm resize-none" 
+                      rows="3"
+                      placeholder="Describe the department's role and responsibilities..." 
+                      value={newDepartment.description} 
+                      onChange={e => setNewDepartment(f => ({ ...f, description: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Manager Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Manager <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 text-sm bg-white shadow-sm" 
+                      placeholder="e.g., John Smith" 
+                      value={newDepartment.manager} 
+                      onChange={e => setNewDepartment(f => ({ ...f, manager: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Action Buttons */}
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5" 
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0" 
+                  onClick={handleCreateDepartment}
+                >
+                  <span className="flex items-center gap-2">
+                    <PlusIcon className="h-4 w-4" />
+                    Create Department
+                  </span>
+                </button>
               </div>
             </div>
           </div>

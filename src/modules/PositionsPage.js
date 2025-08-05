@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, UserGroupIcon, DocumentTextIcon, UserIcon, UsersIcon, ArrowLeftIcon, EyeIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useParams } from 'react-router-dom';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 // Demo positions data for each sub-department
 const demoPositions = {
@@ -65,9 +66,11 @@ export default function PositionsPage() {
 
   const subDepartmentName = subDepartmentNames[subDepartmentId] || "Sub Department";
 
+  // Job titles functionality removed
+
   const handlePositionClick = (position) => {
-    const positionId = position.name.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/company-resources/departments/${departmentId}/positions/${subDepartmentId}/job-titles/${positionId}`);
+    // Navigate to employees page when position is clicked
+    navigate('/employees');
   };
 
   const handleCreatePosition = () => {
@@ -132,6 +135,8 @@ export default function PositionsPage() {
 
   return (
     <div className="w-full h-full flex flex-col">
+      <Breadcrumbs />
+      
       {/* Top Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 px-4 sm:px-6 lg:px-10 border-b bg-white shadow-sm gap-4">
         <div className="flex items-center gap-4">
@@ -156,13 +161,49 @@ export default function PositionsPage() {
         </button>
       </div>
       
-      {/* Attractive Section Header */}
-      <div className="w-full px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-3 mb-6 sm:mb-8 mt-6 sm:mt-8 bg-gradient-to-r from-purple-100 to-pink-50 rounded-lg px-4 sm:px-6 py-3 sm:py-4 border-l-4 border-purple-500 shadow-sm">
-          <UserGroupIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 tracking-tight">Positions</h2>
-            <p className="text-sm text-gray-600">Manage positions under {subDepartmentName}</p>
+      {/* Enhanced Section Header */}
+      <div className="w-full px-4 sm:px-6 lg:px-10 mb-8">
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 rounded-3xl shadow-2xl p-8">
+          {/* Background decorative elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white bg-opacity-10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white bg-opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="absolute top-1/2 right-8 w-16 h-16 bg-white bg-opacity-5 rounded-full"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white bg-opacity-20 rounded-2xl">
+                  <UserGroupIcon className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-purple-100 text-lg leading-relaxed">Manage positions under {subDepartmentName}.</p>
+                </div>
+              </div>
+              <div className="hidden lg:flex items-center space-x-4">
+                <div className="px-6 py-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                  <span className="text-white text-lg font-semibold">{positions.length} Positions</span>
+                </div>
+                <div className="px-6 py-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                  <span className="text-white text-lg font-semibold">Active</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Stats row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
+                <div className="text-white text-2xl font-bold">{positions.length}</div>
+                <div className="text-purple-100 text-sm">Total Positions</div>
+              </div>
+              <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
+                <div className="text-white text-2xl font-bold">{positions.reduce((sum, position) => sum + position.employees, 0)}</div>
+                <div className="text-purple-100 text-sm">Total Employees</div>
+              </div>
+              <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
+                <div className="text-white text-2xl font-bold">{positions.filter(position => position.status === 'Active').length}</div>
+                <div className="text-purple-100 text-sm">Active Positions</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -170,146 +211,255 @@ export default function PositionsPage() {
       {/* Main Content */}
       <div className="flex-1 w-full flex justify-center items-start bg-gradient-to-br from-purple-50 to-white min-h-[60vh] px-2 sm:px-6 lg:px-10">
         <div className="w-full mt-4 sm:mt-8">
-          {/* Mobile Cards View */}
-          <div className="lg:hidden space-y-3 sm:space-y-4">
+          {/* Enhanced Mobile Cards View */}
+          <div className="lg:hidden space-y-6">
             {positions.map(position => (
-              <div key={position.id} className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200 hover:shadow-lg transition hover:border-purple-300">
-                <div className="flex items-center gap-3 mb-2 sm:mb-3">
-                  <BriefcaseIcon className="h-5 w-5 text-purple-400" />
-                  <h3 
-                    className="font-semibold text-gray-800 text-sm flex-1 cursor-pointer hover:text-purple-600 transition hover:underline"
-                    onClick={() => handlePositionClick(position)}
-                    title="Click to view job titles"
-                  >
-                    {position.name} <span className="text-xs text-purple-500">→</span>
-                  </h3>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleViewPosition(position)}
-                      className="p-1 text-green-600 hover:bg-green-50 rounded transition"
-                      title="View Position"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEditPosition(position)}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
-                      title="Edit Position"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeletePosition(position)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded transition"
-                      title="Delete Position"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
-                  <div className="flex items-center gap-2">
-                    <DocumentTextIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{position.description}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">Manager: {position.manager}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4 text-gray-400" />
-                    <span className="inline-block px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
-                      {position.employees} employees
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-600">Salary: {position.salary}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
-                      position.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {position.status}
-                    </span>
+              <div 
+                key={position.id} 
+                className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-purple-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02]"
+                onClick={() => handlePositionClick(position)}
+                title="Click to view employees"
+              >
+                <div className="relative overflow-hidden">
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-violet-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  <div className="relative p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl shadow-lg">
+                          <BriefcaseIcon className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-purple-900 transition-colors">{position.name}</h3>
+                          <p className="text-gray-500 text-sm">Position</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewPosition(position);
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110"
+                          title="View Position"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditPosition(position);
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110"
+                          title="Edit Position"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePosition(position);
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
+                          title="Delete Position"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 bg-gray-50 rounded-lg">
+                          <DocumentTextIcon className="h-4 w-4 text-gray-500" />
+                        </div>
+                        <p className="text-gray-600 text-sm leading-relaxed flex-1">{position.description}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="p-1.5 bg-purple-100 rounded-lg">
+                            <UserIcon className="h-4 w-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Manager</p>
+                            <p className="font-semibold text-gray-900 text-sm">{position.manager}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="p-1.5 bg-violet-100 rounded-lg">
+                            <UsersIcon className="h-4 w-4 text-violet-600" />
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Employees</p>
+                            <p className="font-semibold text-gray-900 text-sm">{position.employees}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <div className="p-1.5 bg-indigo-100 rounded-lg">
+                            <span className="text-indigo-600 font-bold text-sm">$</span>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Salary</p>
+                            <p className="font-semibold text-gray-900 text-sm">{position.salary}</p>
+                          </div>
+                        </div>
+                        
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                          position.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full mr-2 ${
+                            position.status === 'Active' ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
+                          {position.status}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Click to view employees</span>
+                        <div className="flex items-center gap-2 text-purple-600 text-sm font-semibold group-hover:gap-3 transition-all duration-300">
+                          <span>View Employees</span>
+                          <span className="transform group-hover:translate-x-1 transition-transform duration-300">→</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
           
-          {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto rounded-2xl shadow-2xl bg-white border border-purple-100">
-            <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-              <thead className="bg-purple-50">
-                <tr>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Employees</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Salary</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {positions.map(position => (
-                  <tr key={position.id} className="hover:bg-purple-50 transition">
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap font-semibold flex items-center gap-2">
-                      <span
-                        className="cursor-pointer hover:text-purple-600 transition hover:underline flex items-center gap-2"
+          {/* Enhanced Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600">
+                    <tr>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Position</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Description</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Manager</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employees</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Salary</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Status</th>
+                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-50">
+                    {positions.map(position => (
+                      <tr 
+                        key={position.id} 
+                        className="hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50 transition-all duration-300 cursor-pointer group" 
                         onClick={() => handlePositionClick(position)}
-                        title="Click to view job titles"
+                        title="Click to view employees"
                       >
-                        <BriefcaseIcon className="h-5 w-5 text-purple-400" /> 
-                        {position.name} <span className="text-xs text-purple-500">→</span>
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">{position.description}</td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap flex items-center gap-2">
-                      <UserIcon className="h-4 w-4 text-purple-300" /> {position.manager}
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                      <span className="inline-block px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 shadow-sm">
-                        {position.employees} employees
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">{position.salary}</td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
-                        position.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {position.status}
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewPosition(position)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
-                          title="View Position"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEditPosition(position)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit Position"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePosition(position)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                          title="Delete Position"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl shadow-lg">
+                              <BriefcaseIcon className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-900 text-base group-hover:text-purple-900 transition-colors">{position.name}</div>
+                              <div className="text-gray-500 text-sm">Position</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="max-w-md">
+                            <p className="text-gray-700 text-sm leading-relaxed">{position.description}</p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-violet-100 rounded-full flex items-center justify-center shadow-sm">
+                              <UserIcon className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <span className="text-gray-900 text-sm font-semibold">{position.manager}</span>
+                              <div className="text-gray-500 text-xs">Manager</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-full flex items-center justify-center shadow-sm">
+                              <UsersIcon className="h-5 w-5 text-violet-600" />
+                            </div>
+                            <div>
+                              <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-violet-100 text-violet-700 shadow-sm">
+                                {position.employees} employees
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-full flex items-center justify-center shadow-sm">
+                              <span className="text-indigo-600 font-bold text-lg">$</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-900 text-sm font-semibold">{position.salary}</span>
+                              <div className="text-gray-500 text-xs">Salary</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
+                            position.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            <div className={`w-2 h-2 rounded-full mr-2 ${
+                              position.status === 'Active' ? 'bg-green-500' : 'bg-red-500'
+                            }`}></div>
+                            {position.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 whitespace-nowrap">
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewPosition(position);
+                              }}
+                              className="p-3 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="View Position"
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditPosition(position);
+                              }}
+                              className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="Edit Position"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePosition(position);
+                              }}
+                              className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                              title="Delete Position"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -371,78 +521,167 @@ export default function PositionsPage() {
 
       {/* Create Position Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-1 sm:p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md relative animate-fade-in overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 px-4 sm:px-5 py-3 sm:py-4">
-              <BriefcaseIcon className="h-6 w-6 text-white" />
-              <h3 className="text-base sm:text-lg font-bold text-white">Add Position</h3>
-            </div>
-            {/* Modal Body */}
-            <div className="p-3 sm:p-6 bg-gradient-to-br from-purple-50 to-white">
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Position Name <span className="text-red-500">*</span></label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-purple-300 text-sm" 
-                    placeholder="Enter position name" 
-                    value={newPosition.name} 
-                    onChange={e => setNewPosition(f => ({ ...f, name: e.target.value }))} 
-                  />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-1 sm:p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md relative animate-fade-in overflow-hidden border border-gray-100">
+            {/* Modal Header with enhanced styling */}
+            <div className="relative overflow-hidden">
+              <div className="flex items-center gap-3 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 px-6 py-4">
+                <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                  <BriefcaseIcon className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Description <span className="text-red-500">*</span></label>
-                  <textarea 
-                    className="input focus:ring-2 focus:ring-purple-300 text-sm" 
-                    rows="3"
-                    placeholder="Enter position description" 
-                    value={newPosition.description} 
-                    onChange={e => setNewPosition(f => ({ ...f, description: e.target.value }))} 
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Manager <span className="text-red-500">*</span></label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-purple-300 text-sm" 
-                    placeholder="Enter manager name" 
-                    value={newPosition.manager} 
-                    onChange={e => setNewPosition(f => ({ ...f, manager: e.target.value }))} 
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Salary</label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-purple-300 text-sm" 
-                    placeholder="Enter salary" 
-                    value={newPosition.salary} 
-                    onChange={e => setNewPosition(f => ({ ...f, salary: e.target.value }))} 
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Requirements</label>
-                  <textarea 
-                    className="input focus:ring-2 focus:ring-purple-300 text-sm" 
-                    rows="2"
-                    placeholder="Enter job requirements" 
-                    value={newPosition.requirements} 
-                    onChange={e => setNewPosition(f => ({ ...f, requirements: e.target.value }))} 
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Status</label>
-                  <select 
-                    className="input focus:ring-2 focus:ring-purple-300 text-sm" 
-                    value={newPosition.status} 
-                    onChange={e => setNewPosition(f => ({ ...f, status: e.target.value }))} 
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
+                  <h3 className="text-lg font-bold text-white">Add Position</h3>
+                  <p className="text-purple-100 text-sm">Create a new position under {subDepartmentName}</p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white w-full sm:w-auto" onClick={handleCreatePosition}>Create</button>
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white bg-opacity-10 rounded-full -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white bg-opacity-5 rounded-full -ml-12 -mb-12"></div>
+            </div>
+            
+            {/* Modal Body with enhanced styling */}
+            <div className="p-6 bg-gradient-to-br from-gray-50 via-white to-purple-50">
+              <div className="space-y-5">
+                {/* Position Name Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Position Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 text-sm bg-white shadow-sm" 
+                      placeholder="e.g., Chief Executive Officer" 
+                      value={newPosition.name} 
+                      onChange={e => setNewPosition(f => ({ ...f, name: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <textarea 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-200 text-sm bg-white shadow-sm resize-none" 
+                      rows="3"
+                      placeholder="Describe the position's role and responsibilities..." 
+                      value={newPosition.description} 
+                      onChange={e => setNewPosition(f => ({ ...f, description: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-pink-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Manager Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                    Manager <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-rose-100 focus:border-rose-500 transition-all duration-200 text-sm bg-white shadow-sm" 
+                      placeholder="e.g., John Smith" 
+                      value={newPosition.manager} 
+                      onChange={e => setNewPosition(f => ({ ...f, manager: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-rose-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Salary Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                    Salary
+                  </label>
+                  <div className="relative">
+                    <input 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 text-sm bg-white shadow-sm" 
+                      placeholder="e.g., $150,000" 
+                      value={newPosition.salary} 
+                      onChange={e => setNewPosition(f => ({ ...f, salary: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Requirements Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Requirements
+                  </label>
+                  <div className="relative">
+                    <textarea 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 text-sm bg-white shadow-sm resize-none" 
+                      rows="2"
+                      placeholder="Enter job requirements and qualifications..." 
+                      value={newPosition.requirements} 
+                      onChange={e => setNewPosition(f => ({ ...f, requirements: e.target.value }))} 
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Field */}
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                    Status
+                  </label>
+                  <div className="relative">
+                    <select 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 text-sm bg-white shadow-sm appearance-none" 
+                      value={newPosition.status} 
+                      onChange={e => setNewPosition(f => ({ ...f, status: e.target.value }))} 
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Action Buttons */}
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5" 
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0" 
+                  onClick={handleCreatePosition}
+                >
+                  <span className="flex items-center gap-2">
+                    <PlusIcon className="h-4 w-4" />
+                    Create Position
+                  </span>
+                </button>
               </div>
             </div>
           </div>
