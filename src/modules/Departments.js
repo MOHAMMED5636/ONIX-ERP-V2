@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, BriefcaseIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, EyeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, BriefcaseIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, EyeIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
+import { useCompanySelection } from '../context/CompanySelectionContext';
 
 const initialDepartments = [
   "Human Resources",
@@ -33,6 +34,7 @@ export default function Departments() {
   const [newDepartment, setNewDepartment] = useState({ name: '', description: '', manager: '' });
   const [editDepartment, setEditDepartment] = useState({ name: '', description: '', manager: '' });
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const { selectedDepartment: contextSelectedDepartment, selectDepartment } = useCompanySelection();
 
   // Get selected company from navigation state
   useEffect(() => {
@@ -136,6 +138,23 @@ export default function Departments() {
           Create Department
         </button>
       </div>
+      
+      {/* Selection Indicator */}
+      {contextSelectedDepartment && (
+        <div className="w-full px-4 sm:px-6 lg:px-10 mb-6">
+          <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckIcon className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-800">Department Selected for Employee Creation</p>
+                <p className="text-lg font-semibold text-green-900">{contextSelectedDepartment}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Enhanced Section Header */}
       <div className="w-full px-4 sm:px-6 lg:px-10 mb-8">
@@ -241,6 +260,20 @@ export default function Departments() {
                           title="Delete Department"
                         >
                           <TrashIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectDepartment(dept.name);
+                          }}
+                          className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                            contextSelectedDepartment === dept.name
+                              ? "text-green-600 bg-green-50"
+                              : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                          }`}
+                          title={contextSelectedDepartment === dept.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
+                        >
+                          <CheckIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -383,6 +416,20 @@ export default function Departments() {
                               title="Delete Department"
                             >
                               <TrashIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectDepartment(dept.name);
+                              }}
+                              className={`p-3 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm ${
+                                contextSelectedDepartment === dept.name
+                                  ? "text-green-600 bg-green-50"
+                                  : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                              }`}
+                              title={contextSelectedDepartment === dept.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
+                            >
+                              <CheckIcon className="h-5 w-5" />
                             </button>
                           </div>
                         </td>

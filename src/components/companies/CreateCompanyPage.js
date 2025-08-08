@@ -13,7 +13,16 @@ export default function CreateCompanyPage() {
     contact: "",
     logo: null,
     header: null,
-    footer: null
+    footer: null,
+    licenseCategory: "",
+    legalType: "",
+    expiryDate: "",
+    dunsNumber: "",
+    registerNo: "",
+    issueDate: "",
+    mainLicenseNo: "",
+    dcciNo: "",
+    trnNumber: ""
   });
   
   const [contacts, setContacts] = useState([
@@ -44,7 +53,16 @@ export default function CreateCompanyPage() {
         contact: isEditMode.contact || "",
         logo: isEditMode.logo || null,
         header: isEditMode.header || null,
-        footer: isEditMode.footer || null
+        footer: isEditMode.footer || null,
+        licenseCategory: isEditMode.licenseCategory || "",
+        legalType: isEditMode.legalType || "",
+        expiryDate: isEditMode.expiryDate || "",
+        dunsNumber: isEditMode.dunsNumber || "",
+        registerNo: isEditMode.registerNo || "",
+        issueDate: isEditMode.issueDate || "",
+        mainLicenseNo: isEditMode.mainLicenseNo || "",
+        dcciNo: isEditMode.dcciNo || "",
+        trnNumber: isEditMode.trnNumber || ""
       });
     }
   }, [isEditMode]);
@@ -183,86 +201,300 @@ export default function CreateCompanyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Enhanced Header */}
         <div className="mb-8">
-          <div className="flex items-center mb-4">
+          <div className="flex items-center mb-6">
             <Link
               to="/companies"
-              className="text-indigo-600 hover:text-indigo-800 mr-4"
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-all duration-200 mr-4"
             >
-              ← Back to Companies
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Companies
             </Link>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isEditMode ? "Edit Company" : "Create New Company"}
-          </h1>
-          <p className="text-gray-600">
-            {isEditMode ? "Update company information" : "Add a new company to your system"}
-          </p>
+          
+          {/* Enhanced Title Section */}
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-white bg-opacity-20 rounded-xl backdrop-blur-sm">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold mb-2">
+                  {isEditMode ? "Edit Company" : "Create New Company"}
+                </h1>
+                <p className="text-indigo-100 text-lg">
+                  {isEditMode ? "Update company information" : "Add a new company to your system"}
+                </p>
+              </div>
+            </div>
+            
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur-sm">
+                <div className="text-2xl font-bold">1</div>
+                <div className="text-indigo-100 text-sm">Company</div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur-sm">
+                <div className="text-2xl font-bold">Complete</div>
+                <div className="text-indigo-100 text-sm">Form</div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur-sm">
+                <div className="text-2xl font-bold">Secure</div>
+                <div className="text-indigo-100 text-sm">Data</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="Enter company name"
-                />
+        {/* Enhanced Form */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900">Company Information</h2>
+            <p className="text-gray-600 mt-2">Fill in the details below to create your company profile</p>
+          </div>
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            {/* Basic Information Section */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Basic Information</h3>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Company Tag *
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 group-hover:text-blue-600 transition-colors">
+                    Company Name *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={form.name}
+                      onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                      placeholder="Enter company name"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 group-hover:text-blue-600 transition-colors">
+                    Company Tag *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={form.tag}
+                      onChange={(e) => setForm(prev => ({ ...prev, tag: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                      placeholder="e.g., ONIX"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="mt-6 group">
+                <label className="block text-sm font-semibold text-gray-700 mb-3 group-hover:text-blue-600 transition-colors">
+                  Address *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={form.tag}
-                  onChange={(e) => setForm(prev => ({ ...prev, tag: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="e.g., ONIX"
-                />
+                <div className="relative">
+                  <textarea
+                    required
+                    value={form.address}
+                    onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md resize-none"
+                    placeholder="Enter company address"
+                  />
+                  <div className="absolute top-3 right-3 pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Address */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address *
-              </label>
-              <textarea
-                required
-                value={form.address}
-                onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                placeholder="Enter company address"
-              />
+            {/* License Information Section */}
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">License & Legal Information</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     License Category *
+                   </label>
+                                     <select
+                     required
+                     value={form.licenseCategory}
+                     onChange={(e) => setForm(prev => ({ ...prev, licenseCategory: e.target.value }))}
+                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                   >
+                    <option value="">Select License Category</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="industrial">Industrial</option>
+                    <option value="professional">Professional</option>
+                    <option value="trading">Trading</option>
+                    <option value="construction">Construction</option>
+                    <option value="consulting">Consulting</option>
+                  </select>
+                </div>
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Legal Type *
+                   </label>
+                                     <select
+                     required
+                     value={form.legalType}
+                     onChange={(e) => setForm(prev => ({ ...prev, legalType: e.target.value }))}
+                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                   >
+                    <option value="">Select Legal Type</option>
+                    <option value="llc">Limited Liability Company (LLC)</option>
+                    <option value="corporation">Corporation</option>
+                    <option value="partnership">Partnership</option>
+                    <option value="sole-proprietorship">Sole Proprietorship</option>
+                    <option value="branch">Branch</option>
+                    <option value="representative-office">Representative Office</option>
+                  </select>
+                </div>
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Expiry Date *
+                   </label>
+                                     <input
+                     type="date"
+                     required
+                     value={form.expiryDate}
+                     onChange={(e) => setForm(prev => ({ ...prev, expiryDate: e.target.value }))}
+                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    D&B D-U-N-S Number
+                  </label>
+                  <input
+                    type="text"
+                    value={form.dunsNumber}
+                    onChange={(e) => setForm(prev => ({ ...prev, dunsNumber: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder="Enter D&B D-U-N-S Number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Register Number
+                  </label>
+                  <input
+                    type="text"
+                    value={form.registerNo}
+                    onChange={(e) => setForm(prev => ({ ...prev, registerNo: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder="Enter Register Number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Issue Date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.issueDate}
+                    onChange={(e) => setForm(prev => ({ ...prev, issueDate: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Main License Number *
+                   </label>
+                                     <input
+                     type="text"
+                     required
+                     value={form.mainLicenseNo}
+                     onChange={(e) => setForm(prev => ({ ...prev, mainLicenseNo: e.target.value }))}
+                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                     placeholder="Enter Main License Number"
+                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    DCCI Number
+                  </label>
+                  <input
+                    type="text"
+                    value={form.dcciNo}
+                    onChange={(e) => setForm(prev => ({ ...prev, dcciNo: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder="Enter DCCI Number"
+                  />
+                </div>
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     TRN Number *
+                   </label>
+                                     <input
+                     type="text"
+                     required
+                     value={form.trnNumber}
+                     onChange={(e) => setForm(prev => ({ ...prev, trnNumber: e.target.value }))}
+                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                     placeholder="Enter TRN Number"
+                   />
+                </div>
+              </div>
             </div>
 
-            {/* Contact Management */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Primary Contact
-                </label>
+            {/* Contact Management Section */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500 rounded-lg">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">Primary Contact</h3>
+                </div>
                 <button
                   type="button"
                   onClick={handleAddContact}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
-                  + Add Contact
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add Contact
                 </button>
               </div>
               
@@ -311,8 +543,17 @@ export default function CreateCompanyPage() {
               </select>
             </div>
 
-            {/* File Uploads */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* File Uploads Section */}
+            <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-orange-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Company Assets</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Company Logo
@@ -430,21 +671,30 @@ export default function CreateCompanyPage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-              <Link
-                to="/companies"
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-              >
-                {isEditMode ? "Update Company" : "Create Company"}
-              </button>
+                      {/* Submit Button */}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 border-t border-gray-200">
+              <div className="flex justify-end space-x-4">
+                <Link
+                  to="/companies"
+                  className="flex items-center gap-2 px-8 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  {isEditMode ? "Update Company" : "Create Company"}
+                </button>
+              </div>
             </div>
           </form>
         </div>

@@ -21,18 +21,7 @@ import {
 
 const navItems = [
   { key: "dashboard", icon: HomeIcon, label: { en: "Dashboard", ar: "لوحة التحكم" }, path: "/dashboard" },
-  // Employee dropdown menu
-  {
-    key: "employee-menu",
-    icon: UsersIcon,
-    label: { en: "", ar: "" },
-    dropdown: true,
-    submenus: [
-      { key: "employees", label: { en: "Employees", ar: "الموظفون" }, path: "/employees" },
-      { key: "departments", label: { en: "Departments", ar: "الأقسام" }, path: "/departments" },
-      { key: "working-locations", label: { en: "Working Locations", ar: "أماكن العمل" }, path: "/working-locations" },
-    ],
-  },
+  // Removed Workplace Hub dropdown (Employees, Departments, Working Locations) to avoid duplication
   // Company Resources dropdown menu
   {
     key: "company-resources-menu",
@@ -41,6 +30,19 @@ const navItems = [
     dropdown: true,
     submenus: [
       { key: "companies", label: { en: "Companies", ar: "الشركات" }, path: "/companies" },
+    ],
+  },
+  // Workplace Hub dropdown menu
+  {
+    key: "workplace-hub-menu",
+    icon: FolderIcon,
+    label: { en: "Workplace Hub", ar: "مركز العمل" },
+    dropdown: true,
+    submenus: [
+      { key: "company-policy", label: { en: "Company Policy", ar: "سياسة الشركة" }, path: "/workplace/company-policy" },
+      { key: "my-attendance", label: { en: "My Attendance", ar: "حضوري" }, path: "/workplace/my-attendance" },
+      { key: "leaves", label: { en: "Leaves", ar: "الإجازات" }, path: "/workplace/leaves" },
+      { key: "feedbacks-survey", label: { en: "Feedbacks & Survey", ar: "التغذية الراجعة والاستبيان" }, path: "/workplace/feedbacks-survey" },
     ],
   },
   // Tasks dropdown menu with Contracts
@@ -72,6 +74,10 @@ const submenuIcons = {
   'create-contract': ClipboardDocumentListIcon,
   'task-categories': ClipboardDocumentListIcon,
   companies: BuildingOfficeIcon,
+  'company-policy': DocumentTextIcon,
+  'my-attendance': CalendarDaysIcon,
+  'feedbacks-survey': ChatBubbleLeftRightIcon,
+  'leaves': DocumentTextIcon,
 };
 
 function Tooltip({ label, children }) {

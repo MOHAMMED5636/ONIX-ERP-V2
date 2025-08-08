@@ -32,12 +32,12 @@ const Breadcrumbs = ({ names = {} }) => {
   // Define the breadcrumb structure based on the current route
   const getBreadcrumbs = () => {
     const breadcrumbs = [
-      { name: 'Home', path: '/', icon: HomeIcon }
+      { name: 'Home', path: '/companies', icon: HomeIcon }
     ];
 
     // Departments page
     if (pathSegments.includes('departments') && pathSegments.length === 1) {
-      breadcrumbs.push({ name: 'Departments', path: '/departments' });
+      breadcrumbs.push({ name: 'ONIX Construction', path: '/departments' });
     }
     
     // SubDepartments page
@@ -46,7 +46,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const departmentName = departmentNames[departmentId] || names.department || 'Department';
       
       breadcrumbs.push(
-        { name: 'Departments', path: '/departments' },
+        { name: 'ONIX Construction', path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}/sub-departments` }
       );
     }
@@ -59,7 +59,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const subDepartmentName = subDepartmentNames[subDepartmentId] || names.subdepartment || 'Sub Department';
       
       breadcrumbs.push(
-        { name: 'Departments', path: '/departments' },
+        { name: 'ONIX Construction', path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}/sub-departments` },
         { name: subDepartmentName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}/positions` }
       );
@@ -71,7 +71,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const departmentName = departmentNames[departmentId] || names.department || 'Department';
       
       breadcrumbs.push(
-        { name: 'Departments', path: '/departments' },
+        { name: 'ONIX Construction', path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}/sub-departments` }
       );
     }
@@ -84,7 +84,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const subDepartmentName = subDepartmentNames[subDepartmentId] || names.subdepartment || 'Sub Department';
       
       breadcrumbs.push(
-        { name: 'Departments', path: '/departments' },
+        { name: 'ONIX Construction', path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}` },
         { name: subDepartmentName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}` }
       );
@@ -100,7 +100,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const positionName = names.position || 'Position';
       
       breadcrumbs.push(
-        { name: 'Departments', path: '/departments' },
+        { name: 'ONIX Construction', path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}` },
         { name: subDepartmentName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}` },
         { name: positionName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}/positions/${positionId}` }
@@ -110,7 +110,7 @@ const Breadcrumbs = ({ names = {} }) => {
     // Employees directory page
     else if (pathSegments.includes('employees') && pathSegments.length === 1) {
       breadcrumbs.push(
-        { name: 'Departments', path: '/departments' },
+        { name: 'ONIX Construction', path: '/departments' },
         { name: 'Board of Directors', path: '/company-resources/departments/board-of-directors/sub-departments' },
         { name: 'Executive Committee', path: '/company-resources/departments/board-of-directors/sub-departments/executive-committee/positions' },
         { name: 'Employees', path: '/employees' }

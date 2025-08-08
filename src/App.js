@@ -18,6 +18,11 @@ import CreateCompanyPage from "./components/companies/CreateCompanyPage";
 import SubDepartmentsPage from "./modules/SubDepartmentsPage";
 import PositionsPage from "./modules/PositionsPage";
 import EmployeeSectionPage from "./modules/EmployeeSectionPage";
+import CompanyPolicy from "./pages/workplace/CompanyPolicy";
+import MyAttendance from "./pages/workplace/MyAttendance";
+import Leaves from "./pages/workplace/Leaves";
+import FeedbacksSurvey from "./pages/workplace/FeedbacksSurvey";
+import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 
 function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
@@ -62,6 +67,11 @@ function MainLayout() {
             <Route path="/task-categories" element={<TaskCategoryList />} />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/companies/create" element={<CreateCompanyPage />} />
+            {/* Workplace Hub routes */}
+            <Route path="/workplace/company-policy" element={<CompanyPolicy />} />
+            <Route path="/workplace/my-attendance" element={<MyAttendance />} />
+            <Route path="/workplace/leaves" element={<Leaves />} />
+            <Route path="/workplace/feedbacks-survey" element={<FeedbacksSurvey />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>
@@ -82,15 +92,17 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/*" element={
-          <PrivateRoute>
-            <MainLayout /> 
-          </PrivateRoute>
-        } />
-      </Routes>
-    </Router>
+    <CompanySelectionProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={
+            <PrivateRoute>
+              <MainLayout /> 
+            </PrivateRoute>
+          } />
+        </Routes>
+      </Router>
+    </CompanySelectionProvider>
   );
 }

@@ -11,8 +11,10 @@ import {
   TrashIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  EllipsisVerticalIcon
+  EllipsisVerticalIcon,
+  CheckIcon
 } from "@heroicons/react/24/outline";
+import { useCompanySelection } from "../../context/CompanySelectionContext";
 
 const initialCompanies = [
   { 
@@ -33,7 +35,9 @@ const initialCompanies = [
     employees: 45,
     status: "active",
     industry: "Construction",
-    founded: "2018"
+    founded: "2018",
+    licenseExpiry: "2025-12-31",
+    licenseStatus: "active"
   },
   { 
     id: 2, 
@@ -53,7 +57,9 @@ const initialCompanies = [
     employees: 32,
     status: "active",
     industry: "Technology",
-    founded: "2020"
+    founded: "2020",
+    licenseExpiry: "2024-06-15",
+    licenseStatus: "expired"
   },
   { 
     id: 3, 
@@ -73,7 +79,9 @@ const initialCompanies = [
     employees: 28,
     status: "active",
     industry: "Engineering",
-    founded: "2019"
+    founded: "2019",
+    licenseExpiry: "2025-03-20",
+    licenseStatus: "active"
   },
 ];
 
@@ -83,8 +91,10 @@ export default function CompaniesPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterLicenseStatus, setFilterLicenseStatus] = useState("all");
   const [viewMode, setViewMode] = useState("cards"); // "cards" or "table"
   const navigate = useNavigate();
+  const { selectedCompany, selectCompany } = useCompanySelection();
 
   // Load companies from localStorage on component mount
   useEffect(() => {
@@ -129,7 +139,8 @@ export default function CompaniesPage() {
                          company.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          company.address.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || company.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesLicenseStatus = filterLicenseStatus === "all" || company.licenseStatus === filterLicenseStatus;
+    return matchesSearch && matchesStatus && matchesLicenseStatus;
   });
 
   const getStatusColor = (status) => {
@@ -152,6 +163,24 @@ export default function CompaniesPage() {
     return colors[industry] || 'bg-gray-100 text-gray-800';
   };
 
+  const getLicenseStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'expired': return 'bg-red-100 text-red-800';
+      case 'expiring_soon': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getLicenseStatusText = (status) => {
+    switch (status) {
+      case 'active': return 'Active';
+      case 'expired': return 'Expired';
+      case 'expiring_soon': return 'Expiring Soon';
+      default: return 'Unknown';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -165,12 +194,27 @@ export default function CompaniesPage() {
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 Companies
               </h1>
-              <p className="text-gray-600 mt-1">Manage your company information and settings</p>
+              <p className="text-gray-600 mt-1">Manage your company information and settings with license tracking</p>
             </div>
           </div>
           
+          {/* Selection Indicator */}
+          {selectedCompany && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckIcon className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-green-800">Company Selected for Employee Creation</p>
+                  <p className="text-lg font-semibold text-green-900">{selectedCompany}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -215,6 +259,19 @@ export default function CompaniesPage() {
                 </div>
               </div>
             </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Active Licenses</p>
+                  <p className="text-2xl font-bold text-green-600">{companies.filter(c => c.licenseStatus === 'active').length}</p>
+                </div>
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -234,7 +291,7 @@ export default function CompaniesPage() {
                 />
               </div>
               
-              {/* Filter */}
+              {/* Status Filter */}
               <div className="relative">
                 <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <select
@@ -246,6 +303,21 @@ export default function CompaniesPage() {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="pending">Pending</option>
+                </select>
+              </div>
+              
+              {/* License Status Filter */}
+              <div className="relative">
+                <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <select
+                  value={filterLicenseStatus}
+                  onChange={(e) => setFilterLicenseStatus(e.target.value)}
+                  className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
+                >
+                  <option value="all">All License Status</option>
+                  <option value="active">License Active</option>
+                  <option value="expired">License Expired</option>
+                  <option value="expiring_soon">Expiring Soon</option>
                 </select>
               </div>
             </div>
@@ -338,6 +410,21 @@ export default function CompaniesPage() {
                       <p className="text-xs text-gray-600">Founded</p>
                     </div>
                   </div>
+                  
+                  {/* License Status */}
+                  <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-gray-600">License Status</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {company.licenseExpiry ? new Date(company.licenseExpiry).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getLicenseStatusColor(company.licenseStatus)}`}>
+                        {getLicenseStatusText(company.licenseStatus)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Card Body */}
@@ -378,6 +465,26 @@ export default function CompaniesPage() {
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => selectCompany(company.name)}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          selectedCompany === company.name
+                            ? "bg-green-100 text-green-700 border border-green-200"
+                            : "bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700"
+                        }`}
+                        title={selectedCompany === company.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
+                      >
+                        {selectedCompany === company.name ? (
+                          <div className="flex items-center gap-1">
+                            <CheckIcon className="h-4 w-4" />
+                            <span>Selected</span>
+                          </div>
+                        ) : (
+                          "Select"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -404,6 +511,9 @@ export default function CompaniesPage() {
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      License Status
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Actions
@@ -453,6 +563,16 @@ export default function CompaniesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getLicenseStatusColor(company.licenseStatus)}`}>
+                            {getLicenseStatusText(company.licenseStatus)}
+                          </span>
+                          <span className="text-xs text-gray-500 mt-1">
+                            {company.licenseExpiry ? new Date(company.licenseExpiry).toLocaleDateString() : 'N/A'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleView(company)}
@@ -474,6 +594,24 @@ export default function CompaniesPage() {
                             title="Delete Company"
                           >
                             <TrashIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => selectCompany(company.name)}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                              selectedCompany === company.name
+                                ? "bg-green-100 text-green-700 border border-green-200"
+                                : "bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700"
+                            }`}
+                            title={selectedCompany === company.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
+                          >
+                            {selectedCompany === company.name ? (
+                              <div className="flex items-center gap-1">
+                                <CheckIcon className="h-3 w-3" />
+                                <span>Selected</span>
+                              </div>
+                            ) : (
+                              "Select"
+                            )}
                           </button>
                         </div>
                       </td>
@@ -614,6 +752,27 @@ export default function CompaniesPage() {
                       <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg text-center">
                         <p className="text-2xl font-bold text-green-600">{viewCompany.founded}</p>
                         <p className="text-sm text-gray-600">Founded</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* License Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">License Information</h3>
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">License Status</p>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {getLicenseStatusText(viewCompany.licenseStatus)}
+                          </p>
+                        </div>
+                        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getLicenseStatusColor(viewCompany.licenseStatus)}`}>
+                          {getLicenseStatusText(viewCompany.licenseStatus)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <p><strong>Expiry Date:</strong> {viewCompany.licenseExpiry ? new Date(viewCompany.licenseExpiry).toLocaleDateString() : 'N/A'}</p>
                       </div>
                     </div>
                   </div>
