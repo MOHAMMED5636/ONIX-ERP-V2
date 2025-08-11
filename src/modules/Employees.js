@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect } from "react";
-import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -1146,6 +1146,11 @@ export default function Employees() {
   const [employees, setEmployees] = useState(demoEmployees);
   const [showJobTitlesModal, setShowJobTitlesModal] = useState(false);
   const [showAttendanceProgramModal, setShowAttendanceProgramModal] = useState(false);
+  const [showImportExportModal, setShowImportExportModal] = useState(false);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedEmployeeForHistory, setSelectedEmployeeForHistory] = useState(null);
+  const [showPayrollDrawer, setShowPayrollDrawer] = useState(false);
+  const [selectedEmployeeForPayroll, setSelectedEmployeeForPayroll] = useState(null);
   const [jobTitles, setJobTitles] = useState([
     { id: 1, title: "Manager", department: "All", description: "Management role" },
     { id: 2, title: "Developer", department: "IT", description: "Software development" },
@@ -1158,6 +1163,245 @@ export default function Employees() {
     { id: 3, name: "Shift Work", hours: "Rotating shifts", description: "24/7 shift rotation" },
     { id: 4, name: "Remote Work", hours: "Remote", description: "Work from home" }
   ]);
+
+  // Mock data for payroll information
+  const [payrollData, setPayrollData] = useState({
+    1: {
+      basicSalary: 5000,
+      allowances: {
+        housing: 800,
+        transport: 300,
+        meal: 200,
+        other: 150
+      },
+      deductions: {
+        tax: 450,
+        insurance: 200,
+        pension: 300,
+        other: 100
+      },
+      bonuses: {
+        performance: 500,
+        attendance: 200,
+        other: 0
+      },
+      monthlyRecords: [
+        {
+          id: 1,
+          month: "January 2024",
+          basicSalary: 5000,
+          totalAllowances: 1450,
+          totalDeductions: 1050,
+          totalBonuses: 700,
+          netSalary: 6100,
+          status: "paid",
+          transactionId: "TXN-2024-001",
+          paymentDate: "2024-01-31T10:30:00Z",
+          payslipGenerated: true
+        },
+        {
+          id: 2,
+          month: "December 2023",
+          basicSalary: 5000,
+          totalAllowances: 1450,
+          totalDeductions: 1050,
+          totalBonuses: 600,
+          netSalary: 6000,
+          status: "paid",
+          transactionId: "TXN-2023-012",
+          paymentDate: "2023-12-31T10:30:00Z",
+          payslipGenerated: true
+        }
+      ]
+    },
+    2: {
+      basicSalary: 4500,
+      allowances: {
+        housing: 700,
+        transport: 250,
+        meal: 180,
+        other: 120
+      },
+      deductions: {
+        tax: 400,
+        insurance: 180,
+        pension: 270,
+        other: 90
+      },
+      bonuses: {
+        performance: 400,
+        attendance: 150,
+        other: 0
+      },
+      monthlyRecords: [
+        {
+          id: 3,
+          month: "January 2024",
+          basicSalary: 4500,
+          totalAllowances: 1250,
+          totalDeductions: 940,
+          totalBonuses: 550,
+          netSalary: 5360,
+          status: "paid",
+          transactionId: "TXN-2024-002",
+          paymentDate: "2024-01-31T10:30:00Z",
+          payslipGenerated: true
+        }
+      ]
+    },
+    3: {
+      basicSalary: 6000,
+      allowances: {
+        housing: 1000,
+        transport: 400,
+        meal: 250,
+        other: 200
+      },
+      deductions: {
+        tax: 550,
+        insurance: 250,
+        pension: 360,
+        other: 120
+      },
+      bonuses: {
+        performance: 800,
+        attendance: 300,
+        other: 0
+      },
+      monthlyRecords: [
+        {
+          id: 4,
+          month: "January 2024",
+          basicSalary: 6000,
+          totalAllowances: 1850,
+          totalDeductions: 1280,
+          totalBonuses: 1100,
+          netSalary: 7670,
+          status: "pending",
+          transactionId: null,
+          paymentDate: null,
+          payslipGenerated: false
+        }
+      ]
+    },
+    4: {
+      basicSalary: 3800,
+      allowances: {
+        housing: 600,
+        transport: 200,
+        meal: 150,
+        other: 100
+      },
+      deductions: {
+        tax: 320,
+        insurance: 150,
+        pension: 228,
+        other: 80
+      },
+      bonuses: {
+        performance: 300,
+        attendance: 100,
+        other: 0
+      },
+      monthlyRecords: [
+        {
+          id: 5,
+          month: "January 2024",
+          basicSalary: 3800,
+          totalAllowances: 1050,
+          totalDeductions: 778,
+          totalBonuses: 400,
+          netSalary: 4472,
+          status: "paid",
+          transactionId: "TXN-2024-004",
+          paymentDate: "2024-01-31T10:30:00Z",
+          payslipGenerated: true
+        }
+      ]
+    }
+  });
+
+  // Mock data for employee change logs
+  const [employeeChangeLogs, setEmployeeChangeLogs] = useState({
+    1: [
+      {
+        id: 1,
+        employeeId: 1,
+        fieldChanged: "Department",
+        oldValue: "IT",
+        newValue: "HR",
+        changedBy: "Admin User",
+        changedAt: "2024-01-15T10:30:00Z",
+        changeType: "update"
+      },
+      {
+        id: 2,
+        employeeId: 1,
+        fieldChanged: "Job Title",
+        oldValue: "Developer",
+        newValue: "Manager",
+        changedBy: "HR Manager",
+        changedAt: "2024-01-10T14:20:00Z",
+        changeType: "update"
+      },
+      {
+        id: 3,
+        employeeId: 1,
+        fieldChanged: "Email",
+        oldValue: "ahmed.ali@oldcompany.com",
+        newValue: "ahmed.ali@email.com",
+        changedBy: "System Admin",
+        changedAt: "2024-01-05T09:15:00Z",
+        changeType: "update"
+      }
+    ],
+    2: [
+      {
+        id: 4,
+        employeeId: 2,
+        fieldChanged: "Phone",
+        oldValue: "+1234567890",
+        newValue: "+1987654321",
+        changedBy: "Sara Youssef",
+        changedAt: "2024-01-12T16:45:00Z",
+        changeType: "update"
+      },
+      {
+        id: 5,
+        employeeId: 2,
+        fieldChanged: "Status",
+        oldValue: "Inactive",
+        newValue: "Active",
+        changedBy: "HR Manager",
+        changedAt: "2024-01-08T11:30:00Z",
+        changeType: "update"
+      }
+    ],
+    3: [
+      {
+        id: 6,
+        employeeId: 3,
+        fieldChanged: "Department",
+        oldValue: "Sales",
+        newValue: "IT",
+        changedBy: "John Smith",
+        changedAt: "2024-01-14T13:20:00Z",
+        changeType: "update"
+      }
+    ],
+    4: [
+      {
+        id: 7,
+        employeeId: 4,
+        fieldChanged: "Manager",
+        oldValue: "None",
+        newValue: "Ahmed Ali",
+        changedBy: "HR Manager",
+        changedAt: "2024-01-13T15:10:00Z",
+        changeType: "update"
+      }
+    ]
+  });
   const navigate = useNavigate();
 
   const handleEmployeeClick = (employee) => {
@@ -1210,6 +1454,188 @@ export default function Employees() {
     };
     setAttendancePrograms(prev => [...prev, program]);
   };
+
+  const handleRuleButton = (employee) => {
+    navigate(`/employees/rule-builder?empId=${employee.id}`);
+  };
+
+  const handleExportEmployees = () => {
+    // Create CSV content from employees data
+    const headers = ['ID', 'Name', 'Department', 'Job Title', 'Email', 'Phone', 'Status', 'Manager', 'Joining Date'];
+    const csvContent = [
+      headers.join(','),
+      ...employees.map(emp => [
+        emp.id,
+        emp.name,
+        emp.department,
+        emp.jobTitle,
+        emp.email,
+        emp.phone,
+        emp.status,
+        emp.manager || '',
+        emp.joiningDate || ''
+      ].join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `employees_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleImportEmployees = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',');
+      
+      const importedEmployees = lines.slice(1).filter(line => line.trim()).map((line, index) => {
+        const values = line.split(',');
+        return {
+          id: employees.length + index + 1,
+          name: values[1] || '',
+          department: values[2] || '',
+          email: values[4] || '',
+          jobTitle: values[3] || '',
+          phone: values[5] || '',
+          status: values[6] || 'Active',
+          manager: values[7] || '',
+          joiningDate: values[8] || ''
+        };
+      });
+
+      setEmployees(prev => [...prev, ...importedEmployees]);
+      setShowImportExportModal(false);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleHistoryButton = (employee) => {
+    setSelectedEmployeeForHistory(employee);
+    setShowHistoryDrawer(true);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handlePayrollButton = (employee) => {
+    setSelectedEmployeeForPayroll(employee);
+    setShowPayrollDrawer(true);
+  };
+
+  const calculateNetSalary = (basicSalary, allowances, deductions, bonuses) => {
+    const totalAllowances = Object.values(allowances).reduce((sum, value) => sum + value, 0);
+    const totalDeductions = Object.values(deductions).reduce((sum, value) => sum + value, 0);
+    const totalBonuses = Object.values(bonuses).reduce((sum, value) => sum + value, 0);
+    return basicSalary + totalAllowances - totalDeductions + totalBonuses;
+  };
+
+  const handleUpdatePayroll = (employeeId, field, value) => {
+    setPayrollData(prev => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleUpdateAllowance = (employeeId, allowanceType, value) => {
+    setPayrollData(prev => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        allowances: {
+          ...prev[employeeId].allowances,
+          [allowanceType]: parseFloat(value) || 0
+        }
+      }
+    }));
+  };
+
+  const handleUpdateDeduction = (employeeId, deductionType, value) => {
+    setPayrollData(prev => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        deductions: {
+          ...prev[employeeId].deductions,
+          [deductionType]: parseFloat(value) || 0
+        }
+      }
+    }));
+  };
+
+  const handleUpdateBonus = (employeeId, bonusType, value) => {
+    setPayrollData(prev => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        bonuses: {
+          ...prev[employeeId].bonuses,
+          [bonusType]: parseFloat(value) || 0
+        }
+      }
+    }));
+  };
+
+  const generatePayslip = (employee, payrollRecord) => {
+    // Mock payslip generation
+    const payslipContent = `
+      PAYSLIP - ${payrollRecord.month}
+      
+      Employee: ${employee.name}
+      Employee ID: ${employee.id}
+      Department: ${employee.department}
+      Job Title: ${employee.jobTitle}
+      
+      EARNINGS:
+      Basic Salary: $${payrollRecord.basicSalary}
+      Allowances: $${payrollRecord.totalAllowances}
+      Bonuses: $${payrollRecord.totalBonuses}
+      Total Earnings: $${payrollRecord.basicSalary + payrollRecord.totalAllowances + payrollRecord.totalBonuses}
+      
+      DEDUCTIONS:
+      Total Deductions: $${payrollRecord.totalDeductions}
+      
+      NET SALARY: $${payrollRecord.netSalary}
+      
+      Payment Status: ${payrollRecord.status.toUpperCase()}
+      Transaction ID: ${payrollRecord.transactionId || 'Pending'}
+      Payment Date: ${payrollRecord.paymentDate ? formatDate(payrollRecord.paymentDate) : 'Pending'}
+    `;
+
+    const blob = new Blob([payslipContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payslip_${employee.name}_${payrollRecord.month.replace(' ', '_')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Mock user role for access control
+  const currentUserRole = "admin"; // Can be "admin", "hr", "employee"
+  const canEditPayroll = currentUserRole === "admin" || currentUserRole === "hr";
   return (
     <div className="w-full h-full flex flex-col">
       <Breadcrumbs names={{}} />
@@ -1236,6 +1662,13 @@ export default function Employees() {
           >
             <BriefcaseIcon className="h-5 w-5" />
             Job Titles
+          </button>
+          <button
+            className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
+            onClick={() => setShowImportExportModal(true)}
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" />
+            Import/Export
           </button>
           <button
             className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
@@ -1492,6 +1925,36 @@ export default function Employees() {
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRuleButton(emp);
+                                }}
+                                className="p-3 text-pink-600 hover:bg-pink-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                title="Rule Settings"
+                              >
+                                <Cog6ToothIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleHistoryButton(emp);
+                                }}
+                                className="p-3 text-gray-600 hover:bg-gray-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                title="View History"
+                              >
+                                <ClockIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePayrollButton(emp);
+                                }}
+                                className="p-3 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                title="Payroll Management"
+                              >
+                                <CurrencyDollarIcon className="h-5 w-5" />
+                              </button>
                             </div>
                       </td>
                     </tr>
@@ -1692,6 +2155,556 @@ export default function Employees() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import/Export Modal */}
+      {showImportExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-orange-600 to-red-600 text-white">
+              <div className="flex items-center gap-3">
+                <ArrowDownTrayIcon className="h-8 w-8" />
+                <div>
+                  <h3 className="text-xl font-bold">Import/Export Employees</h3>
+                  <p className="text-orange-100">Import or export employee data via CSV</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportExportModal(false)}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {/* Export Section */}
+              <div className="mb-8 p-6 bg-orange-50 rounded-xl border border-orange-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <ArrowDownTrayIcon className="h-6 w-6 text-orange-600" />
+                  <h4 className="text-lg font-semibold text-orange-900">Export Employees</h4>
+                </div>
+                <p className="text-orange-700 mb-4">
+                  Download all current employee data as a CSV file. The file will include: ID, Name, Department, Job Title, Email, Phone, Status, Manager, and Joining Date.
+                </p>
+                <button
+                  onClick={handleExportEmployees}
+                  className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2"
+                >
+                  <ArrowDownTrayIcon className="h-5 w-5" />
+                  Export to CSV
+                </button>
+              </div>
+
+              {/* Import Section */}
+              <div className="p-6 bg-red-50 rounded-xl border border-red-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <ArrowUpTrayIcon className="h-6 w-6 text-red-600" />
+                  <h4 className="text-lg font-semibold text-red-900">Import Employees</h4>
+                </div>
+                <p className="text-red-700 mb-4">
+                  Upload a CSV file to import new employees. The file should have columns: Name, Department, Job Title, Email, Phone, Status, Manager, Joining Date.
+                </p>
+                <div className="mb-4">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleImportEmployees}
+                    className="block w-full text-sm text-red-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700 file:cursor-pointer"
+                  />
+                </div>
+                <div className="text-xs text-red-600">
+                  <p><strong>Note:</strong> Imported employees will be added to the existing list. Make sure your CSV file follows the correct format.</p>
+                </div>
+              </div>
+
+              {/* Sample CSV Format */}
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h5 className="font-semibold text-gray-900 mb-2">Sample CSV Format:</h5>
+                <div className="text-xs text-gray-600 font-mono bg-white p-2 rounded border">
+                  Name,Department,Job Title,Email,Phone,Status,Manager,Joining Date<br/>
+                  John Doe,IT,Developer,john.doe@company.com,+1234567890,Active,Manager Name,2023-01-15
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Drawer */}
+      {showHistoryDrawer && selectedEmployeeForHistory && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm transition-all duration-300"
+            onClick={() => setShowHistoryDrawer(false)}
+          ></div>
+          
+          {/* Drawer */}
+          <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-gradient-to-b from-white to-gray-50 shadow-2xl transform transition-all duration-500 ease-out">
+            <div className="flex flex-col h-full">
+              {/* Enhanced Header */}
+              <div className="relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"></div>
+                <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+                <div className="relative flex items-center justify-between p-6 text-white">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                      <ClockIcon className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Employee History</h3>
+                      <p className="text-indigo-100 text-sm font-medium">{selectedEmployeeForHistory.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowHistoryDrawer(false)}
+                    className="p-3 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200 hover:scale-110"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Enhanced Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Employee Profile Card */}
+                <div className="mb-8">
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100 shadow-sm">
+                    <div className="flex items-center gap-4">
+                      <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
+                        <UserIcon className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xl font-bold text-gray-900 mb-1">{selectedEmployeeForHistory.name}</h4>
+                        <p className="text-gray-600 mb-2">{selectedEmployeeForHistory.jobTitle} • {selectedEmployeeForHistory.department}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="flex items-center gap-1 text-indigo-600">
+                            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                            Active Employee
+                          </span>
+                          <span className="text-gray-500">ID: {selectedEmployeeForHistory.id}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Enhanced Change Logs */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h5 className="text-lg font-bold text-gray-900">Change History</h5>
+                    <div className="flex-1 h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
+                  </div>
+                  
+                  {employeeChangeLogs[selectedEmployeeForHistory.id] && employeeChangeLogs[selectedEmployeeForHistory.id].length > 0 ? (
+                    <div className="space-y-4">
+                      {employeeChangeLogs[selectedEmployeeForHistory.id].map((log, index) => (
+                        <div key={log.id} className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                          {/* Timeline indicator */}
+                          <div className="relative">
+                            <div className="absolute left-0 top-0 w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg"></div>
+                            <div className="absolute left-1.5 top-3 w-0.5 h-full bg-gradient-to-b from-purple-500 to-transparent"></div>
+                          </div>
+                          
+                          <div className="ml-6">
+                            {/* Header */}
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl">
+                                  <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <span className="font-bold text-gray-900 text-lg">{log.fieldChanged}</span>
+                                  <p className="text-sm text-gray-500">Field Updated</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(log.changedAt)}</span>
+                              </div>
+                            </div>
+                            
+                            {/* Change Details */}
+                            <div className="grid grid-cols-1 gap-3 mb-4">
+                              <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-200">
+                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-gray-700">Previous:</span>
+                                <span className="text-sm bg-red-100 text-red-800 px-3 py-1 rounded-full font-medium">{log.oldValue}</span>
+                              </div>
+                              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-gray-700">Updated to:</span>
+                                <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">{log.newValue}</span>
+                              </div>
+                            </div>
+                            
+                            {/* Footer */}
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                                  <span className="text-xs text-white font-bold">{log.changedBy.charAt(0)}</span>
+                                </div>
+                                <span className="text-sm text-gray-600">Changed by <span className="font-semibold text-gray-900">{log.changedBy}</span></span>
+                              </div>
+                              <span className="px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full text-xs font-medium capitalize">
+                                {log.changeType}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="p-6 bg-gradient-to-r from-gray-100 to-gray-200 rounded-3xl inline-block mb-4">
+                        <ClockIcon className="h-16 w-16 text-gray-400" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Yet</h4>
+                      <p className="text-gray-500">This employee's record hasn't been modified yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Enhanced Footer */}
+              <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                      <span className="text-gray-600">Employee ID: <span className="font-semibold text-gray-900">{selectedEmployeeForHistory.id}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">Total Changes:</span>
+                      <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 rounded-full font-bold">
+                        {employeeChangeLogs[selectedEmployeeForHistory.id]?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payroll Drawer */}
+      {showPayrollDrawer && selectedEmployeeForPayroll && payrollData[selectedEmployeeForPayroll.id] && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm transition-all duration-300"
+            onClick={() => setShowPayrollDrawer(false)}
+          ></div>
+          
+          {/* Drawer */}
+          <div className="absolute right-0 top-0 h-full w-full max-w-4xl bg-gradient-to-b from-white to-gray-50 shadow-2xl transform transition-all duration-500 ease-out">
+            <div className="flex flex-col h-full">
+              {/* Enhanced Header */}
+              <div className="relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600"></div>
+                <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+                <div className="relative flex items-center justify-between p-6 text-white">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
+                      <CurrencyDollarIcon className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Payroll Management</h3>
+                      <p className="text-green-100 text-sm font-medium">{selectedEmployeeForPayroll.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowPayrollDrawer(false)}
+                    className="p-3 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200 hover:scale-110"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Employee Info Card */}
+                <div className="mb-8">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100 shadow-sm">
+                    <div className="flex items-center gap-4">
+                      <div className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
+                        <UserIcon className="h-8 w-8 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xl font-bold text-gray-900 mb-1">{selectedEmployeeForPayroll.name}</h4>
+                        <p className="text-gray-600 mb-2">{selectedEmployeeForPayroll.jobTitle} • {selectedEmployeeForPayroll.department}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="flex items-center gap-1 text-green-600">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            Active Employee
+                          </span>
+                          <span className="text-gray-500">ID: {selectedEmployeeForPayroll.id}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payroll Configuration */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  {/* Basic Salary */}
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
+                        <BanknotesIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <h5 className="text-lg font-bold text-gray-900">Basic Salary</h5>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Basic Salary</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                          <input
+                            type="number"
+                            value={payrollData[selectedEmployeeForPayroll.id].basicSalary}
+                            onChange={(e) => handleUpdatePayroll(selectedEmployeeForPayroll.id, 'basicSalary', parseFloat(e.target.value) || 0)}
+                            disabled={!canEditPayroll}
+                            className={`w-full pl-8 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${!canEditPayroll ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Salary Calculator */}
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                        <CalculatorIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <h5 className="text-lg font-bold text-gray-900">Net Salary Calculator</h5>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Basic Salary:</span>
+                        <span className="font-semibold">${payrollData[selectedEmployeeForPayroll.id].basicSalary}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Allowances:</span>
+                        <span className="font-semibold text-green-600">+${Object.values(payrollData[selectedEmployeeForPayroll.id].allowances).reduce((sum, value) => sum + value, 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Deductions:</span>
+                        <span className="font-semibold text-red-600">-${Object.values(payrollData[selectedEmployeeForPayroll.id].deductions).reduce((sum, value) => sum + value, 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Bonuses:</span>
+                        <span className="font-semibold text-blue-600">+${Object.values(payrollData[selectedEmployeeForPayroll.id].bonuses).reduce((sum, value) => sum + value, 0)}</span>
+                      </div>
+                      <div className="border-t pt-3">
+                        <div className="flex justify-between">
+                          <span className="text-lg font-bold text-gray-900">Net Salary:</span>
+                          <span className="text-xl font-bold text-green-600">
+                            ${calculateNetSalary(
+                              payrollData[selectedEmployeeForPayroll.id].basicSalary,
+                              payrollData[selectedEmployeeForPayroll.id].allowances,
+                              payrollData[selectedEmployeeForPayroll.id].deductions,
+                              payrollData[selectedEmployeeForPayroll.id].bonuses
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Allowances, Deductions, and Bonuses */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                  {/* Allowances */}
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                        <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        </svg>
+                      </div>
+                      <h5 className="text-lg font-bold text-gray-900">Allowances</h5>
+                    </div>
+                    <div className="space-y-3">
+                      {Object.entries(payrollData[selectedEmployeeForPayroll.id].allowances).map(([key, value]) => (
+                        <div key={key}>
+                          <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{key}</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                            <input
+                              type="number"
+                              value={value}
+                              onChange={(e) => handleUpdateAllowance(selectedEmployeeForPayroll.id, key, e.target.value)}
+                              disabled={!canEditPayroll}
+                              className={`w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${!canEditPayroll ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Deductions */}
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg">
+                        <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                        </svg>
+                      </div>
+                      <h5 className="text-lg font-bold text-gray-900">Deductions</h5>
+                    </div>
+                    <div className="space-y-3">
+                      {Object.entries(payrollData[selectedEmployeeForPayroll.id].deductions).map(([key, value]) => (
+                        <div key={key}>
+                          <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{key}</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                            <input
+                              type="number"
+                              value={value}
+                              onChange={(e) => handleUpdateDeduction(selectedEmployeeForPayroll.id, key, e.target.value)}
+                              disabled={!canEditPayroll}
+                              className={`w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${!canEditPayroll ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bonuses */}
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
+                        <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                      </div>
+                      <h5 className="text-lg font-bold text-gray-900">Bonuses</h5>
+                    </div>
+                    <div className="space-y-3">
+                      {Object.entries(payrollData[selectedEmployeeForPayroll.id].bonuses).map(([key, value]) => (
+                        <div key={key}>
+                          <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{key}</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                            <input
+                              type="number"
+                              value={value}
+                              onChange={(e) => handleUpdateBonus(selectedEmployeeForPayroll.id, key, e.target.value)}
+                              disabled={!canEditPayroll}
+                              className={`w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!canEditPayroll ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Monthly Payroll Records */}
+                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                      <DocumentTextIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <h5 className="text-lg font-bold text-gray-900">Monthly Payroll Records</h5>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {payrollData[selectedEmployeeForPayroll.id].monthlyRecords.map((record) => (
+                      <div key={record.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h6 className="font-semibold text-gray-900">{record.month}</h6>
+                            <p className="text-sm text-gray-600">Net Salary: ${record.netSalary}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              record.status === 'paid' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {record.status.toUpperCase()}
+                            </span>
+                            {record.payslipGenerated && (
+                              <button
+                                onClick={() => generatePayslip(selectedEmployeeForPayroll, record)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Download Payslip"
+                              >
+                                <DocumentTextIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Basic:</span>
+                            <span className="ml-2 font-medium">${record.basicSalary}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Allowances:</span>
+                            <span className="ml-2 font-medium text-green-600">+${record.totalAllowances}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Deductions:</span>
+                            <span className="ml-2 font-medium text-red-600">-${record.totalDeductions}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Bonuses:</span>
+                            <span className="ml-2 font-medium text-blue-600">+${record.totalBonuses}</span>
+                          </div>
+                        </div>
+                        
+                        {record.transactionId && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-600">
+                            <div className="flex items-center justify-between">
+                              <span>Transaction ID: <span className="font-medium">{record.transactionId}</span></span>
+                              <span>Paid: {formatDate(record.paymentDate)}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
+                      <span className="text-gray-600">Access Level: <span className="font-semibold text-gray-900 capitalize">{currentUserRole}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">Can Edit:</span>
+                      <span className={`px-3 py-1 rounded-full font-bold ${canEditPayroll ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {canEditPayroll ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

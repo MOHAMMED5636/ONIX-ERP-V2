@@ -22,7 +22,10 @@ import CompanyPolicy from "./pages/workplace/CompanyPolicy";
 import MyAttendance from "./pages/workplace/MyAttendance";
 import Leaves from "./pages/workplace/Leaves";
 import FeedbacksSurvey from "./pages/workplace/FeedbacksSurvey";
+import RuleBuilder from "./pages/employees/RuleBuilder";
+import EmployeeRuleDemo from "./pages/employees/EmployeeRuleDemo";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
+import { RuleProvider } from "./context/RuleContext";
 
 function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
@@ -72,6 +75,8 @@ function MainLayout() {
             <Route path="/workplace/my-attendance" element={<MyAttendance />} />
             <Route path="/workplace/leaves" element={<Leaves />} />
             <Route path="/workplace/feedbacks-survey" element={<FeedbacksSurvey />} />
+            <Route path="/employees/rule-builder" element={<RuleBuilder />} />
+            <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>
@@ -93,16 +98,18 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <CompanySelectionProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/*" element={
-            <PrivateRoute>
-              <MainLayout /> 
-            </PrivateRoute>
-          } />
-        </Routes>
-      </Router>
+      <RuleProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={
+              <PrivateRoute>
+                <MainLayout />
+              </PrivateRoute>
+            } />
+          </Routes>
+        </Router>
+      </RuleProvider>
     </CompanySelectionProvider>
   );
 }

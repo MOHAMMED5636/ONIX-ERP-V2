@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, EyeIcon, ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, EyeIcon, ArrowLeftIcon, UserIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useParams } from 'react-router-dom';
 
 const demoEmployees = {
@@ -143,6 +143,10 @@ export default function EmployeeSectionPage() {
     setSelectedEmployee(null);
   };
 
+  const handleRuleButton = (employee) => {
+    navigate(`/employees/rule-builder?empId=${employee.id}`);
+  };
+
   const getJobTitleName = (jobTitleId) => {
     return jobTitleId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
@@ -207,6 +211,13 @@ export default function EmployeeSectionPage() {
                     title="Edit employee"
                   >
                     <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleRuleButton(employee)}
+                    className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                    title="Rule settings"
+                  >
+                    <Cog6ToothIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteEmployee(employee)}
@@ -277,6 +288,13 @@ export default function EmployeeSectionPage() {
                           title="Edit employee"
                         >
                           <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleRuleButton(employee)}
+                          className="text-purple-600 hover:text-purple-900 transition"
+                          title="Rule settings"
+                        >
+                          <Cog6ToothIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteEmployee(employee)}
