@@ -123,10 +123,10 @@ export default function SubDepartmentsPage() {
           </h1>
         </div>
         <button
-          className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center"
+          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full sm:w-auto justify-center"
           onClick={() => setShowCreateModal(true)}
         >
-          <PlusIcon className="h-5 w-5" />
+          <PlusIcon className="h-5 w-5 mr-2" />
           Add Sub Department
         </button>
       </div>
@@ -666,8 +666,8 @@ export default function SubDepartmentsPage() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto" onClick={() => setShowEditModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white w-full sm:w-auto" onClick={handleUpdateSubDepartment}>Update</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto" onClick={() => setShowEditModal(false)}>Cancel</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto" onClick={handleUpdateSubDepartment}>Update</button>
               </div>
             </div>
           </div>
@@ -698,8 +698,8 @@ export default function SubDepartmentsPage() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white w-full sm:w-auto" onClick={confirmDeleteSubDepartment}>Delete</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto" onClick={confirmDeleteSubDepartment}>Delete</button>
               </div>
             </div>
           </div>

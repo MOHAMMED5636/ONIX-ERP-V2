@@ -18,15 +18,7 @@ export default function MyAttendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockInTime, setClockInTime] = useState(null);
-  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
-  const [manualEntry, setManualEntry] = useState({
-    date: '',
-    status: 'present',
-    clockIn: '',
-    clockOut: '',
-    notes: ''
-  });
 
   // Mock attendance data
   const [attendanceData, setAttendanceData] = useState({
@@ -98,34 +90,7 @@ export default function MyAttendance() {
     setClockInTime(null);
   };
 
-  const handleManualEntry = () => {
-    if (!manualEntry.date || !manualEntry.status) {
-      alert("Please fill in all required fields");
-      return;
-    }
 
-    setAttendanceData(prev => ({
-      ...prev,
-      [manualEntry.date]: {
-        status: manualEntry.status,
-        clockIn: manualEntry.clockIn || null,
-        clockOut: manualEntry.clockOut || null,
-        notes: manualEntry.notes || null,
-        hours: manualEntry.clockIn && manualEntry.clockOut 
-          ? ((new Date(`2000-01-01T${manualEntry.clockOut}`) - new Date(`2000-01-01T${manualEntry.clockIn}`)) / (1000 * 60 * 60)).toFixed(2)
-          : null
-      }
-    }));
-
-    setManualEntry({
-      date: '',
-      status: 'present',
-      clockIn: '',
-      clockOut: '',
-      notes: ''
-    });
-    setShowManualEntryModal(false);
-  };
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -280,6 +245,15 @@ export default function MyAttendance() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              {/* View Logs Button */}
+              <button
+                onClick={() => setShowLogsModal(true)}
+                className="inline-flex items-center px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <EyeIcon className="h-5 w-5 mr-2" />
+                View Logs
+              </button>
+              
               {/* Current Time Display */}
               <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg">
                 <ClockIcon className="h-5 w-5 text-gray-600" />
@@ -318,24 +292,6 @@ export default function MyAttendance() {
               >
                 <ClockIcon className="h-5 w-5 mr-2" />
                 {isClockedIn ? "Clock Out" : "Clock In"}
-              </button>
-              
-              {/* Manual Entry Button */}
-              <button
-                onClick={() => setShowManualEntryModal(true)}
-                className="inline-flex items-center px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Manual Entry
-              </button>
-              
-              {/* View Logs Button */}
-              <button
-                onClick={() => setShowLogsModal(true)}
-                className="inline-flex items-center px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <EyeIcon className="h-5 w-5 mr-2" />
-                View Logs
               </button>
             </div>
           </div>
@@ -407,107 +363,7 @@ export default function MyAttendance() {
         </div>
       </div>
 
-      {/* Manual Entry Modal */}
-      {showManualEntryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Create Manual Entry</h2>
-              <button
-                onClick={() => setShowManualEntryModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date *
-                </label>
-                <input
-                  type="date"
-                  value={manualEntry.date}
-                  onChange={(e) => setManualEntry(prev => ({ ...prev, date: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status *
-                </label>
-                <select
-                  value={manualEntry.status}
-                  onChange={(e) => setManualEntry(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                  <option value="leave">Leave</option>
-                </select>
-              </div>
-              
-              {manualEntry.status === 'present' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Clock In Time
-                    </label>
-                    <input
-                      type="time"
-                      value={manualEntry.clockIn}
-                      onChange={(e) => setManualEntry(prev => ({ ...prev, clockIn: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Clock Out Time
-                    </label>
-                    <input
-                      type="time"
-                      value={manualEntry.clockOut}
-                      onChange={(e) => setManualEntry(prev => ({ ...prev, clockOut: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                </>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={manualEntry.notes}
-                  onChange={(e) => setManualEntry(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                  placeholder="Optional notes..."
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowManualEntryModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleManualEntry}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Create Entry
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Attendance Logs Modal */}
       {showLogsModal && (

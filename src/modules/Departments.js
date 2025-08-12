@@ -129,32 +129,17 @@ export default function Departments() {
           </div>
         </div>
         <button
-          className="btn btn-primary flex items-center gap-2 w-full sm:w-auto justify-center"
+          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full sm:w-auto justify-center"
           onClick={() => setShowCreateModal(true)}
         >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           Create Department
         </button>
       </div>
       
-      {/* Selection Indicator */}
-      {contextSelectedDepartment && (
-        <div className="w-full px-4 sm:px-6 lg:px-10 mb-6">
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckIcon className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-green-800">Department Selected for Employee Creation</p>
-                <p className="text-lg font-semibold text-green-900">{contextSelectedDepartment}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
       
       {/* Enhanced Section Header */}
       <div className="w-full px-4 sm:px-6 lg:px-10 mb-8">
@@ -592,8 +577,8 @@ export default function Departments() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto" onClick={() => setShowEditModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white w-full sm:w-auto" onClick={handleUpdateDepartment}>Update</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto" onClick={() => setShowEditModal(false)}>Cancel</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto" onClick={handleUpdateDepartment}>Update</button>
               </div>
             </div>
           </div>
@@ -624,8 +609,8 @@ export default function Departments() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white w-full sm:w-auto" onClick={confirmDeleteDepartment}>Delete</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto" onClick={confirmDeleteDepartment}>Delete</button>
               </div>
             </div>
           </div>

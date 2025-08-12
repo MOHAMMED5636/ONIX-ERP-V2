@@ -27,8 +27,8 @@ import 'react-date-range/dist/theme/default.css';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import MapPicker from '../../modules/WorkingLocations.js';
-import ReorderableDropdown from "./ReorderableDropdown";
+import MapPicker from '../modules/WorkingLocations.js';
+import ReorderableDropdown from "./tasks/ReorderableDropdown";
 
 const initialTasks = [
   {
@@ -197,7 +197,7 @@ function SortableSubtaskRow({ sub, subIdx, task, children }) {
   );
 }
 
-export default function MainTable() {
+export default function TeamProjectTracker() {
   // Inline edit state and handlers for Project Name (move to top)
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
@@ -1524,12 +1524,12 @@ export default function MainTable() {
                 <EyeIcon className="w-4 h-4 inline mr-2" />
                 Show All Columns
               </button>
-              <button
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                onClick={handleAddNewTask}
-              >
-                <PlusIcon className="w-5 h-5" /> New Project
-              </button>
+                          <button
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+              onClick={handleAddNewTask}
+            >
+              <PlusIcon className="w-5 h-5" /> New Team Project
+            </button>
             </div>
             
             {/* Right side - Search, Project Start, and Add Column */}
@@ -1539,7 +1539,7 @@ export default function MainTable() {
                   <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md w-64"
-                    placeholder="Search projects..."
+                    placeholder="Search team projects..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                   />
@@ -2042,7 +2042,7 @@ export default function MainTable() {
             <div className="mt-12 flex items-center gap-3 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 shadow-sm">
               <h2 className="text-2xl font-extrabold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent flex items-center gap-3">
                 <CheckCircleIcon className="w-8 h-8 text-green-500" />
-                Completed Projects
+                Completed Team Projects
               </h2>
               <div className="flex-1 h-px bg-gradient-to-r from-green-200 to-transparent"></div>
             </div>
@@ -2165,12 +2165,12 @@ export default function MainTable() {
           {showNewTask && (
             <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-                <h2 className="text-lg font-bold mb-4">Create New Project</h2>
+                <h2 className="text-lg font-bold mb-4">Create New Team Project</h2>
                 <button
                   className="bg-blue-600 text-white px-4 py-2 rounded font-semibold shadow hover:bg-blue-700 transition w-full"
                   onClick={handleCreateTask}
                 >
-                  Create Project
+                  Create Team Project
                 </button>
                 <button
                   className="mt-2 text-gray-500 hover:underline w-full"
