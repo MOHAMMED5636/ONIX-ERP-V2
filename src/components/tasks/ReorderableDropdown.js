@@ -30,9 +30,22 @@ export default function ReorderableDropdown({ options, value, onChange, label })
 
   function handleDragEnd(event) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    
+    // Check if both active and over exist and are valid
+    if (!active || !over || !active.id || !over.id) {
+      return;
+    }
+    
+    if (active.id === over.id) return;
+    
     const oldIndex = order.indexOf(active.id);
     const newIndex = order.indexOf(over.id);
+    
+    // Check if both indices are valid
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+    
     setOrder(arrayMove(order, oldIndex, newIndex));
   }
 

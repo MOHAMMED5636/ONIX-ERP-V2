@@ -1429,10 +1429,22 @@ export default function MainTable() {
   // Add handleDragEnd function
   function handleDragEnd(event) {
     const { active, over } = event;
+    
+    // Check if both active and over exist and are valid
+    if (!active || !over || !active.id || !over.id) {
+      return;
+    }
+    
     if (active.id !== over.id) {
       setColumnOrder((prev) => {
         const oldIndex = prev.indexOf(active.id);
         const newIndex = prev.indexOf(over.id);
+        
+        // Check if both indices are valid
+        if (oldIndex === -1 || newIndex === -1) {
+          return prev;
+        }
+        
         return arrayMove(prev, oldIndex, newIndex);
       });
     }
@@ -1491,12 +1503,25 @@ export default function MainTable() {
   // Add the handler for subtask drag end
   function handleSubtaskDragEnd(event, taskId) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    
+    // Check if both active and over exist and are valid
+    if (!active || !over || !active.id || !over.id) {
+      return;
+    }
+    
+    if (active.id === over.id) return;
+    
     setTasks(tasks =>
       tasks.map(task => {
         if (task.id !== taskId) return task;
         const oldIndex = task.subtasks.findIndex(sub => sub.id === active.id);
         const newIndex = task.subtasks.findIndex(sub => sub.id === over.id);
+        
+        // Check if both indices are valid
+        if (oldIndex === -1 || newIndex === -1) {
+          return task;
+        }
+        
         return {
           ...task,
           subtasks: arrayMove(task.subtasks, oldIndex, newIndex)
@@ -2245,6 +2270,7 @@ export default function MainTable() {
                 </div>
               </div>
             </div>
+            
           )}
         </div>
       </main>

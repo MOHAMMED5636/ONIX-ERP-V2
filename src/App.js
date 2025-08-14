@@ -25,6 +25,7 @@ import FeedbacksSurvey from "./pages/workplace/FeedbacksSurvey";
 import RuleBuilder from "./pages/employees/RuleBuilder";
 import EmployeeRuleDemo from "./pages/employees/EmployeeRuleDemo";
 import TeamProjectTracker from "./components/TeamProjectTracker";
+import ProjectLifeCycle from "./components/ProjectLifeCycle";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 
@@ -79,6 +80,7 @@ function MainLayout() {
             <Route path="/employees/rule-builder" element={<RuleBuilder />} />
             <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
+            <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>

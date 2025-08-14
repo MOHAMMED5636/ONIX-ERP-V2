@@ -57,6 +57,7 @@ const navItems = [
       { key: "create-contract", label: { en: "Create Contract", ar: "إنشاء عقد" }, path: "/contracts/create" },
       { key: "task-categories", label: { en: "Task Category List", ar: "قائمة فئات المهام" }, path: "/task-categories" },
       { key: "team-project-tracker", label: { en: "Team Project Tracker", ar: "متتبع مشاريع الفريق" }, path: "/team-project-tracker" },
+      { key: "project-lifecycle", label: { en: "Project Life Cycle", ar: "دورة حياة المشروع" }, path: "/project-lifecycle" },
     ],
   },
   // Team Project Tracker dropdown menu
@@ -89,6 +90,7 @@ const submenuIcons = {
   'create-contract': ClipboardDocumentListIcon,
   'task-categories': ClipboardDocumentListIcon,
   'team-project-tracker': ClipboardDocumentListIcon,
+  'project-lifecycle': ClipboardDocumentListIcon,
   companies: BuildingOfficeIcon,
   'company-policy': DocumentTextIcon,
   'my-attendance': CalendarDaysIcon,
