@@ -1161,6 +1161,7 @@ export default function Employees() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmployeeForView, setSelectedEmployeeForView] = useState(null);
   const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState(null);
+  const [openLegalSection, setOpenLegalSection] = useState('');
   const [jobTitles, setJobTitles] = useState([
     { id: 1, title: "Manager", department: "All", description: "Management role" },
     { id: 2, title: "Developer", department: "IT", description: "Software development" },
@@ -2752,7 +2753,7 @@ export default function Employees() {
       {/* View Employee Modal */}
       {showViewModal && selectedEmployeeForView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
             {/* Header */}
             <div className="relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"></div>
@@ -2777,150 +2778,370 @@ export default function Employees() {
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-              {/* Employee Profile */}
+            <div className="p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
+              {/* Employee Profile Header */}
               <div className="mb-8">
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100 shadow-sm">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
                     <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
-                      <UserIcon className="h-8 w-8 text-white" />
+                      <UserIcon className="h-12 w-12 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="text-xl font-bold text-gray-900 mb-1">{selectedEmployeeForView.name}</h4>
-                      <p className="text-gray-600 mb-2">{selectedEmployeeForView.jobTitle} • {selectedEmployeeForView.department}</p>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-indigo-600">
-                          <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                      <h4 className="text-2xl font-bold text-gray-900 mb-2">{selectedEmployeeForView.name}</h4>
+                      <p className="text-gray-600 mb-3 text-lg">{selectedEmployeeForView.jobTitle} • {selectedEmployeeForView.department}</p>
+                      <div className="flex items-center gap-6 text-sm">
+                        <span className="flex items-center gap-2 text-indigo-600 font-semibold">
+                          <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
                           Active Employee
                         </span>
-                        <span className="text-gray-500">ID: {selectedEmployeeForView.id}</span>
+                        <span className="text-gray-500 font-medium">ID: {selectedEmployeeForView.id}</span>
+                        <span className="text-gray-500 font-medium">Status: {selectedEmployeeForView.status || 'Active'}</span>
                       </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setShowViewModal(false);
+                          handleEditEmployee(selectedEmployeeForView);
+                        }}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
+                      >
+                        EDIT
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Employee Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Personal Information */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-                      <UserIcon className="h-5 w-5 text-white" />
-                    </div>
-                    <h5 className="text-lg font-bold text-gray-900">Personal Information</h5>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.email}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.phone || 'Not provided'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Work Information */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
-                      <BriefcaseIcon className="h-5 w-5 text-white" />
-                    </div>
-                    <h5 className="text-lg font-bold text-gray-900">Work Information</h5>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.jobTitle}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.department}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Employee Type</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.employeeType || 'Full-time'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Information */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
-                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              {/* Collapsible Sections */}
+              <div className="space-y-6">
+                {/* Contacts Section */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenLegalSection(openLegalSection === 'contacts' ? '' : 'contacts')}
+                    className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
+                      <h5 className="text-lg font-bold text-gray-900">Contacts</h5>
                     </div>
-                    <h5 className="text-lg font-bold text-gray-900">Additional Information</h5>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Manager</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.manager || 'Not assigned'}</p>
+                    <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'contacts' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openLegalSection === 'contacts' && (
+                    <div className="p-6 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.email}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.phone || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact</label>
+                          <p className="text-gray-900 font-medium">Not provided</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Alternative Phone</label>
+                          <p className="text-gray-900 font-medium">Not provided</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
-                      <p className="text-gray-900 font-medium">{selectedEmployeeForView.joiningDate || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        selectedEmployeeForView.status === 'Active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {selectedEmployeeForView.status || 'Active'}
-                      </span>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Quick Actions */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg">
-                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                {/* Company Details Section */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenLegalSection(openLegalSection === 'company' ? '' : 'company')}
+                    className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
+                      <h5 className="text-lg font-bold text-gray-900">Company Details</h5>
                     </div>
-                    <h5 className="text-lg font-bold text-gray-900">Quick Actions</h5>
-                  </div>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => {
-                        setShowViewModal(false);
-                        handleEditEmployee(selectedEmployeeForView);
-                      }}
-                      className="w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
-                    >
-                      Edit Employee
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowViewModal(false);
-                        handlePayrollButton(selectedEmployeeForView);
-                      }}
-                      className="w-full p-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200"
-                    >
-                      View Payroll
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowViewModal(false);
-                        handleHistoryButton(selectedEmployeeForView);
-                      }}
-                      className="w-full p-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-200"
-                    >
-                      View History
-                    </button>
-                  </div>
+                    <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'company' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openLegalSection === 'company' && (
+                    <div className="p-6 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.id}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.jobTitle}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.department}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.employeeType || 'Full-time'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.manager || 'Not assigned'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Joining Date</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.joiningDate || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Company Location</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.companyLocation || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            selectedEmployeeForView.status === 'Active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {selectedEmployeeForView.status || 'Active'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Passport Details Section */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenLegalSection(openLegalSection === 'passport' ? '' : 'passport')}
+                    className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h5 className="text-lg font-bold text-gray-900">Passport Details</h5>
+                    </div>
+                    <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'passport' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openLegalSection === 'passport' && (
+                    <div className="p-6 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Passport Number</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.passportNumber || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Issue Date</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.passportIssue || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.passportExpiry || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Nationality</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.nationality || 'Not provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Documents Section */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenLegalSection(openLegalSection === 'documents' ? '' : 'documents')}
+                    className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h5 className="text-lg font-bold text-gray-900">Documents</h5>
+                    </div>
+                    <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'documents' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openLegalSection === 'documents' && (
+                    <div className="p-6 border-t border-gray-200">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <div>
+                              <p className="font-medium text-gray-900">No documents uploaded</p>
+                              <p className="text-sm text-gray-500">Upload employee documents</p>
+                            </div>
+                          </div>
+                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Upload
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Personal Details Section */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenLegalSection(openLegalSection === 'personal' ? '' : 'personal')}
+                    className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <h5 className="text-lg font-bold text-gray-900">Personal Details</h5>
+                    </div>
+                    <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'personal' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openLegalSection === 'personal' && (
+                    <div className="p-6 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.name}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.gender || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.birthday || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.maritalStatus || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Nationality</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.nationality || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Children Count</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.childrenCount || 'Not specified'}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Current Address</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.currentAddress || 'Not provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Residency Details Section */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenLegalSection(openLegalSection === 'residency' ? '' : 'residency')}
+                    className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-teal-50 to-cyan-50 hover:from-teal-100 hover:to-cyan-100 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg className="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      <h5 className="text-lg font-bold text-gray-900">Residency Details</h5>
+                    </div>
+                    <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'residency' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {openLegalSection === 'residency' && (
+                    <div className="p-6 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Residency Number</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.residencyNumber || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Residency Expiry</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.residencyExpiry || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Visa Number</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.visa || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Labour Card Number</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.labourNumber || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Labour Card Expiry</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.labourExpiry || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Number</label>
+                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.insuranceNumber || 'Not provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Actions Footer */}
+              <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border border-gray-200">
+                <h5 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Quick Actions
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handlePayrollButton(selectedEmployeeForView);
+                    }}
+                    className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                    View Payroll
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleHistoryButton(selectedEmployeeForView);
+                    }}
+                    className="p-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    View History
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleRuleButton(selectedEmployeeForView);
+                    }}
+                    className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Rule Settings
+                  </button>
                 </div>
               </div>
             </div>
