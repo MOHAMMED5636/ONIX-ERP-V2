@@ -26,6 +26,7 @@ export default function Departments() {
   const navigate = useNavigate();
   const location = useLocation();
   const [departments, setDepartments] = useState(demoDepartments);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -42,6 +43,14 @@ export default function Departments() {
       setSelectedCompany(location.state.selectedCompany);
     }
   }, [location.state]);
+
+  // Filter departments based on search term
+  const filteredDepartments = departments.filter(dept =>
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dept.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dept.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dept.id.toString().includes(searchTerm)
+  );
 
   const handleCreateDepartment = () => {
     if (newDepartment.name && newDepartment.description && newDepartment.manager) {
@@ -161,10 +170,12 @@ export default function Departments() {
               </div>
               <div className="hidden lg:flex items-center space-x-4">
                 <div className="px-6 py-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
-                  <span className="text-white text-lg font-semibold">{departments.length} Departments</span>
+                  <span className="text-white text-lg font-semibold">{filteredDepartments.length} Departments</span>
                 </div>
                 <div className="px-6 py-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
-                  <span className="text-white text-lg font-semibold">Active</span>
+                  <span className="text-white text-lg font-semibold">
+                    {searchTerm ? 'Filtered' : 'Active'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -172,19 +183,66 @@ export default function Departments() {
             {/* Stats row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
               <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
-                <div className="text-white text-2xl font-bold">{departments.length}</div>
-                <div className="text-blue-100 text-sm">Total Departments</div>
+                <div className="text-white text-2xl font-bold">{filteredDepartments.length}</div>
+                <div className="text-blue-100 text-sm">
+                  {searchTerm ? 'Filtered Departments' : 'Total Departments'}
+                </div>
               </div>
               <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
-                <div className="text-white text-2xl font-bold">{departments.reduce((sum, dept) => sum + dept.employees, 0)}</div>
+                <div className="text-white text-2xl font-bold">{filteredDepartments.reduce((sum, dept) => sum + dept.employees, 0)}</div>
                 <div className="text-blue-100 text-sm">Total Employees</div>
               </div>
               <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
-                <div className="text-white text-2xl font-bold">{departments.length}</div>
-                <div className="text-blue-100 text-sm">Active Managers</div>
+                <div className="text-white text-2xl font-bold">{filteredDepartments.length}</div>
+                <div className="text-blue-100 text-sm">
+                  {searchTerm ? 'Filtered Active' : 'Active Managers'}
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="w-full px-4 sm:px-6 lg:px-10 mb-6">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search departments by name, description, manager, or ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-700 placeholder-gray-400"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-500">
+                {filteredDepartments.length} of {departments.length} departments
+              </div>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+          {searchTerm && (
+            <div className="mt-3 text-sm text-blue-600">
+              Searching for: <span className="font-semibold">"{searchTerm}"</span>
+            </div>
+          )}
         </div>
       </div>
       
@@ -193,7 +251,24 @@ export default function Departments() {
         <div className="w-full">
           {/* Enhanced Mobile Cards View */}
           <div className="lg:hidden space-y-6">
-            {departments.map(dept => (
+            {searchTerm && filteredDepartments.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No departments found</h3>
+                <p className="text-gray-500 mb-4">No departments match your search criteria.</p>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                >
+                  Clear search
+                </button>
+              </div>
+            ) : (
+              filteredDepartments.map(dept => (
               <div 
                 key={dept.id} 
                 className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-blue-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02]"
@@ -306,25 +381,45 @@ export default function Departments() {
                   </div>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
           
           {/* Enhanced Desktop Table View */}
           <div className="hidden lg:block">
-            <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100">
-                  <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-                    <tr>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Department</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Description</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Manager</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employees</th>
-                      <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-50">
-                    {departments.map(dept => (
+            {searchTerm && filteredDepartments.length === 0 ? (
+              <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-12">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No departments found</h3>
+                  <p className="text-gray-500 mb-4">No departments match your search criteria.</p>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+                      <tr>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Department</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Description</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Manager</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employees</th>
+                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-50">
+                      {filteredDepartments.map(dept => (
                       <tr 
                         key={dept.id} 
                         className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 cursor-pointer group" 
@@ -424,6 +519,7 @@ export default function Departments() {
                 </table>
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

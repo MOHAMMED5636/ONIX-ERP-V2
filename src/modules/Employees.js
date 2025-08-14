@@ -1150,6 +1150,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 export default function Employees() {
   const [showForm, setShowForm] = useState(false);
   const [employees, setEmployees] = useState(demoEmployees);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showJobTitlesModal, setShowJobTitlesModal] = useState(false);
   const [showAttendanceProgramModal, setShowAttendanceProgramModal] = useState(false);
   const [showImportExportModal, setShowImportExportModal] = useState(false);
@@ -1162,6 +1163,69 @@ export default function Employees() {
   const [selectedEmployeeForView, setSelectedEmployeeForView] = useState(null);
   const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState(null);
   const [openLegalSection, setOpenLegalSection] = useState('');
+  
+  // Filter employees based on search term
+  const filteredEmployees = employees.filter(emp => 
+    emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.id.toString().includes(searchTerm)
+  );
+  
+  const [employeeDocuments, setEmployeeDocuments] = useState({
+    1: [
+      {
+        id: 1,
+        name: "Passport.pdf",
+        type: "Passport",
+        uploadDate: "2024-01-15",
+        expiryDate: "2029-05-20",
+        fileSize: "2.3 MB",
+        status: "active"
+      },
+      {
+        id: 2,
+        name: "Employment_Contract.pdf",
+        type: "Employment Contract",
+        uploadDate: "2024-01-10",
+        expiryDate: null,
+        fileSize: "1.8 MB",
+        status: "active"
+      },
+      {
+        id: 3,
+        name: "Visa_Document.pdf",
+        type: "Visa",
+        uploadDate: "2024-01-12",
+        expiryDate: "2026-08-15",
+        fileSize: "3.1 MB",
+        status: "active"
+      }
+    ],
+    2: [
+      {
+        id: 4,
+        name: "ID_Card.jpg",
+        type: "ID Card",
+        uploadDate: "2024-01-08",
+        expiryDate: "2028-12-31",
+        fileSize: "1.2 MB",
+        status: "active"
+      },
+      {
+        id: 5,
+        name: "Labour_Card.pdf",
+        type: "Labour Card",
+        uploadDate: "2024-01-05",
+        expiryDate: "2027-03-10",
+        fileSize: "2.7 MB",
+        status: "active"
+      }
+    ]
+  });
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+  const [selectedDocumentType, setSelectedDocumentType] = useState('');
   const [jobTitles, setJobTitles] = useState([
     { id: 1, title: "Manager", department: "All", description: "Management role" },
     { id: 2, title: "Developer", department: "IT", description: "Software development" },
@@ -1416,9 +1480,8 @@ export default function Employees() {
   const navigate = useNavigate();
 
   const handleEmployeeClick = (employee) => {
-    // Navigate to employee details or edit form
-    console.log('Employee clicked:', employee);
-    // You can add navigation here when needed
+    // Open the employee view modal when employee is clicked
+    handleViewEmployee(employee);
   };
 
   const handleViewEmployee = (employee) => {
@@ -1495,6 +1558,53 @@ export default function Employees() {
 
   const handleRuleButton = (employee) => {
     navigate(`/employees/rule-builder?empId=${employee.id}`);
+  };
+
+  // Document handling functions
+  const handleUploadDocument = (employeeId, documentData) => {
+    const newDocument = {
+      id: Date.now(),
+      name: documentData.name,
+      type: documentData.type,
+      uploadDate: new Date().toLocaleDateString(),
+      expiryDate: documentData.expiryDate,
+      fileSize: documentData.fileSize,
+      status: 'active'
+    };
+
+    setEmployeeDocuments(prev => ({
+      ...prev,
+      [employeeId]: [...(prev[employeeId] || []), newDocument]
+    }));
+
+    setShowDocumentUpload(false);
+    setSelectedDocumentType('');
+    
+    // Show success message
+    alert(`Document "${documentData.name}" uploaded successfully!`);
+  };
+
+  const handleDeleteDocument = (employeeId, documentId) => {
+    const document = employeeDocuments[employeeId]?.find(doc => doc.id === documentId);
+    if (document && window.confirm(`Are you sure you want to delete "${document.name}"?`)) {
+      setEmployeeDocuments(prev => ({
+        ...prev,
+        [employeeId]: prev[employeeId]?.filter(doc => doc.id !== documentId) || []
+      }));
+      alert(`Document "${document.name}" deleted successfully!`);
+    }
+  };
+
+  const handleViewDocument = (document) => {
+    // In a real application, this would open the document in a viewer
+    console.log('Viewing document:', document);
+    alert(`Viewing document: ${document.name}`);
+  };
+
+  const handleDownloadDocument = (document) => {
+    // In a real application, this would trigger a download
+    console.log('Downloading document:', document);
+    alert(`Downloading document: ${document.name}`);
   };
 
   const handleExportEmployees = () => {
@@ -1758,8 +1868,10 @@ export default function Employees() {
                       <UserIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-white">{employees.length}</div>
-                      <div className="text-indigo-100 text-sm">Total Employees</div>
+                      <div className="text-2xl font-bold text-white">{filteredEmployees.length}</div>
+                      <div className="text-indigo-100 text-sm">
+                        {searchTerm ? 'Filtered Employees' : 'Total Employees'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1780,13 +1892,60 @@ export default function Employees() {
                       <CheckCircleIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-white">{employees.length}</div>
-                      <div className="text-indigo-100 text-sm">Active Employees</div>
+                      <div className="text-2xl font-bold text-white">{filteredEmployees.length}</div>
+                      <div className="text-indigo-100 text-sm">
+                        {searchTerm ? 'Filtered Active' : 'Active Employees'}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Search Bar */}
+      {!showForm && (
+        <div className="w-full px-4 sm:px-6 lg:px-10 mb-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search employees by name, department, job title, email, or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-gray-700 placeholder-gray-400"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-gray-500">
+                  {filteredEmployees.length} of {employees.length} employees
+                </div>
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            {searchTerm && (
+              <div className="mt-3 text-sm text-indigo-600">
+                Searching for: <span className="font-semibold">"{searchTerm}"</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1797,7 +1956,7 @@ export default function Employees() {
           <div className="w-full mt-4 sm:mt-8">
             {/* Enhanced Mobile Cards View */}
             <div className="lg:hidden space-y-6">
-              {employees.map(emp => (
+              {filteredEmployees.map(emp => (
                 <div 
                   key={emp.id} 
                   className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-indigo-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02] relative overflow-hidden"
@@ -1814,7 +1973,10 @@ export default function Employees() {
                         <UserIcon className="h-6 w-6 text-white" />
                   </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-gray-900 text-lg group-hover:text-indigo-900 transition-colors">{emp.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-indigo-900 transition-colors">{emp.name}</h3>
+                          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">ID: {emp.id}</span>
+                        </div>
                         <p className="text-gray-500 text-sm">Employee</p>
                     </div>
                     </div>
@@ -1867,6 +2029,27 @@ export default function Employees() {
                   </div>
                 </div>
               ))}
+              
+              {/* No Results Message for Mobile */}
+              {searchTerm && filteredEmployees.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No employees found</h3>
+                    <p className="text-gray-500 mb-4">No employees match your search for "{searchTerm}"</p>
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      Clear Search
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Enhanced Desktop Table View */}
@@ -1884,7 +2067,7 @@ export default function Employees() {
                   </tr>
                 </thead>
                     <tbody className="bg-white divide-y divide-gray-50">
-                  {employees.map(emp => (
+                  {filteredEmployees.map(emp => (
                     <tr 
                       key={emp.id} 
                           className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 cursor-pointer group" 
@@ -1897,7 +2080,10 @@ export default function Employees() {
                                 <UserIcon className="h-6 w-6 text-white" />
                               </div>
                               <div>
-                                <div className="font-bold text-gray-900 text-base group-hover:text-indigo-900 transition-colors">{emp.name}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="font-bold text-gray-900 text-base group-hover:text-indigo-900 transition-colors">{emp.name}</div>
+                                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">ID: {emp.id}</span>
+                                </div>
                                 <div className="text-gray-500 text-sm">Employee</div>
                               </div>
                             </div>
@@ -1999,6 +2185,27 @@ export default function Employees() {
                   ))}
                 </tbody>
               </table>
+              
+              {/* No Results Message for Desktop */}
+              {searchTerm && filteredEmployees.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="bg-white border-t border-gray-100 p-8">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No employees found</h3>
+                    <p className="text-gray-500 mb-4">No employees match your search for "{searchTerm}"</p>
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      Clear Search
+                    </button>
+                  </div>
+                </div>
+              )}
                 </div>
               </div>
             </div>
@@ -2975,20 +3182,170 @@ export default function Employees() {
                   </button>
                   {openLegalSection === 'documents' && (
                     <div className="p-6 border-t border-gray-200">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                          <div className="flex items-center gap-3">
-                            <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
+                      <div className="space-y-6">
+                        {/* Document Upload Section */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                          <div className="flex items-center justify-between mb-4">
                             <div>
-                              <p className="font-medium text-gray-900">No documents uploaded</p>
-                              <p className="text-sm text-gray-500">Upload employee documents</p>
+                              <h6 className="text-lg font-semibold text-gray-900">Upload New Document</h6>
+                              <p className="text-sm text-blue-600 font-medium">Employee ID: {selectedEmployeeForView?.id}</p>
                             </div>
+                            <button
+                              onClick={() => setShowDocumentUpload(!showDocumentUpload)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                              </svg>
+                              {showDocumentUpload ? 'Cancel' : 'Add Document'}
+                            </button>
                           </div>
-                          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            Upload
-                          </button>
+                          
+                          {showDocumentUpload && (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
+                                  <select
+                                    value={selectedDocumentType}
+                                    onChange={(e) => setSelectedDocumentType(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  >
+                                    <option value="">Select document type</option>
+                                    <option value="passport">Passport</option>
+                                    <option value="visa">Visa</option>
+                                    <option value="labour_card">Labour Card</option>
+                                    <option value="contract">Employment Contract</option>
+                                    <option value="id_card">ID Card</option>
+                                    <option value="certificate">Certificate</option>
+                                    <option value="other">Other</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date (if applicable)</label>
+                                  <input
+                                    id="expiry-date"
+                                    type="date"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Upload File</label>
+                                <div 
+                                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                                  onClick={() => document.getElementById('file-upload').click()}
+                                >
+                                  <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  <p className="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
+                                  <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                                  <input 
+                                    id="file-upload"
+                                    type="file" 
+                                    className="hidden" 
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={(e) => {
+                                      const file = e.target.files[0];
+                                      if (file) {
+                                        const documentData = {
+                                          name: file.name,
+                                          type: selectedDocumentType,
+                                          expiryDate: document.getElementById('expiry-date').value,
+                                          fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                                        };
+                                        handleUploadDocument(selectedEmployeeForView.id, documentData);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex gap-3">
+                                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                  Upload Document
+                                </button>
+                                <button 
+                                  onClick={() => setShowDocumentUpload(false)}
+                                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Documents List */}
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h6 className="text-lg font-semibold text-gray-900">Uploaded Documents</h6>
+                            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">ID: {selectedEmployeeForView?.id}</span>
+                          </div>
+                          <div className="space-y-3">
+                            {employeeDocuments[selectedEmployeeForView?.id]?.length > 0 ? (
+                              employeeDocuments[selectedEmployeeForView?.id]?.map((doc, index) => (
+                                <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                      <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                                                         <div>
+                                       <p className="font-medium text-gray-900">{doc.name}</p>
+                                       <p className="text-sm text-gray-500">{doc.type} • {doc.uploadDate} • {doc.fileSize}</p>
+                                       {doc.expiryDate && (
+                                         <p className={`text-xs ${new Date(doc.expiryDate) < new Date() ? 'text-red-600' : 'text-orange-600'}`}>
+                                           Expires: {doc.expiryDate}
+                                         </p>
+                                       )}
+                                     </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button 
+                                      onClick={() => handleViewDocument(doc)}
+                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title="View Document"
+                                    >
+                                      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDownloadDocument(doc)}
+                                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                      title="Download Document"
+                                    >
+                                      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                      </svg>
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteDocument(selectedEmployeeForView.id, doc.id)}
+                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Delete Document"
+                                    >
+                                      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="flex items-center justify-center p-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                                <div className="text-center">
+                                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <p className="mt-2 text-sm font-medium text-gray-900">No documents uploaded</p>
+                                  <p className="mt-1 text-sm text-gray-500">Upload employee documents to get started</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3557,6 +3914,179 @@ export default function Employees() {
                           onChange={(e) => handleEditFieldChange('labourExpiry', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Documents Section */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                    <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <DocumentTextIcon className="h-5 w-5 text-blue-600" />
+                      Documents Management
+                    </h4>
+                    
+                                         {/* Document Upload Section */}
+                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 mb-6">
+                       <div className="flex items-center justify-between mb-4">
+                         <div>
+                           <h6 className="text-lg font-semibold text-gray-900">Upload New Document</h6>
+                           <p className="text-sm text-blue-600 font-medium">Employee ID: {selectedEmployeeForEdit?.id}</p>
+                         </div>
+                         <button
+                           onClick={() => setShowDocumentUpload(!showDocumentUpload)}
+                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                         >
+                           <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                           </svg>
+                           {showDocumentUpload ? 'Cancel' : 'Add Document'}
+                         </button>
+                       </div>
+                      
+                      {showDocumentUpload && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
+                              <select
+                                value={selectedDocumentType}
+                                onChange={(e) => setSelectedDocumentType(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select document type</option>
+                                <option value="passport">Passport</option>
+                                <option value="visa">Visa</option>
+                                <option value="labour_card">Labour Card</option>
+                                <option value="contract">Employment Contract</option>
+                                <option value="id_card">ID Card</option>
+                                <option value="certificate">Certificate</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date (if applicable)</label>
+                              <input
+                                id="edit-expiry-date"
+                                type="date"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Upload File</label>
+                            <div 
+                              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                              onClick={() => document.getElementById('edit-file-upload').click()}
+                            >
+                              <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <p className="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
+                              <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB</p>
+                              <input 
+                                id="edit-file-upload"
+                                type="file" 
+                                className="hidden" 
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if (file) {
+                                    const documentData = {
+                                      name: file.name,
+                                      type: selectedDocumentType,
+                                      expiryDate: document.getElementById('edit-expiry-date').value,
+                                      fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                                    };
+                                    handleUploadDocument(selectedEmployeeForEdit.id, documentData);
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                              Upload Document
+                            </button>
+                            <button 
+                              onClick={() => setShowDocumentUpload(false)}
+                              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Documents List */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h6 className="text-lg font-semibold text-gray-900">Uploaded Documents</h6>
+                        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">ID: {selectedEmployeeForEdit?.id}</span>
+                      </div>
+                      <div className="space-y-3">
+                        {employeeDocuments[selectedEmployeeForEdit?.id]?.length > 0 ? (
+                          employeeDocuments[selectedEmployeeForEdit?.id]?.map((doc, index) => (
+                            <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{doc.name}</p>
+                                  <p className="text-sm text-gray-500">{doc.type} • {doc.uploadDate} • {doc.fileSize}</p>
+                                  {doc.expiryDate && (
+                                    <p className={`text-xs ${new Date(doc.expiryDate) < new Date() ? 'text-red-600' : 'text-orange-600'}`}>
+                                      Expires: {doc.expiryDate}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => handleViewDocument(doc)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="View Document"
+                                >
+                                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                </button>
+                                <button 
+                                  onClick={() => handleDownloadDocument(doc)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Download Document"
+                                >
+                                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteDocument(selectedEmployeeForEdit.id, doc.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete Document"
+                                >
+                                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex items-center justify-center p-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                            <div className="text-center">
+                              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <p className="mt-2 text-sm font-medium text-gray-900">No documents uploaded</p>
+                              <p className="mt-1 text-sm text-gray-500">Upload employee documents to get started</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
