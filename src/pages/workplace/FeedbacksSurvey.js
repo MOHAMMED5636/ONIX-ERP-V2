@@ -86,6 +86,41 @@ export default function FeedbacksSurvey() {
     placeholder: ''
   });
 
+  // Delivery options state
+  const [deliveryOptions, setDeliveryOptions] = useState({
+    sendViaEmail: false,
+    sendViaWhatsApp: false,
+    recipientEmail: '',
+    recipientWhatsApp: '',
+    selectedClient: ''
+  });
+
+  // Selected recipients state for searchable checklist
+  const [selectedRecipients, setSelectedRecipients] = useState([]);
+  const [recipientSearchTerm, setRecipientSearchTerm] = useState('');
+
+  // Mock employees data for recipient selection
+  const [employees] = useState([
+    { id: 'emp_1', name: 'Ahmed Ali', email: 'ahmed.ali@email.com', whatsapp: '+971501234567', type: 'Employee', department: 'HR', position: 'Manager' },
+    { id: 'emp_2', name: 'Sara Youssef', email: 'sara.y@email.com', whatsapp: '+971509876543', type: 'Employee', department: 'Finance', position: 'Accountant' },
+    { id: 'emp_3', name: 'John Smith', email: 'john.smith@email.com', whatsapp: '+971505555555', type: 'Employee', department: 'IT', position: 'Developer' },
+    { id: 'emp_4', name: 'Fatima Noor', email: 'fatima.noor@email.com', whatsapp: '+971506666666', type: 'Employee', department: 'Sales', position: 'Sales Rep' },
+    { id: 'emp_5', name: 'Michael Brown', email: 'michael.brown@company.com', whatsapp: '+971507777777', type: 'Employee', department: 'IT', position: 'Team Lead' },
+    { id: 'emp_6', name: 'Emily Davis', email: 'emily.davis@company.com', whatsapp: '+971508888888', type: 'Employee', department: 'HR', position: 'HR Specialist' },
+    { id: 'emp_7', name: 'David Wilson', email: 'david.wilson@company.com', whatsapp: '+971509999999', type: 'Employee', department: 'Finance', position: 'Senior Accountant' },
+    { id: 'emp_8', name: 'Lisa Anderson', email: 'lisa.anderson@company.com', whatsapp: '+971500000000', type: 'Employee', department: 'IT', position: 'Project Manager' }
+  ]);
+
+  // Mock clients data for recipient selection
+  const [clients] = useState([
+    { id: 'client_1', name: 'John Smith', email: 'john.smith@example.com', whatsapp: '+1234567890', type: 'Client', company: 'ABC Corp' },
+    { id: 'client_2', name: 'Sarah Johnson', email: 'sarah.johnson@example.com', whatsapp: '+1234567891', type: 'Client', company: 'XYZ Ltd' },
+    { id: 'client_3', name: 'Mike Davis', email: 'mike.davis@example.com', whatsapp: '+1234567892', type: 'Client', company: 'Tech Solutions' },
+    { id: 'client_4', name: 'Lisa Wilson', email: 'lisa.wilson@example.com', whatsapp: '+1234567893', type: 'Client', company: 'Global Engineering' },
+    { id: 'client_5', name: 'Robert Taylor', email: 'robert.taylor@example.com', whatsapp: '+1234567894', type: 'Client', company: 'Innovation Inc' },
+    { id: 'client_6', name: 'Jennifer Martinez', email: 'jennifer.martinez@example.com', whatsapp: '+1234567895', type: 'Client', company: 'Future Systems' }
+  ]);
+
   const isAdmin = true; // Mock admin status
 
   const sampleQuestions = [
@@ -160,9 +195,15 @@ export default function FeedbacksSurvey() {
     }
   };
 
-  const handleCreateSurvey = () => {
+  const handleCreateSurvey = async () => {
     if (!newSurvey.title.trim() || !newSurvey.description.trim() || newSurvey.questions.length === 0) {
       alert("Please fill in all required fields and add at least one question");
+      return;
+    }
+
+    // Validate delivery options if any are selected
+    if ((deliveryOptions.sendViaEmail || deliveryOptions.sendViaWhatsApp) && selectedRecipients.length === 0) {
+      alert("Please select at least one recipient when choosing a delivery method");
       return;
     }
 
@@ -179,7 +220,60 @@ export default function FeedbacksSurvey() {
     };
 
     setSurveys(prev => [survey, ...prev]);
+
+    // Handle delivery if options are selected
+    if (deliveryOptions.sendViaEmail || deliveryOptions.sendViaWhatsApp) {
+      const surveyLink = generateSurveyLink(survey.id);
+      let deliveryResults = [];
+
+      // Get selected recipient details
+      const allRecipients = [...employees, ...clients];
+      const selectedRecipientDetails = allRecipients.filter(recipient => 
+        selectedRecipients.includes(recipient.id)
+      );
+
+      // Send via email if selected
+      if (deliveryOptions.sendViaEmail) {
+        const emailRecipients = selectedRecipientDetails.map(recipient => recipient.email);
+        for (const email of emailRecipients) {
+          const emailResult = await sendSurveyViaEmail(surveyLink, email);
+          deliveryResults.push(emailResult);
+        }
+      }
+
+      // Send via WhatsApp if selected
+      if (deliveryOptions.sendViaWhatsApp) {
+        const whatsappRecipients = selectedRecipientDetails.map(recipient => recipient.whatsapp);
+        for (const whatsapp of whatsappRecipients) {
+          const whatsappResult = await sendSurveyViaWhatsApp(surveyLink, whatsapp);
+          deliveryResults.push(whatsappResult);
+        }
+      }
+
+      // Show delivery results
+      const successCount = deliveryResults.filter(result => result.success).length;
+      const totalCount = deliveryResults.length;
+      
+      if (successCount === totalCount) {
+        alert(`Survey created successfully! Survey sent to ${selectedRecipientDetails.length} recipient(s) via ${totalCount === 2 ? 'email and WhatsApp' : deliveryOptions.sendViaEmail ? 'email' : 'WhatsApp'}.`);
+      } else {
+        alert(`Survey created successfully! ${successCount}/${totalCount} delivery methods succeeded.`);
+      }
+    } else {
+      alert("Survey created successfully!");
+    }
+
+    // Reset form
     setNewSurvey({ title: '', description: '', questions: [] });
+    setDeliveryOptions({
+      sendViaEmail: false,
+      sendViaWhatsApp: false,
+      recipientEmail: '',
+      recipientWhatsApp: '',
+      selectedClient: ''
+    });
+    setSelectedRecipients([]);
+    setRecipientSearchTerm('');
     setShowCreateModal(false);
   };
 
@@ -249,6 +343,111 @@ export default function FeedbacksSurvey() {
       setSurveys(prev => prev.filter(survey => survey.id !== selectedSurveyForDelete.id));
       setShowDeleteModal(false);
       setSelectedSurveyForDelete(null);
+    }
+  };
+
+  const handleClientSurvey = () => {
+    // Create a new client survey
+    const clientSurvey = {
+      id: Date.now(),
+      title: "Client Satisfaction Survey",
+      description: "Gather feedback from clients about our services and support",
+      questions: 8,
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days from now
+      responses: 0,
+      totalEmployees: 60,
+      status: "active",
+      completed: false,
+      type: "client"
+    };
+
+    setSurveys(prev => [clientSurvey, ...prev]);
+    
+    // Show success message
+    alert("Client Survey created successfully! It will be available for clients to complete.");
+  };
+
+  // Delivery option handlers
+  const handleDeliveryOptionChange = (field, value) => {
+    setDeliveryOptions(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleClientSelection = (clientId) => {
+    const selectedClient = clients.find(client => client.id === parseInt(clientId));
+    setDeliveryOptions(prev => ({
+      ...prev,
+      selectedClient: clientId,
+      recipientEmail: selectedClient ? selectedClient.email : '',
+      recipientWhatsApp: selectedClient ? selectedClient.whatsapp : ''
+    }));
+  };
+
+  // Searchable checklist handlers
+  const handleRecipientToggle = (recipientId) => {
+    setSelectedRecipients(prev => {
+      if (prev.includes(recipientId)) {
+        return prev.filter(id => id !== recipientId);
+      } else {
+        return [...prev, recipientId];
+      }
+    });
+  };
+
+  const handleSelectAllRecipients = () => {
+    const allRecipients = [...employees, ...clients].map(recipient => recipient.id);
+    setSelectedRecipients(allRecipients);
+  };
+
+  const handleClearAllRecipients = () => {
+    setSelectedRecipients([]);
+  };
+
+  // Filter recipients based on search term
+  const filteredRecipients = [...employees, ...clients].filter(recipient =>
+    recipient.name.toLowerCase().includes(recipientSearchTerm.toLowerCase()) ||
+    recipient.email.toLowerCase().includes(recipientSearchTerm.toLowerCase()) ||
+    recipient.type.toLowerCase().includes(recipientSearchTerm.toLowerCase()) ||
+    (recipient.department && recipient.department.toLowerCase().includes(recipientSearchTerm.toLowerCase())) ||
+    (recipient.company && recipient.company.toLowerCase().includes(recipientSearchTerm.toLowerCase()))
+  );
+
+  const generateSurveyLink = (surveyId) => {
+    // Generate a unique trackable link
+    return `${window.location.origin}/survey/${surveyId}?tracking=${btoa(`survey_${surveyId}_${Date.now()}`)}`;
+  };
+
+  const sendSurveyViaEmail = async (surveyLink, recipientEmail) => {
+    try {
+      // Mock API call to backend email service
+      console.log('Sending survey via email to:', recipientEmail);
+      console.log('Survey link:', surveyLink);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return { success: true, message: 'Survey sent via email successfully' };
+    } catch (error) {
+      console.error('Error sending email:', error);
+      return { success: false, message: 'Failed to send email' };
+    }
+  };
+
+  const sendSurveyViaWhatsApp = async (surveyLink, recipientWhatsApp) => {
+    try {
+      // Mock API call to backend WhatsApp service
+      console.log('Sending survey via WhatsApp to:', recipientWhatsApp);
+      console.log('Survey link:', surveyLink);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return { success: true, message: 'Survey sent via WhatsApp successfully' };
+    } catch (error) {
+      console.error('Error sending WhatsApp:', error);
+      return { success: false, message: 'Failed to send WhatsApp' };
     }
   };
 
@@ -395,6 +594,15 @@ export default function FeedbacksSurvey() {
               >
                 <ChartBarIcon className="h-5 w-5 mr-2" />
                 View Stats
+              </button>
+              
+              {/* Client Survey Button */}
+              <button
+                onClick={() => handleClientSurvey()}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <UserGroupIcon className="h-5 w-5 mr-2" />
+                Client Survey
               </button>
               
               {/* Create Survey Button (Admin Only) */}
@@ -661,7 +869,18 @@ export default function FeedbacksSurvey() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Create New Survey</h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setDeliveryOptions({
+                    sendViaEmail: false,
+                    sendViaWhatsApp: false,
+                    recipientEmail: '',
+                    recipientWhatsApp: '',
+                    selectedClient: ''
+                  });
+                  setSelectedRecipients([]);
+                  setRecipientSearchTerm('');
+                }}
                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
               >
                 ×
@@ -812,11 +1031,157 @@ export default function FeedbacksSurvey() {
                   </div>
                 </div>
               )}
+              
+              {/* Delivery Options Section */}
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Delivery Options</h3>
+                
+                <div className="space-y-4">
+                  {/* Recipient Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Recipients
+                    </label>
+                    
+                    {/* Search Input */}
+                    <div className="relative mb-3">
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={recipientSearchTerm}
+                        onChange={(e) => setRecipientSearchTerm(e.target.value)}
+                        placeholder="Search recipients..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Select All/Clear All Buttons */}
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllRecipients}
+                        className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAllRecipients}
+                        className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                      >
+                        Clear All
+                      </button>
+                      <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md">
+                        {selectedRecipients.length} selected
+                      </span>
+                    </div>
+
+                    {/* Recipients Checklist */}
+                    <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2">
+                      {filteredRecipients.length > 0 ? (
+                        <div className="space-y-2">
+                          {filteredRecipients.map((recipient) => (
+                            <label
+                              key={recipient.id}
+                              className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedRecipients.includes(recipient.id)}
+                                onChange={() => handleRecipientToggle(recipient.id)}
+                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-gray-900 truncate">
+                                    {recipient.name}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    recipient.type === 'Employee' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-green-100 text-green-800'
+                                  }`}>
+                                    {recipient.type}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-gray-600 truncate">
+                                  {recipient.email}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {recipient.type === 'Employee' 
+                                    ? `${recipient.department} - ${recipient.position}`
+                                    : recipient.company
+                                  }
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500">
+                          No recipients found matching your search.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Delivery Method Checkboxes */}
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="sendViaEmail"
+                        checked={deliveryOptions.sendViaEmail}
+                        onChange={(e) => handleDeliveryOptionChange('sendViaEmail', e.target.checked)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        title="Send survey via email"
+                      />
+                      <label htmlFor="sendViaEmail" className="ml-2 text-sm text-gray-700 cursor-pointer" title="Send survey via email">
+                        Send via Email
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="sendViaWhatsApp"
+                        checked={deliveryOptions.sendViaWhatsApp}
+                        onChange={(e) => handleDeliveryOptionChange('sendViaWhatsApp', e.target.checked)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        title="Send survey via WhatsApp"
+                      />
+                      <label htmlFor="sendViaWhatsApp" className="ml-2 text-sm text-gray-700 cursor-pointer" title="Send survey via WhatsApp">
+                        Send via WhatsApp
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Delivery Info */}
+                  {(deliveryOptions.sendViaEmail || deliveryOptions.sendViaWhatsApp) && (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> When you create the survey, a unique trackable link will be generated and sent to {selectedRecipients.length} selected recipient(s).
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             
             <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setDeliveryOptions({
+                    sendViaEmail: false,
+                    sendViaWhatsApp: false,
+                    recipientEmail: '',
+                    recipientWhatsApp: '',
+                    selectedClient: ''
+                  });
+                  setSelectedRecipients([]);
+                  setRecipientSearchTerm('');
+                }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Cancel
