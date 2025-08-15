@@ -88,6 +88,13 @@ export default function FeedbacksSurvey() {
 
   // Delivery options state
   const [deliveryOptions, setDeliveryOptions] = useState({
+    // Employee delivery options
+    employeeSendViaEmail: false,
+    employeeSendViaWhatsApp: false,
+    // Client delivery options
+    clientSendViaEmail: false,
+    clientSendViaWhatsApp: false,
+    // Legacy fields (keeping for backward compatibility)
     sendViaEmail: false,
     sendViaWhatsApp: false,
     recipientEmail: '',
@@ -97,7 +104,11 @@ export default function FeedbacksSurvey() {
 
   // Selected recipients state for searchable checklist
   const [selectedRecipients, setSelectedRecipients] = useState([]);
+  const [selectedEmployeeRecipients, setSelectedEmployeeRecipients] = useState([]);
+  const [selectedClientRecipients, setSelectedClientRecipients] = useState([]);
   const [recipientSearchTerm, setRecipientSearchTerm] = useState('');
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
 
   // Mock employees data for recipient selection
   const [employees] = useState([
@@ -202,8 +213,16 @@ export default function FeedbacksSurvey() {
     }
 
     // Validate delivery options if any are selected
-    if ((deliveryOptions.sendViaEmail || deliveryOptions.sendViaWhatsApp) && selectedRecipients.length === 0) {
-      alert("Please select at least one recipient when choosing a delivery method");
+    const hasEmployeeDelivery = deliveryOptions.employeeSendViaEmail || deliveryOptions.employeeSendViaWhatsApp;
+    const hasClientDelivery = deliveryOptions.clientSendViaEmail || deliveryOptions.clientSendViaWhatsApp;
+    
+    if (hasEmployeeDelivery && selectedEmployeeRecipients.length === 0) {
+      alert("Please select at least one employee when choosing employee delivery methods");
+      return;
+    }
+    
+    if (hasClientDelivery && selectedClientRecipients.length === 0) {
+      alert("Please select at least one client when choosing client delivery methods");
       return;
     }
 
@@ -222,31 +241,63 @@ export default function FeedbacksSurvey() {
     setSurveys(prev => [survey, ...prev]);
 
     // Handle delivery if options are selected
-    if (deliveryOptions.sendViaEmail || deliveryOptions.sendViaWhatsApp) {
+    
+    if (hasEmployeeDelivery || hasClientDelivery) {
       const surveyLink = generateSurveyLink(survey.id);
       let deliveryResults = [];
+      let deliverySummary = [];
 
-      // Get selected recipient details
-      const allRecipients = [...employees, ...clients];
-      const selectedRecipientDetails = allRecipients.filter(recipient => 
-        selectedRecipients.includes(recipient.id)
-      );
+      // Handle employee delivery
+      if (hasEmployeeDelivery && selectedEmployeeRecipients.length > 0) {
+        const selectedEmployeeDetails = employees.filter(employee => 
+          selectedEmployeeRecipients.includes(employee.id)
+        );
 
-      // Send via email if selected
-      if (deliveryOptions.sendViaEmail) {
-        const emailRecipients = selectedRecipientDetails.map(recipient => recipient.email);
-        for (const email of emailRecipients) {
-          const emailResult = await sendSurveyViaEmail(surveyLink, email);
-          deliveryResults.push(emailResult);
+        // Send to employees via email if selected
+        if (deliveryOptions.employeeSendViaEmail) {
+          const employeeEmails = selectedEmployeeDetails.map(employee => employee.email);
+          for (const email of employeeEmails) {
+            const emailResult = await sendSurveyViaEmail(surveyLink, email);
+            deliveryResults.push(emailResult);
+          }
+          deliverySummary.push(`Email to ${selectedEmployeeDetails.length} employee(s)`);
+        }
+
+        // Send to employees via WhatsApp if selected
+        if (deliveryOptions.employeeSendViaWhatsApp) {
+          const employeeWhatsApps = selectedEmployeeDetails.map(employee => employee.whatsapp);
+          for (const whatsapp of employeeWhatsApps) {
+            const whatsappResult = await sendSurveyViaWhatsApp(surveyLink, whatsapp);
+            deliveryResults.push(whatsappResult);
+          }
+          deliverySummary.push(`WhatsApp to ${selectedEmployeeDetails.length} employee(s)`);
         }
       }
 
-      // Send via WhatsApp if selected
-      if (deliveryOptions.sendViaWhatsApp) {
-        const whatsappRecipients = selectedRecipientDetails.map(recipient => recipient.whatsapp);
-        for (const whatsapp of whatsappRecipients) {
-          const whatsappResult = await sendSurveyViaWhatsApp(surveyLink, whatsapp);
-          deliveryResults.push(whatsappResult);
+      // Handle client delivery
+      if (hasClientDelivery && selectedClientRecipients.length > 0) {
+        const selectedClientDetails = clients.filter(client => 
+          selectedClientRecipients.includes(client.id)
+        );
+
+        // Send to clients via email if selected
+        if (deliveryOptions.clientSendViaEmail) {
+          const clientEmails = selectedClientDetails.map(client => client.email);
+          for (const email of clientEmails) {
+            const emailResult = await sendSurveyViaEmail(surveyLink, email);
+            deliveryResults.push(emailResult);
+          }
+          deliverySummary.push(`Email to ${selectedClientDetails.length} client(s)`);
+        }
+
+        // Send to clients via WhatsApp if selected
+        if (deliveryOptions.clientSendViaWhatsApp) {
+          const clientWhatsApps = selectedClientDetails.map(client => client.whatsapp);
+          for (const whatsapp of clientWhatsApps) {
+            const whatsappResult = await sendSurveyViaWhatsApp(surveyLink, whatsapp);
+            deliveryResults.push(whatsappResult);
+          }
+          deliverySummary.push(`WhatsApp to ${selectedClientDetails.length} client(s)`);
         }
       }
 
@@ -255,7 +306,7 @@ export default function FeedbacksSurvey() {
       const totalCount = deliveryResults.length;
       
       if (successCount === totalCount) {
-        alert(`Survey created successfully! Survey sent to ${selectedRecipientDetails.length} recipient(s) via ${totalCount === 2 ? 'email and WhatsApp' : deliveryOptions.sendViaEmail ? 'email' : 'WhatsApp'}.`);
+        alert(`Survey created successfully! Survey sent via: ${deliverySummary.join(', ')}.`);
       } else {
         alert(`Survey created successfully! ${successCount}/${totalCount} delivery methods succeeded.`);
       }
@@ -266,6 +317,10 @@ export default function FeedbacksSurvey() {
     // Reset form
     setNewSurvey({ title: '', description: '', questions: [] });
     setDeliveryOptions({
+      employeeSendViaEmail: false,
+      employeeSendViaWhatsApp: false,
+      clientSendViaEmail: false,
+      clientSendViaWhatsApp: false,
       sendViaEmail: false,
       sendViaWhatsApp: false,
       recipientEmail: '',
@@ -273,7 +328,11 @@ export default function FeedbacksSurvey() {
       selectedClient: ''
     });
     setSelectedRecipients([]);
+    setSelectedEmployeeRecipients([]);
+    setSelectedClientRecipients([]);
     setRecipientSearchTerm('');
+    setEmployeeSearchTerm('');
+    setClientSearchTerm('');
     setShowCreateModal(false);
   };
 
@@ -375,6 +434,20 @@ export default function FeedbacksSurvey() {
     }));
   };
 
+  const handleEmployeeDeliveryOptionChange = (field, value) => {
+    setDeliveryOptions(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleClientDeliveryOptionChange = (field, value) => {
+    setDeliveryOptions(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const handleClientSelection = (clientId) => {
     const selectedClient = clients.find(client => client.id === parseInt(clientId));
     setDeliveryOptions(prev => ({
@@ -396,6 +469,46 @@ export default function FeedbacksSurvey() {
     });
   };
 
+  // Employee recipient handlers
+  const handleEmployeeRecipientToggle = (employeeId) => {
+    setSelectedEmployeeRecipients(prev => {
+      if (prev.includes(employeeId)) {
+        return prev.filter(id => id !== employeeId);
+      } else {
+        return [...prev, employeeId];
+      }
+    });
+  };
+
+  const handleSelectAllEmployees = () => {
+    const allEmployeeIds = employees.map(employee => employee.id);
+    setSelectedEmployeeRecipients(allEmployeeIds);
+  };
+
+  const handleClearAllEmployees = () => {
+    setSelectedEmployeeRecipients([]);
+  };
+
+  // Client recipient handlers
+  const handleClientRecipientToggle = (clientId) => {
+    setSelectedClientRecipients(prev => {
+      if (prev.includes(clientId)) {
+        return prev.filter(id => id !== clientId);
+      } else {
+        return [...prev, clientId];
+      }
+    });
+  };
+
+  const handleSelectAllClients = () => {
+    const allClientIds = clients.map(client => client.id);
+    setSelectedClientRecipients(allClientIds);
+  };
+
+  const handleClearAllClients = () => {
+    setSelectedClientRecipients([]);
+  };
+
   const handleSelectAllRecipients = () => {
     const allRecipients = [...employees, ...clients].map(recipient => recipient.id);
     setSelectedRecipients(allRecipients);
@@ -412,6 +525,21 @@ export default function FeedbacksSurvey() {
     recipient.type.toLowerCase().includes(recipientSearchTerm.toLowerCase()) ||
     (recipient.department && recipient.department.toLowerCase().includes(recipientSearchTerm.toLowerCase())) ||
     (recipient.company && recipient.company.toLowerCase().includes(recipientSearchTerm.toLowerCase()))
+  );
+
+  // Filter employees based on search term
+  const filteredEmployees = employees.filter(employee =>
+    employee.name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+    employee.email.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+    employee.department.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+    employee.position.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+  );
+
+  // Filter clients based on search term
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+    client.email.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+    client.company.toLowerCase().includes(clientSearchTerm.toLowerCase())
   );
 
   const generateSurveyLink = (surveyId) => {
@@ -872,6 +1000,10 @@ export default function FeedbacksSurvey() {
                 onClick={() => {
                   setShowCreateModal(false);
                   setDeliveryOptions({
+                    employeeSendViaEmail: false,
+                    employeeSendViaWhatsApp: false,
+                    clientSendViaEmail: false,
+                    clientSendViaWhatsApp: false,
                     sendViaEmail: false,
                     sendViaWhatsApp: false,
                     recipientEmail: '',
@@ -879,7 +1011,11 @@ export default function FeedbacksSurvey() {
                     selectedClient: ''
                   });
                   setSelectedRecipients([]);
+                  setSelectedEmployeeRecipients([]);
+                  setSelectedClientRecipients([]);
                   setRecipientSearchTerm('');
+                  setEmployeeSearchTerm('');
+                  setClientSearchTerm('');
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
               >
@@ -1036,131 +1172,259 @@ export default function FeedbacksSurvey() {
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Delivery Options</h3>
                 
-                <div className="space-y-4">
-                  {/* Recipient Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Recipients
-                    </label>
+                <div className="space-y-6">
+                  {/* Employee Delivery Section */}
+                  <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                    <h4 className="text-md font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                      <UserGroupIcon className="h-5 w-5" />
+                      Employee Delivery
+                    </h4>
                     
-                    {/* Search Input */}
-                    <div className="relative mb-3">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={recipientSearchTerm}
-                        onChange={(e) => setRecipientSearchTerm(e.target.value)}
-                        placeholder="Search recipients..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-
-                    {/* Select All/Clear All Buttons */}
-                    <div className="flex gap-2 mb-3">
-                      <button
-                        type="button"
-                        onClick={handleSelectAllRecipients}
-                        className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
-                      >
-                        Select All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleClearAllRecipients}
-                        className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                      >
-                        Clear All
-                      </button>
-                      <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md">
-                        {selectedRecipients.length} selected
-                      </span>
-                    </div>
-
-                    {/* Recipients Checklist */}
-                    <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2">
-                      {filteredRecipients.length > 0 ? (
-                        <div className="space-y-2">
-                          {filteredRecipients.map((recipient) => (
-                            <label
-                              key={recipient.id}
-                              className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedRecipients.includes(recipient.id)}
-                                onChange={() => handleRecipientToggle(recipient.id)}
-                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium text-gray-900 truncate">
-                                    {recipient.name}
-                                  </span>
-                                  <span className={`text-xs px-2 py-1 rounded-full ${
-                                    recipient.type === 'Employee' 
-                                      ? 'bg-blue-100 text-blue-800' 
-                                      : 'bg-green-100 text-green-800'
-                                  }`}>
-                                    {recipient.type}
-                                  </span>
-                                </div>
-                                <div className="text-sm text-gray-600 truncate">
-                                  {recipient.email}
-                                </div>
-                                <div className="text-xs text-gray-500 truncate">
-                                  {recipient.type === 'Employee' 
-                                    ? `${recipient.department} - ${recipient.position}`
-                                    : recipient.company
-                                  }
-                                </div>
-                              </div>
-                            </label>
-                          ))}
+                    <div className="space-y-4">
+                      {/* Employee Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-2">
+                          Select Employees
+                        </label>
+                        
+                        {/* Employee Search Input */}
+                        <div className="relative mb-3">
+                          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={employeeSearchTerm}
+                            onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                            placeholder="Search employees..."
+                            className="w-full pl-10 pr-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
                         </div>
-                      ) : (
-                        <div className="text-center py-4 text-gray-500">
-                          No recipients found matching your search.
+
+                        {/* Employee Select All/Clear All Buttons */}
+                        <div className="flex gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllEmployees}
+                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                          >
+                            Select All Employees
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearAllEmployees}
+                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                          >
+                            Clear All
+                          </button>
+                          <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md">
+                            {selectedEmployeeRecipients.length} selected
+                          </span>
                         </div>
-                      )}
+
+                        {/* Employees Checklist */}
+                        <div className="max-h-40 overflow-y-auto border border-blue-300 rounded-lg p-2 bg-white">
+                          {filteredEmployees.length > 0 ? (
+                            <div className="space-y-2">
+                              {filteredEmployees.map((employee) => (
+                                <label
+                                  key={employee.id}
+                                  className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedEmployeeRecipients.includes(employee.id)}
+                                    onChange={() => handleEmployeeRecipientToggle(employee.id)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-gray-900 truncate">
+                                        {employee.name}
+                                      </span>
+                                      <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                        Employee
+                                      </span>
+                                    </div>
+                                    <div className="text-sm text-gray-600 truncate">
+                                      {employee.email}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {employee.department} - {employee.position}
+                                    </div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-gray-500">
+                              No employees found matching your search.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Employee Delivery Methods */}
+                      <div className="space-y-3">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="employeeSendViaEmail"
+                            checked={deliveryOptions.employeeSendViaEmail}
+                            onChange={(e) => handleEmployeeDeliveryOptionChange('employeeSendViaEmail', e.target.checked)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="employeeSendViaEmail" className="ml-2 text-sm text-blue-700 cursor-pointer">
+                            Send to Employees via Email
+                          </label>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="employeeSendViaWhatsApp"
+                            checked={deliveryOptions.employeeSendViaWhatsApp}
+                            onChange={(e) => handleEmployeeDeliveryOptionChange('employeeSendViaWhatsApp', e.target.checked)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="employeeSendViaWhatsApp" className="ml-2 text-sm text-blue-700 cursor-pointer">
+                            Send to Employees via WhatsApp
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Delivery Method Checkboxes */}
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="sendViaEmail"
-                        checked={deliveryOptions.sendViaEmail}
-                        onChange={(e) => handleDeliveryOptionChange('sendViaEmail', e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        title="Send survey via email"
-                      />
-                      <label htmlFor="sendViaEmail" className="ml-2 text-sm text-gray-700 cursor-pointer" title="Send survey via email">
-                        Send via Email
-                      </label>
-                    </div>
+                  {/* Client Delivery Section */}
+                  <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                    <h4 className="text-md font-semibold text-green-900 mb-3 flex items-center gap-2">
+                      <UserGroupIcon className="h-5 w-5" />
+                      Client Delivery
+                    </h4>
                     
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="sendViaWhatsApp"
-                        checked={deliveryOptions.sendViaWhatsApp}
-                        onChange={(e) => handleDeliveryOptionChange('sendViaWhatsApp', e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        title="Send survey via WhatsApp"
-                      />
-                      <label htmlFor="sendViaWhatsApp" className="ml-2 text-sm text-gray-700 cursor-pointer" title="Send survey via WhatsApp">
-                        Send via WhatsApp
-                      </label>
+                    <div className="space-y-4">
+                      {/* Client Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-green-700 mb-2">
+                          Select Clients
+                        </label>
+                        
+                        {/* Client Search Input */}
+                        <div className="relative mb-3">
+                          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={clientSearchTerm}
+                            onChange={(e) => setClientSearchTerm(e.target.value)}
+                            placeholder="Search clients..."
+                            className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          />
+                        </div>
+
+                        {/* Client Select All/Clear All Buttons */}
+                        <div className="flex gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllClients}
+                            className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                          >
+                            Select All Clients
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearAllClients}
+                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                          >
+                            Clear All
+                          </button>
+                          <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md">
+                            {selectedClientRecipients.length} selected
+                          </span>
+                        </div>
+
+                        {/* Clients Checklist */}
+                        <div className="max-h-40 overflow-y-auto border border-green-300 rounded-lg p-2 bg-white">
+                          {filteredClients.length > 0 ? (
+                            <div className="space-y-2">
+                              {filteredClients.map((client) => (
+                                <label
+                                  key={client.id}
+                                  className="flex items-center gap-3 p-2 hover:bg-green-50 rounded cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedClientRecipients.includes(client.id)}
+                                    onChange={() => handleClientRecipientToggle(client.id)}
+                                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-gray-900 truncate">
+                                        {client.name}
+                                      </span>
+                                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                        Client
+                                      </span>
+                                    </div>
+                                    <div className="text-sm text-gray-600 truncate">
+                                      {client.email}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {client.company}
+                                    </div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-gray-500">
+                              No clients found matching your search.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Client Delivery Methods */}
+                      <div className="space-y-3">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="clientSendViaEmail"
+                            checked={deliveryOptions.clientSendViaEmail}
+                            onChange={(e) => handleClientDeliveryOptionChange('clientSendViaEmail', e.target.checked)}
+                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="clientSendViaEmail" className="ml-2 text-sm text-green-700 cursor-pointer">
+                            Send to Clients via Email
+                          </label>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="clientSendViaWhatsApp"
+                            checked={deliveryOptions.clientSendViaWhatsApp}
+                            onChange={(e) => handleClientDeliveryOptionChange('clientSendViaWhatsApp', e.target.checked)}
+                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          />
+                          <label htmlFor="clientSendViaWhatsApp" className="ml-2 text-sm text-green-700 cursor-pointer">
+                            Send to Clients via WhatsApp
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Delivery Info */}
-                  {(deliveryOptions.sendViaEmail || deliveryOptions.sendViaWhatsApp) && (
+                  {(deliveryOptions.employeeSendViaEmail || deliveryOptions.employeeSendViaWhatsApp || 
+                    deliveryOptions.clientSendViaEmail || deliveryOptions.clientSendViaWhatsApp) && (
                     <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-sm text-blue-800">
-                        <strong>Note:</strong> When you create the survey, a unique trackable link will be generated and sent to {selectedRecipients.length} selected recipient(s).
+                        <strong>Note:</strong> When you create the survey, a unique trackable link will be generated and sent to:
+                        {selectedEmployeeRecipients.length > 0 && (
+                          <span className="block mt-1">• {selectedEmployeeRecipients.length} employee(s)</span>
+                        )}
+                        {selectedClientRecipients.length > 0 && (
+                          <span className="block mt-1">• {selectedClientRecipients.length} client(s)</span>
+                        )}
                       </p>
                     </div>
                   )}
@@ -1173,6 +1437,10 @@ export default function FeedbacksSurvey() {
                 onClick={() => {
                   setShowCreateModal(false);
                   setDeliveryOptions({
+                    employeeSendViaEmail: false,
+                    employeeSendViaWhatsApp: false,
+                    clientSendViaEmail: false,
+                    clientSendViaWhatsApp: false,
                     sendViaEmail: false,
                     sendViaWhatsApp: false,
                     recipientEmail: '',
@@ -1180,7 +1448,11 @@ export default function FeedbacksSurvey() {
                     selectedClient: ''
                   });
                   setSelectedRecipients([]);
+                  setSelectedEmployeeRecipients([]);
+                  setSelectedClientRecipients([]);
                   setRecipientSearchTerm('');
+                  setEmployeeSearchTerm('');
+                  setClientSearchTerm('');
                 }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
