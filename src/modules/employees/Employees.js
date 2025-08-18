@@ -27,9 +27,9 @@ import {
 } from '@heroicons/react/24/outline';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
-import Breadcrumbs from '../components/Breadcrumbs';
-import { useCompanySelection } from '../context/CompanySelectionContext';
-import { demoEmployees, phoneInputStyles } from './employees/constants';
+import Breadcrumbs from '../../components/Breadcrumbs';
+import { useCompanySelection } from '../../context/CompanySelectionContext';
+import { demoEmployees, phoneInputStyles } from './constants';
 import { 
   handleUploadDocument, 
   handleViewDocument, 
@@ -37,9 +37,9 @@ import {
   handleDeleteDocument,
   formatDate,
   isDateExpired 
-} from './employees/utils';
-import EmployeeForm from './employees/components/EmployeeForm';
-import EmployeeList from './employees/components/EmployeeList';
+} from './utils';
+import EmployeeForm from './components/EmployeeForm';
+import EmployeeList from './components/EmployeeList';
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -500,4 +500,4 @@ const Employees = () => {
   );
 };
 
-export default Employees; 
+export default Employees;
