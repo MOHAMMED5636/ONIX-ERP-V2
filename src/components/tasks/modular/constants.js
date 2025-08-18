@@ -228,3 +228,5 @@ export const mapPickerConfig = {
 
 // Authentication settings (temporary)
 export const isAdmin = true; // TODO: Replace with real authentication logic
+
+

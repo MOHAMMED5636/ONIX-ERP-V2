@@ -29,6 +29,36 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, h
 import { CSS } from '@dnd-kit/utilities';
 import MapPicker from '../../modules/WorkingLocations.js';
 import ReorderableDropdown from "./ReorderableDropdown";
+import ProjectRow from "./MainTable/ProjectRow";
+import CompletedProjects from "./MainTable/CompletedProjects";
+import Filters from "./MainTable/Filters";
+import {
+  statusColors,
+  INITIAL_COLUMNS,
+  calculateTaskTimelines,
+  filterTasks,
+  filterCompletedTasks,
+  getDefaultColumnOrder,
+  loadColumnOrderFromStorage,
+  saveColumnOrderToStorage,
+  getMissingColumns,
+  validateTask,
+  validateSubtask,
+  generateTaskId,
+  createNewTask,
+  createNewSubtask,
+  calculateTaskProgress,
+  areAllSubtasksComplete,
+  createNewColumn,
+  addColumnToTasks,
+  formatLocationString,
+  parseLocationString,
+  formatTimeline,
+  formatDateForInput,
+  formatFileList,
+  getStatusColor,
+  getPriorityColor
+} from "./utils/tableUtils";
 
 const initialTasks = [
   {
@@ -132,12 +162,7 @@ const initialTasks = [
   }
 ];
 
-const statusColors = {
-  done: "bg-green-500 text-white",
-  working: "bg-yellow-500 text-white",
-  stuck: "bg-red-500 text-white",
-  "not started": "bg-gray-400 text-white"
-};
+
 
 const isAdmin = true; // TODO: Replace with real authentication logic
 
@@ -327,15 +352,16 @@ export default function MainTable() {
     if (!newTask) return;
     
     // Validate required fields
-    if (!newTask.name || newTask.name.trim() === "") {
-      alert("Please enter a project name");
+    const errors = validateTask(newTask);
+    if (errors.length > 0) {
+      alert(errors.join('\n'));
       return;
     }
     
     // Create the task with current newTask data
     const taskToAdd = {
       ...newTask,
-      id: Date.now(),
+      id: generateTaskId(),
       expanded: false
     };
     
@@ -351,14 +377,8 @@ export default function MainTable() {
 
   function handleAddSubtask(taskId) {
     const newSubtaskData = {
-      id: Date.now(),
-      ...newSubtask,
-      completed: false,
-      checklist: false,
-      rating: 3,
-      progress: 0,
-      color: "#60a5fa",
-      predecessors: ""
+      ...createNewSubtask(),
+      ...newSubtask
     };
     
     setTasks(tasks => {
@@ -420,13 +440,9 @@ export default function MainTable() {
         })();
         
         // If all subtasks are done, set main task status to 'done'
-        const allDone = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.status === 'done');
+        const allDone = areAllSubtasksComplete(updatedSubtasks);
         // Calculate average progress of subtasks
-        let avgProgress = t.progress;
-        if (updatedSubtasks.length > 0) {
-          const total = updatedSubtasks.reduce((sum, s) => sum + (typeof s.progress === 'number' ? s.progress : 0), 0);
-          avgProgress = Math.round(total / updatedSubtasks.length);
-        }
+        const avgProgress = calculateTaskProgress(updatedSubtasks);
         return { ...t, subtasks: updatedSubtasks, status: allDone ? 'done' : t.status, progress: avgProgress };
       });
       
@@ -542,7 +558,7 @@ export default function MainTable() {
   }
   function handlePickLocation(lat, lng) {
     if (!mapPickerTarget) return;
-    const value = `${lat},${lng}`;
+    const value = formatLocationString(lat, lng);
     if (mapPickerTarget.type === 'main') {
       setTasks(ts => ts.map(t => t.id === mapPickerTarget.taskId ? { ...t, location: value } : t));
     } else if (mapPickerTarget.type === 'sub') {
@@ -557,166 +573,41 @@ export default function MainTable() {
     // Timeline recalculation will be handled by the useEffect that watches projectStartDate
   }
 
-  // Helper: Calculate timelines based on predecessors
-  function calculateTaskTimelines(tasks, projectStartDate) {
-    // Build a lookup for tasks by id (including subtasks)
-    const taskMap = {};
-    const allTasks = [];
-    
-    // Collect all tasks and subtasks
-    tasks.forEach(task => {
-      taskMap[task.id] = task;
-      allTasks.push(task);
-      if (task.subtasks) {
-        task.subtasks.forEach(subtask => {
-          taskMap[subtask.id] = subtask;
-          allTasks.push(subtask);
-        });
-      }
-    });
 
-    // Helper to calculate plan days from timeline
-    function calculatePlanDaysFromTimeline(timeline) {
-      if (!timeline || !timeline[0] || !timeline[1]) return 0;
-      return differenceInCalendarDays(timeline[1], timeline[0]) + 1;
-    }
-
-    // Helper to parse predecessor ids (comma/space separated)
-    function getPredecessorIds(predecessors) {
-      if (!predecessors) return [];
-      return predecessors
-        .toString()
-        .split(/[, ]+/)
-        .map(s => Number(s))
-        .filter(n => !isNaN(n));
-    }
-
-    // Calculate timelines for all tasks and subtasks
-    const updatedTaskMap = {};
-    allTasks.forEach(task => {
-      // If task already has a timeline, calculate plan days from it
-      if (task.timeline && task.timeline[0] && task.timeline[1]) {
-        const calculatedPlanDays = calculatePlanDaysFromTimeline(task.timeline);
-        updatedTaskMap[task.id] = {
-          ...task,
-          planDays: task.planDays || calculatedPlanDays
-        };
-        return;
-      }
-      
-      let startDate = projectStartDate;
-      const predIds = getPredecessorIds(task.predecessors);
-      
-      if (predIds.length > 0) {
-        // Find latest end date among predecessors
-        let latestEnd = null;
-        predIds.forEach(pid => {
-          const predTask = taskMap[pid];
-          if (predTask && predTask.timeline && predTask.timeline[1]) {
-            const predEnd = new Date(predTask.timeline[1]);
-            if (!latestEnd || predEnd > latestEnd) latestEnd = predEnd;
-          }
-        });
-        if (latestEnd) {
-          startDate = addDays(latestEnd, 1);
-        }
-      }
-      
-      // Calculate end date
-      const duration = task.planDays > 0 ? task.planDays : 1;
-      const endDate = addDays(startDate, duration - 1);
-      
-      // Calculate plan days from timeline if not set
-      const calculatedPlanDays = calculatePlanDaysFromTimeline([startDate, endDate]);
-      
-      updatedTaskMap[task.id] = {
-        ...task,
-        timeline: [startDate, endDate],
-        planDays: task.planDays || calculatedPlanDays
-      };
-    });
-
-    // Update main tasks with their updated subtasks
-    return tasks.map(task => {
-      const updatedTask = updatedTaskMap[task.id];
-      if (task.subtasks) {
-        updatedTask.subtasks = task.subtasks.map(subtask => 
-          updatedTaskMap[subtask.id] || subtask
-        );
-      }
-      return updatedTask;
-    });
-  }
 
   // Recalculate timelines whenever tasks or projectStartDate change
   useEffect(() => {
     setTasks(ts => calculateTaskTimelines(ts, projectStartDate));
   }, [projectStartDate]);
 
-  const filteredTasks = tasks.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTasks = filterTasks(tasks, search);
 
-  // Replace this:
-  // const columns = [ ... ];
-  // With:
-  const INITIAL_COLUMNS = [
-    { key: 'task', label: 'TASK' },
-    { key: 'referenceNumber', label: 'REFERENCE NUMBER' },
-    { key: 'category', label: 'TASK CATEGORY' },
-    { key: 'status', label: 'STATUS' },
-    { key: 'owner', label: 'OWNER' },
-    { key: 'timeline', label: 'TIMELINE' },
-    { key: 'planDays', label: 'PLAN DAYS' },
-    { key: 'remarks', label: 'REMARKS' },
-    { key: 'assigneeNotes', label: 'ASSIGNEE NOTES' },
-    { key: 'attachments', label: 'ATTACHMENTS' },
-    { key: 'priority', label: 'PRIORITY' },
-    { key: 'location', label: 'LOCATION' },
-    { key: 'plotNumber', label: 'PLOT NUMBER' },
-    { key: 'community', label: 'COMMUNITY' },
-    { key: 'projectType', label: 'PROJECT TYPE' },
-    { key: 'projectFloor', label: 'PROJECT FLOOR' },
-    { key: 'developerProject', label: 'DEVELOPER PROJECT' },
-    { key: 'autoNumber', label: 'AUTO #' },
-    { key: 'predecessors', label: 'PREDECESSORS' },
-    { key: 'checklist', label: 'CHECKLIST' },
-    { key: 'link', label: 'LINK' },
-    { key: 'rating', label: 'RATING' },
-    { key: 'progress', label: 'PROGRESS' },
-    { key: 'color', label: 'COLOR' },
-    { key: 'delete', label: '' }
-  ];
+
   const [columns, setColumns] = useState(INITIAL_COLUMNS);
 
   // Store column order in state
-  const defaultColumnOrder = columns.map(col => col.key);
+  const defaultColumnOrder = getDefaultColumnOrder(columns);
   const [columnOrder, setColumnOrder] = useState(() => {
-    const saved = localStorage.getItem('columnOrder');
-    const parsed = saved ? JSON.parse(saved) : defaultColumnOrder;
-    
-    // Ensure all new columns are included in the order
-    const allColumns = [...new Set([...parsed, ...defaultColumnOrder])];
-    return allColumns;
+    return loadColumnOrderFromStorage(defaultColumnOrder);
   });
   useEffect(() => {
-    localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
+    saveColumnOrderToStorage(columnOrder);
   }, [columnOrder]);
 
   // Force refresh column order when component mounts to include new fields
   useEffect(() => {
     const currentOrder = columnOrder;
-    const allColumns = columns.map(col => col.key);
-    const missingColumns = allColumns.filter(col => !currentOrder.includes(col));
+    const allColumns = getDefaultColumnOrder(columns);
+    const missingColumns = getMissingColumns(currentOrder, allColumns);
     
     if (missingColumns.length > 0) {
       const newOrder = [...currentOrder, ...missingColumns];
       setColumnOrder(newOrder);
-      localStorage.setItem('columnOrder', JSON.stringify(newOrder));
+      saveColumnOrderToStorage(newOrder);
     }
   }, [columns]);
 
-  const completedTasks = tasks.filter(t => t.status === "done");
+  const completedTasks = filterCompletedTasks(tasks);
 
   // Helper renderers for Monday.com style columns
   function TimelineCell({ value, onChange, hasPredecessors = false }) {
@@ -1450,18 +1341,6 @@ export default function MainTable() {
     }
   }
 
-  // Add column type options for the add column menu
-  const COLUMN_TYPE_OPTIONS = [
-    { key: 'status', label: 'Status', icon: '🟢' },
-    { key: 'text', label: 'Text', icon: '🔤' },
-    { key: 'date', label: 'Date', icon: '📅' },
-    { key: 'number', label: 'Number', icon: '🔢' },
-    { key: 'dropdown', label: 'Dropdown', icon: '⬇️' },
-    { key: 'files', label: 'Files', icon: '📎' },
-    { key: 'priority', label: 'Priority', icon: '⚡' },
-    { key: 'color', label: 'Color Picker', icon: '🎨' },
-  ];
-
   // Add state for add column menu
   const [showAddColumnMenu, setShowAddColumnMenu] = useState(false);
   const [addColumnMenuPos, setAddColumnMenuPos] = useState({ x: 0, y: 0 });
@@ -1479,25 +1358,29 @@ export default function MainTable() {
     setShowAddColumnMenu(true);
   }
   function handleAddColumn(type) {
-    const newKey = `custom_${type}_${Date.now()}`;
-    const newCol = { key: newKey, label: `New ${COLUMN_TYPE_OPTIONS.find(opt => opt.key === type).label}`, type };
+    const newCol = createNewColumn(type);
     setColumns(cols => [...cols, newCol]);
-    setColumnOrder(order => [...order, newKey]);
-    setTasks(ts => ts.map(t => ({
-      ...t,
-      [newKey]: '',
-      subtasks: (t.subtasks || []).map(s => ({ ...s, [newKey]: '' }))
-    })));
+    setColumnOrder(order => [...order, newCol.key]);
+    setTasks(ts => addColumnToTasks(ts, newCol.key));
     setShowAddColumnMenu(false);
     setAddColumnSearch('');
   }
-  const filteredColumnOptions = COLUMN_TYPE_OPTIONS.filter(opt => opt.label.toLowerCase().includes(addColumnSearch.toLowerCase()));
+  const filteredColumnOptions = [
+    { key: 'status', label: 'Status', icon: '🟢' },
+    { key: 'text', label: 'Text', icon: '🔤' },
+    { key: 'date', label: 'Date', icon: '📅' },
+    { key: 'number', label: 'Number', icon: '🔢' },
+    { key: 'dropdown', label: 'Dropdown', icon: '⬇️' },
+    { key: 'files', label: 'Files', icon: '📎' },
+    { key: 'priority', label: 'Priority', icon: '⚡' },
+    { key: 'color', label: 'Color Picker', icon: '🎨' },
+  ].filter(opt => opt.label.toLowerCase().includes(addColumnSearch.toLowerCase()));
 
   // Function to reset column order to include all columns
   function resetColumnOrder() {
-    const allColumns = columns.map(col => col.key);
+    const allColumns = getDefaultColumnOrder(columns);
     setColumnOrder(allColumns);
-    localStorage.setItem('columnOrder', JSON.stringify(allColumns));
+    saveColumnOrderToStorage(allColumns);
   }
 
   // Add the handler for subtask drag end
@@ -1537,61 +1420,22 @@ export default function MainTable() {
       {/* Main Content */}
       <main className="flex flex-col flex-1">
         <div className="w-full px-4 pt-0 pb-0">
-          {/* Enhanced Top Bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm rounded-b-lg">
-            {/* Left side - Show All Columns button and New Project button */}
-            <div className="flex items-center gap-3">
-              <button 
-                className="px-4 py-2.5 text-sm bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 rounded-lg transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                onClick={resetColumnOrder}
-                title="Reset columns to show all fields"
-              >
-                <EyeIcon className="w-4 h-4 inline mr-2" />
-                Show All Columns
-              </button>
-              <button
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                onClick={handleAddNewTask}
-              >
-                <PlusIcon className="w-5 h-5" /> New Project
-              </button>
-            </div>
-            
-            {/* Right side - Search, Project Start, and Add Column */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md w-64"
-                    placeholder="Search projects..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                  <CalendarIcon className="w-4 h-4 text-gray-600" />
-                  <label className="text-sm font-medium text-gray-700">Project Start:</label>
-                  <input
-                    type="date"
-                    className="px-2 py-1 border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-200 focus:border-blue-400 text-sm transition-all duration-200"
-                    value={format(projectStartDate, 'yyyy-MM-dd')}
-                    onChange={e => handleProjectStartDateChange(new Date(e.target.value))}
-                  />
-                </div>
-              </div>
-              <div className="relative">
-                <button className="p-2.5 rounded-lg bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5" onClick={() => setShowAddColumnDropdown(v => !v)}>
-                  <PlusIcon className="w-5 h-5 text-blue-600" />
-                </button>
-                {showAddColumnDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
-                    <div className="p-3 text-gray-700 font-medium">Add Column</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <Filters
+            search={search}
+            setSearch={setSearch}
+            projectStartDate={projectStartDate}
+            handleProjectStartDateChange={handleProjectStartDateChange}
+            handleAddNewTask={handleAddNewTask}
+            resetColumnOrder={resetColumnOrder}
+            showAddColumnMenu={showAddColumnMenu}
+            setShowAddColumnMenu={setShowAddColumnMenu}
+            addColumnMenuPos={addColumnMenuPos}
+            addColumnSearch={addColumnSearch}
+            setAddColumnSearch={setAddColumnSearch}
+            filteredColumnOptions={filteredColumnOptions}
+            handleAddColumn={handleAddColumn}
+            handleShowAddColumnMenu={handleShowAddColumnMenu}
+          />
           {/* Enhanced Table Container */}
           <div className="flex-1 flex flex-col mt-4">
             <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -1843,63 +1687,23 @@ export default function MainTable() {
                   {filteredTasks.map(task => (
                     <React.Fragment key={task.id}>
                       {/* Main Task Row */}
-                      <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
-                        {columnOrder
-                          .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
-                          .map((colKey, idx) => {
-                            const col = columns.find(c => c.key === colKey);
-                            if (!col) return null;
-                            return (
-                              <td key={col.key} className="px-4 py-4 align-middle">
-                                {col.key === 'task' && idx === 0 ? (
-                                  <div className="flex items-center gap-3">
-                                    <button
-                                      onClick={() => toggleExpand(task.id, 'active')}
-                                      className="focus:outline-none p-1 rounded-lg hover:bg-gray-100 transition-all duration-200"
-                                      title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
-                                    >
-                                      {expandedActive[task.id] ? <ChevronDownIcon className="w-5 h-5 text-gray-500" /> : <ChevronRightIcon className="w-5 h-5 text-gray-500" />}
-                                    </button>
-                                    {editingTaskId === task.id ? (
-                                      <input
-                                        type="text"
-                                        value={editingTaskName}
-                                        autoFocus
-                                        onChange={handleProjectNameChange}
-                                        onBlur={() => handleProjectNameBlur(task)}
-                                        onKeyDown={e => handleProjectNameKeyDown(e, task)}
-                                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                      />
-                                    ) : (
-                                      <span
-                                        className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
-                                        onClick={() => handleProjectNameClick(task)}
-                                        onDoubleClick={() => handleProjectNameDoubleClick(task)}
-                                      >
-                                        {task.name}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  renderMainCell(col, task, (field, value) => {
-                                    if (col.key === 'delete') handleDeleteRow(task.id);
-                                    else handleEdit(task, field, value);
-                                  })
-                                )}
-                              </td>
-                            );
-                          })}
-                        <td key="add-column" className="px-4 py-4 align-middle">
-                          <button
-                            className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                            onClick={handleShowAddColumnMenu}
-                            title="Add column"
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </td>
-                      </tr>
+                      <ProjectRow
+                        task={task}
+                        columnOrder={columnOrder}
+                        columns={columns}
+                        expandedActive={expandedActive}
+                        editingTaskId={editingTaskId}
+                        editingTaskName={editingTaskName}
+                        onToggleExpand={toggleExpand}
+                        onProjectNameClick={handleProjectNameClick}
+                        onProjectNameDoubleClick={handleProjectNameDoubleClick}
+                        onProjectNameChange={handleProjectNameChange}
+                        onProjectNameBlur={handleProjectNameBlur}
+                        onProjectNameKeyDown={handleProjectNameKeyDown}
+                        onEdit={handleEdit}
+                        onDelete={handleDeleteRow}
+                        onShowAddColumnMenu={handleShowAddColumnMenu}
+                      />
                       {/* Subtasks as subtable - always render */}
                       {expandedActive[task.id] && (
                         <tr>
@@ -2063,129 +1867,22 @@ export default function MainTable() {
               </table>
             </div>
           </div>
-          {completedTasks.length > 0 && (
-            <div className="mt-12 flex items-center gap-3 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 shadow-sm">
-              <h2 className="text-2xl font-extrabold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent flex items-center gap-3">
-                <CheckCircleIcon className="w-8 h-8 text-green-500" />
-                Completed Projects
-              </h2>
-              <div className="flex-1 h-px bg-gradient-to-r from-green-200 to-transparent"></div>
-            </div>
-          )}
-          {completedTasks.length > 0 && (
-            <div className="w-full px-4 py-0 mt-4 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-              <table className="w-full table-auto bg-white">
-                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                    <thead className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
-                      <tr>
-                        {columnOrder.map(key => {
-                          const col = columns.find(c => c.key === key);
-                          if (!col) return null;
-                          return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-                        })}
-                        <th key="add-column" className="px-4 py-4 text-center">
-                          <button
-                            className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                            onClick={handleShowAddColumnMenu}
-                            title="Add column"
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </th>
-                      </tr>
-                    </thead>
-                  </SortableContext>
-                </DndContext>
-                <tbody className="divide-y divide-green-100">
-                  {completedTasks.map(task => (
-                    <React.Fragment key={task.id}>
-                      <tr className="bg-white hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-green-100">
-                        {columnOrder.map((colKey, idx) => {
-                          const col = columns.find(c => c.key === colKey);
-                          if (!col) return null;
-                          return (
-                            <td key={col.key} className="px-4 py-4 align-middle">
-                              {col.key === 'task' && idx === 0 ? (
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    onClick={() => toggleExpand(task.id, 'completed')}
-                                    className="focus:outline-none p-1 rounded-lg hover:bg-green-100 transition-all duration-200"
-                                    title={expandedCompleted[task.id] ? 'Collapse' : 'Expand'}
-                                  >
-                                    {expandedCompleted[task.id] ? <ChevronDownIcon className="w-5 h-5 text-green-600" /> : <ChevronRightIcon className="w-5 h-5 text-green-600" />}
-                                  </button>
-                                  <button
-                                    className="font-bold text-green-700 hover:text-green-800 hover:underline focus:outline-none transition-all duration-200"
-                                    onClick={() => { setSelectedProject(task); setShowProjectDialog(true); }}
-                                  >
-                                    {task.name}
-                                  </button>
-                                </div>
-                              ) : (
-                                renderMainCell(col, task, (field, value) => {
-                                  if (col.key === 'delete') handleDeleteRow(task.id);
-                                  else handleEdit(task, field, value);
-                                })
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      {/* Subtasks as subtable - only render if expandedCompleted[task.id] */}
-                      {expandedCompleted[task.id] && (
-                        <tr>
-                          <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
-                            <table className="ml-12 table-fixed min-w-full">
-                              <thead>
-                                <tr>
-                                  {columnOrder.map(colKey => {
-                                    const col = columns.find(c => c.key === colKey);
-                                    if (!col) return null;
-                                    return (
-                                      <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>{col.label}</th>
-                                    );
-                                  })}
-                                  <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
-                                    <button
-                                      className="w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-2xl flex items-center justify-center shadow"
-                                      onClick={handleShowAddColumnMenu}
-                                      title="Add column"
-                                      type="button"
-                                    >
-                                      +
-                                    </button>
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
-                                  <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
-                                    {task.subtasks.map((sub, subIdx) => (
-                                      <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
-                                        {columnOrder.map(colKey => {
-                                          const col = columns.find(c => c.key === colKey);
-                                          if (!col) return null;
-                                          return (
-                                            <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>{renderSubtaskCell(col, sub, task, subIdx)}</td>
-                                          );
-                                        })}
-                                      </SortableSubtaskRow>
-                                    ))}
-                                  </SortableContext>
-                                </DndContext>
-                              </tbody>
-                            </table>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <CompletedProjects
+            completedTasks={completedTasks}
+            columnOrder={columnOrder}
+            columns={columns}
+            expandedCompleted={expandedCompleted}
+            onToggleExpand={toggleExpand}
+            onEdit={handleEdit}
+            onDelete={handleDeleteRow}
+            onShowAddColumnMenu={handleShowAddColumnMenu}
+            onSubtaskDragEnd={handleSubtaskDragEnd}
+            renderMainCell={renderMainCell}
+            renderSubtaskCell={renderSubtaskCell}
+            setSelectedProject={setSelectedProject}
+            setShowProjectDialog={setShowProjectDialog}
+            DraggableHeader={DraggableHeader}
+          />
           {/* Simulate creating a task */}
           {showNewTask && (
             <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
@@ -2353,51 +2050,7 @@ export default function MainTable() {
           onClose={() => setGoogleMapPickerOpen(false)}
         />
       )}
-      {showAddColumnMenu && (
-        <div
-          className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4 w-72"
-          style={{ left: addColumnMenuPos.x, top: addColumnMenuPos.y }}
-        >
-          <div className="mb-2">
-            <input
-              className="w-full border rounded px-2 py-1 text-sm"
-              placeholder="Search column types..."
-              value={addColumnSearch}
-              onChange={e => setAddColumnSearch(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="max-h-60 overflow-y-auto">
-            {filteredColumnOptions.map(opt => (
-              <button
-                key={opt.key}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded hover:bg-blue-50 text-left"
-                onClick={() => handleAddColumn(opt.key)}
-              >
-                <span className="text-xl">{opt.icon}</span>
-                <span className="font-medium">{opt.label}</span>
-              </button>
-            ))}
-            {filteredColumnOptions.length === 0 && (
-              <div className="text-gray-400 text-sm px-2 py-4">No column types found.</div>
-            )}
-          </div>
-          <button
-            className="mt-2 w-full text-blue-600 hover:underline text-sm"
-            onClick={() => alert('More column types coming soon!')}
-          >
-            More columns
-          </button>
-          <button
-            className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl"
-            onClick={() => setShowAddColumnMenu(false)}
-            title="Close"
-            type="button"
-          >
-            ×
-          </button>
-        </div>
-      )}
+
     </div>
   );
 }

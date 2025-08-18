@@ -96,6 +96,12 @@ const submenuIcons = {
   'my-attendance': CalendarDaysIcon,
   'feedbacks-survey': ChatBubbleLeftRightIcon,
   'leaves': DocumentTextIcon,
+  // Team Project Tracker nested submenu icons
+  'project-overview': ChartPieIcon,
+  'task-management': ClipboardDocumentListIcon,
+  'team-members': UsersIcon,
+  'progress-tracking': ChartPieIcon,
+  'reports': DocumentTextIcon,
 };
 
 function Tooltip({ label, children }) {
@@ -292,7 +298,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                       {/* Mobile dropdown - full width */}
                       <div className="lg:hidden w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
                         {item.submenus.map((submenu) => {
-                          const SubIcon = submenuIcons[submenu.key];
+                          const SubIcon = submenuIcons[submenu.key] || FolderIcon;
                           if (submenu.dropdown && submenu.submenus) {
                             // Nested dropdown (like Departments under Company Resources)
                             return (
@@ -302,7 +308,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                                   <span>{submenu.label[lang]}</span>
                                 </div>
                                 {submenu.submenus.map((nestedSubmenu) => {
-                                  const NestedIcon = submenuIcons[nestedSubmenu.key];
+                                  const NestedIcon = submenuIcons[nestedSubmenu.key] || FolderIcon;
                                   return (
                                     <Link
                                       key={nestedSubmenu.key}
@@ -338,7 +344,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                         {/* Arrow indicator */}
                         <div className="absolute left-0 top-6 -ml-1 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white shadow-lg z-50" />
                         {item.submenus.map((submenu) => {
-                          const SubIcon = submenuIcons[submenu.key];
+                          const SubIcon = submenuIcons[submenu.key] || FolderIcon;
                           if (submenu.dropdown && submenu.submenus) {
                             // Nested dropdown (like Departments under Company Resources)
                             return (
@@ -348,7 +354,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                                   <span>{submenu.label[lang]}</span>
                                 </div>
                                 {submenu.submenus.map((nestedSubmenu) => {
-                                  const NestedIcon = submenuIcons[nestedSubmenu.key];
+                                  const NestedIcon = submenuIcons[nestedSubmenu.key] || FolderIcon;
                                   return (
                                     <Link
                                       key={nestedSubmenu.key}
