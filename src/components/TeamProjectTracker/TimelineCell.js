@@ -9,6 +9,8 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
   const start = value?.[0] ? new Date(value[0]) : null;
   const end = value?.[1] ? new Date(value[1]) : null;
   
+  console.log('TimelineCell render:', { value, start, end, showPicker });
+  
   return (
     <div className="relative inline-block">
       <button
@@ -17,7 +19,10 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
             ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300' 
             : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
         }`}
-        onClick={() => setShowPicker(v => !v)}
+        onClick={() => {
+          console.log('TimelineCell button clicked, current showPicker:', showPicker);
+          setShowPicker(v => !v);
+        }}
         title={hasPredecessors ? 'Timeline calculated from predecessors' : 'Set timeline manually'}
       >
         {start && end
@@ -64,6 +69,7 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
                   key: 'selection'
                 }]}
                 onChange={ranges => {
+                  console.log('DateRange onChange:', ranges);
                   const { startDate, endDate } = ranges.selection;
                   onChange([startDate, endDate]);
                   setShowPicker(false);
@@ -77,10 +83,74 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
           </div>
         </>
       )}
+      <style>{`
+        /* Calendar styles to ensure visibility */
+        .rdrDateRangePickerWrapper {
+          background: white !important;
+          border: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          z-index: 9999 !important;
+          width: auto !important;
+          min-width: auto !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        
+        .rdrCalendarWrapper {
+          background: white !important;
+          border-radius: 8px !important;
+        }
+        
+        .rdrMonth {
+          background: white !important;
+          padding: 10px !important;
+        }
+        
+        .rdrDay {
+          background: white !important;
+          border-radius: 4px !important;
+          margin: 2px !important;
+        }
+        
+        .rdrDay:hover {
+          background: #f3f4f6 !important;
+          border-radius: 4px !important;
+        }
+        
+        .rdrDaySelected {
+          background: #3b82f6 !important;
+          color: white !important;
+          border-radius: 4px !important;
+        }
+        
+        .rdrDayInRange {
+          background: #dbeafe !important;
+          border-radius: 4px !important;
+        }
+        
+        .rdrDayStartOfWeek {
+          border-radius: 4px 0 0 4px !important;
+        }
+        
+        .rdrDayEndOfWeek {
+          border-radius: 0 4px 4px 0 !important;
+        }
+        
+        .rdrDayStartOfMonth {
+          border-radius: 4px 0 0 4px !important;
+        }
+        
+        .rdrDayEndOfMonth {
+          border-radius: 0 4px 4px 0 !important;
+        }
+        
+        .rdrDayStartOfWeek.rdrDayEndOfWeek {
+          border-radius: 4px !important;
+        }
+      `}</style>
     </div>
   );
 };
 
 export default TimelineCell;
-
-

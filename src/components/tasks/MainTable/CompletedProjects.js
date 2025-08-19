@@ -36,8 +36,10 @@ const CompletedProjects = ({
       </div>
 
       {/* Completed Projects Table */}
-      <div className="w-full px-4 py-0 mt-4 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <table className="w-full table-auto bg-white">
+      <div className="w-full mt-4 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden max-h-[50vh] flex flex-col">
+        {/* Scrollable container for completed projects table */}
+        <div className="flex-1 overflow-x-auto overflow-y-auto p-4" style={{ maxWidth: '100%' }}>
+          <table className="table-auto bg-white" style={{ minWidth: '100%', width: 'max-content' }}>
           <DndContext collisionDetection={closestCenter} onDragEnd={() => {}}>
             <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
               <thead className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
@@ -103,7 +105,9 @@ const CompletedProjects = ({
                 {expandedCompleted[task.id] && (
                   <tr>
                     <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
-                      <table className="ml-12 table-fixed min-w-full">
+                                             {/* Scrollable container for completed subtask table */}
+                       <div className="overflow-x-auto overflow-y-auto max-h-[200px]" style={{ maxWidth: '100%' }}>
+                        <table className="ml-12 table-fixed" style={{ minWidth: '100%', width: 'max-content' }}>
                         <thead>
                           <tr>
                             {columnOrder.map(colKey => {
@@ -147,6 +151,7 @@ const CompletedProjects = ({
                           </DndContext>
                         </tbody>
                       </table>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -154,6 +159,7 @@ const CompletedProjects = ({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );

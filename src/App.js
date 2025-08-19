@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 import Dashboard from "./modules/Dashboard";
 import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
@@ -26,6 +28,7 @@ import RuleBuilder from "./pages/employees/RuleBuilder";
 import EmployeeRuleDemo from "./pages/employees/EmployeeRuleDemo";
 import TeamProjectTracker from "./components/TeamProjectTracker";
 import ProjectLifeCycle from "./components/ProjectLifeCycle";
+import { JiraTableDemo } from "./components/JiraTable/JiraTableDemo";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 
@@ -81,6 +84,7 @@ function MainLayout() {
             <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
             <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
+            <Route path="/jira-table-demo" element={<JiraTableDemo />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>

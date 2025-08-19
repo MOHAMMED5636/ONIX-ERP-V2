@@ -6,13 +6,12 @@ import {
   LinkIcon
 } from "@heroicons/react/24/outline";
 import { format } from 'date-fns';
-import { statusColors } from '../utils/tableUtils';
+import { statusColors } from './constants';
 
 const Modals = {
   // Rating prompt modal
   RatingPrompt: ({ showRatingPrompt, setShowRatingPrompt }) => {
     if (!showRatingPrompt) return null;
-    
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
         <div className="bg-white rounded-lg shadow-lg p-6 max-w-xs w-full text-center">
@@ -31,7 +30,6 @@ const Modals = {
   // Project dialog modal
   ProjectDialog: ({ showProjectDialog, selectedProject, setShowProjectDialog }) => {
     if (!showProjectDialog || !selectedProject) return null;
-    
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
         <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative">
@@ -89,7 +87,6 @@ const Modals = {
   // Project summary modal
   ProjectSummary: ({ selectedProjectForSummary, closeProjectSummary }) => {
     if (!selectedProjectForSummary) return null;
-    
     return (
       <div className="fixed inset-0 z-50 flex justify-end bg-black bg-opacity-40">
         <div className="bg-white h-full w-full max-w-4xl shadow-2xl rounded-l-2xl p-0 overflow-y-auto relative flex flex-col">
@@ -159,16 +156,15 @@ const Modals = {
   // New task modal
   NewTaskModal: ({ showNewTask, setShowNewTask, handleCreateTask }) => {
     if (!showNewTask) return null;
-    
     return (
       <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-          <h2 className="text-lg font-bold mb-4">Create New Project</h2>
+          <h2 className="text-lg font-bold mb-4">Create New Team Project</h2>
           <button
             className="bg-blue-600 text-white px-4 py-2 rounded font-semibold shadow hover:bg-blue-700 transition w-full"
             onClick={handleCreateTask}
           >
-            Create Project
+            Create Team Project
           </button>
           <button
             className="mt-2 text-gray-500 hover:underline w-full"
@@ -183,5 +179,3 @@ const Modals = {
 };
 
 export default Modals;
-
-
