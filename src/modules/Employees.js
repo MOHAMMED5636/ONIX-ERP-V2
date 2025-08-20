@@ -2679,10 +2679,10 @@ export default function Employees() {
                   >
                     <XMarkIcon className="h-6 w-6" />
                   </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Content */}
+            {/* Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 {/* Employee Info Card */}
                 <div className="mb-8">

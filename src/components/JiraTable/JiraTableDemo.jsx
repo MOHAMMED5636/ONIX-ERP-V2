@@ -3,9 +3,9 @@ import { JiraProjectTable } from './JiraProjectTable';
 
 export const JiraTableDemo = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header Section - Matching Team Project Tracker */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-hidden">
+      {/* Header Section - Fixed at top */}
+      <div className="flex-shrink-0 bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
@@ -26,13 +26,10 @@ export const JiraTableDemo = () => {
         </div>
       </div>
 
-      {/* Main Content - True Edge-to-Edge Layout */}
-      <main className="flex-1">
-        {/* Table Container - Full Browser Width */}
-        <div className="bg-white shadow-xl border border-gray-200 overflow-hidden w-full">
-          <JiraProjectTable />
-        </div>
-      </main>
+      {/* Main Content - Single scrollable container */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <JiraProjectTable />
+      </div>
     </div>
   );
 };

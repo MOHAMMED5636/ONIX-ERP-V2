@@ -48,7 +48,7 @@ function MainLayout() {
   const hideNavbar = location.pathname.startsWith("/tasks");
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       <div className={`flex-1 flex flex-col transition-all duration-300 w-full
         ${
@@ -58,7 +58,7 @@ function MainLayout() {
         }
       `}>
         {!hideNavbar && <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />}
-        <main className="flex-1 w-full">
+        <main className="flex-1 w-full min-h-0 overflow-hidden">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
