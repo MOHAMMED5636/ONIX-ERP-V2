@@ -92,7 +92,7 @@ export default function CreateTask() {
   const closeSummary = () => setSummaryTask(null);
 
   return (
-    <div className="w-full h-full px-2 sm:px-4 md:px-8 py-2 sm:py-4 md:py-8 flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50 min-h-screen">
+    <div className="w-full h-full px-2 sm:px-4 md:px-8 py-2 sm:py-4 md:py-8 flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <div className="flex items-center gap-3 mb-8">
         <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg">
           <span className="text-white text-2xl font-bold">+</span>

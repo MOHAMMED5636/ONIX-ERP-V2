@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem } from '../ui/dropdown-menu';
-import { MagnifyingGlassIcon, FunnelIcon, EyeIcon, PlusIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, FunnelIcon, EyeIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 export const Toolbar = ({
   searchTerm,
@@ -13,14 +13,12 @@ export const Toolbar = ({
   onVisibleColumnsChange,
   onAddProject,
   onAddColumn,
-  autoSuggestData,
-  selectedCount = 0,
-  onBulkDelete
+  autoSuggestData
 }) => {
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        {/* Left side - Add buttons and bulk actions */}
+        {/* Left side - Add buttons */}
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={onAddProject}
@@ -38,27 +36,6 @@ export const Toolbar = ({
             <PlusIcon className="w-4 h-4 mr-2" />
             Add Column
           </Button>
-
-          {/* Bulk Actions */}
-          {selectedCount > 0 && (
-            <div className="flex gap-2">
-              <Button
-                onClick={onBulkDelete}
-                variant="outline"
-                className="border-red-300 text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-all duration-200"
-              >
-                <TrashIcon className="w-4 h-4 mr-2" />
-                Delete ({selectedCount})
-              </Button>
-              <Button
-                variant="outline"
-                className="border-blue-300 text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-lg transition-all duration-200"
-              >
-                <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-                Export ({selectedCount})
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Right side - Search and filters */}
@@ -141,73 +118,15 @@ export const Toolbar = ({
               <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Commercial' })}>
                 Commercial
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Hospitality' })}>
-                Hospitality
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Industrial' })}>
                 Industrial
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Retail' })}>
-                Retail
+              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Mixed Use' })}>
+                Mixed Use
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Office' })}>
-                Office
+              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Infrastructure' })}>
+                Infrastructure
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Sports' })}>
-                Sports
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Healthcare' })}>
-                Healthcare
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, projectType: 'Education' })}>
-                Education
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Owner Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg transition-all duration-200">
-                <FunnelIcon className="w-4 h-4 mr-2" />
-                Owner
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 max-h-60 overflow-y-auto">
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, owner: null })}>
-                All Owners
-              </DropdownMenuItem>
-              {autoSuggestData.owners.map(owner => (
-                <DropdownMenuItem 
-                  key={owner} 
-                  onClick={() => onFiltersChange({ ...filters, owner })}
-                >
-                  {owner}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Community Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg transition-all duration-200">
-                <FunnelIcon className="w-4 h-4 mr-2" />
-                Community
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 max-h-60 overflow-y-auto">
-              <DropdownMenuItem onClick={() => onFiltersChange({ ...filters, community: null })}>
-                All Communities
-              </DropdownMenuItem>
-              {autoSuggestData.communities.map(community => (
-                <DropdownMenuItem 
-                  key={community} 
-                  onClick={() => onFiltersChange({ ...filters, community })}
-                >
-                  {community}
-                </DropdownMenuItem>
-              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -219,17 +138,14 @@ export const Toolbar = ({
                 Columns
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-56">
               {Object.entries(visibleColumns).map(([key, visible]) => (
                 <DropdownMenuCheckboxItem
                   key={key}
                   checked={visible}
-                  onCheckedChange={(checked) => {
-                    onVisibleColumnsChange({
-                      ...visibleColumns,
-                      [key]: checked,
-                    });
-                  }}
+                  onCheckedChange={(checked) => 
+                    onVisibleColumnsChange({ ...visibleColumns, [key]: checked })
+                  }
                 >
                   {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
                 </DropdownMenuCheckboxItem>

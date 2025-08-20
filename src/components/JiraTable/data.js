@@ -6,8 +6,7 @@ export const initialProjects = [
     referenceNumber: 'REF-001',
     status: 'In Progress',
     owner: 'John Smith',
-    startDate: '2024-01-15',
-    endDate: '2024-06-30',
+    timeline: { startDate: '2024-01-15', endDate: '2024-06-30' },
     planDays: 165,
     remarks: 'High priority residential project',
     assigneeNotes: 'Foundation work completed. Moving to structural phase.',
@@ -22,13 +21,7 @@ export const initialProjects = [
     projectType: 'Residential',
     projectFloor: 15,
     developer: 'Alpha Developers Ltd',
-    predecessor: '',
-    communityChecklist: [
-      { id: 1, text: 'Community approval', completed: true },
-      { id: 2, text: 'Environmental impact assessment', completed: true },
-      { id: 3, text: 'Traffic study', completed: false },
-      { id: 4, text: 'Public consultation', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-000',
     checklist: [
       { id: 1, text: 'Site survey completed', completed: true },
       { id: 2, text: 'Permits obtained', completed: true },
@@ -47,8 +40,7 @@ export const initialProjects = [
         referenceNumber: 'REF-001-01',
         status: 'Done',
         owner: 'Mike Johnson',
-        startDate: '2024-01-15',
-        endDate: '2024-02-28',
+        timeline: { startDate: '2024-01-15', endDate: '2024-02-28' },
         planDays: 45,
         remarks: 'Foundation completed ahead of schedule',
         assigneeNotes: 'All foundation work completed successfully',
@@ -60,11 +52,7 @@ export const initialProjects = [
         projectType: 'Residential',
         projectFloor: 1,
         developer: 'Alpha Developers Ltd',
-        predecessor: 'REF-001',
-        communityChecklist: [
-          { id: 1, text: 'Foundation inspection', completed: true },
-          { id: 2, text: 'Safety compliance', completed: true }
-        ],
+        projectAutoPredecessor: 'REF-001',
         checklist: [
           { id: 1, text: 'Excavation', completed: true },
           { id: 2, text: 'Reinforcement', completed: true },
@@ -81,8 +69,7 @@ export const initialProjects = [
         referenceNumber: 'REF-001-02',
         status: 'In Progress',
         owner: 'Sarah Wilson',
-        startDate: '2024-03-01',
-        endDate: '2024-04-30',
+        timeline: { startDate: '2024-03-01', endDate: '2024-04-30' },
         planDays: 60,
         remarks: 'Steel framework installation in progress',
         assigneeNotes: '50% of structural work completed',
@@ -94,11 +81,7 @@ export const initialProjects = [
         projectType: 'Residential',
         projectFloor: 15,
         developer: 'Alpha Developers Ltd',
-        predecessor: 'REF-001-01',
-        communityChecklist: [
-          { id: 1, text: 'Structural inspection', completed: true },
-          { id: 2, text: 'Building code compliance', completed: false }
-        ],
+        projectAutoPredecessor: 'REF-001-01',
         checklist: [
           { id: 1, text: 'Steel beams installation', completed: true },
           { id: 2, text: 'Column erection', completed: true },
@@ -118,8 +101,7 @@ export const initialProjects = [
     referenceNumber: 'REF-002',
     status: 'To Do',
     owner: 'Emily Davis',
-    startDate: '2024-03-01',
-    endDate: '2024-12-31',
+    timeline: { startDate: '2024-03-01', endDate: '2024-12-31' },
     planDays: 305,
     remarks: 'Large commercial development project',
     assigneeNotes: 'Planning phase completed. Ready to start construction.',
@@ -134,12 +116,7 @@ export const initialProjects = [
     projectType: 'Commercial',
     projectFloor: 25,
     developer: 'Beta Properties Inc',
-    predecessor: 'REF-001',
-    communityChecklist: [
-      { id: 1, text: 'Business district approval', completed: true },
-      { id: 2, text: 'Economic impact study', completed: true },
-      { id: 3, text: 'Parking requirements', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-001',
     checklist: [
       { id: 1, text: 'Site planning', completed: true },
       { id: 2, text: 'Financial approval', completed: true },
@@ -158,8 +135,7 @@ export const initialProjects = [
     referenceNumber: 'REF-003',
     status: 'Done',
     owner: 'David Brown',
-    startDate: '2023-06-01',
-    endDate: '2024-01-31',
+    timeline: { startDate: '2023-06-01', endDate: '2024-01-31' },
     planDays: 245,
     remarks: '5-star luxury hotel project completed successfully',
     assigneeNotes: 'Project completed on time and within budget.',
@@ -174,12 +150,7 @@ export const initialProjects = [
     projectType: 'Hospitality',
     projectFloor: 20,
     developer: 'Gamma Hospitality Group',
-    predecessor: 'REF-002',
-    communityChecklist: [
-      { id: 1, text: 'Tourism board approval', completed: true },
-      { id: 2, text: 'Environmental compliance', completed: true },
-      { id: 3, text: 'Local business impact', completed: true }
-    ],
+    projectAutoPredecessor: 'REF-002',
     checklist: [
       { id: 1, text: 'Design approval', completed: true },
       { id: 2, text: 'Construction permits', completed: true },
@@ -199,8 +170,7 @@ export const initialProjects = [
     referenceNumber: 'REF-004',
     status: 'In Progress',
     owner: 'Lisa Anderson',
-    startDate: '2024-02-01',
-    endDate: '2024-11-30',
+    timeline: { startDate: '2024-02-01', endDate: '2024-11-30' },
     planDays: 303,
     remarks: 'Modern shopping mall with entertainment facilities',
     assigneeNotes: 'Structural work 60% complete. Starting interior work.',
@@ -215,12 +185,7 @@ export const initialProjects = [
     projectType: 'Retail',
     projectFloor: 3,
     developer: 'Delta Retail Corp',
-    predecessor: 'REF-003',
-    communityChecklist: [
-      { id: 1, text: 'Community shopping needs', completed: true },
-      { id: 2, text: 'Traffic impact assessment', completed: true },
-      { id: 3, text: 'Local business consultation', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-003',
     checklist: [
       { id: 1, text: 'Site preparation', completed: true },
       { id: 2, text: 'Foundation work', completed: true },
@@ -239,8 +204,7 @@ export const initialProjects = [
     referenceNumber: 'REF-005',
     status: 'To Do',
     owner: 'Robert Taylor',
-    startDate: '2024-04-01',
-    endDate: '2025-03-31',
+    timeline: { startDate: '2024-04-01', endDate: '2025-03-31' },
     planDays: 365,
     remarks: 'Modern office tower with smart building features',
     assigneeNotes: 'Design phase in progress. Construction to start soon.',
@@ -255,12 +219,7 @@ export const initialProjects = [
     projectType: 'Office',
     projectFloor: 40,
     developer: 'Epsilon Properties Ltd',
-    predecessor: 'REF-004',
-    communityChecklist: [
-      { id: 1, text: 'Financial district zoning', completed: true },
-      { id: 2, text: 'Smart city integration', completed: true },
-      { id: 3, text: 'Energy efficiency standards', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-004',
     checklist: [
       { id: 1, text: 'Design approval', completed: true },
       { id: 2, text: 'Financial planning', completed: true },
@@ -279,8 +238,7 @@ export const initialProjects = [
     referenceNumber: 'REF-006',
     status: 'In Progress',
     owner: 'Jennifer Martinez',
-    startDate: '2024-01-01',
-    endDate: '2024-08-31',
+    timeline: { startDate: '2024-01-01', endDate: '2024-08-31' },
     planDays: 243,
     remarks: 'Affordable housing complex with modern amenities',
     assigneeNotes: 'Foundation work completed. Starting structural phase.',
@@ -295,12 +253,7 @@ export const initialProjects = [
     projectType: 'Residential',
     projectFloor: 12,
     developer: 'Zeta Housing Corp',
-    predecessor: 'REF-005',
-    communityChecklist: [
-      { id: 1, text: 'Affordable housing approval', completed: true },
-      { id: 2, text: 'Community amenities planning', completed: true },
-      { id: 3, text: 'School district coordination', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-005',
     checklist: [
       { id: 1, text: 'Site survey', completed: true },
       { id: 2, text: 'Foundation work', completed: true },
@@ -319,8 +272,7 @@ export const initialProjects = [
     referenceNumber: 'REF-007',
     status: 'Done',
     owner: 'Michael Wilson',
-    startDate: '2023-09-01',
-    endDate: '2024-02-28',
+    timeline: { startDate: '2023-09-01', endDate: '2024-02-28' },
     planDays: 181,
     remarks: 'Modern industrial park with advanced facilities',
     assigneeNotes: 'Project completed successfully. All facilities operational.',
@@ -335,12 +287,7 @@ export const initialProjects = [
     projectType: 'Industrial',
     projectFloor: 2,
     developer: 'Eta Industrial Group',
-    predecessor: 'REF-006',
-    communityChecklist: [
-      { id: 1, text: 'Industrial zoning approval', completed: true },
-      { id: 2, text: 'Environmental impact study', completed: true },
-      { id: 3, text: 'Job creation assessment', completed: true }
-    ],
+    projectAutoPredecessor: 'REF-006',
     checklist: [
       { id: 1, text: 'Site preparation', completed: true },
       { id: 2, text: 'Building construction', completed: true },
@@ -359,8 +306,7 @@ export const initialProjects = [
     referenceNumber: 'REF-008',
     status: 'To Do',
     owner: 'Amanda Johnson',
-    startDate: '2024-05-01',
-    endDate: '2025-02-28',
+    timeline: { startDate: '2024-05-01', endDate: '2025-02-28' },
     planDays: 304,
     remarks: 'Multi-sport complex with Olympic-standard facilities',
     assigneeNotes: 'Design phase completed. Construction planning in progress.',
@@ -375,12 +321,7 @@ export const initialProjects = [
     projectType: 'Sports',
     projectFloor: 1,
     developer: 'Theta Sports Corp',
-    predecessor: 'REF-007',
-    communityChecklist: [
-      { id: 1, text: 'Sports facility needs assessment', completed: true },
-      { id: 2, text: 'Community sports programs', completed: true },
-      { id: 3, text: 'Athletic association approval', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-007',
     checklist: [
       { id: 1, text: 'Design approval', completed: true },
       { id: 2, text: 'Site planning', completed: true },
@@ -399,8 +340,7 @@ export const initialProjects = [
     referenceNumber: 'REF-009',
     status: 'In Progress',
     owner: 'Dr. Sarah Chen',
-    startDate: '2024-03-01',
-    endDate: '2024-12-31',
+    timeline: { startDate: '2024-03-01', endDate: '2024-12-31' },
     planDays: 306,
     remarks: 'State-of-the-art medical center with advanced equipment',
     assigneeNotes: 'Structural work 70% complete. Starting medical equipment installation.',
@@ -415,12 +355,7 @@ export const initialProjects = [
     projectType: 'Healthcare',
     projectFloor: 8,
     developer: 'Iota Healthcare Ltd',
-    predecessor: 'REF-008',
-    communityChecklist: [
-      { id: 1, text: 'Healthcare facility approval', completed: true },
-      { id: 2, text: 'Medical equipment planning', completed: true },
-      { id: 3, text: 'Emergency services coordination', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-008',
     checklist: [
       { id: 1, text: 'Site preparation', completed: true },
       { id: 2, text: 'Foundation work', completed: true },
@@ -439,8 +374,7 @@ export const initialProjects = [
     referenceNumber: 'REF-010',
     status: 'To Do',
     owner: 'Professor James Lee',
-    startDate: '2024-06-01',
-    endDate: '2025-05-31',
+    timeline: { startDate: '2024-06-01', endDate: '2025-05-31' },
     planDays: 365,
     remarks: 'Modern educational campus with research facilities',
     assigneeNotes: 'Planning phase in progress. Construction to start soon.',
@@ -455,12 +389,7 @@ export const initialProjects = [
     projectType: 'Education',
     projectFloor: 6,
     developer: 'Kappa Education Corp',
-    predecessor: 'REF-009',
-    communityChecklist: [
-      { id: 1, text: 'Educational facility approval', completed: true },
-      { id: 2, text: 'Research collaboration planning', completed: true },
-      { id: 3, text: 'Student housing coordination', completed: false }
-    ],
+    projectAutoPredecessor: 'REF-009',
     checklist: [
       { id: 1, text: 'Design approval', completed: true },
       { id: 2, text: 'Financial planning', completed: true },
@@ -477,13 +406,11 @@ export const initialProjects = [
 
 // Column definitions
 export const columnDefinitions = [
-  { key: 'checkbox', label: '', type: 'checkbox', width: 50, sortable: false },
   { key: 'projectName', label: 'Project Name', type: 'text', width: 200, sortable: true },
   { key: 'referenceNumber', label: 'Reference Number', type: 'text', width: 150, sortable: true },
   { key: 'status', label: 'Status', type: 'dropdown', width: 120, sortable: true, options: ['To Do', 'In Progress', 'Done'] },
   { key: 'owner', label: 'Owner', type: 'person', width: 150, sortable: true },
-  { key: 'startDate', label: 'Start Date', type: 'date', width: 120, sortable: true },
-  { key: 'endDate', label: 'End Date', type: 'date', width: 120, sortable: true },
+  { key: 'timeline', label: 'Timeline', type: 'daterange', width: 180, sortable: true },
   { key: 'planDays', label: 'Plan Days', type: 'number', width: 100, sortable: true },
   { key: 'remarks', label: 'Remarks', type: 'text', width: 200, sortable: false },
   { key: 'assigneeNotes', label: 'Assignee Notes', type: 'textarea', width: 250, sortable: false },
@@ -492,11 +419,10 @@ export const columnDefinitions = [
   { key: 'location', label: 'Location', type: 'text', width: 150, sortable: true },
   { key: 'plotNumber', label: 'Plot Number', type: 'text', width: 120, sortable: true },
   { key: 'community', label: 'Community', type: 'text', width: 150, sortable: true },
-  { key: 'projectType', label: 'Project Type', type: 'dropdown', width: 120, sortable: true, options: ['Residential', 'Commercial', 'Hospitality', 'Industrial', 'Retail', 'Office', 'Sports', 'Healthcare', 'Education'] },
+  { key: 'projectType', label: 'Project Type', type: 'dropdown', width: 120, sortable: true, options: ['Residential', 'Commercial', 'Hospitality', 'Industrial'] },
   { key: 'projectFloor', label: 'Project Floor', type: 'number', width: 100, sortable: true },
   { key: 'developer', label: 'Developer', type: 'text', width: 180, sortable: true },
-  { key: 'predecessor', label: 'Predecessor', type: 'dropdown', width: 150, sortable: true, options: [] },
-  { key: 'communityChecklist', label: 'Community Checklist', type: 'checklist', width: 200, sortable: false },
+  { key: 'projectAutoPredecessor', label: 'Auto Predecessor', type: 'text', width: 150, sortable: true },
   { key: 'checklist', label: 'Checklist', type: 'checklist', width: 150, sortable: false },
   { key: 'link', label: 'Link', type: 'url', width: 120, sortable: false },
   { key: 'rating', label: 'Rating', type: 'rating', width: 100, sortable: true },
@@ -506,9 +432,9 @@ export const columnDefinitions = [
 
 // Sample data for auto-suggestions
 export const autoSuggestData = {
-  owners: ['John Smith', 'Emily Davis', 'David Brown', 'Mike Johnson', 'Sarah Wilson', 'Lisa Anderson', 'Robert Taylor', 'Jennifer Martinez', 'Michael Wilson', 'Amanda Johnson', 'Dr. Sarah Chen', 'Professor James Lee'],
-  developers: ['Alpha Developers Ltd', 'Beta Properties Inc', 'Gamma Hospitality Group', 'Delta Retail Corp', 'Epsilon Properties Ltd', 'Zeta Housing Corp', 'Eta Industrial Group', 'Theta Sports Corp', 'Iota Healthcare Ltd', 'Kappa Education Corp'],
-  locations: ['Downtown District', 'Business District', 'Tourist District', 'Residential Area', 'Industrial Zone', 'Suburban Area', 'Financial District', 'Medical District', 'Sports District', 'Educational District'],
-  communities: ['Green Valley', 'Central Business', 'Seaside Resort', 'Suburban Heights', 'Financial Center', 'Family Heights', 'Industrial District', 'Sports Valley', 'Health Valley', 'Knowledge Park']
+  owners: ['John Smith', 'Emily Davis', 'David Brown', 'Mike Johnson', 'Sarah Wilson', 'Lisa Anderson', 'Robert Chen'],
+  developers: ['Alpha Developers Ltd', 'Beta Properties Inc', 'Gamma Hospitality Group', 'Delta Construction Co', 'Epsilon Real Estate'],
+  locations: ['Downtown District', 'Business District', 'Tourist District', 'Residential Area', 'Industrial Zone'],
+  communities: ['Green Valley', 'Central Business', 'Tourist Hub', 'Sunset Hills', 'Riverside Park']
 };
 

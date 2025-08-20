@@ -169,7 +169,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative min-h-screen h-full w-full bg-white flex flex-col items-stretch justify-start">
+    <div className="relative h-full w-full bg-white flex flex-col items-stretch justify-start">
       {/* Faded watermark overlay */}
       <div className="absolute inset-0 bg-white bg-opacity-80 z-10" />
       {/* 0. Add imports for useRef and animated SVG blob */}

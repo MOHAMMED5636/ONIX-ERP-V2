@@ -68,7 +68,7 @@ export default function ProjectChatApp() {
   const activeChatGroup = chatGroups.find(group => group.id === activeChat);
 
   return (
-    <div className="w-screen h-screen flex bg-gray-50 overflow-hidden">
+    <div className="w-full h-full flex bg-gray-50 overflow-hidden">
       {/* Main Sidebar - Hidden on mobile, visible on desktop */}
       <div className="hidden lg:block">
         <Sidebar />
