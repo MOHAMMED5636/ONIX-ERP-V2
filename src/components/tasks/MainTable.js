@@ -643,7 +643,7 @@ export default function MainTable() {
       {/* Sidebar */}
      
       {/* Main Content */}
-      <main className="flex flex-col flex-1 container">
+      <main className="flex flex-col flex-1 ">
         <div className="w-full px-4 pt-0 pb-0">
           <Filters
             search={search}

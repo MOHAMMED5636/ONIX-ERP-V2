@@ -6,7 +6,11 @@ import {
   EyeIcon, 
   PencilIcon, 
   TrashIcon,
-  XMarkIcon 
+  XMarkIcon,
+  Cog6ToothIcon,
+  ClockIcon,
+  CurrencyDollarIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { filterEmployees, getStatusColor, getStatusIcon } from '../utils';
 
@@ -19,7 +23,10 @@ const EmployeeList = ({
   searchTerm,
   setSearchTerm,
   filters,
-  setFilters 
+  setFilters,
+  onRuleButton,
+  onHistoryButton,
+  onPayrollButton
 }) => {
   const [showFilters, setShowFilters] = useState(false);
 
@@ -42,13 +49,31 @@ const EmployeeList = ({
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Employees</h2>
-          <button
-            onClick={onAddEmployee}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Add Employee
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.location.href = '/employees/rule-builder'}
+              className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              title="Rule Builder"
+            >
+              <Cog6ToothIcon className="h-4 w-4" />
+              Rules
+            </button>
+            <button
+              onClick={() => window.open('#', '_blank')}
+              className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+              title="Import/Export"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              Import/Export
+            </button>
+            <button
+              onClick={onAddEmployee}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Add Employee
+            </button>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -188,6 +213,33 @@ const EmployeeList = ({
                       >
                         <PencilIcon className="h-4 w-4" />
                       </button>
+                      {onRuleButton && (
+                        <button
+                          onClick={() => onRuleButton(employee)}
+                          className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50"
+                          title="Rules"
+                        >
+                          <Cog6ToothIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                      {onHistoryButton && (
+                        <button
+                          onClick={() => onHistoryButton(employee)}
+                          className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50"
+                          title="History"
+                        >
+                          <ClockIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                      {onPayrollButton && (
+                        <button
+                          onClick={() => onPayrollButton(employee)}
+                          className="text-emerald-600 hover:text-emerald-900 p-1 rounded hover:bg-emerald-50"
+                          title="Payroll"
+                        >
+                          <CurrencyDollarIcon className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(employee)}
                         className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
