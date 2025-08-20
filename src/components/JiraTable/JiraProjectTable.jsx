@@ -45,7 +45,7 @@ export const JiraProjectTable = () => {
   const [sorting, setSorting] = useState([]);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: 25,
   });
 
   const sensors = useSensors(
@@ -338,63 +338,65 @@ export const JiraProjectTable = () => {
 
       {/* Table Container - Single scrollable area with proper height */}
       <div className="flex-1 min-h-0 overflow-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
-            <tr>
-              {/* Drag handle column */}
-              <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
-                <span className="sr-only">Drag</span>
-              </th>
-              {/* Expand/collapse column */}
-              <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
-                <span className="sr-only">Expand</span>
-              </th>
-              {table.getHeaderGroups().map(headerGroup => (
-                headerGroup.headers.map(header => (
-                  <th
-                    key={header.id}
-                    className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-300 transition-colors bg-gradient-to-r from-gray-100 to-gray-200 whitespace-nowrap"
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    <div className="flex items-center gap-1">
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() && (
-                        <span>
-                          {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis]}
-            >
-              <AnimatePresence>
-                {table.getRowModel().rows.map((row, index) => (
-                  <ProjectRow
-                    key={row.original.id}
-                    row={row}
-                    index={index}
-                    expandedRows={expandedRows}
-                    onToggleExpansion={toggleRowExpansion}
-                    onCellEdit={handleCellEdit}
-                    autoSuggestData={autoSuggestData}
-                  />
+        <div className="min-w-full">
+          <table className="w-full divide-y divide-gray-200" style={{ minWidth: '2000px' }}>
+            <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
+              <tr>
+                {/* Drag handle column */}
+                <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
+                  <span className="sr-only">Drag</span>
+                </th>
+                {/* Expand/collapse column */}
+                <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
+                  <span className="sr-only">Expand</span>
+                </th>
+                {table.getHeaderGroups().map(headerGroup => (
+                  headerGroup.headers.map(header => (
+                    <th
+                      key={header.id}
+                      className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-300 transition-colors bg-gradient-to-r from-gray-100 to-gray-200 whitespace-nowrap"
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      <div className="flex items-center gap-1">
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() && (
+                          <span>
+                            {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  ))
                 ))}
-              </AnimatePresence>
-            </DndContext>
-          </tbody>
-        </table>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis]}
+              >
+                <AnimatePresence>
+                  {table.getRowModel().rows.map((row, index) => (
+                    <ProjectRow
+                      key={row.original.id}
+                      row={row}
+                      index={index}
+                      expandedRows={expandedRows}
+                      onToggleExpansion={toggleRowExpansion}
+                      onCellEdit={handleCellEdit}
+                      autoSuggestData={autoSuggestData}
+                    />
+                  ))}
+                </AnimatePresence>
+              </DndContext>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination - Fixed at bottom */}
@@ -430,7 +432,7 @@ export const JiraProjectTable = () => {
                   table.setPageSize(Number(e.target.value));
                 }}
               >
-                {[10, 20, 30, 40, 50].map(pageSize => (
+                {[10, 25, 50, 100].map(pageSize => (
                   <option key={pageSize} value={pageSize}>
                     Show {pageSize}
                   </option>
