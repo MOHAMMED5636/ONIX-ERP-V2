@@ -109,3 +109,4 @@ const CompanyFilters = ({
 };
 
 export default CompanyFilters;
+

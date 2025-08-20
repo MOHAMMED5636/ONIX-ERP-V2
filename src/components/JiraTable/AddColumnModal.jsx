@@ -168,3 +168,4 @@ export const AddColumnModal = ({ onClose, onAdd }) => {
     </div>
   );
 };
+

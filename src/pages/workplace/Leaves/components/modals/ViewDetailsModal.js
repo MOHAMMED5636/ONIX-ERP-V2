@@ -106,3 +106,4 @@ const ViewDetailsModal = ({
 };
 
 export default ViewDetailsModal;
+

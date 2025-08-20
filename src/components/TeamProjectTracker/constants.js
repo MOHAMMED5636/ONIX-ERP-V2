@@ -108,3 +108,4 @@ export const statusColors = {
 };
 
 export const isAdmin = true; // TODO: Replace with real authentication logic
+

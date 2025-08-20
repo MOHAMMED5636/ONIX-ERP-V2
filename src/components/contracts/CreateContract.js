@@ -29,13 +29,21 @@ export default function CreateContract() {
     setForm(f => ({ ...f, [name]: value }));
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Handle form submission logic here
+    console.log("Form submitted:", form);
+    // For now, just navigate back to contracts list
+    navigate("/contracts");
+  };
+
   return (
     <div className="w-full h-full px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 flex flex-col">
       <div className="flex items-center gap-3 mb-4 mt-2 sm:mt-4 md:mt-6 px-2">
         <h1 className="text-lg sm:text-2xl font-bold text-gray-800">Create Contract</h1>
       </div>
       <div className="flex-1 w-full h-full bg-white rounded-2xl shadow-md border border-gray-100 p-2 sm:p-4 md:p-6 flex flex-col">
-        <form className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 sm:gap-y-4 mb-6 flex-1">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 sm:gap-y-4 mb-6 flex-1">
           <div>
             <label className="block mb-1 text-xs sm:text-sm font-medium text-gray-700">Reference Number</label>
             <input name="ref" value={form.ref} onChange={handleChange} className="w-full p-2 rounded border text-xs sm:text-base" />
@@ -118,8 +126,8 @@ export default function CreateContract() {
             Back to List
           </button>
           <button
-            type="button"
-            onClick={() => navigate("/contracts")}
+            type="submit"
+            onClick={handleSubmit}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded shadow text-xs sm:text-base w-full md:w-auto md:ml-auto"
           >
             Create

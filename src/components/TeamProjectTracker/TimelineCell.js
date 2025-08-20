@@ -154,3 +154,4 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
 };
 
 export default TimelineCell;
+

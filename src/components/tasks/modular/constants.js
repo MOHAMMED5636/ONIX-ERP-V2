@@ -230,3 +230,4 @@ export const mapPickerConfig = {
 export const isAdmin = true; // TODO: Replace with real authentication logic
 
 
+

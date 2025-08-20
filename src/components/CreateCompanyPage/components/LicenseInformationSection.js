@@ -140,3 +140,4 @@ const LicenseInformationSection = ({ form, setForm }) => {
 };
 
 export default LicenseInformationSection;
+

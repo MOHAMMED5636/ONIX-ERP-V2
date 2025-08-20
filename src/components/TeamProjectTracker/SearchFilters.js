@@ -31,3 +31,4 @@ const SearchFilters = ({ search, setSearch }) => {
 };
 
 export default SearchFilters;
+

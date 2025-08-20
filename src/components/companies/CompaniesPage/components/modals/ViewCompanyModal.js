@@ -229,3 +229,4 @@ const ViewCompanyModal = ({
 };
 
 export default ViewCompanyModal;
+

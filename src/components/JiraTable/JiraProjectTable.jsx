@@ -63,7 +63,6 @@ export const JiraProjectTable = () => {
         if (col.type === 'dropdown') {
           return columnHelper.accessor(col.key, {
             header: col.label,
-            size: col.width,
             cell: ({ row, getValue }) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -85,7 +84,6 @@ export const JiraProjectTable = () => {
         
         return columnHelper.accessor(col.key, {
           header: col.label,
-          size: col.width,
           cell: ({ row, getValue }) => (
             <div className="px-2 py-1">
               {renderCell(row.original, col.key, getValue())}
@@ -150,7 +148,6 @@ export const JiraProjectTable = () => {
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
-    columnResizeMode: 'onChange',
     state: {
       sorting,
       pagination,
@@ -337,69 +334,65 @@ export const JiraProjectTable = () => {
         autoSuggestData={autoSuggestData}
       />
 
-      {/* Table Container with Scroll - Full Width */}
+      {/* Table Container - True Full Width */}
       <div className="w-full overflow-x-auto">
-        <div className="min-w-full">
-          <div className="w-full overflow-hidden border border-gray-200 rounded-lg">
-            <table className="w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
-                <tr>
-                  {/* Drag handle column */}
-                  <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12">
-                    <span className="sr-only">Drag</span>
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
+            <tr>
+              {/* Drag handle column */}
+              <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12">
+                <span className="sr-only">Drag</span>
+              </th>
+              {/* Expand/collapse column */}
+              <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12">
+                <span className="sr-only">Expand</span>
+              </th>
+              {table.getHeaderGroups().map(headerGroup => (
+                headerGroup.headers.map(header => (
+                  <th
+                    key={header.id}
+                    className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-300 transition-colors"
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    <div className="flex items-center gap-1">
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                      {header.column.getIsSorted() && (
+                        <span>
+                          {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  {/* Expand/collapse column */}
-                  <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12">
-                    <span className="sr-only">Expand</span>
-                  </th>
-                  {table.getHeaderGroups().map(headerGroup => (
-                    headerGroup.headers.map(header => (
-                      <th
-                        key={header.id}
-                        className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-300 transition-colors whitespace-nowrap"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <div className="flex items-center gap-1">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {header.column.getIsSorted() && (
-                            <span>
-                              {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    ))
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                  modifiers={[restrictToVerticalAxis]}
-                >
-                  <AnimatePresence>
-                    {table.getRowModel().rows.map((row, index) => (
-                      <ProjectRow
-                        key={row.original.id}
-                        row={row}
-                        index={index}
-                        expandedRows={expandedRows}
-                        onToggleExpansion={toggleRowExpansion}
-                        onCellEdit={handleCellEdit}
-                        autoSuggestData={autoSuggestData}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </DndContext>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                ))
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis]}
+            >
+              <AnimatePresence>
+                {table.getRowModel().rows.map((row, index) => (
+                  <ProjectRow
+                    key={row.original.id}
+                    row={row}
+                    index={index}
+                    expandedRows={expandedRows}
+                    onToggleExpansion={toggleRowExpansion}
+                    onCellEdit={handleCellEdit}
+                    autoSuggestData={autoSuggestData}
+                  />
+                ))}
+              </AnimatePresence>
+            </DndContext>
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination */}
@@ -470,7 +463,7 @@ export const JiraProjectTable = () => {
       {showAddProject && (
         <AddProjectModal
           onClose={() => setShowAddProject(false)}
-          onSubmit={handleAddProject}
+          onAdd={handleAddProject}
           columnDefinitions={columnDefinitions}
           autoSuggestData={autoSuggestData}
         />
@@ -479,7 +472,7 @@ export const JiraProjectTable = () => {
       {showAddColumn && (
         <AddColumnModal
           onClose={() => setShowAddColumn(false)}
-          onSubmit={handleAddColumn}
+          onAdd={handleAddColumn}
         />
       )}
     </div>

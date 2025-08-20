@@ -58,3 +58,4 @@ export const initialContacts = [
   { id: 1, name: "John Doe", email: "john@example.com", phone: "+971-50-123-4567", extension: "101" },
   { id: 2, name: "Jane Smith", email: "jane@example.com", phone: "+971-50-987-6543", extension: "102" },
 ];
+

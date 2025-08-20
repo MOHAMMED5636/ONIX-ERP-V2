@@ -25,3 +25,4 @@ export const INITIAL_COLUMNS = [
   { key: 'color', label: 'COLOR' },
   { key: 'delete', label: '' }
 ];
+

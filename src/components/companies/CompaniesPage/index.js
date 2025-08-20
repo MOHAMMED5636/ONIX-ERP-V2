@@ -13,3 +13,4 @@ export { default as CompanySelectionIndicator } from './components/CompanySelect
 
 // Export modals
 export { default as ViewCompanyModal } from './components/modals/ViewCompanyModal';
+

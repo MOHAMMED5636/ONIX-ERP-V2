@@ -26,15 +26,14 @@ export const JiraTableDemo = () => {
         </div>
       </div>
 
-      {/* Main Content - Full Width Layout */}
+      {/* Main Content - True Edge-to-Edge Layout */}
       <main className="flex-1">
-        <div className="w-full py-6">
-          {/* Table Container - Full Width */}
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden w-full">
-            <JiraProjectTable />
-          </div>
+        {/* Table Container - Full Browser Width */}
+        <div className="bg-white shadow-xl border border-gray-200 overflow-hidden w-full">
+          <JiraProjectTable />
         </div>
       </main>
     </div>
   );
 };
+

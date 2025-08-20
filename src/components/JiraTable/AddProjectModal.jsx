@@ -407,3 +407,4 @@ export const AddProjectModal = ({ onClose, onAdd, autoSuggestData }) => {
     </div>
   );
 };
+

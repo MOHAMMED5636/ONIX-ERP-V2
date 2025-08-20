@@ -365,7 +365,7 @@ export const ProjectRow = ({
       {row.getVisibleCells().map(cell => (
         <td
           key={cell.id}
-          className="px-3 py-4 align-middle whitespace-nowrap"
+          className="px-3 py-4 align-middle"
           style={{ width: cell.column.getSize() }}
         >
           <div style={{ paddingLeft: isSubtask ? '20px' : '0' }}>

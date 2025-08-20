@@ -82,3 +82,4 @@ const BasicInformationSection = ({ form, setForm }) => {
 };
 
 export default BasicInformationSection;
+

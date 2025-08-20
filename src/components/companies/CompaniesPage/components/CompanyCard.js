@@ -152,3 +152,4 @@ const CompanyCard = ({
 };
 
 export default CompanyCard;
+

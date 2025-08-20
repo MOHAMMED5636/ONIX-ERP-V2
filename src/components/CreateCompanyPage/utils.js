@@ -137,3 +137,4 @@ export const deleteContact = (contactId, contacts, setContacts) => {
     setContacts(prev => prev.filter(contact => contact.id !== contactId));
   }
 };
+

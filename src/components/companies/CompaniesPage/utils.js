@@ -113,3 +113,4 @@ export const mergeCompaniesWithInitial = (savedCompanies, initialCompanies) => {
   });
   return allCompanies;
 };
+

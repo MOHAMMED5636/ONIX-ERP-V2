@@ -35,3 +35,4 @@ const Header = ({ projectStartDate, handleProjectStartDateChange, handleAddNewTa
 };
 
 export default Header;
+

@@ -44,3 +44,4 @@ const DeleteConfirmationModal = ({
 };
 
 export default DeleteConfirmationModal;
+

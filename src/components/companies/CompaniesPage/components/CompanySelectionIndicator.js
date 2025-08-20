@@ -20,3 +20,4 @@ const CompanySelectionIndicator = ({ selectedCompany }) => {
 };
 
 export default CompanySelectionIndicator;
+

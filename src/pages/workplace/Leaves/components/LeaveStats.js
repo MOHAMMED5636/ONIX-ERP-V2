@@ -69,3 +69,4 @@ const LeaveStats = ({ stats }) => {
 };
 
 export default LeaveStats;
+

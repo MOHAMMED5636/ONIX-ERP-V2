@@ -23,3 +23,4 @@ const SortableSubtaskRow = ({ sub, subIdx, task, children }) => {
 };
 
 export default SortableSubtaskRow;
+

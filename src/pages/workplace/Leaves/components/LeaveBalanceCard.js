@@ -26,3 +26,4 @@ const LeaveBalanceCard = ({ type, balance }) => {
 };
 
 export default LeaveBalanceCard;
+

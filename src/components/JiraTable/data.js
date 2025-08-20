@@ -201,3 +201,4 @@ export const autoSuggestData = {
   locations: ['Downtown District', 'Business District', 'Tourist District', 'Residential Area', 'Industrial Zone'],
   communities: ['Green Valley', 'Central Business', 'Tourist Hub', 'Sunset Hills', 'Riverside Park']
 };
+

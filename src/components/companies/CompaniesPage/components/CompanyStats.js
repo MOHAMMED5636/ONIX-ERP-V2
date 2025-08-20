@@ -66,3 +66,4 @@ const CompanyStats = ({ stats }) => {
 };
 
 export default CompanyStats;
+

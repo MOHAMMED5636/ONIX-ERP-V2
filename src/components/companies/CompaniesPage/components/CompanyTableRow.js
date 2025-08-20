@@ -123,3 +123,4 @@ const CompanyTableRow = ({
 };
 
 export default CompanyTableRow;
+

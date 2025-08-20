@@ -168,3 +168,4 @@ export function handleLocationPick(tasks, mapPickerTarget, lat, lng) {
   }
   return tasks;
 }
+

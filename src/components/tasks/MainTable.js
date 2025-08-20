@@ -662,11 +662,9 @@ export default function MainTable() {
             handleShowAddColumnMenu={handleShowAddColumnMenu}
           />
           {/* Enhanced Table Container */}
-          <div className="flex-1 flex flex-col mt-4 max-h-[70vh] overflow-hidden">
-            <div className="w-full h-full bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col overflow-hidden">
-              {/* Scrollable container for main table */}
-              <div className="flex-1 overflow-auto" style={{ maxWidth: '100%', maxHeight: '100%' }}>
-                <table className="table-auto bg-white" style={{ minWidth: '100%', width: 'max-content' }}>
+          <div className="flex-1 flex flex-col mt-4">
+            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+              <table className="w-full table-auto bg-white">
                 {/* Enhanced Table header */}
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -937,9 +935,7 @@ export default function MainTable() {
                       {expandedActive[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
-                            {/* Scrollable container for subtask table */}
-                            <div className="overflow-x-auto overflow-y-auto max-h-[250px]" style={{ maxWidth: '100%' }}>
-                              <table className="ml-12 table-fixed" style={{ minWidth: '100%', width: 'max-content' }}>
+                            <table className="ml-12 table-fixed min-w-full">
                               <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
                                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -1091,7 +1087,6 @@ export default function MainTable() {
                                 </tr>
                               </tbody>
                             </table>
-                            </div>
                           </td>
                         </tr>
                       )}
@@ -1099,7 +1094,6 @@ export default function MainTable() {
                   ))}
                 </tbody>
               </table>
-              </div>
             </div>
           </div>
           <CompletedProjects

@@ -165,3 +165,4 @@ This component is part of the ERP application and follows the same licensing ter
 ---
 
 Built with ❤️ using modern web technologies for optimal performance and user experience.
+
