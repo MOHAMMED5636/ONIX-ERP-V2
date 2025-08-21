@@ -249,7 +249,8 @@ export function createNewSubtask() {
     rating: 3,
     progress: 0,
     color: "#60a5fa",
-    predecessors: ""
+    predecessors: "",
+    childSubtasks: []
   };
 }
 

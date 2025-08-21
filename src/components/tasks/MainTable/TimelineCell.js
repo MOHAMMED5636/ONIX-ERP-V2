@@ -9,6 +9,15 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
   const start = value?.[0] ? new Date(value[0]) : null;
   const end = value?.[1] ? new Date(value[1]) : null;
   
+  // Safety check for onChange function
+  const handleChange = (newValue) => {
+    if (typeof onChange === 'function') {
+      onChange(newValue);
+    } else {
+      console.warn('TimelineCell: onChange is not a function', onChange);
+    }
+  };
+  
   return (
     <div className="relative inline-block">
       <button
@@ -65,7 +74,7 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
                 }]}
                 onChange={ranges => {
                   const { startDate, endDate } = ranges.selection;
-                  onChange([startDate, endDate]);
+                  handleChange([startDate, endDate]);
                   setShowPicker(false);
                 }}
                 moveRangeOnFirstSelection={false}
