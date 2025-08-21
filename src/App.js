@@ -48,7 +48,7 @@ function MainLayout() {
   const hideNavbar = location.pathname.startsWith("/tasks");
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       <div className={`flex-1 flex flex-col transition-all duration-300 w-full
         ${
@@ -58,7 +58,7 @@ function MainLayout() {
         }
       `}>
         {!hideNavbar && <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />}
-        <main className="flex-1 w-full min-h-0 overflow-hidden">
+        <main className="flex-1 w-full">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -84,7 +84,6 @@ function MainLayout() {
             <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
             <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
-            <Route path="/jira-table-demo" element={<JiraTableDemo />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>
@@ -110,6 +109,8 @@ export default function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* Special route for Jira table demo - bypasses main layout */}
+            <Route path="/jira-table-demo" element={<JiraTableDemo />} />
             <Route path="/*" element={
               <PrivateRoute>
                 <MainLayout />

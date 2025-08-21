@@ -14,9 +14,9 @@ export default function TaskList() {
   const [showSearch, setShowSearch] = useState(false);
 
   return (
-    <div className="w-full bg-white flex flex-col">
-      {/* Header Bar with Search, Logo, Chatroom, and Language */}
-      <header className="w-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl flex items-center px-3 sm:px-6 py-4 z-40 border-b border-indigo-100 backdrop-blur-md">
+    <div className="h-screen w-full bg-white flex flex-col overflow-hidden">
+      {/* Header Bar with Search, Logo, Chatroom, and Language - Fixed at top */}
+      <header className="flex-shrink-0 w-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl flex items-center px-3 sm:px-6 py-4 z-40 border-b border-indigo-100 backdrop-blur-md">
         {/* Left section: Logo */}
         <div className="flex items-center gap-3">
           {/* Logo */}
@@ -93,12 +93,25 @@ export default function TaskList() {
         </div>
       </header>
 
-      {/* Task Content */}
-      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <ActionControls />
-      {activeTab === "main-table" && <MainTable />}
-      {activeTab === "kanban" && <KanbanBoard />}
-      {/* Other tabs (Cards, Kanban, etc.) will be added here */}
+      {/* Task Content - Scrollable area */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* TabBar - Fixed below header */}
+        <div className="flex-shrink-0">
+          <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+        </div>
+        
+        {/* ActionControls - Fixed below tabs */}
+        <div className="flex-shrink-0">
+          <ActionControls />
+        </div>
+        
+        {/* Main Content - Scrollable area */}
+        <div className="flex-1 min-h-0 overflow-auto">
+          {activeTab === "main-table" && <MainTable />}
+          {activeTab === "kanban" && <KanbanBoard />}
+          {/* Other tabs (Cards, Kanban, etc.) will be added here */}
+        </div>
+      </div>
 
       <style>{`
         .glass-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); }

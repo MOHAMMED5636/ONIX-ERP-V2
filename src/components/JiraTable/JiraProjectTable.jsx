@@ -29,6 +29,7 @@ import { ProjectRow } from './ProjectRow';
 import { Toolbar } from './Toolbar';
 import { AddProjectModal } from './AddProjectModal';
 import { AddColumnModal } from './AddColumnModal';
+import { motion } from 'framer-motion';
 
 const columnHelper = createColumnHelper();
 
@@ -45,7 +46,7 @@ export const JiraProjectTable = () => {
   const [sorting, setSorting] = useState([]);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: 10,
   });
 
   const sensors = useSensors(
@@ -322,7 +323,12 @@ export const JiraProjectTable = () => {
   return (
     <div className="h-full flex flex-col bg-white shadow-xl border border-gray-200">
       {/* Toolbar - Fixed at top */}
-      <div className="flex-shrink-0">
+      <motion.div 
+        className="flex-shrink-0"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.8 }}
+      >
         <Toolbar
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -334,56 +340,81 @@ export const JiraProjectTable = () => {
           onAddColumn={() => setShowAddColumn(true)}
           autoSuggestData={autoSuggestData}
         />
-      </div>
+      </motion.div>
 
-      {/* Table Container - Single scrollable area with proper height */}
-      <div className="flex-1 min-h-0 overflow-auto">
-        <div className="min-w-full">
-          <table className="w-full divide-y divide-gray-200" style={{ minWidth: '2000px' }}>
-            <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
-              <tr>
-                {/* Drag handle column */}
-                <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
-                  <span className="sr-only">Drag</span>
-                </th>
-                {/* Expand/collapse column */}
-                <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
-                  <span className="sr-only">Expand</span>
-                </th>
-                {table.getHeaderGroups().map(headerGroup => (
-                  headerGroup.headers.map(header => (
-                    <th
-                      key={header.id}
-                      className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-300 transition-colors bg-gradient-to-r from-gray-100 to-gray-200 whitespace-nowrap"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="flex items-center gap-1">
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getIsSorted() && (
-                          <span>
-                            {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                  ))
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-                modifiers={[restrictToVerticalAxis]}
-              >
-                <AnimatePresence>
-                  {table.getRowModel().rows.map((row, index) => (
+      {/* Table Container - Single scrollable area */}
+      <motion.div 
+        className="flex-1 min-h-0 overflow-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 1 }}
+      >
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gradient-to-r from-gray-100 to-gray-200 sticky top-0 z-10">
+            <tr>
+              {/* Drag handle column */}
+              <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
+                <span className="sr-only">Drag</span>
+              </th>
+              {/* Expand/collapse column */}
+              <th className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-12 bg-gradient-to-r from-gray-100 to-gray-200">
+                <span className="sr-only">Expand</span>
+              </th>
+              {table.getHeaderGroups().map(headerGroup => (
+                headerGroup.headers.map(header => (
+                  <motion.th
+                    key={header.id}
+                    className="px-3 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-300 transition-colors bg-gradient-to-r from-gray-100 to-gray-200"
+                    onClick={header.column.getToggleSortingHandler()}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="flex items-center gap-1">
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                      {header.column.getIsSorted() && (
+                        <motion.span
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        >
+                          {header.column.getIsSorted() === 'asc' ? '↑' : '↓'}
+                        </motion.span>
+                      )}
+                    </div>
+                  </motion.th>
+                ))
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis]}
+            >
+              <AnimatePresence>
+                {table.getRowModel().rows.map((row, index) => (
+                  <motion.tr
+                    key={row.original.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ 
+                      duration: 0.3, 
+                      delay: index * 0.05,
+                      ease: "easeOut"
+                    }}
+                    whileHover={{ 
+                      backgroundColor: "rgba(59, 130, 246, 0.05)",
+                      scale: 1.001
+                    }}
+                    className="hover:bg-blue-50/50 transition-all duration-200"
+                  >
                     <ProjectRow
-                      key={row.original.id}
                       row={row}
                       index={index}
                       expandedRows={expandedRows}
@@ -391,16 +422,21 @@ export const JiraProjectTable = () => {
                       onCellEdit={handleCellEdit}
                       autoSuggestData={autoSuggestData}
                     />
-                  ))}
-                </AnimatePresence>
-              </DndContext>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
+            </DndContext>
+          </tbody>
+        </table>
+      </motion.div>
 
       {/* Pagination - Fixed at bottom */}
-      <div className="flex-shrink-0 bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+      <motion.div 
+        className="flex-shrink-0 bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 1.2 }}
+      >
         <div className="flex-1 flex justify-between sm:hidden">
           <Button
             variant="outline"
@@ -432,7 +468,7 @@ export const JiraProjectTable = () => {
                   table.setPageSize(Number(e.target.value));
                 }}
               >
-                {[10, 25, 50, 100].map(pageSize => (
+                {[10, 20, 30, 40, 50].map(pageSize => (
                   <option key={pageSize} value={pageSize}>
                     Show {pageSize}
                   </option>
@@ -461,7 +497,7 @@ export const JiraProjectTable = () => {
             </nav>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Modals */}
       {showAddProject && (
