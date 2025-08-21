@@ -30,6 +30,7 @@ import TeamProjectTracker from "./components/TeamProjectTracker";
 import ProjectLifeCycle from "./components/ProjectLifeCycle";
 import { JiraTableDemo } from "./components/JiraTable/JiraTableDemo";
 import ExcelTable from "./pages/ExcelTable";
+import JiraLikePage from "./pages/JiraLikePage";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 
@@ -85,7 +86,8 @@ function MainLayout() {
             <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
             <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
-            <Route path="/excel-table/*" element={<ExcelTable />} />
+                            <Route path="/excel-table/*" element={<ExcelTable />} />
+                <Route path="/jira-like/*" element={<JiraLikePage />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>

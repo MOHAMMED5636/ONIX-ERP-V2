@@ -1,35 +1,67 @@
 import React from "react";
+import { 
+  TableCellsIcon, 
+  Squares2X2Icon, 
+  ViewColumnsIcon, 
+  RectangleGroupIcon, 
+  ChartBarIcon, 
+  PhotoIcon, 
+  DocumentTextIcon, 
+  Cog6ToothIcon, 
+  DocumentPlusIcon 
+} from "@heroicons/react/24/outline";
 
 const tabs = [
-  { key: "main-table", label: "Main Table" },
-  { key: "cards", label: "Cards" },
-  { key: "table", label: "Table" },
-  { key: "kanban", label: "Kanban" },
-  { key: "chart", label: "Chart" },
-  { key: "file-gallery", label: "File Gallery" },
-  { key: "doc", label: "Doc" },
-  { key: "custom-view", label: "Customizable View" },
-  { key: "form", label: "Form" },
+  { key: "main-table", label: "Main Table", icon: TableCellsIcon },
+  { key: "cards", label: "Cards", icon: Squares2X2Icon },
+  { key: "table", label: "Table", icon: ViewColumnsIcon },
+  { key: "kanban", label: "Kanban", icon: RectangleGroupIcon },
+  { key: "chart", label: "Chart", icon: ChartBarIcon },
+  { key: "file-gallery", label: "File Gallery", icon: PhotoIcon },
+  { key: "doc", label: "Doc", icon: DocumentTextIcon },
+  { key: "custom-view", label: "Customizable View", icon: Cog6ToothIcon },
+  { key: "form", label: "Form", icon: DocumentPlusIcon },
 ];
 
 export default function TabBar({ activeTab, setActiveTab }) {
   return (
-    <nav className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-sm px-6 pb-0 overflow-x-auto shadow-sm">
-      <ul className="flex gap-1 sm:gap-2 whitespace-nowrap">
-        {tabs.map((tab, idx) => (
-          <li key={tab.key} className={idx === 0 ? 'ml-0' : ''}>
-            <button
-              className={`px-4 py-3 rounded-t-lg font-semibold text-[15px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                activeTab === tab.key
-                  ? "text-blue-700 border-b-2 border-blue-600 bg-gradient-to-b from-blue-50 to-white shadow-sm transform -translate-y-px"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gradient-to-b hover:from-gray-50 hover:to-white hover:border-b-2 hover:border-gray-300"
-              }`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          </li>
-        ))}
+    <nav className="w-full px-6 py-2 overflow-x-auto">
+      <ul className="flex gap-2 whitespace-nowrap">
+        {tabs.map((tab, idx) => {
+          const IconComponent = tab.icon;
+          return (
+            <li key={tab.key} className={idx === 0 ? 'ml-0' : ''}>
+              <button
+                className={`group flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-200 relative overflow-hidden ${
+                  activeTab === tab.key
+                    ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg transform scale-105"
+                    : "text-gray-600 hover:text-blue-600 hover:bg-white/80 hover:shadow-md hover:scale-105"
+                }`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {/* Background animation for active tab */}
+                {activeTab === tab.key && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 animate-pulse"></div>
+                )}
+                
+                <IconComponent className={`h-5 w-5 transition-all duration-300 ${
+                  activeTab === tab.key 
+                    ? "text-white" 
+                    : "text-gray-500 group-hover:text-blue-500"
+                }`} />
+                
+                <span className="relative z-10">{tab.label}</span>
+                
+                {/* Hover effect */}
+                <div className={`absolute inset-0 rounded-xl transition-all duration-300 ${
+                  activeTab === tab.key 
+                    ? "bg-gradient-to-r from-blue-600/20 to-purple-600/20" 
+                    : "bg-gradient-to-r from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/10 group-hover:to-purple-500/10"
+                }`}></div>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
