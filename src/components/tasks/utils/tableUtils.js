@@ -250,7 +250,8 @@ export function createNewSubtask() {
     progress: 0,
     color: "#60a5fa",
     predecessors: "",
-    childSubtasks: []
+    childSubtasks: [],
+    pinned: false // Add pinned property
   };
 }
 

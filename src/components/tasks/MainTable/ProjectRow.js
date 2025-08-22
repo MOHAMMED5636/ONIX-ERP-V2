@@ -16,7 +16,8 @@ const ProjectRow = ({
   onProjectNameKeyDown,
   onEdit,
   onDelete,
-  onShowAddColumnMenu
+  onShowAddColumnMenu,
+  onTogglePin
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -354,6 +355,20 @@ const ProjectRow = ({
 
   return (
     <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
+      {/* Pin Column */}
+      <td className="px-4 py-4 align-middle text-center">
+        <button
+          onClick={() => onTogglePin(task.id)}
+          className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+            task.pinned 
+              ? 'bg-red-500 text-white hover:bg-red-600' 
+              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+          }`}
+          title={task.pinned ? "Unpin task" : "Pin task"}
+        >
+          📌
+        </button>
+      </td>
       {columnOrder
         .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
         .map((colKey, idx) => {

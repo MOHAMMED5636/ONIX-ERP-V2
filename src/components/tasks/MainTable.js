@@ -65,6 +65,7 @@ const initialTasks = [
     rating: 3,
     progress: 50,
     color: "#60a5fa",
+    pinned: false, // Add pinned property
     subtasks: [
       {
         id: 11,
@@ -89,6 +90,7 @@ const initialTasks = [
         rating: 2,
         progress: 20,
         color: "#f59e42",
+        pinned: false, // Add pinned property to subtasks
         childSubtasks: [
           {
             id: 111,
@@ -112,7 +114,8 @@ const initialTasks = [
             checklist: false,
             rating: 1,
             progress: 10,
-        color: "#f59e42"
+            color: "#f59e42",
+            pinned: false // Add pinned property to child subtasks
           },
           {
             id: 112,
@@ -136,7 +139,8 @@ const initialTasks = [
             checklist: false,
             rating: 3,
             progress: 30,
-            color: "#10d081"
+            color: "#10d081",
+            pinned: false // Add pinned property to child subtasks
           }
         ]
       },
@@ -160,6 +164,7 @@ const initialTasks = [
         rating: 4,
         progress: 70,
         color: "#10d081",
+        pinned: false, // Add pinned property to subtasks
         childSubtasks: []
       },
       {
@@ -182,6 +187,7 @@ const initialTasks = [
         rating: 2,
         progress: 40,
         color: "#f20d11",
+        pinned: false, // Add pinned property to subtasks
         childSubtasks: []
       },
       {
@@ -201,12 +207,64 @@ const initialTasks = [
         developerProject: "Onix Development",
         completed: false,
         checklist: false,
-        rating: 5,
-        progress: 80,
-        color: "#f44448",
-        childSubtasks: []
+        rating: 1,
+        progress: 10,
+        color: "#f20d11",
+        pinned: false // Add pinned property to subtasks
       }
     ]
+  },
+  {
+    id: 2,
+    name: "Website Development",
+    referenceNumber: "REF-002",
+    category: "Development",
+    status: "working",
+    owner: "SA",
+    timeline: [null, null],
+    planDays: 15,
+    remarks: "High priority project",
+    assigneeNotes: "Need to complete by end of month",
+    attachments: [],
+    priority: "High",
+    location: "Remote",
+    plotNumber: "PLOT-002",
+    community: "Tech District",
+    projectType: "Commercial",
+    projectFloor: "3",
+    developerProject: "Tech Solutions Inc",
+    checklist: true,
+    rating: 4,
+    progress: 75,
+    color: "#10d081",
+    pinned: true, // Add pinned property - this one is pinned
+    subtasks: []
+  },
+  {
+    id: 3,
+    name: "Mobile App Design",
+    referenceNumber: "REF-003",
+    category: "Design",
+    status: "pending",
+    owner: "AH",
+    timeline: [null, null],
+    planDays: 8,
+    remarks: "",
+    assigneeNotes: "",
+    attachments: [],
+    priority: "Medium",
+    location: "Design Studio",
+    plotNumber: "PLOT-003",
+    community: "Creative Hub",
+    projectType: "Mixed Use",
+    projectFloor: "2",
+    developerProject: "Creative Agency",
+    checklist: false,
+    rating: 3,
+    progress: 25,
+    color: "#f59e42",
+    pinned: false, // Add pinned property
+    subtasks: []
   }
 ];
 
@@ -510,7 +568,8 @@ export default function MainTable() {
       rating: 0,
       progress: 0,
       color: "#60a5fa",
-      subtasks: []
+      subtasks: [],
+      pinned: false // Add pinned property
     });
   }
 
@@ -569,15 +628,55 @@ export default function MainTable() {
     // Timeline recalculation will be handled by the useEffect that watches projectStartDate
   }
 
+  // Handle pin/unpin functionality
+  function handleTogglePin(taskId) {
+    setTasks(tasks => tasks.map(task => 
+      task.id === taskId ? { ...task, pinned: !task.pinned } : task
+    ));
+  }
 
+  // Handle pin/unpin for subtasks
+  function handleToggleSubtaskPin(taskId, subtaskId) {
+    setTasks(tasks => tasks.map(task => 
+      task.id === taskId ? {
+        ...task,
+        subtasks: task.subtasks.map(subtask => 
+          subtask.id === subtaskId ? { ...subtask, pinned: !subtask.pinned } : subtask
+        )
+      } : task
+    ));
+  }
+
+  // Handle pin/unpin for child subtasks
+  function handleToggleChildSubtaskPin(taskId, subtaskId, childSubtaskId) {
+    setTasks(tasks => tasks.map(task => 
+      task.id === taskId ? {
+        ...task,
+        subtasks: task.subtasks.map(subtask => 
+          subtask.id === subtaskId ? {
+            ...subtask,
+            childSubtasks: subtask.childSubtasks.map(childSubtask => 
+              childSubtask.id === childSubtaskId ? { ...childSubtask, pinned: !childSubtask.pinned } : childSubtask
+            )
+          } : subtask
+        )
+      } : task
+    ));
+  }
 
   // Recalculate timelines whenever tasks or projectStartDate change
   useEffect(() => {
     setTasks(ts => calculateTaskTimelines(ts, projectStartDate));
   }, [projectStartDate]);
 
-  const filteredTasks = filterTasks(tasks, search);
-
+  // Filter and sort tasks - pinned tasks first, then by existing sorting
+  const filteredTasks = filterTasks(tasks, search).sort((a, b) => {
+    // First sort by pinned status (pinned tasks first)
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    // Then maintain existing order within each group
+    return 0;
+  });
 
   const [columns, setColumns] = useState(INITIAL_COLUMNS);
 
@@ -721,7 +820,8 @@ export default function MainTable() {
     assigneeNotes: "",
     attachments: [],
     priority: "Low",
-    location: ""
+    location: "",
+    pinned: false // Add pinned property
   });
 
   function handleAddChildSubtask(taskId, parentSubtaskId) {
@@ -766,7 +866,8 @@ export default function MainTable() {
       assigneeNotes: "",
       attachments: [],
       priority: "Low",
-      location: ""
+      location: "",
+      pinned: false // Add pinned property
     });
   }
 
@@ -1129,6 +1230,12 @@ export default function MainTable() {
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-10">
                       <tr>
+                        {/* Pin Column Header */}
+                        <th className="px-3 py-4 text-center w-12">
+                          <div className="flex items-center justify-center">
+                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pin</span>
+                          </div>
+                        </th>
                         {columnOrder
                           .filter(key => key !== 'category') // Remove TASK CATEGORY header for main tasks
                           .map(key => {
@@ -1153,6 +1260,20 @@ export default function MainTable() {
                 <tbody className="divide-y divide-gray-100">
                   {newTask && (
                     <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200">
+                      {/* Pin Column for New Task */}
+                      <td className="px-4 py-3 align-middle text-center">
+                        <button
+                          onClick={() => setNewTask({ ...newTask, pinned: !newTask.pinned })}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+                            newTask.pinned 
+                              ? 'bg-red-500 text-white hover:bg-red-600' 
+                              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                          }`}
+                          title={newTask.pinned ? "Unpin task" : "Pin task"}
+                        >
+                          📌
+                        </button>
+                      </td>
                       {columnOrder.map((colKey, idx) => {
                         const col = columns.find(c => c.key === colKey);
                         if (!col) return null;
@@ -1366,6 +1487,7 @@ export default function MainTable() {
                             onEdit={handleEdit}
                             onDelete={handleDeleteRow}
                             onShowAddColumnMenu={handleShowAddColumnMenu}
+                            onTogglePin={handleTogglePin}
                             CellRenderer={CellRenderer}
                             isAdmin={isAdmin}
                           />
@@ -1379,6 +1501,12 @@ export default function MainTable() {
                                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                                     <tr>
                                       <th></th> {/* Drag handle header cell for alignment */}
+                                      {/* Pin Column Header for Subtasks */}
+                                      <th className="px-3 py-3 text-center w-12">
+                                        <div className="flex items-center justify-center">
+                                          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pin</span>
+                                        </div>
+                                      </th>
                                       {columnOrder.map(colKey => {
                                         const col = columns.find(c => c.key === colKey);
                                         if (!col) return null;
@@ -1404,6 +1532,20 @@ export default function MainTable() {
                                     {task.subtasks.map((sub, subIdx) => (
                                       <React.Fragment key={sub.id}>
                                       <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
+                                        {/* Pin Column for Subtask */}
+                                        <td className="px-3 py-2 align-middle text-center">
+                                          <button
+                                            onClick={() => handleToggleSubtaskPin(task.id, sub.id)}
+                                            className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${
+                                              sub.pinned 
+                                                ? 'bg-red-500 text-white hover:bg-red-600' 
+                                                : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                                            }`}
+                                            title={sub.pinned ? "Unpin subtask" : "Pin subtask"}
+                                          >
+                                            📌
+                                          </button>
+                                        </td>
                                         {columnOrder.map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
@@ -1424,6 +1566,10 @@ export default function MainTable() {
                                                   <thead className="bg-gradient-to-r from-gray-75 to-gray-100 border-b border-gray-200">
                                                     <tr>
                                                       <th className="w-8"></th> {/* Drag handle */}
+                                                      {/* Pin Column Header for Child Subtasks */}
+                                                      <th className="w-8 text-center">
+                                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pin</span>
+                                                      </th>
                                                       {columnOrder.map(colKey => {
                                                         const col = columns.find(c => c.key === colKey);
                                                         if (!col) return null;
@@ -1441,6 +1587,20 @@ export default function MainTable() {
                                                       <tr key={childSub.id} className="hover:bg-gray-50/50">
                                                         <td className="w-8">
                                                           <Bars3Icon className="w-4 h-4 text-gray-300" />
+                                                        </td>
+                                                        {/* Pin Column for Child Subtask */}
+                                                        <td className="w-8 text-center">
+                                                          <button
+                                                            onClick={() => handleToggleChildSubtaskPin(task.id, sub.id, childSub.id)}
+                                                            className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 ${
+                                                              childSub.pinned 
+                                                                ? 'bg-red-500 text-white hover:bg-red-600' 
+                                                                : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                                                            }`}
+                                                            title={childSub.pinned ? "Unpin child subtask" : "Pin child subtask"}
+                                                          >
+                                                            📌
+                                                          </button>
                                                         </td>
                                                         {columnOrder.map(colKey => {
                                                           const col = columns.find(c => c.key === colKey);
