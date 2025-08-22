@@ -413,19 +413,17 @@ const CellRenderer = {
       case "plotNumber":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm"
             value={sub.plotNumber || ""}
             onChange={e => onEdit(task.id, sub.id, "plotNumber", e.target.value)}
-            placeholder="Enter plot number"
           />
         );
       case "community":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm"
             value={sub.community || ""}
             onChange={e => onEdit(task.id, sub.id, "community", e.target.value)}
-            placeholder="Enter community"
           />
         );
       case "projectType":
@@ -445,190 +443,101 @@ const CellRenderer = {
       case "projectFloor":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm"
             value={sub.projectFloor || ""}
             onChange={e => onEdit(task.id, sub.id, "projectFloor", e.target.value)}
-            placeholder="Enter project floor"
           />
         );
       case "developerProject":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm"
             value={sub.developerProject || ""}
             onChange={e => onEdit(task.id, sub.id, "developerProject", e.target.value)}
-            placeholder="Enter developer project"
           />
         );
       case "notes":
-        return <span className="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded transition"><span>{sub.notes || "Add note"}</span><PencilSquareIcon className="w-4 h-4 text-gray-400" /></span>;
+        return (
+          <span className="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-1 py-1 rounded transition">
+            <span className="text-xs">{sub.notes || "Add note"}</span>
+          </span>
+        );
       case "attachments":
         return (
           <div>
             <input
               type="file"
               multiple
+              className="text-xs"
               onChange={e => {
                 const files = Array.from(e.target.files);
                 onEdit(task.id, sub.id, "attachments", files);
               }}
             />
-            <ul className="mt-1 text-xs text-gray-600">
-              {(sub.attachments || []).map((file, idx) => (
-                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-              ))}
-            </ul>
           </div>
         );
-      case "autoNumber":
-      case "auto #":
-        return <span>{subIdx + 1}</span>;
-      case "predecessors":
-        const subPredecessorsHasValue = sub.predecessors && sub.predecessors.toString().trim() !== '';
+      case "priority":
         return (
-          <div className="relative">
-            <input
-              className={`border rounded px-2 py-1 text-sm pr-6 ${subPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
-              value={sub.predecessors}
-              onChange={e => onEdit(task.id, sub.id, "predecessors", e.target.value)}
-              placeholder="Enter task IDs (e.g., 1, 2, 3)"
-            />
-            {subPredecessorsHasValue && (
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
-            )}
-          </div>
+          <select
+            className="border rounded px-2 py-1 text-sm"
+            value={sub.priority}
+            onChange={e => onEdit(task.id, sub.id, "priority", e.target.value)}
+          >
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
         );
-      case "checklist":
-        return (
-          <input
-            type="checkbox"
-            checked={!!sub.checklist}
-            onChange={e => onEdit(task.id, sub.id, "checklist", e.target.checked)}
-            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-        );
-      case "link":
-        return <input
-          className="border rounded px-2 py-1 text-sm"
-          value={sub.link}
-          onChange={e => onEdit(task.id, sub.id, "link", e.target.value)}
-        />;
       case "rating":
-        if (sub.status === 'done' && isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => onEdit(task.id, sub.id, "rating", i)}
-                  fill={i <= sub.rating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        } else if (isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => onEdit(task.id, sub.id, "showRatingPrompt", true)}
-                  fill={i <= sub.rating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        } else {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= sub.rating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        }
-      case "progress":
-        return <div className="flex flex-col items-center">
-          <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden mb-1">
-            <div
-              className="h-2 rounded bg-blue-500 transition-all duration-500"
-              style={{ width: `${sub.progress}%` }}
-            ></div>
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-gray-700">{sub.progress}%</span>
+        return (
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map(star => (
+              <button
+                key={star}
+                onClick={() => onEdit(task.id, sub.id, "rating", star)}
+                className={`text-xs ${sub.rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}
+              >
+                ★
+              </button>
+            ))}
           </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={sub.progress}
-            onChange={e => onEdit(task.id, sub.id, "progress", Number(e.target.value))}
-            className="w-24"
-          />
-        </div>;
+        );
+      case "progress":
+        return (
+          <div className="flex items-center gap-1">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={sub.progress || 0}
+              onChange={e => onEdit(task.id, sub.id, "progress", parseInt(e.target.value))}
+              className="w-16 h-2"
+            />
+            <span className="text-xs w-8">{sub.progress || 0}%</span>
+          </div>
+        );
       case "color":
-        return <label className="inline-flex items-center gap-2 cursor-pointer">
-          <span className="inline-block w-6 h-6 rounded-full border-2 border-gray-200" style={{ background: sub.color }}></span>
-          <input
-            type="color"
-            value={sub.color}
-            onChange={e => onEdit(task.id, sub.id, "color", e.target.value)}
-            className="w-6 h-6 p-0 border-0 bg-transparent"
-            style={{ visibility: 'hidden', position: 'absolute' }}
-          />
-          <span className="text-xs text-gray-500">{sub.color}</span>
-        </label>;
-      case "planDays":
         return (
-          <input
-            type="number"
-            min={0}
-            className="border rounded px-2 py-1 text-sm text-gray-900 w-20 text-center"
-            value={sub.planDays || 0}
-            onChange={e => onEdit(task.id, sub.id, "planDays", Number(e.target.value))}
-            placeholder="Enter plan days"
+          <div
+            className="w-4 h-4 rounded-full border border-gray-300 cursor-pointer"
+            style={{ backgroundColor: sub.color || "#60a5fa" }}
+            onClick={() => {
+              const colors = ["#60a5fa", "#f59e42", "#10d081", "#f44448", "#8b5cf6", "#06b6d4"];
+              const currentIndex = colors.indexOf(sub.color || "#60a5fa");
+              const nextColor = colors[(currentIndex + 1) % colors.length];
+              onEdit(task.id, sub.id, "color", nextColor);
+            }}
           />
         );
-      case "assign":
+      case "delete":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm text-gray-900"
-            value={sub.assign || ""}
-            onChange={e => onEdit(task.id, sub.id, "assign", e.target.value)}
-            placeholder="Enter assignee notes"
-          />
-        );
-      case "notes":
-        return (
-          <input
-            className="border rounded px-2 py-1 text-sm text-gray-900"
-            value={sub.notes || ""}
-            onChange={e => onEdit(task.id, sub.id, "notes", e.target.value)}
-            placeholder="Add notes"
-          />
-        );
-      case "remarks":
-        return (
-          <input
-            className="border rounded px-2 py-1 text-sm text-gray-900"
-            value={sub.remarks || ""}
-            onChange={e => onEdit(task.id, sub.id, "remarks", e.target.value)}
-            placeholder="Add remarks"
-          />
-        );
-      case "assigneeNotes":
-        return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
-            value={sub.assigneeNotes || ""}
-            onChange={e => onEdit(task.id, sub.id, "assigneeNotes", e.target.value)}
-            placeholder="Enter assignee notes"
-          />
+          <button
+            className="p-1 rounded hover:bg-red-100 transition"
+            onClick={() => onEdit(task.id, sub.id, "delete")}
+            title="Delete"
+          >
+            <TrashIcon className="w-5 h-5 text-red-500" />
+          </button>
         );
       default:
         return sub[col.key] || '';

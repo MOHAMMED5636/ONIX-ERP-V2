@@ -341,7 +341,7 @@ const ProjectRow = ({
         return (
           <button
             className="p-1 rounded hover:bg-red-100 transition"
-            onClick={onDelete}
+            onClick={() => onDelete(task.id)}
             title="Delete"
           >
             <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

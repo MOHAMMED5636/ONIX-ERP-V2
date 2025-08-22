@@ -467,6 +467,12 @@ export default function MainTable() {
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
+    // Handle delete case
+    if (col === 'delete') {
+      handleDeleteRow(subId, taskId);
+      return;
+    }
+
     setTasks(tasks => {
       let updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
