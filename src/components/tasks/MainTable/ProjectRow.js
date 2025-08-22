@@ -17,7 +17,8 @@ const ProjectRow = ({
   onEdit,
   onDelete,
   onShowAddColumnMenu,
-  onTogglePin
+  onTogglePin,
+  onAddSubtask
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -377,36 +378,46 @@ const ProjectRow = ({
           return (
             <td key={col.key} className="px-4 py-4 align-middle">
               {col.key === 'task' && idx === 0 ? (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => onToggleExpand(task.id, 'active')}
-                    className="focus:outline-none p-1 rounded-lg hover:bg-gray-100 transition-all duration-200"
-                    title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
-                  >
-                    {expandedActive[task.id] ? 
-                      <ChevronDownIcon className="w-5 h-5 text-gray-500" /> : 
-                      <ChevronRightIcon className="w-5 h-5 text-gray-500" />
-                    }
-                  </button>
-                  {editingTaskId === task.id ? (
-                    <input
-                      type="text"
-                      value={editingTaskName}
-                      autoFocus
-                      onChange={onProjectNameChange}
-                      onBlur={() => onProjectNameBlur(task)}
-                      onKeyDown={e => onProjectNameKeyDown(e, task)}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                    />
-                  ) : (
-                    <span
-                      className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
-                      onClick={() => onProjectNameClick(task)}
-                      onDoubleClick={() => onProjectNameDoubleClick(task)}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => onToggleExpand(task.id, 'active')}
+                      className="focus:outline-none p-1 rounded-lg hover:bg-gray-100 transition-all duration-200"
+                      title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
                     >
-                      {task.name}
-                    </span>
-                  )}
+                      {expandedActive[task.id] ? 
+                        <ChevronDownIcon className="w-5 h-5 text-gray-500" /> : 
+                        <ChevronRightIcon className="w-5 h-5 text-gray-500" />
+                      }
+                    </button>
+                    {editingTaskId === task.id ? (
+                      <input
+                        type="text"
+                        value={editingTaskName}
+                        autoFocus
+                        onChange={onProjectNameChange}
+                        onBlur={() => onProjectNameBlur(task)}
+                        onKeyDown={e => onProjectNameKeyDown(e, task)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
+                      />
+                    ) : (
+                      <span
+                        className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
+                        onClick={() => onProjectNameClick(task)}
+                        onDoubleClick={() => onProjectNameDoubleClick(task)}
+                      >
+                        {task.name}
+                      </span>
+                    )}
+                  </div>
+                  {/* Add Subtask Button */}
+                  <button
+                    onClick={() => onAddSubtask(task.id)}
+                    className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 w-fit"
+                    title="Add Subtask"
+                  >
+                    + Add Subtask
+                  </button>
                 </div>
               ) : (
                 renderMainCell(col, task, (field, value) => {
