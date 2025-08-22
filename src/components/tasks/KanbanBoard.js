@@ -186,113 +186,204 @@ export default function KanbanBoard() {
 
   return (
     <div className="w-full">
-      {/* Filter UI */}
-      <div className="flex flex-wrap gap-4 mb-4 p-4 bg-white rounded shadow items-end">
-        {/* Global Search Bar */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Search</label>
-          <input
-            type="text"
-            name="global"
-            value={filter.global}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-            placeholder="Search all tasks"
-          />
-        </div>
-        {/* Task Name Filter */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Task Name</label>
-          <input
-            type="text"
-            name="name"
-            value={filter.name}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-            placeholder="Search by name"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
-          <select
-            name="status"
-            value={filter.status}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
+      {/* Enhanced Filter UI */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800">Filter Tasks</h3>
+          <div className="flex-1"></div>
+          <button
+            onClick={() => setFilter({
+              global: '',
+              name: '',
+              status: '',
+              assignee: '',
+              plan: '',
+              category: '',
+              dateFrom: '',
+              dateTo: '',
+            })}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all duration-200 text-sm font-medium"
           >
-            <option value="">All</option>
-            {columns.map((col) => (
-              <option key={col.key} value={col.key}>{col.label}</option>
-            ))}
-          </select>
+            Clear All
+          </button>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Assignee</label>
-          <select
-            name="assignee"
-            value={filter.assignee}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            {demoUsers.map((user) => (
-              <option key={user} value={user === 'All Users' ? '' : user}>{user}</option>
-            ))}
-          </select>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Global Search Bar */}
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Search All Tasks</label>
+            <div className="relative">
+              <input
+                type="text"
+                name="global"
+                value={filter.global}
+                onChange={handleFilterChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                placeholder="Search by title, assignee, plan, or dates..."
+              />
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Task Name Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Task Name</label>
+            <input
+              type="text"
+              name="name"
+              value={filter.name}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Search by name"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+            <select
+              name="status"
+              value={filter.status}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
+              <option value="">All Statuses</option>
+              {columns.map((col) => (
+                <option key={col.key} value={col.key}>{col.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Assignee Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Assignee</label>
+            <select
+              name="assignee"
+              value={filter.assignee}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
+              {demoUsers.map((user) => (
+                <option key={user} value={user === 'All Users' ? '' : user}>{user}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Part of Plan Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Part of Plan</label>
+            <select
+              name="plan"
+              value={filter.plan}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
+              {demoPlans.map((plan) => (
+                <option key={plan} value={plan === 'All Plans' ? '' : plan}>{plan}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Task Category Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Task Category</label>
+            <select
+              name="category"
+              value={filter.category}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
+              {demoCategories.map((cat) => (
+                <option key={cat} value={cat === 'All Categories' ? '' : cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date From Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">From Date</label>
+            <select
+              name="dateFrom"
+              value={filter.dateFrom}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
+              <option value="">Any Date</option>
+              {demoDates.map((date) => (
+                <option key={date} value={date}>{date}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date To Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">To Date</label>
+            <select
+              name="dateTo"
+              value={filter.dateTo}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+            >
+              <option value="">Any Date</option>
+              {demoDates.map((date) => (
+                <option key={date} value={date}>{date}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Part of Plan</label>
-          <select
-            name="plan"
-            value={filter.plan}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            {demoPlans.map((plan) => (
-              <option key={plan} value={plan === 'All Plans' ? '' : plan}>{plan}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Task Category</label>
-          <select
-            name="category"
-            value={filter.category}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            {demoCategories.map((cat) => (
-              <option key={cat} value={cat === 'All Categories' ? '' : cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">From</label>
-          <select
-            name="dateFrom"
-            value={filter.dateFrom}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            <option value="">Any</option>
-            {demoDates.map((date) => (
-              <option key={date} value={date}>{date}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">To</label>
-          <select
-            name="dateTo"
-            value={filter.dateTo}
-            onChange={handleFilterChange}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            <option value="">Any</option>
-            {demoDates.map((date) => (
-              <option key={date} value={date}>{date}</option>
-            ))}
-          </select>
-        </div>
+
+        {/* Active Filters Display */}
+        {Object.values(filter).some(value => value !== '') && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {filter.global && (
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  Search: "{filter.global}"
+                </span>
+              )}
+              {filter.name && (
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                  Name: "{filter.name}"
+                </span>
+              )}
+              {filter.status && (
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                  Status: {columns.find(col => col.key === filter.status)?.label}
+                </span>
+              )}
+              {filter.assignee && (
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                  Assignee: {filter.assignee}
+                </span>
+              )}
+              {filter.plan && (
+                <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                  Plan: {filter.plan}
+                </span>
+              )}
+              {filter.category && (
+                <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                  Category: {filter.category}
+                </span>
+              )}
+              {(filter.dateFrom || filter.dateTo) && (
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                  Date: {filter.dateFrom || 'Any'} - {filter.dateTo || 'Any'}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       {/* Kanban Columns */}
       <div className="flex w-full overflow-x-auto gap-4 p-4 min-h-[70vh]">
