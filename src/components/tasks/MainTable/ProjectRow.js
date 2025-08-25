@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import CheckboxWithPopup from './CheckboxWithPopup';
+import MultiSelectCheckbox from './MultiSelectCheckbox';
 
 const ProjectRow = ({
   task,
@@ -22,7 +23,9 @@ const ProjectRow = ({
   onAddSubtask,
   onEditTask,
   onDeleteTask,
-  onCopyTask
+  onCopyTask,
+  isSelected,
+  onToggleSelection
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -377,8 +380,16 @@ const ProjectRow = ({
   };
 
   return (
-    <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
+    <tr className="project-row bg-white hover:bg-blue-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
       {console.log('ProjectRow columnOrder:', columnOrder)}
+      {/* Multi-select Checkbox Column */}
+      <td className="px-4 py-4 align-middle text-center">
+        <MultiSelectCheckbox
+          task={task}
+          isChecked={isSelected}
+          onToggle={onToggleSelection}
+        />
+      </td>
       {/* Pin Column */}
       <td className="px-4 py-4 align-middle text-center">
         <button

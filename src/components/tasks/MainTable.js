@@ -24,6 +24,10 @@ import GoogleMapPickerDemo from "./MainTable/GoogleMapPickerDemo";
 import CellRenderer from "./MainTable/CellRenderer";
 import Modals from "./MainTable/Modals";
 import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
+import MultiSelectCheckbox from "./MainTable/MultiSelectCheckbox";
+import BulkActionBar from "./MainTable/BulkActionBar";
+import BulkEditDrawer from "./MainTable/BulkEditDrawer";
+import BulkViewDrawer from "./MainTable/BulkViewDrawer";
 
 // Import utilities
 import {
@@ -358,6 +362,11 @@ export default function MainTable() {
     dateTo: '',
   });
 
+  // Multi-select state
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [showBulkEditDrawer, setShowBulkEditDrawer] = useState(false);
+  const [showBulkViewDrawer, setShowBulkViewDrawer] = useState(false);
+
   // Debounced search for better performance
   const debouncedSearch = useDebounce(search, 300);
   const debouncedFilters = useDebounce(filters, 300);
@@ -593,16 +602,87 @@ Remarks: ${taskData.remarks}
 Assignee Notes: ${taskData.assigneeNotes}`;
     
     navigator.clipboard.writeText(content).then(() => {
-      // Show a brief success message
-      const originalText = document.title;
-      document.title = 'Copied to clipboard!';
-      setTimeout(() => {
-        document.title = originalText;
-      }, 1000);
+      alert('Task copied to clipboard!');
     }).catch(err => {
-      console.error('Failed to copy: ', err);
+      console.error('Failed to copy to clipboard:', err);
       alert('Failed to copy to clipboard');
     });
+  };
+
+  // Multi-select handlers
+  const handleTaskSelection = (taskId, isChecked) => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (isChecked) {
+        newSet.add(taskId);
+      } else {
+        newSet.delete(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (isChecked) => {
+    if (isChecked) {
+      setSelectedTaskIds(new Set(filteredTasks.map(task => task.id)));
+    } else {
+      setSelectedTaskIds(new Set());
+    }
+  };
+
+  const handleBulkEdit = (selectedTasks) => {
+    setShowBulkEditDrawer(true);
+  };
+
+  const handleBulkDelete = (selectedTasks) => {
+    const taskIds = selectedTasks.map(task => task.id);
+    setTasks(tasks => tasks.filter(task => !taskIds.includes(task.id)));
+    setSelectedTaskIds(new Set());
+  };
+
+  const handleBulkCopy = (selectedTasks) => {
+    const content = selectedTasks.map(task => 
+      `Task: ${task.name}
+Reference: ${task.referenceNumber}
+Status: ${task.status}
+Owner: ${task.owner}
+Priority: ${task.priority}
+Category: ${task.category}
+Location: ${task.location}
+Remarks: ${task.remarks}
+Assignee Notes: ${task.assigneeNotes}
+---`
+    ).join('\n\n');
+    
+    navigator.clipboard.writeText(content).then(() => {
+      alert('Selected projects copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy to clipboard:', err);
+      alert('Failed to copy to clipboard');
+    });
+  };
+
+  const handleBulkView = (selectedTasks) => {
+    setShowBulkViewDrawer(true);
+  };
+
+  const handleBulkSave = (selectedTasks, formData) => {
+    setTasks(tasks => tasks.map(task => {
+      if (selectedTasks.some(selectedTask => selectedTask.id === task.id)) {
+        const updatedTask = { ...task };
+        Object.keys(formData).forEach(field => {
+          if (formData[field] !== '') {
+            updatedTask[field] = formData[field];
+          }
+        });
+        return updatedTask;
+      }
+      return task;
+    }));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedTaskIds(new Set());
   };
 
   function handleAddSubtask(taskId) {
@@ -1150,27 +1230,19 @@ Assignee Notes: ${taskData.assigneeNotes}`;
   // Custom cell renderer for child subtasks
   const renderChildSubtaskCell = (col, childSub, task, parentSubtaskId, childIdx) => {
     switch (col.key) {
-      case "checkbox":
-        return (
-          <CheckboxWithPopup
-            task={childSub}
-            onEdit={handleEditTask}
-            onDelete={handleDeleteTask}
-            onCopy={handleCopyTask}
-            isSubtask={true}
-            parentTaskId={parentSubtaskId}
-          />
-        );
       case "task":
       case "project name":
-  return (
-          <input
-            className="border rounded px-1 py-1 text-xs font-bold text-gray-900 w-full"
-            value={childSub.name}
-            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "name", e.target.value)}
-            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
-            placeholder="Task Name"
-          />
+        return (
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 text-xs">└─</span>
+            <input
+              className="border rounded px-1 py-1 text-xs font-bold text-gray-900 flex-1"
+              value={childSub.name}
+              onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "name", e.target.value)}
+              onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+              placeholder="Task Name"
+            />
+          </div>
         );
       case "category":
       case "task category":
@@ -1384,6 +1456,17 @@ Assignee Notes: ${taskData.assigneeNotes}`;
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      <style>{`
+        .project-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
+        .subtask-row:hover { 
+          background-color: #f5f5f5 !important; 
+        }
+        .childtask-row:hover { 
+          background-color: #e0e0e0 !important; 
+        }
+      `}</style>
       {/* Main Content */}
       <main className="flex flex-col flex-1 min-h-0">
         <div className="w-full px-4 pt-0 pb-0">
@@ -1410,6 +1493,15 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-10">
                       <tr>
+                        {/* Select All Checkbox Header */}
+                        <th className="px-3 py-4 text-center w-12">
+                          <MultiSelectCheckbox
+                            task={null}
+                            isChecked={selectedTaskIds.size > 0 && selectedTaskIds.size === filteredTasks.length}
+                            onToggle={handleSelectAll}
+                            isSelectAll={true}
+                          />
+                        </th>
                         {/* Pin Column Header */}
                         <th className="px-3 py-4 text-center w-12">
                           <div className="flex items-center justify-center">
@@ -1719,12 +1811,39 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                             onCopyTask={handleCopyTask}
                             CellRenderer={CellRenderer}
                             isAdmin={isAdmin}
+                            isSelected={selectedTaskIds.has(task.id)}
+                            onToggleSelection={handleTaskSelection}
                           />
                       {/* Subtasks as subtable - always render */}
                       {expandedActive[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
                             <table className="ml-12 table-fixed min-w-full">
+                              <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
+                                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                                    <tr>
+                                      <th></th> {/* Drag handle header cell for alignment */}
+
+                                      {columnOrder.map(colKey => {
+                                        const col = columns.find(c => c.key === colKey);
+                                        if (!col) return null;
+                                        return <DraggableHeader key={col.key} col={col} colKey={col.key} isSubtaskTable={true} />;
+                                      })}
+                                      <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                        <button
+                                          className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
+                                          onClick={handleShowAddColumnMenu}
+                                          title="Add column"
+                                          type="button"
+                                        >
+                                          +
+                                        </button>
+                                      </th>
+                                    </tr>
+                                  </SortableContext>
+                                </DndContext>
+                              </thead>
                               <tbody>
                                 <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
                                   <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
@@ -1751,11 +1870,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                                 <table className="w-full table-fixed">
                                                   <tbody>
                                                     {sub.childSubtasks.map((childSub, childIdx) => (
-                                                      <tr key={childSub.id} className="hover:bg-gray-50/50">
-                                                        <td className="w-8">
-                                                          <Bars3Icon className="w-4 h-4 text-gray-300" />
-                                                        </td>
-
+                                                      <tr key={childSub.id} className="childtask-row bg-white hover:bg-gray-200 transition-all duration-200">
                                                         {columnOrder.map(colKey => {
                                                           const col = columns.find(c => c.key === colKey);
                                                           if (!col) return null;
@@ -1787,7 +1902,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                         <tr>
                                           <td colSpan={columnOrder.length + 1} className="px-4 py-1">
                                             {showChildSubtaskForm === sub.id ? (
-                                              <div className="ml-16 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                              <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                                                 <form
                                                   className="flex flex-wrap gap-2 items-center"
                                                   onSubmit={e => {
@@ -1802,14 +1917,17 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                                       <div key={col.key} className="flex-1 min-w-0">
                                                         <label className="block text-xs font-medium text-gray-600 mb-1">{col.key === 'task' ? 'TASK NAME' : col.label}:</label>
                                                         {col.key === "task" || col.key === "project name" ? (
-                                                          <input
-                                                            className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                            value={newChildSubtask.name}
-                                                            onChange={e => setNewChildSubtask({ ...newChildSubtask, name: e.target.value })}
-                                                            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
-                                                            placeholder="Task Name"
-                                                            autoFocus
-                                                          />
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-gray-400 text-xs">└─</span>
+                                                            <input
+                                                              className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 flex-1"
+                                                              value={newChildSubtask.name}
+                                                              onChange={e => setNewChildSubtask({ ...newChildSubtask, name: e.target.value })}
+                                                              onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                              placeholder="Task Name"
+                                                              autoFocus
+                                                            />
+                                                          </div>
                                                         ) : col.key === "category" ? (
                                                           <select
                                                             className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
@@ -1939,6 +2057,29 @@ Assignee Notes: ${taskData.assigneeNotes}`;
         showNewTask={showNewTask} 
         setShowNewTask={setShowNewTask} 
         handleCreateTask={handleCreateTask} 
+      />
+
+      {/* Bulk Action Components */}
+      <BulkActionBar
+        selectedTasks={filteredTasks.filter(task => selectedTaskIds.has(task.id))}
+        onEdit={handleBulkEdit}
+        onDelete={handleBulkDelete}
+        onCopy={handleBulkCopy}
+        onView={handleBulkView}
+        onClearSelection={handleClearSelection}
+      />
+
+      <BulkEditDrawer
+        isOpen={showBulkEditDrawer}
+        selectedTasks={filteredTasks.filter(task => selectedTaskIds.has(task.id))}
+        onClose={() => setShowBulkEditDrawer(false)}
+        onSave={handleBulkSave}
+      />
+
+      <BulkViewDrawer
+        isOpen={showBulkViewDrawer}
+        selectedTasks={filteredTasks.filter(task => selectedTaskIds.has(task.id))}
+        onClose={() => setShowBulkViewDrawer(false)}
       />
 
     </div>

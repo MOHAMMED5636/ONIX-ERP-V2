@@ -346,17 +346,6 @@ const CellRenderer = {
   // Render subtask cells
   renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true, onKeyDown = null, onEditSubtask = null, onDeleteSubtask = null, onCopySubtask = null) => {
     switch (col.key) {
-      case "checkbox":
-        return (
-          <CheckboxWithPopup
-            task={sub}
-            onEdit={onEditSubtask}
-            onDelete={onDeleteSubtask}
-            onCopy={onCopySubtask}
-            isSubtask={true}
-            parentTaskId={task.id}
-          />
-        );
       case "task":
       case "project name":
         return (
