@@ -2,7 +2,11 @@ import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import {
   PlusIcon,
   MapPinIcon,
-  Bars3Icon
+  Bars3Icon,
+  MagnifyingGlassIcon,
+  EyeIcon,
+  FunnelIcon,
+  XMarkIcon
 } from "@heroicons/react/24/outline";
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -19,6 +23,7 @@ import SortableSubtaskRow from "./MainTable/SortableSubtaskRow";
 import GoogleMapPickerDemo from "./MainTable/GoogleMapPickerDemo";
 import CellRenderer from "./MainTable/CellRenderer";
 import Modals from "./MainTable/Modals";
+import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
 
 // Import utilities
 import {
@@ -40,6 +45,23 @@ import {
   formatLocationString,
   statusColors
 } from "./utils/tableUtils";
+
+// Custom hook for debounced search
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 const initialTasks = [
   {
@@ -90,7 +112,6 @@ const initialTasks = [
         rating: 2,
         progress: 20,
         color: "#f59e42",
-        pinned: false, // Add pinned property to subtasks
         childSubtasks: [
           {
             id: 111,
@@ -114,8 +135,7 @@ const initialTasks = [
             checklist: false,
             rating: 1,
             progress: 10,
-            color: "#f59e42",
-            pinned: false // Add pinned property to child subtasks
+            color: "#f59e42"
           },
           {
             id: 112,
@@ -139,8 +159,7 @@ const initialTasks = [
             checklist: false,
             rating: 3,
             progress: 30,
-            color: "#10d081",
-            pinned: false // Add pinned property to child subtasks
+            color: "#10d081"
           }
         ]
       },
@@ -164,7 +183,6 @@ const initialTasks = [
         rating: 4,
         progress: 70,
         color: "#10d081",
-        pinned: false, // Add pinned property to subtasks
         childSubtasks: []
       },
       {
@@ -187,7 +205,6 @@ const initialTasks = [
         rating: 2,
         progress: 40,
         color: "#f20d11",
-        pinned: false, // Add pinned property to subtasks
         childSubtasks: []
       },
       {
@@ -209,8 +226,7 @@ const initialTasks = [
         checklist: false,
         rating: 1,
         progress: 10,
-        color: "#f20d11",
-        pinned: false // Add pinned property to subtasks
+        color: "#f20d11"
       }
     ]
   },
@@ -308,8 +324,69 @@ export default function MainTable() {
   };
   const closeProjectSummary = () => setSelectedProjectForSummary(null);
 
+  // Enhanced filter handlers
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      global: '',
+      name: '',
+      status: '',
+      assignee: '',
+      plan: '',
+      category: '',
+      dateFrom: '',
+      dateTo: '',
+    });
+  };
+
   const [tasks, setTasks] = useState(initialTasks);
   const [search, setSearch] = useState("");
+  // Enhanced filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    global: '',
+    name: '',
+    status: '',
+    assignee: '',
+    plan: '',
+    category: '',
+    dateFrom: '',
+    dateTo: '',
+  });
+
+  // Debounced search for better performance
+  const debouncedSearch = useDebounce(search, 300);
+  const debouncedFilters = useDebounce(filters, 300);
+  
+  // Loading state for search
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Show loading when search is being processed
+  useEffect(() => {
+    setIsSearching(true);
+    const timer = setTimeout(() => setIsSearching(false), 100);
+    return () => clearTimeout(timer);
+  }, [debouncedSearch, debouncedFilters]);
+
+  // Keyboard shortcut to focus search (Ctrl/Cmd + K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Search"]');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
   const [showNewTask, setShowNewTask] = useState(false);
   // Add state for subtask form
   const [showSubtaskForm, setShowSubtaskForm] = useState(null); // taskId or null
@@ -428,6 +505,105 @@ export default function MainTable() {
     setNewTask(null);
     setShowNewTask(false);
   }
+
+  // Keyboard handlers for input fields
+  const handleNewTaskKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleCreateTask();
+    } else if (e.key === "Escape") {
+      setNewTask(null);
+      setShowNewTask(false);
+    }
+  };
+
+  const handleSubtaskKeyDown = (e, taskId) => {
+    if (e.key === "Enter") {
+      handleAddSubtask(taskId);
+    } else if (e.key === "Escape") {
+      setShowSubtaskForm(null);
+      setNewSubtask({
+        name: "",
+        referenceNumber: "",
+        category: "Design",
+        status: "not started",
+        owner: "",
+        timeline: [null, null],
+        planDays: 0,
+        remarks: "",
+        assigneeNotes: "",
+        attachments: [],
+        priority: "Low",
+        location: ""
+      });
+    }
+  };
+
+  const handleChildSubtaskKeyDown = (e, taskId, parentSubtaskId) => {
+    if (e.key === "Enter") {
+      handleAddChildSubtask(taskId, parentSubtaskId);
+    } else if (e.key === "Escape") {
+      setShowChildSubtaskForm(null);
+      setNewChildSubtask({
+        name: "",
+        referenceNumber: "",
+        category: "Design",
+        status: "not started",
+        owner: "",
+        timeline: [null, null],
+        planDays: 0,
+        remarks: "",
+        assigneeNotes: "",
+        attachments: [],
+        priority: "Low",
+        location: ""
+      });
+    }
+  };
+
+  // Checkbox column handlers
+  const handleEditTask = (task) => {
+    // Open edit modal or inline edit for the task
+    setSelectedProjectForSummary(task);
+    setShowProjectDialog(true);
+  };
+
+  const handleDeleteTask = (taskId, parentTaskId = null) => {
+    if (parentTaskId) {
+      // Delete subtask
+      setTasks(tasks => tasks.map(task => 
+        task.id === parentTaskId 
+          ? { ...task, subtasks: task.subtasks.filter(sub => sub.id !== taskId) }
+          : task
+      ));
+    } else {
+      // Delete main task
+      setTasks(tasks => tasks.filter(task => task.id !== taskId));
+    }
+  };
+
+  const handleCopyTask = (taskData) => {
+    const content = `Task: ${taskData.name}
+Reference: ${taskData.referenceNumber}
+Status: ${taskData.status}
+Owner: ${taskData.owner}
+Priority: ${taskData.priority}
+Category: ${taskData.category}
+Location: ${taskData.location}
+Remarks: ${taskData.remarks}
+Assignee Notes: ${taskData.assigneeNotes}`;
+    
+    navigator.clipboard.writeText(content).then(() => {
+      // Show a brief success message
+      const originalText = document.title;
+      document.title = 'Copied to clipboard!';
+      setTimeout(() => {
+        document.title = originalText;
+      }, 1000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      alert('Failed to copy to clipboard');
+    });
+  };
 
   function handleAddSubtask(taskId) {
     const newSubtaskData = {
@@ -641,34 +817,7 @@ export default function MainTable() {
     ));
   }
 
-  // Handle pin/unpin for subtasks
-  function handleToggleSubtaskPin(taskId, subtaskId) {
-    setTasks(tasks => tasks.map(task => 
-      task.id === taskId ? {
-        ...task,
-        subtasks: task.subtasks.map(subtask => 
-          subtask.id === subtaskId ? { ...subtask, pinned: !subtask.pinned } : subtask
-        )
-      } : task
-    ));
-  }
 
-  // Handle pin/unpin for child subtasks
-  function handleToggleChildSubtaskPin(taskId, subtaskId, childSubtaskId) {
-    setTasks(tasks => tasks.map(task => 
-      task.id === taskId ? {
-        ...task,
-        subtasks: task.subtasks.map(subtask => 
-          subtask.id === subtaskId ? {
-            ...subtask,
-            childSubtasks: subtask.childSubtasks.map(childSubtask => 
-              childSubtask.id === childSubtaskId ? { ...childSubtask, pinned: !childSubtask.pinned } : childSubtask
-            )
-          } : subtask
-        )
-      } : task
-    ));
-  }
 
   // Recalculate timelines whenever tasks or projectStartDate change
   useEffect(() => {
@@ -676,7 +825,7 @@ export default function MainTable() {
   }, [projectStartDate]);
 
   // Filter and sort tasks - pinned tasks first, then by existing sorting
-  const filteredTasks = filterTasks(tasks, search).sort((a, b) => {
+  const filteredTasks = filterTasks(tasks, debouncedSearch, debouncedFilters).sort((a, b) => {
     // First sort by pinned status (pinned tasks first)
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -707,6 +856,22 @@ export default function MainTable() {
       saveColumnOrderToStorage(newOrder);
     }
   }, [columns]);
+
+  // Ensure checkbox column is always first
+  useEffect(() => {
+    console.log('Current columnOrder:', columnOrder);
+    if (!columnOrder.includes('checkbox')) {
+      console.log('Adding checkbox column to columnOrder');
+      const newOrder = ['checkbox', ...columnOrder];
+      setColumnOrder(newOrder);
+      saveColumnOrderToStorage(newOrder);
+    } else if (columnOrder[0] !== 'checkbox') {
+      console.log('Moving checkbox column to first position');
+      const newOrder = ['checkbox', ...columnOrder.filter(col => col !== 'checkbox')];
+      setColumnOrder(newOrder);
+      saveColumnOrderToStorage(newOrder);
+    }
+  }, [columnOrder]);
 
   const completedTasks = filterCompletedTasks(tasks);
 
@@ -778,6 +943,7 @@ export default function MainTable() {
   // Function to reset column order to include all columns
   function resetColumnOrder() {
     const allColumns = getDefaultColumnOrder(columns);
+    console.log('Resetting column order. All columns:', allColumns);
     setColumnOrder(allColumns);
     saveColumnOrderToStorage(allColumns);
   }
@@ -826,8 +992,7 @@ export default function MainTable() {
     assigneeNotes: "",
     attachments: [],
     priority: "Low",
-    location: "",
-    pinned: false // Add pinned property
+    location: ""
   });
 
   function handleAddChildSubtask(taskId, parentSubtaskId) {
@@ -872,8 +1037,7 @@ export default function MainTable() {
       assigneeNotes: "",
       attachments: [],
       priority: "Low",
-      location: "",
-      pinned: false // Add pinned property
+      location: ""
     });
   }
 
@@ -986,6 +1150,17 @@ export default function MainTable() {
   // Custom cell renderer for child subtasks
   const renderChildSubtaskCell = (col, childSub, task, parentSubtaskId, childIdx) => {
     switch (col.key) {
+      case "checkbox":
+        return (
+          <CheckboxWithPopup
+            task={childSub}
+            onEdit={handleEditTask}
+            onDelete={handleDeleteTask}
+            onCopy={handleCopyTask}
+            isSubtask={true}
+            parentTaskId={parentSubtaskId}
+          />
+        );
       case "task":
       case "project name":
   return (
@@ -993,7 +1168,8 @@ export default function MainTable() {
             className="border rounded px-1 py-1 text-xs font-bold text-gray-900 w-full"
             value={childSub.name}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "name", e.target.value)}
-            placeholder="Child task name"
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            placeholder="Task Name"
           />
         );
       case "category":
@@ -1214,8 +1390,6 @@ export default function MainTable() {
           <Filters
             search={search}
             setSearch={setSearch}
-            projectStartDate={projectStartDate}
-            handleProjectStartDateChange={handleProjectStartDateChange}
             handleAddNewTask={handleAddNewTask}
             resetColumnOrder={resetColumnOrder}
             showAddColumnMenu={showAddColumnMenu}
@@ -1229,8 +1403,8 @@ export default function MainTable() {
           />
           {/* Enhanced Table Container - Scrollable */}
           <div className="flex-1 flex flex-col mt-4 min-h-0">
-            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-auto">
-              <table className="w-full table-auto bg-white min-w-full">
+            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-visible">
+              <table className="w-full table-auto bg-white min-w-full" style={{ overflow: 'visible' }}>
                 {/* Enhanced Table header */}
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -1263,9 +1437,33 @@ export default function MainTable() {
                     </thead>
                   </SortableContext>
                 </DndContext>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100" style={{ overflow: 'visible' }}>
+                  {/* No Results Message */}
+                  {filteredTasks.length === 0 && !newTask && (
+                    <tr>
+                      <td colSpan={columnOrder.length + 2} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                            <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No tasks found</h3>
+                            <p className="text-gray-600">
+                              Try adjusting your search terms or filters to find what you're looking for.
+                            </p>
+                          </div>
+                          <button
+                            onClick={clearAllFilters}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Clear All Filters
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {newTask && (
-                    <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200">
+                    <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200" style={{ overflow: 'visible' }}>
                       {/* Pin Column for New Task */}
                       <td className="px-4 py-3 align-middle text-center">
                         <button
@@ -1285,17 +1483,28 @@ export default function MainTable() {
                         if (!col) return null;
                         return (
                           <td key={col.key} className="px-4 py-3 align-middle">
-                            {col.key === "task" ? (
+                            {col.key === "checkbox" ? (
+                              <CheckboxWithPopup
+                                task={newTask}
+                                onEdit={handleEditTask}
+                                onDelete={handleDeleteTask}
+                                onCopy={handleCopyTask}
+                                isSubtask={false}
+                              />
+                            ) : col.key === "task" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.name}
                                 onChange={e => setNewTask({ ...newTask, name: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
+                                autoFocus
                               />
                             ) : col.key === "referenceNumber" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                                 value={newTask.referenceNumber || ""}
                                 onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "category" ? (
                               <select
@@ -1343,18 +1552,21 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.planDays || ""}
                                 onChange={e => setNewTask({ ...newTask, planDays: parseInt(e.target.value) || 0 })}
+                                onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "remarks" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.remarks}
                                 onChange={e => setNewTask({ ...newTask, remarks: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "assigneeNotes" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.assigneeNotes}
                                 onChange={e => setNewTask({ ...newTask, assigneeNotes: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "attachments" ? (
                               <div>
@@ -1389,6 +1601,7 @@ export default function MainTable() {
                                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 flex-1"
                                   value={newTask.location}
                                   onChange={e => setNewTask({ ...newTask, location: e.target.value })}
+                                  onKeyDown={handleNewTaskKeyDown}
                                   placeholder="Enter location or pick on map"
                                 />
                                 <button type="button" onClick={() => handleOpenMapPicker('main', newTask.id, null, newTask.location)} title="Pick on map" className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200">
@@ -1400,6 +1613,7 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                                 value={newTask.plotNumber || ""}
                                 onChange={e => setNewTask(nt => ({ ...nt, plotNumber: e.target.value }))}
+                                onKeyDown={handleNewTaskKeyDown}
                                 placeholder="Enter plot number"
                               />
                             ) : col.key === "community" ? (
@@ -1407,6 +1621,7 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                                 value={newTask.community || ""}
                                 onChange={e => setNewTask(nt => ({ ...nt, community: e.target.value }))}
+                                onKeyDown={handleNewTaskKeyDown}
                                 placeholder="Enter community"
                               />
                             ) : col.key === "projectType" ? (
@@ -1426,6 +1641,7 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                                 value={newTask.projectFloor || ""}
                                 onChange={e => setNewTask(nt => ({ ...nt, projectFloor: e.target.value }))}
+                                onKeyDown={handleNewTaskKeyDown}
                                 placeholder="Enter project floor"
                               />
                             ) : col.key === "developerProject" ? (
@@ -1433,6 +1649,7 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                                 value={newTask.developerProject || ""}
                                 onChange={e => setNewTask(nt => ({ ...nt, developerProject: e.target.value }))}
+                                onKeyDown={handleNewTaskKeyDown}
                                 placeholder="Enter developer project"
                               />
                             ) : col.key === "notes" ? (
@@ -1440,6 +1657,7 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.notes}
                                 onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "autoNumber" ? (
                               <span className="text-gray-600 font-medium">{newTask.autoNumber}</span>
@@ -1448,6 +1666,7 @@ export default function MainTable() {
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                     value={newTask.predecessors || ""}
                                     onChange={e => setNewTask(nt => ({ ...nt, predecessors: e.target.value }))}
+                                    onKeyDown={handleNewTaskKeyDown}
                                     placeholder="Enter predecessors"
                                   />
                             ) : null}
@@ -1495,6 +1714,9 @@ export default function MainTable() {
                             onShowAddColumnMenu={handleShowAddColumnMenu}
                             onTogglePin={handleTogglePin}
                             onAddSubtask={handleAddSubtask}
+                            onEditTask={handleEditTask}
+                            onDeleteTask={handleDeleteTask}
+                            onCopyTask={handleCopyTask}
                             CellRenderer={CellRenderer}
                             isAdmin={isAdmin}
                           />
@@ -1503,62 +1725,19 @@ export default function MainTable() {
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
                             <table className="ml-12 table-fixed min-w-full">
-                              <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
-                                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                                    <tr>
-                                      <th></th> {/* Drag handle header cell for alignment */}
-                                      {/* Pin Column Header for Subtasks */}
-                                      <th className="px-3 py-3 text-center w-12">
-                                        <div className="flex items-center justify-center">
-                                          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pin</span>
-                                        </div>
-                                      </th>
-                                      {columnOrder.map(colKey => {
-                                        const col = columns.find(c => c.key === colKey);
-                                        if (!col) return null;
-                                        return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-                                      })}
-                                      <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
-                                        <button
-                                          className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                                          onClick={handleShowAddColumnMenu}
-                                          title="Add column"
-                                          type="button"
-                                        >
-                                          +
-                                        </button>
-                                      </th>
-                                    </tr>
-                                  </SortableContext>
-                                </DndContext>
-                              </thead>
                               <tbody>
                                 <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
                                   <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
                                     {task.subtasks.map((sub, subIdx) => (
                                       <React.Fragment key={sub.id}>
                                       <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
-                                        {/* Pin Column for Subtask */}
-                                        <td className="px-3 py-2 align-middle text-center">
-                                          <button
-                                            onClick={() => handleToggleSubtaskPin(task.id, sub.id)}
-                                            className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${
-                                              sub.pinned 
-                                                ? 'bg-red-500 text-white hover:bg-red-600' 
-                                                : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-                                            }`}
-                                            title={sub.pinned ? "Unpin subtask" : "Pin subtask"}
-                                          >
-                                            📌
-                                          </button>
-                                        </td>
+
                                         {columnOrder.map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
                                             <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
-                                              {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin)}
+                                              {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
                                             </td>
                                           );
                                         })}
@@ -1570,45 +1749,13 @@ export default function MainTable() {
                                             <td colSpan={columnOrder.length + 1} className="p-0 bg-gradient-to-r from-gray-25 to-blue-25">
                                               <div className="ml-16">
                                                 <table className="w-full table-fixed">
-                                                  <thead className="bg-gradient-to-r from-gray-75 to-gray-100 border-b border-gray-200">
-                                                    <tr>
-                                                      <th className="w-8"></th> {/* Drag handle */}
-                                                      {/* Pin Column Header for Child Subtasks */}
-                                                      <th className="w-8 text-center">
-                                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pin</span>
-                                                      </th>
-                                                      {columnOrder.map(colKey => {
-                                                        const col = columns.find(c => c.key === colKey);
-                                                        if (!col) return null;
-                                                        return (
-                                                          <th key={col.key} className="px-2 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                                            {col.label}
-                                                          </th>
-                                                        );
-                                                      })}
-                                                      <th className="w-12"></th> {/* Actions */}
-                                                    </tr>
-                                                  </thead>
                                                   <tbody>
                                                     {sub.childSubtasks.map((childSub, childIdx) => (
                                                       <tr key={childSub.id} className="hover:bg-gray-50/50">
                                                         <td className="w-8">
                                                           <Bars3Icon className="w-4 h-4 text-gray-300" />
                                                         </td>
-                                                        {/* Pin Column for Child Subtask */}
-                                                        <td className="w-8 text-center">
-                                                          <button
-                                                            onClick={() => handleToggleChildSubtaskPin(task.id, sub.id, childSub.id)}
-                                                            className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 ${
-                                                              childSub.pinned 
-                                                                ? 'bg-red-500 text-white hover:bg-red-600' 
-                                                                : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-                                                            }`}
-                                                            title={childSub.pinned ? "Unpin child subtask" : "Pin child subtask"}
-                                                          >
-                                                            📌
-                                                          </button>
-                                                        </td>
+
                                                         {columnOrder.map(colKey => {
                                                           const col = columns.find(c => c.key === colKey);
                                                           if (!col) return null;
@@ -1653,13 +1800,15 @@ export default function MainTable() {
                                                     if (!col) return null;
                                                     return (
                                                       <div key={col.key} className="flex-1 min-w-0">
-                                                        <label className="block text-xs font-medium text-gray-600 mb-1">{col.label}:</label>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">{col.key === 'task' ? 'TASK NAME' : col.label}:</label>
                                                         {col.key === "task" || col.key === "project name" ? (
                                                           <input
                                                             className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                                             value={newChildSubtask.name}
                                                             onChange={e => setNewChildSubtask({ ...newChildSubtask, name: e.target.value })}
-                                                            placeholder="Child task name"
+                                                            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                            placeholder="Task Name"
+                                                            autoFocus
                                                           />
                                                         ) : col.key === "category" ? (
                                                           <select
@@ -1731,7 +1880,7 @@ export default function MainTable() {
                                                 className="ml-16 text-blue-600 hover:text-blue-800 hover:underline text-xs font-semibold transition-all duration-200 flex items-center gap-1"
                                               >
                                                 <PlusIcon className="w-3 h-3" />
-                                                Add Child Subtask
+                                                Add Child Task
                                               </button>
                                             )}
                                           </td>

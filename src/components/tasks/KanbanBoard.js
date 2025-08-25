@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
 
 const columns = [
   { key: "pending", label: "Pending", border: "border-orange-400" },
@@ -88,7 +89,8 @@ function groupTasksByStatus(tasks) {
 
 export default function KanbanBoard() {
   const [tasks, setTasks] = useState(initialTasks);
-  // Expanded filter state
+  // Filter state with toggle
+  const [showFilters, setShowFilters] = useState(false);
   const [filter, setFilter] = useState({
     global: '',
     name: '',
@@ -108,6 +110,20 @@ export default function KanbanBoard() {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilter((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilter({
+      global: '',
+      name: '',
+      status: '',
+      assignee: '',
+      plan: '',
+      category: '',
+      dateFrom: '',
+      dateTo: '',
+    });
   };
 
   // Filter tasks before grouping
@@ -184,10 +200,68 @@ export default function KanbanBoard() {
   };
   const closeSummary = () => setSummaryTask(null);
 
+  // Checkbox column handlers for Kanban
+  const handleEditTask = (task) => {
+    // For Kanban, we can show a simple edit modal or inline edit
+    setSummaryTask(task);
+  };
+
+  const handleDeleteTask = (taskId) => {
+    if (window.confirm(`Are you sure you want to delete this task?`)) {
+      setTasks(tasks => tasks.filter(task => task.id !== taskId));
+    }
+  };
+
+  const handleCopyTask = (taskData) => {
+    const content = `Task: ${taskData.title}
+Assignee: ${taskData.assignee.name}
+Plan: ${taskData.plan}
+Start: ${taskData.start}
+Due: ${taskData.due}
+Status: ${taskData.status}
+Progress: ${taskData.percent}%`;
+    
+    navigator.clipboard.writeText(content).then(() => {
+      // Show a brief success message
+      const originalText = document.title;
+      document.title = 'Copied to clipboard!';
+      setTimeout(() => {
+        document.title = originalText;
+      }, 1000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      alert('Failed to copy to clipboard');
+    });
+  };
+
   return (
     <div className="w-full">
-      {/* Enhanced Filter UI */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-6">
+      {/* Enhanced Top Bar with Filter Toggle */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm rounded-b-lg mb-4">
+        {/* Left side - Title and basic controls */}
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-gray-800">Kanban Board</h2>
+        </div>
+        
+        {/* Right side - Filter Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 ${
+              showFilters ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+            </svg>
+            Filters
+          </button>
+        </div>
+      </div>
+
+      {/* Enhanced Filter Panel - Toggle Based */}
+      {showFilters && (
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-4 mx-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,16 +271,7 @@ export default function KanbanBoard() {
           <h3 className="text-lg font-semibold text-gray-800">Filter Tasks</h3>
           <div className="flex-1"></div>
           <button
-            onClick={() => setFilter({
-              global: '',
-              name: '',
-              status: '',
-              assignee: '',
-              plan: '',
-              category: '',
-              dateFrom: '',
-              dateTo: '',
-            })}
+            onClick={clearAllFilters}
             className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all duration-200 text-sm font-medium"
           >
             Clear All
@@ -339,52 +404,35 @@ export default function KanbanBoard() {
           </div>
         </div>
 
-        {/* Active Filters Display */}
-        {Object.values(filter).some(value => value !== '') && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+          {/* Active Filters Display */}
+          {Object.values(filter).some(value => value !== '') && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(filter).map(([key, value]) => {
+                  if (!value) return null;
+                  return (
+                    <span
+                      key={key}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                    >
+                      {key}: {value}
+                      <button
+                        onClick={() => setFilter(prev => ({ ...prev, [key]: '' }))}
+                        className="ml-1 hover:text-blue-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {filter.global && (
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                  Search: "{filter.global}"
-                </span>
-              )}
-              {filter.name && (
-                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                  Name: "{filter.name}"
-                </span>
-              )}
-              {filter.status && (
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-                  Status: {columns.find(col => col.key === filter.status)?.label}
-                </span>
-              )}
-              {filter.assignee && (
-                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
-                  Assignee: {filter.assignee}
-                </span>
-              )}
-              {filter.plan && (
-                <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
-                  Plan: {filter.plan}
-                </span>
-              )}
-              {filter.category && (
-                <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                  Category: {filter.category}
-                </span>
-              )}
-              {(filter.dateFrom || filter.dateTo) && (
-                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
-                  Date: {filter.dateFrom || 'Any'} - {filter.dateTo || 'Any'}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+          )}
       </div>
+      )}
       {/* Kanban Columns */}
       <div className="flex w-full overflow-x-auto gap-4 p-4 min-h-[70vh]">
         <DragDropContext onDragEnd={onDragEnd}>
@@ -412,6 +460,16 @@ export default function KanbanBoard() {
                             className={`bg-white rounded-lg shadow hover:shadow-lg border-l-4 ${col.border} p-3 flex flex-col gap-2 transition-all duration-150 ${snapshot.isDragging ? 'ring-2 ring-blue-300' : ''}`}
                             style={{ minHeight: '110px', ...provided.draggableProps.style }}
                           >
+                            {/* Checkbox for Kanban card */}
+                            <div className="flex justify-end mb-1">
+                              <CheckboxWithPopup
+                                task={task}
+                                onEdit={handleEditTask}
+                                onDelete={handleDeleteTask}
+                                onCopy={handleCopyTask}
+                                isSubtask={false}
+                              />
+                            </div>
                             <div
                               className="font-semibold text-gray-800 text-sm line-clamp-2 truncate cursor-pointer"
                               onClick={() => handleTaskNameClick(task)}

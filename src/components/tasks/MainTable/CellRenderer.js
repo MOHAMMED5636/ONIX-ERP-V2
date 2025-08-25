@@ -10,11 +10,22 @@ import {
 import { format } from 'date-fns';
 import TimelineCell from './TimelineCell';
 import { statusColors } from '../utils/tableUtils';
+import CheckboxWithPopup from './CheckboxWithPopup';
 
 const CellRenderer = {
   // Render main task cells
-  renderMainCell: (col, row, onEdit, isAdmin = true) => {
+  renderMainCell: (col, row, onEdit, isAdmin = true, onEditTask = null, onDeleteTask = null, onCopyTask = null) => {
     switch (col.key) {
+      case "checkbox":
+        return (
+          <CheckboxWithPopup
+            task={row}
+            onEdit={onEditTask}
+            onDelete={onDeleteTask}
+            onCopy={onCopyTask}
+            isSubtask={false}
+          />
+        );
       case "task":
         return (
           <input
@@ -333,8 +344,19 @@ const CellRenderer = {
   },
 
   // Render subtask cells
-  renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true) => {
+  renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true, onKeyDown = null, onEditSubtask = null, onDeleteSubtask = null, onCopySubtask = null) => {
     switch (col.key) {
+      case "checkbox":
+        return (
+          <CheckboxWithPopup
+            task={sub}
+            onEdit={onEditSubtask}
+            onDelete={onDeleteSubtask}
+            onCopy={onCopySubtask}
+            isSubtask={true}
+            parentTaskId={task.id}
+          />
+        );
       case "task":
       case "project name":
         return (
@@ -342,7 +364,8 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
             value={sub.name}
             onChange={e => onEdit(task.id, sub.id, "name", e.target.value)}
-            placeholder="Subtask name"
+            onKeyDown={onKeyDown}
+            placeholder="Task Name"
           />
         );
       case "category":

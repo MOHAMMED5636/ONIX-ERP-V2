@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import CheckboxWithPopup from './CheckboxWithPopup';
 
 const ProjectRow = ({
   task,
@@ -18,11 +19,32 @@ const ProjectRow = ({
   onDelete,
   onShowAddColumnMenu,
   onTogglePin,
-  onAddSubtask
+  onAddSubtask,
+  onEditTask,
+  onDeleteTask,
+  onCopyTask
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
     switch (col.key) {
+      case "checkbox":
+        console.log('Rendering checkbox for task:', row.name, 'Handlers:', { onEditTask, onDeleteTask, onCopyTask });
+        try {
+          return (
+            <div className="flex items-center justify-center bg-yellow-100 p-1 rounded">
+              <CheckboxWithPopup
+                task={row}
+                onEdit={onEditTask}
+                onDelete={onDeleteTask}
+                onCopy={onCopyTask}
+                isSubtask={false}
+              />
+            </div>
+          );
+        } catch (error) {
+          console.error('Error rendering checkbox:', error);
+          return <div className="text-red-500 bg-red-100 p-1 rounded">❌</div>;
+        }
       case "task":
         return (
           <input
@@ -355,7 +377,8 @@ const ProjectRow = ({
   };
 
   return (
-    <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
+    <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
+      {console.log('ProjectRow columnOrder:', columnOrder)}
       {/* Pin Column */}
       <td className="px-4 py-4 align-middle text-center">
         <button
@@ -373,11 +396,12 @@ const ProjectRow = ({
       {columnOrder
         .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
         .map((colKey, idx) => {
+          console.log('Rendering column:', colKey, 'at index:', idx);
           const col = columns.find(c => c.key === colKey);
           if (!col) return null;
           return (
-            <td key={col.key} className="px-4 py-4 align-middle">
-              {col.key === 'task' && idx === 0 ? (
+            <td key={col.key} className="px-4 py-4 align-middle" style={{ overflow: 'visible' }}>
+              {col.key === 'task' ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <button
@@ -410,20 +434,20 @@ const ProjectRow = ({
                       </span>
                     )}
                   </div>
-                  {/* Add Subtask Button */}
+                  {/* Add Task Button */}
                   <button
                     onClick={() => onAddSubtask(task.id)}
                     className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 w-fit"
-                    title="Add Subtask"
+                    title="Add Task"
                   >
-                    + Add Subtask
+                    + Add Task
                   </button>
                 </div>
               ) : (
                 renderMainCell(col, task, (field, value) => {
                   if (col.key === 'delete') onDelete(task.id);
                   else onEdit(task, field, value);
-                })
+                }, true, onEditTask, onDeleteTask, onCopyTask)
               )}
             </td>
           );

@@ -211,17 +211,6 @@ const TaskTable = ({
           <td colSpan="12" className="px-4 py-0">
             <div className="bg-gray-50 rounded-lg p-4 ml-8">
               <table className="w-full">
-                <thead>
-                  <tr className="text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="text-left py-2">Drag</th>
-                    <th className="text-left py-2">Subtask</th>
-                    <th className="text-left py-2">Status</th>
-                    <th className="text-left py-2">Owner</th>
-                    <th className="text-left py-2">Priority</th>
-                    <th className="text-left py-2">Progress</th>
-                    <th className="text-left py-2">Actions</th>
-                  </tr>
-                </thead>
                 <tbody>
                   {task.subtasks.map((subtask, subIdx) => (
                     <SortableSubtaskRow key={subtask.id} sub={subtask} subIdx={subIdx} task={task}>

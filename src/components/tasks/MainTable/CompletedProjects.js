@@ -121,29 +121,6 @@ const TableRow = ({
               
               {/* Excel-like subtask table */}
               <table className="w-full table-auto">
-                <thead>
-                  <tr>
-                    {columnOrder.map(colKey => {
-                      const col = columns.find(c => c.key === colKey);
-                      if (!col) return null;
-                      return (
-                        <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>
-                          {col.label}
-                        </th>
-                      );
-                    })}
-                    <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
-                      <button
-                        className="w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-sm flex items-center justify-center shadow"
-                        onClick={onShowAddColumnMenu}
-                        title="Add column"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
                 <tbody>
                   <DndContext onDragEnd={event => onSubtaskDragEnd(event, row.id)}>
                     <SortableContext items={row.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>

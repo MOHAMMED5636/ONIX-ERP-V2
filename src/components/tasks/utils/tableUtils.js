@@ -9,6 +9,7 @@ export const statusColors = {
 };
 
 export const INITIAL_COLUMNS = [
+  { key: 'checkbox', label: 'CHECKBOX' },
   { key: 'task', label: 'TASK' },
   { key: 'referenceNumber', label: 'REFERENCE NUMBER' },
   { key: 'category', label: 'TASK CATEGORY' },
@@ -126,10 +127,58 @@ export function calculateTaskTimelines(tasks, projectStartDate) {
 }
 
 // Filtering utilities
-export function filterTasks(tasks, search) {
-  return tasks.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase())
-  );
+export function filterTasks(tasks, search, filters = {}) {
+  return tasks.filter(t => {
+    // Basic search filter
+    const searchMatch = !search || 
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      (t.referenceNumber && t.referenceNumber.toLowerCase().includes(search.toLowerCase())) ||
+      (t.owner && t.owner.toLowerCase().includes(search.toLowerCase()));
+
+    if (!searchMatch) return false;
+
+    // Advanced filters
+    const globalMatch = !filters.global || 
+      t.name.toLowerCase().includes(filters.global.toLowerCase()) ||
+      (t.referenceNumber && t.referenceNumber.toLowerCase().includes(filters.global.toLowerCase())) ||
+      (t.owner && t.owner.toLowerCase().includes(filters.global.toLowerCase())) ||
+      (t.category && t.category.toLowerCase().includes(filters.global.toLowerCase())) ||
+      (t.location && t.location.toLowerCase().includes(filters.global.toLowerCase()));
+
+    const nameMatch = !filters.name || 
+      t.name.toLowerCase().includes(filters.name.toLowerCase());
+
+    const statusMatch = !filters.status || 
+      t.status.toLowerCase() === filters.status.toLowerCase();
+
+    const assigneeMatch = !filters.assignee || 
+      (t.owner && t.owner.toLowerCase() === filters.assignee.toLowerCase());
+
+    const planMatch = !filters.plan || 
+      (t.referenceNumber && t.referenceNumber.toLowerCase().includes(filters.plan.toLowerCase()));
+
+    const categoryMatch = !filters.category || 
+      (t.category && t.category.toLowerCase() === filters.category.toLowerCase());
+
+    // Date range filtering
+    let dateMatch = true;
+    if (filters.dateFrom || filters.dateTo) {
+      const taskStartDate = t.timeline && t.timeline[0] ? new Date(t.timeline[0]) : null;
+      const taskEndDate = t.timeline && t.timeline[1] ? new Date(t.timeline[1]) : null;
+      
+      if (filters.dateFrom && taskStartDate) {
+        const fromDate = new Date(filters.dateFrom);
+        dateMatch = dateMatch && taskStartDate >= fromDate;
+      }
+      
+      if (filters.dateTo && taskEndDate) {
+        const toDate = new Date(filters.dateTo);
+        dateMatch = dateMatch && taskEndDate <= toDate;
+      }
+    }
+
+    return globalMatch && nameMatch && statusMatch && assigneeMatch && planMatch && categoryMatch && dateMatch;
+  });
 }
 
 export function filterCompletedTasks(tasks) {
@@ -147,6 +196,16 @@ export function loadColumnOrderFromStorage(defaultOrder) {
   
   // Ensure all new columns are included in the order
   const allColumns = [...new Set([...parsed, ...defaultOrder])];
+  
+  // Ensure checkbox column is always first
+  const checkboxIndex = allColumns.indexOf('checkbox');
+  if (checkboxIndex > 0) {
+    allColumns.splice(checkboxIndex, 1);
+    allColumns.unshift('checkbox');
+  } else if (checkboxIndex === -1) {
+    allColumns.unshift('checkbox');
+  }
+  
   return allColumns;
 }
 
@@ -249,9 +308,7 @@ export function createNewSubtask() {
     rating: 3,
     progress: 0,
     color: "#60a5fa",
-    predecessors: "",
-    childSubtasks: [],
-    pinned: false // Add pinned property
+    predecessors: ""
   };
 }
 

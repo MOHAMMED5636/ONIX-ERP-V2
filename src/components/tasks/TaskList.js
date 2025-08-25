@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from "react";
+// Force refresh - ChartBarIcon import fix
+import React, { useState, useEffect, useRef } from "react";
 import { 
-  UserCircleIcon, 
   GlobeAltIcon, 
   MagnifyingGlassIcon, 
   ChatBubbleLeftRightIcon, 
-  Bars3Icon,
-  SparklesIcon,
-  RocketLaunchIcon,
-  ChartBarIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  FunnelIcon,
+  XMarkIcon,
+  ChartBarIcon
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../../LanguageContext";
@@ -31,6 +30,76 @@ export default function TaskList() {
     inProgress: 0,
     pending: 0
   });
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    global: '',
+    name: '',
+    status: '',
+    assignee: '',
+    plan: '',
+    category: '',
+    dateFrom: '',
+    dateTo: '',
+  });
+
+  // Refs for popup handling
+  const popupRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  // Demo data for dropdowns
+  const demoPlans = ["All Plans", "Ref#1234", "Ref#5678", "Ref#9012", "Ref#3456", "Ref#7890"];
+  const demoUsers = ["All Users", "MN", "SA", "AH", "MA"];
+  const demoCategories = ["All Categories", "Design", "Development", "Testing", "Review"];
+  const demoStatuses = ["All Statuses", "pending", "working", "done", "cancelled", "suspended"];
+
+  // Filter handlers
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      global: '',
+      name: '',
+      status: '',
+      assignee: '',
+      plan: '',
+      category: '',
+      dateFrom: '',
+      dateTo: '',
+    });
+    setSearchTerm("");
+  };
+
+  // Close popup when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (popupRef.current && !popupRef.current.contains(event.target) &&
+          searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        setShowFilters(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && showFilters) {
+        setShowFilters(false);
+      }
+    };
+
+    if (showFilters) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showFilters]);
 
   // Simulate loading and fetch stats
   useEffect(() => {
@@ -86,17 +155,203 @@ export default function TaskList() {
             >
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-600" />
             </button>
-            <div className="hidden lg:flex relative w-full max-w-sm">
+            <div className="hidden lg:flex relative w-full max-w-sm" ref={searchInputRef}>
               <div className="relative w-full group">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-xl h-8 w-8 shadow-lg group-hover:scale-110 transition-all duration-300">
                   <MagnifyingGlassIcon className="h-4 w-4" />
                 </span>
                 <input
                   type="text"
-                  placeholder={lang === "ar" ? "بحث في المهام..." : "Search tasks..."}
-                  className="w-full pl-12 pr-4 py-2 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm shadow-lg transition-all duration-300 focus:bg-white hover:bg-white/90 group-hover:shadow-xl"
+                  placeholder={lang === "ar" ? "بحث في المهام..." : "Search tasks... (click for filters)"}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`w-full pl-12 pr-4 py-2 rounded-2xl bg-white/80 backdrop-blur-sm border focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm shadow-lg transition-all duration-300 focus:bg-white hover:bg-white/90 group-hover:shadow-xl cursor-pointer ${
+                    Object.values(filters).some(value => value !== '') || searchTerm 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-white/50'
+                  }`}
                   dir={lang}
+                  readOnly
                 />
+                {Object.values(filters).some(value => value !== '') && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  </div>
+                )}
+                
+                {/* Filter Popup */}
+                {showFilters && (
+                  <div ref={popupRef} className="absolute top-full left-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                          <FunnelIcon className="w-5 h-5 text-blue-600" />
+                          Search & Filters
+                        </h3>
+                        <button
+                          onClick={() => setShowFilters(false)}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <XMarkIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                      
+                      {/* Search Input in Popup */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Search Tasks</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            placeholder="Search by name, reference, assignee, or dates..."
+                            autoFocus
+                          />
+                          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        </div>
+                      </div>
+                      
+                      {/* Filter Options */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Project Name Filter */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Project Name</label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={filters.name}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            placeholder="Filter by name"
+                          />
+                        </div>
+
+                        {/* Status Filter */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                          <select
+                            name="status"
+                            value={filters.status}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                          >
+                            <option value="">All Statuses</option>
+                            {demoStatuses.slice(1).map((status) => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Assignee Filter */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Assignee</label>
+                          <select
+                            name="assignee"
+                            value={filters.assignee}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                          >
+                            <option value="">All Users</option>
+                            {demoUsers.slice(1).map((user) => (
+                              <option key={user} value={user}>{user}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Category Filter */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                          <select
+                            name="category"
+                            value={filters.category}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                          >
+                            <option value="">All Categories</option>
+                            {demoCategories.slice(1).map((cat) => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Date From Filter */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">From Date</label>
+                          <input
+                            type="date"
+                            name="dateFrom"
+                            value={filters.dateFrom}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          />
+                        </div>
+
+                        {/* Date To Filter */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">To Date</label>
+                          <input
+                            type="date"
+                            name="dateTo"
+                            value={filters.dateTo}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Active Filters Display */}
+                      {Object.values(filters).some(value => value !== '') && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+                            <button
+                              onClick={clearAllFilters}
+                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {filters.name && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                Name: "{filters.name}"
+                              </span>
+                            )}
+                            {filters.status && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                Status: {filters.status}
+                              </span>
+                            )}
+                            {filters.assignee && (
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                                Assignee: {filters.assignee}
+                              </span>
+                            )}
+                            {filters.category && (
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                                Category: {filters.category}
+                              </span>
+                            )}
+                            {(filters.dateFrom || filters.dateTo) && (
+                              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                                Date: {filters.dateFrom || 'Any'} - {filters.dateTo || 'Any'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Results Counter */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="text-sm text-gray-600">
+                          <span>Search results will appear below</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             {showSearch && (
@@ -107,12 +362,188 @@ export default function TaskList() {
                   </span>
                   <input
                     type="text"
-                    placeholder={lang === "ar" ? "بحث في المهام..." : "Search tasks..."}
-                    className="w-full pl-14 pr-4 py-3 rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm shadow-lg transition-all duration-300 focus:bg-white"
+                    placeholder={lang === "ar" ? "بحث في المهام..." : "Search tasks... (click for filters)"}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`w-full pl-14 pr-4 py-3 rounded-2xl bg-white/80 backdrop-blur-sm border focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm shadow-lg transition-all duration-300 focus:bg-white cursor-pointer ${
+                      Object.values(filters).some(value => value !== '') || searchTerm 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-white/50'
+                    }`}
                     dir={lang}
-                    autoFocus
+                    readOnly
                   />
+                  {Object.values(filters).some(value => value !== '') && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Mobile Filter Popup */}
+                {showFilters && (
+                  <div className="mt-4 p-4 bg-white rounded-xl shadow-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <FunnelIcon className="w-5 h-5 text-blue-600" />
+                        Search & Filters
+                      </h3>
+                      <button
+                        onClick={() => setShowFilters(false)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <XMarkIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    {/* Search Input in Mobile Popup */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Search Tasks</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          placeholder="Search by name, reference, assignee, or dates..."
+                          autoFocus
+                        />
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                    
+                    {/* Mobile Filter Options */}
+                    <div className="space-y-4">
+                      {/* Project Name Filter */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Project Name</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={filters.name}
+                          onChange={handleFilterChange}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          placeholder="Filter by name"
+                        />
+                      </div>
+
+                      {/* Status Filter */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                        <select
+                          name="status"
+                          value={filters.status}
+                          onChange={handleFilterChange}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                        >
+                          <option value="">All Statuses</option>
+                          {demoStatuses.slice(1).map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Assignee Filter */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Assignee</label>
+                        <select
+                          name="assignee"
+                          value={filters.assignee}
+                          onChange={handleFilterChange}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                        >
+                          <option value="">All Users</option>
+                          {demoUsers.slice(1).map((user) => (
+                            <option key={user} value={user}>{user}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Category Filter */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                        <select
+                          name="category"
+                          value={filters.category}
+                          onChange={handleFilterChange}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                        >
+                          <option value="">All Categories</option>
+                          {demoCategories.slice(1).map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Date Range */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">From Date</label>
+                          <input
+                            type="date"
+                            name="dateFrom"
+                            value={filters.dateFrom}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">To Date</label>
+                          <input
+                            type="date"
+                            name="dateTo"
+                            value={filters.dateTo}
+                            onChange={handleFilterChange}
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Active Filters Display */}
+                    {Object.values(filters).some(value => value !== '') && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+                          <button
+                            onClick={clearAllFilters}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {filters.name && (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                              Name: "{filters.name}"
+                            </span>
+                          )}
+                          {filters.status && (
+                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              Status: {filters.status}
+                            </span>
+                          )}
+                          {filters.assignee && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                              Assignee: {filters.assignee}
+                            </span>
+                          )}
+                          {filters.category && (
+                            <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                              Category: {filters.category}
+                            </span>
+                          )}
+                          {(filters.dateFrom || filters.dateTo) && (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                              Date: {filters.dateFrom || 'Any'} - {filters.dateTo || 'Any'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

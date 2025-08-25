@@ -3,7 +3,7 @@ import { Bars3Icon } from "@heroicons/react/24/outline";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const DraggableHeader = ({ col, colKey }) => {
+const DraggableHeader = ({ col, colKey, isSubtaskTable = false }) => {
   const { setNodeRef, attributes, listeners, isDragging, transform, transition } = useSortable({ id: colKey });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -20,7 +20,9 @@ const DraggableHeader = ({ col, colKey }) => {
     >
       <span className="flex items-center gap-1 cursor-grab">
         <Bars3Icon className="w-4 h-4 text-gray-400" />
-        {col.key === 'task' ? 'PROJECT NAME' : col.label}
+        {col.key === 'checkbox' ? (
+          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">CHECKBOX</span>
+        ) : col.key === 'task' ? (isSubtaskTable ? 'TASK NAME' : 'PROJECT NAME') : col.label}
       </span>
     </th>
   );
