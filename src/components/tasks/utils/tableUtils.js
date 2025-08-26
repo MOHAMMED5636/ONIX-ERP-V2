@@ -9,7 +9,6 @@ export const statusColors = {
 };
 
 export const INITIAL_COLUMNS = [
-  { key: 'checkbox', label: 'CHECKBOX' },
   { key: 'task', label: 'TASK' },
   { key: 'referenceNumber', label: 'REFERENCE NUMBER' },
   { key: 'category', label: 'TASK CATEGORY' },
@@ -196,15 +195,6 @@ export function loadColumnOrderFromStorage(defaultOrder) {
   
   // Ensure all new columns are included in the order
   const allColumns = [...new Set([...parsed, ...defaultOrder])];
-  
-  // Ensure checkbox column is always first
-  const checkboxIndex = allColumns.indexOf('checkbox');
-  if (checkboxIndex > 0) {
-    allColumns.splice(checkboxIndex, 1);
-    allColumns.unshift('checkbox');
-  } else if (checkboxIndex === -1) {
-    allColumns.unshift('checkbox');
-  }
   
   return allColumns;
 }

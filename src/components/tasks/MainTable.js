@@ -622,7 +622,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
     });
   };
 
-  const handleSelectAll = (isChecked) => {
+  const handleSelectAll = (taskId, isChecked) => {
     if (isChecked) {
       setSelectedTaskIds(new Set(filteredTasks.map(task => task.id)));
     } else {
@@ -1533,7 +1533,7 @@ Assignee Notes: ${task.assigneeNotes}
                   {/* No Results Message */}
                   {filteredTasks.length === 0 && !newTask && (
                     <tr>
-                      <td colSpan={columnOrder.length + 2} className="px-6 py-12 text-center">
+                      <td colSpan={columnOrder.length + 3} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                             <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
@@ -1556,6 +1556,14 @@ Assignee Notes: ${task.assigneeNotes}
                   )}
                   {newTask && (
                     <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200" style={{ overflow: 'visible' }}>
+                      {/* Multi-select Checkbox Column for New Task */}
+                      <td className="px-4 py-3 align-middle text-center">
+                        <MultiSelectCheckbox
+                          task={newTask}
+                          isChecked={false}
+                          onToggle={() => {}} // No-op for new task
+                        />
+                      </td>
                       {/* Pin Column for New Task */}
                       <td className="px-4 py-3 align-middle text-center">
                         <button
@@ -1575,15 +1583,7 @@ Assignee Notes: ${task.assigneeNotes}
                         if (!col) return null;
                         return (
                           <td key={col.key} className="px-4 py-3 align-middle">
-                            {col.key === "checkbox" ? (
-                              <CheckboxWithPopup
-                                task={newTask}
-                                onEdit={handleEditTask}
-                                onDelete={handleDeleteTask}
-                                onCopy={handleCopyTask}
-                                isSubtask={false}
-                              />
-                            ) : col.key === "task" ? (
+                            {col.key === "task" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.name}
@@ -1817,7 +1817,7 @@ Assignee Notes: ${task.assigneeNotes}
                       {/* Subtasks as subtable - always render */}
                       {expandedActive[task.id] && (
                         <tr>
-                          <td colSpan={columnOrder.length} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
+                          <td colSpan={columnOrder.length + 3} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
                             <table className="ml-12 table-fixed min-w-full">
                               <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
                                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -1865,7 +1865,7 @@ Assignee Notes: ${task.assigneeNotes}
                                         {/* Child Subtasks Section */}
                                         {sub.childSubtasks && sub.childSubtasks.length > 0 && (
                                           <tr>
-                                            <td colSpan={columnOrder.length + 1} className="p-0 bg-gradient-to-r from-gray-25 to-blue-25">
+                                            <td colSpan={columnOrder.length + 2} className="p-0 bg-gradient-to-r from-gray-25 to-blue-25">
                                               <div className="ml-16">
                                                 <table className="w-full table-fixed">
                                                   <tbody>
@@ -1900,7 +1900,7 @@ Assignee Notes: ${task.assigneeNotes}
                                         
                                         {/* Add Child Subtask Button */}
                                         <tr>
-                                          <td colSpan={columnOrder.length + 1} className="px-4 py-1">
+                                          <td colSpan={columnOrder.length + 2} className="px-4 py-1">
                                             {showChildSubtaskForm === sub.id ? (
                                               <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                                                 <form

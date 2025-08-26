@@ -16,16 +16,6 @@ const CellRenderer = {
   // Render main task cells
   renderMainCell: (col, row, onEdit, isAdmin = true, onEditTask = null, onDeleteTask = null, onCopyTask = null) => {
     switch (col.key) {
-      case "checkbox":
-        return (
-          <CheckboxWithPopup
-            task={row}
-            onEdit={onEditTask}
-            onDelete={onDeleteTask}
-            onCopy={onCopyTask}
-            isSubtask={false}
-          />
-        );
       case "task":
         return (
           <input

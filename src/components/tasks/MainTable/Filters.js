@@ -61,16 +61,7 @@ const Filters = ({
             <EyeIcon className="w-4 h-4 inline mr-2" />
             Show All Columns
           </button>
-          <button 
-            className="px-4 py-2.5 text-sm bg-gradient-to-r from-red-100 to-red-200 hover:from-red-200 hover:to-red-300 text-red-700 rounded-lg transition-all duration-200 font-medium shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-            onClick={() => {
-              console.log('Force reset column order');
-              resetColumnOrder();
-            }}
-            title="Force reset column order"
-          >
-            🔄 Debug Reset
-          </button>
+
           <button
             className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
             onClick={handleAddNewTask}
