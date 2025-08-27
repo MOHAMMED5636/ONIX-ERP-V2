@@ -292,8 +292,21 @@ const TaskManager = () => {
                 type="text"
                 value={newTask?.name || ''}
                 onChange={(e) => actions.setNewTask({ ...newTask, name: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCreateTask();
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    actions.setShowNewTask(false);
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter task name"
+                autoFocus
               />
             </div>
             <div>
@@ -361,8 +374,21 @@ const TaskManager = () => {
                 type="text"
                 value={newSubtask.name}
                 onChange={(e) => actions.setNewSubtask({ ...newSubtask, name: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCreateSubtask(showSubtaskForm);
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    actions.setShowSubtaskForm(null);
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter subtask name"
+                autoFocus
               />
             </div>
             <div>

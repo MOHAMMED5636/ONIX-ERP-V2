@@ -378,6 +378,29 @@ export default function TeamProjectTrackerRefactored() {
         @keyframes fabPop { from { transform: scale(0.7);} to { transform: scale(1);} }
         .nav-pop { transition: box-shadow 0.2s, transform: 0.2s; }
         .nav-pop:hover, .nav-pop:focus { box-shadow: 0 2px 8px 0 #a5b4fc33; }
+        
+        /* Task row hover styles */
+        .project-row { 
+          background-color: #ffffff !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
+        .project-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
+        .subtask-row { 
+          background-color: #6c757d !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
+        .subtask-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
+        .childtask-row { 
+          background-color: #f8f9fa !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
+        .childtask-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
       `}</style>
       
       <main className="container mx-auto px-4 py-8">
@@ -475,7 +498,7 @@ export default function TeamProjectTrackerRefactored() {
               <tbody className="divide-y divide-gray-100">
                 {filteredTasks.map(task => (
                   <React.Fragment key={task.id}>
-                    <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
+                    <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
                       {columnOrder.map((colKey, idx) => {
                         const col = columns.find(c => c.key === colKey);
                         if (!col) return null;
@@ -511,7 +534,8 @@ export default function TeamProjectTrackerRefactored() {
                     {expandedActive[task.id] && (
                       <tr>
                         <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
-                          <table className="ml-12 table-fixed min-w-full">
+                          <div className="ml-8 pl-4 border-l-2 border-blue-200">
+                            <table className="w-full table-fixed">
                             <thead>
                               <tr>
                                 {columnOrder.map(colKey => {
@@ -553,6 +577,7 @@ export default function TeamProjectTrackerRefactored() {
                               </DndContext>
                             </tbody>
                           </table>
+                            </div>
                         </td>
                       </tr>
                     )}
@@ -602,7 +627,7 @@ export default function TeamProjectTrackerRefactored() {
               <tbody className="divide-y divide-green-100">
                 {completedTasks.map(task => (
                   <React.Fragment key={task.id}>
-                    <tr className="bg-white hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-green-100">
+                    <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-green-100">
                       {columnOrder.map((colKey, idx) => {
                         const col = columns.find(c => c.key === colKey);
                         if (!col) return null;
@@ -638,7 +663,8 @@ export default function TeamProjectTrackerRefactored() {
                     {expandedCompleted[task.id] && (
                       <tr>
                         <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
-                          <table className="ml-12 table-fixed min-w-full">
+                          <div className="ml-8 pl-4 border-l-2 border-green-200">
+                            <table className="w-full table-fixed">
                             <thead>
                               <tr>
                                 {columnOrder.map(colKey => {
@@ -680,6 +706,7 @@ export default function TeamProjectTrackerRefactored() {
                               </DndContext>
                             </tbody>
                           </table>
+                            </div>
                         </td>
                       </tr>
                     )}

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { 
-  PlusIcon, 
+  PlusIcon,
   FunnelIcon, 
   ArrowDownTrayIcon, 
   Cog6ToothIcon,
@@ -16,11 +16,7 @@ export default function ActionControls() {
     <div className="w-full flex flex-wrap items-center justify-between gap-4 px-6 py-4">
       {/* Left side controls */}
       <div className="flex items-center gap-3">
-        {/* Add Task Button */}
-        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-          <PlusIcon className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-          <span>Add Task</span>
-        </button>
+
 
         {/* Quick Actions */}
         <div className="flex items-center gap-2">

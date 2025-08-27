@@ -6,7 +6,8 @@ import {
   MagnifyingGlassIcon,
   EyeIcon,
   FunnelIcon,
-  XMarkIcon
+  XMarkIcon,
+  StarIcon
 } from "@heroicons/react/24/outline";
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -411,7 +412,17 @@ export default function MainTable() {
     assigneeNotes: "",
     attachments: [],
     priority: "Low",
-    location: ""
+    location: "",
+    plotNumber: "",
+    community: "",
+    projectType: "Residential",
+    projectFloor: "",
+    developerProject: "",
+    notes: "",
+    predecessors: "",
+    checklist: false,
+    link: "",
+    rating: 0
   });
   // Add state for editing subtasks
   const [editingSubtask, setEditingSubtask] = useState({}); // {subId_colKey: true}
@@ -489,7 +500,9 @@ export default function MainTable() {
     );
   }
   function handleCreateTask() {
-    if (!newTask) return;
+    if (!newTask) {
+      return;
+    }
     
     // Validate required fields
     const errors = validateTask(newTask);
@@ -518,8 +531,12 @@ export default function MainTable() {
   // Keyboard handlers for input fields
   const handleNewTaskKeyDown = (e) => {
     if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
       handleCreateTask();
     } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
       setNewTask(null);
       setShowNewTask(false);
     }
@@ -527,8 +544,12 @@ export default function MainTable() {
 
   const handleSubtaskKeyDown = (e, taskId) => {
     if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
       handleAddSubtask(taskId);
     } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
       setShowSubtaskForm(null);
       setNewSubtask({
         name: "",
@@ -542,15 +563,29 @@ export default function MainTable() {
         assigneeNotes: "",
         attachments: [],
         priority: "Low",
-        location: ""
+        location: "",
+        plotNumber: "",
+        community: "",
+        projectType: "Residential",
+        projectFloor: "",
+        developerProject: "",
+        notes: "",
+        predecessors: "",
+        checklist: false,
+        link: "",
+        rating: 0
       });
     }
   };
 
   const handleChildSubtaskKeyDown = (e, taskId, parentSubtaskId) => {
     if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
       handleAddChildSubtask(taskId, parentSubtaskId);
     } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
       setShowChildSubtaskForm(null);
       setNewChildSubtask({
         name: "",
@@ -564,7 +599,17 @@ export default function MainTable() {
         assigneeNotes: "",
         attachments: [],
         priority: "Low",
-        location: ""
+        location: "",
+        plotNumber: "",
+        community: "",
+        projectType: "Residential",
+        projectFloor: "",
+        developerProject: "",
+        notes: "",
+        predecessors: "",
+        checklist: false,
+        link: "",
+        rating: 0
       });
     }
   };
@@ -718,7 +763,17 @@ Assignee Notes: ${task.assigneeNotes}
       assigneeNotes: "",
       attachments: [],
       priority: "Low",
-      location: ""
+      location: "",
+      plotNumber: "",
+      community: "",
+      projectType: "Residential",
+      projectFloor: "",
+      developerProject: "",
+      notes: "",
+      predecessors: "",
+      checklist: false,
+      link: "",
+      rating: 0
     });
   }
 
@@ -1072,7 +1127,17 @@ Assignee Notes: ${task.assigneeNotes}
     assigneeNotes: "",
     attachments: [],
     priority: "Low",
-    location: ""
+    location: "",
+    plotNumber: "",
+    community: "",
+    projectType: "Residential",
+    projectFloor: "",
+    developerProject: "",
+    notes: "",
+    predecessors: "",
+    checklist: false,
+    link: "",
+    rating: 0
   });
 
   function handleAddChildSubtask(taskId, parentSubtaskId) {
@@ -1117,7 +1182,17 @@ Assignee Notes: ${task.assigneeNotes}
       assigneeNotes: "",
       attachments: [],
       priority: "Low",
-      location: ""
+      location: "",
+      plotNumber: "",
+      community: "",
+      projectType: "Residential",
+      projectFloor: "",
+      developerProject: "",
+      notes: "",
+      predecessors: "",
+      checklist: false,
+      link: "",
+      rating: 0
     });
   }
 
@@ -1307,12 +1382,63 @@ Assignee Notes: ${task.assigneeNotes}
             <option value="High">High</option>
           </select>
         );
+      case "planDays":
+        return (
+          <input
+            type="number"
+            min={0}
+            className="border rounded px-1 py-1 text-xs w-16 text-center"
+            value={childSub.planDays || 0}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "planDays", Number(e.target.value))}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            placeholder="Days"
+          />
+        );
+      case "remarks":
+        return (
+          <input
+            className="border rounded px-1 py-1 text-xs w-full"
+            value={childSub.remarks || ""}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "remarks", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            placeholder="Remarks"
+          />
+        );
+      case "assigneeNotes":
+        return (
+          <input
+            className="border rounded px-1 py-1 text-xs w-full"
+            value={childSub.assigneeNotes || ""}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "assigneeNotes", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            placeholder="Assignee notes"
+          />
+        );
+      case "attachments":
+        return (
+          <div>
+            <input
+              type="file"
+              multiple
+              className="text-xs"
+              onChange={e => {
+                const files = Array.from(e.target.files);
+                handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "attachments", files);
+              }}
+            />
+            <ul className="mt-1 text-xs text-gray-600">
+              {(childSub.attachments || []).map((file, idx) => (
+                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
+              ))}
+            </ul>
+          </div>
+        );
       case "location":
         return (
           <div className="flex items-center gap-1">
             <input
               className="border rounded px-1 py-1 text-xs flex-1"
-              value={childSub.location}
+              value={childSub.location || ""}
               onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "location", e.target.value)}
               placeholder="Location"
             />
@@ -1320,9 +1446,9 @@ Assignee Notes: ${task.assigneeNotes}
               type="button" 
               onClick={() => handleOpenMapPicker('child', task.id, childSub.id, childSub.location)} 
               title="Pick on map"
-              className="p-1"
+              className="text-blue-500 hover:text-blue-700"
             >
-              <MapPinIcon className="w-3 h-3 text-blue-500 hover:text-blue-700" />
+              <MapPinIcon className="w-4 h-4" />
             </button>
           </div>
         );
@@ -1332,6 +1458,7 @@ Assignee Notes: ${task.assigneeNotes}
             className="border rounded px-1 py-1 text-xs w-full"
             value={childSub.plotNumber || ""}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "plotNumber", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
             placeholder="Plot #"
           />
         );
@@ -1341,6 +1468,7 @@ Assignee Notes: ${task.assigneeNotes}
             className="border rounded px-1 py-1 text-xs w-full"
             value={childSub.community || ""}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "community", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
             placeholder="Community"
           />
         );
@@ -1350,6 +1478,7 @@ Assignee Notes: ${task.assigneeNotes}
             className="border rounded px-1 py-1 text-xs w-full"
             value={childSub.projectType || "Residential"}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "projectType", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
           >
             <option value="Residential">Residential</option>
             <option value="Commercial">Commercial</option>
@@ -1364,6 +1493,7 @@ Assignee Notes: ${task.assigneeNotes}
             className="border rounded px-1 py-1 text-xs w-full"
             value={childSub.projectFloor || ""}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "projectFloor", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
             placeholder="Floor"
           />
         );
@@ -1373,82 +1503,97 @@ Assignee Notes: ${task.assigneeNotes}
             className="border rounded px-1 py-1 text-xs w-full"
             value={childSub.developerProject || ""}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "developerProject", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
             placeholder="Developer"
           />
         );
       case "notes":
         return (
-          <span className="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-1 py-1 rounded transition">
-            <span className="text-xs">{childSub.notes || "Add note"}</span>
-          </span>
-        );
-      case "attachments":
-        return (
-          <div>
-            <input
-              type="file"
-              multiple
-              className="text-xs"
-              onChange={e => {
-                const files = Array.from(e.target.files);
-                handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "attachments", files);
-              }}
-            />
-          </div>
-        );
-      case "priority":
-        return (
-          <select
+          <input
             className="border rounded px-1 py-1 text-xs w-full"
-            value={childSub.priority}
-            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "priority", e.target.value)}
-          >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
-        );
-      case "rating":
-        return (
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map(star => (
-              <button
-                key={star}
-                onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", star)}
-                className={`text-xs ${childSub.rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}
-              >
-                ★
-              </button>
-            ))}
-          </div>
-        );
-      case "progress":
-        return (
-          <div className="flex items-center gap-1">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={childSub.progress || 0}
-              onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "progress", parseInt(e.target.value))}
-              className="w-16 h-2"
-            />
-            <span className="text-xs w-8">{childSub.progress || 0}%</span>
-          </div>
-        );
-      case "color":
-        return (
-          <div
-            className="w-4 h-4 rounded-full border border-gray-300 cursor-pointer"
-            style={{ backgroundColor: childSub.color || "#60a5fa" }}
-            onClick={() => {
-              const colors = ["#60a5fa", "#f59e42", "#10d081", "#f44448", "#8b5cf6", "#06b6d4"];
-              const currentIndex = colors.indexOf(childSub.color || "#60a5fa");
-              const nextColor = colors[(currentIndex + 1) % colors.length];
-              handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "color", nextColor);
-            }}
+            value={childSub.notes || ""}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "notes", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            placeholder="Notes"
           />
         );
+      case "autoNumber":
+        return <span className="text-xs">{childSub.autoNumber || childSub.id}</span>;
+      case "predecessors":
+        const childPredecessorsHasValue = childSub.predecessors && childSub.predecessors.toString().trim() !== '';
+        return (
+          <div className="relative">
+            <input
+              className={`border rounded px-1 py-1 text-xs pr-4 w-full ${childPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              value={childSub.predecessors || ""}
+              onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "predecessors", e.target.value)}
+              onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+              placeholder="Task IDs"
+            />
+            {childPredecessorsHasValue && (
+              <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
+            )}
+          </div>
+        );
+      case "checklist":
+        return (
+          <input
+            type="checkbox"
+            checked={!!childSub.checklist}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "checklist", e.target.checked)}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+        );
+      case "link":
+        return (
+          <input
+            className="border rounded px-1 py-1 text-xs w-full"
+            value={childSub.link || ""}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "link", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            placeholder="Link"
+          />
+        );
+      case "rating":
+        if (childSub.status === 'done' && isAdmin) {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-4 h-4 cursor-pointer transition ${i <= childSub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", i)}
+                  fill={i <= childSub.rating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        } else if (isAdmin) {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-4 h-4 cursor-pointer transition ${i <= childSub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "showRatingPrompt", true)}
+                  fill={i <= childSub.rating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        } else {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-4 h-4 transition ${i <= childSub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill={i <= childSub.rating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        }
       default:
         return <span className="text-xs text-gray-500">{childSub[col.key] || ""}</span>;
     }
@@ -1457,14 +1602,26 @@ Assignee Notes: ${task.assigneeNotes}
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <style>{`
+        .project-row { 
+          background-color: #ffffff !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
         .project-row:hover { 
           background-color: #e6f4ff !important; 
         }
+        .subtask-row { 
+          background-color: #6c757d !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
         .subtask-row:hover { 
-          background-color: #f5f5f5 !important; 
+          background-color: #e6f4ff !important; 
+        }
+        .childtask-row { 
+          background-color: #f8f9fa !important; 
+          transition: background-color 0.2s ease-in-out;
         }
         .childtask-row:hover { 
-          background-color: #e0e0e0 !important; 
+          background-color: #e6f4ff !important; 
         }
       `}</style>
       {/* Main Content */}
@@ -1603,6 +1760,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.category}
                                 onChange={e => setNewTask({ ...newTask, category: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               >
                                 <option value="Design">Design</option>
                                 <option value="Development">Development</option>
@@ -1614,6 +1772,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.status}
                                 onChange={e => setNewTask({ ...newTask, status: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               >
                                 <option value="Pending">pending</option>
                                 <option value="In Progress">In Progress</option>
@@ -1626,6 +1785,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                                 value={newTask.owner}
                                 onChange={e => setNewTask({ ...newTask, owner: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               >
                                 <option value="MN">MN</option>
                                 <option value="SA">SA</option>
@@ -1637,6 +1797,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 task={newTask}
                                 onTimelineChange={(timeline) => setNewTask({ ...newTask, timeline })}
                                 isEditing={true}
+                                onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "planDays" ? (
                               <input
@@ -1682,6 +1843,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.priority}
                                 onChange={e => setNewTask({ ...newTask, priority: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
                               >
                                 <option value="Low">Low</option>
                                 <option value="Medium">Medium</option>
@@ -1721,6 +1883,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                 value={newTask.projectType || "Residential"}
                                 onChange={e => setNewTask(nt => ({ ...nt, projectType: e.target.value }))}
+                                onKeyDown={handleNewTaskKeyDown}
                               >
                                 <option value="Residential">Residential</option>
                                 <option value="Commercial">Commercial</option>
@@ -1789,6 +1952,7 @@ Assignee Notes: ${task.assigneeNotes}
                     <React.Fragment key={task.id}>
                       {/* Main Task Row */}
                           <ProjectRow
+                            key={task.id}
                             task={task}
                             columnOrder={columnOrder}
                             columns={columns}
@@ -1813,204 +1977,205 @@ Assignee Notes: ${task.assigneeNotes}
                             isAdmin={isAdmin}
                             isSelected={selectedTaskIds.has(task.id)}
                             onToggleSelection={handleTaskSelection}
+                            showSubtaskForm={showSubtaskForm}
+                            setShowSubtaskForm={setShowSubtaskForm}
+                            newSubtask={newSubtask}
+                            setNewSubtask={setNewSubtask}
+                            handleSubtaskKeyDown={handleSubtaskKeyDown}
                           />
-                      {/* Subtasks as subtable - always render */}
+                      {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length + 3} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
-                            <table className="ml-12 table-fixed min-w-full">
+                            <table className="w-full table-fixed">
                               <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
-                                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                                    <tr>
-                                      <th></th> {/* Drag handle header cell for alignment */}
-
+                                <tr>
+                                  {columnOrder.map(colKey => {
+                                    const col = columns.find(c => c.key === colKey);
+                                    if (!col) return null;
+                                    return (
+                                      <th key={col.key} className={`px-4 py-3 text-xs font-bold text-gray-600 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>
+                                        {col.label}
+                                      </th>
+                                    );
+                                  })}
+                                  <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                    <button
+                                      className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
+                                      onClick={handleShowAddColumnMenu}
+                                      title="Add column"
+                                      type="button"
+                                    >
+                                      +
+                                    </button>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {task.subtasks.map((sub, subIdx) => (
+                                  <React.Fragment key={sub.id}>
+                                    <tr className="subtask-row transition-all duration-200">
                                       {columnOrder.map(colKey => {
                                         const col = columns.find(c => c.key === colKey);
                                         if (!col) return null;
-                                        return <DraggableHeader key={col.key} col={col} colKey={col.key} isSubtaskTable={true} />;
+                                        return (
+                                          <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
+                                            {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
+                                          </td>
+                                        );
                                       })}
-                                      <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                      <td className="w-12 text-center">
                                         <button
-                                          className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                                          onClick={handleShowAddColumnMenu}
-                                          title="Add column"
-                                          type="button"
+                                          onClick={() => handleDeleteRow(sub.id, task.id)}
+                                          className="text-red-500 hover:text-red-700"
+                                          title="Delete subtask"
                                         >
-                                          +
+                                          ×
                                         </button>
-                                      </th>
+                                      </td>
                                     </tr>
-                                  </SortableContext>
-                                </DndContext>
-                              </thead>
-                              <tbody>
-                                <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
-                                  <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
-                                    {task.subtasks.map((sub, subIdx) => (
-                                      <React.Fragment key={sub.id}>
-                                      <SortableSubtaskRow key={sub.id} sub={sub} subIdx={subIdx} task={task}>
-
+                                    
+                                    {/* Child Subtasks */}
+                                    {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
+                                      <tr key={childSub.id} className="childtask-row transition-all duration-200 bg-gradient-to-r from-gray-25 to-blue-25">
                                         {columnOrder.map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
-                                            <td key={col.key} className={`px-3 py-2 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
-                                              {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
+                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-12' : ''}`}>
+                                              {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx)}
                                             </td>
                                           );
                                         })}
-                                      </SortableSubtaskRow>
-                                        
-                                        {/* Child Subtasks Section */}
-                                        {sub.childSubtasks && sub.childSubtasks.length > 0 && (
-                                          <tr>
-                                            <td colSpan={columnOrder.length + 2} className="p-0 bg-gradient-to-r from-gray-25 to-blue-25">
-                                              <div className="ml-16">
-                                                <table className="w-full table-fixed">
-                                                  <tbody>
-                                                    {sub.childSubtasks.map((childSub, childIdx) => (
-                                                      <tr key={childSub.id} className="childtask-row bg-white hover:bg-gray-200 transition-all duration-200">
-                                                        {columnOrder.map(colKey => {
-                                                          const col = columns.find(c => c.key === colKey);
-                                                          if (!col) return null;
-                                                          return (
-                                                            <td key={col.key} className={`px-2 py-1 align-middle text-xs${col.key === 'delete' ? ' text-center w-8' : ''}`}>
-                                                              {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx)}
-                                                            </td>
-                                                          );
-                                                        })}
-                                                        <td className="w-12 text-center">
-                                                          <button
-                                                            onClick={() => handleDeleteChildSubtask(task.id, sub.id, childSub.id)}
-                                                            className="text-red-500 hover:text-red-700 text-xs"
-                                                            title="Delete child subtask"
-                                                          >
-                                                            ×
-                                                          </button>
-                                                        </td>
-                                                      </tr>
-                                                    ))}
-                                                  </tbody>
-                                                </table>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        )}
-                                        
-                                        {/* Add Child Subtask Button */}
-                                        <tr>
-                                          <td colSpan={columnOrder.length + 2} className="px-4 py-1">
-                                            {showChildSubtaskForm === sub.id ? (
-                                              <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                                                <form
-                                                  className="flex flex-wrap gap-2 items-center"
-                                                  onSubmit={e => {
-                                                    e.preventDefault();
-                                                    handleAddChildSubtask(task.id, sub.id);
-                                                  }}
-                                                >
-                                                  {columnOrder.slice(0, 4).map(colKey => {
-                                                    const col = columns.find(c => c.key === colKey);
-                                                    if (!col) return null;
-                                                    return (
-                                                      <div key={col.key} className="flex-1 min-w-0">
-                                                        <label className="block text-xs font-medium text-gray-600 mb-1">{col.key === 'task' ? 'TASK NAME' : col.label}:</label>
-                                                        {col.key === "task" || col.key === "project name" ? (
-                                                          <div className="flex items-center gap-1">
-                                                            <span className="text-gray-400 text-xs">└─</span>
-                                                            <input
-                                                              className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 flex-1"
-                                                              value={newChildSubtask.name}
-                                                              onChange={e => setNewChildSubtask({ ...newChildSubtask, name: e.target.value })}
-                                                              onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
-                                                              placeholder="Task Name"
-                                                              autoFocus
-                                                            />
-                                                          </div>
-                                                        ) : col.key === "category" ? (
-                                                          <select
-                                                            className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                            value={newChildSubtask.category}
-                                                            onChange={e => setNewChildSubtask({ ...newChildSubtask, category: e.target.value })}
-                                                          >
-                                                            <option value="Design">Design</option>
-                                                            <option value="Development">Development</option>
-                                                            <option value="Testing">Testing</option>
-                                                            <option value="Review">Review</option>
-                                                          </select>
-                                                        ) : col.key === "status" ? (
-                                                          <select
-                                                            className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                            value={newChildSubtask.status}
-                                                            onChange={e => setNewChildSubtask({ ...newChildSubtask, status: e.target.value })}
-                                                          >
-                                                            <option value="pending">pending</option>
-                                                            <option value="working">working</option>
-                                                            <option value="done">done</option>
-                                                            <option value="stuck">stuck</option>
-                                                          </select>
-                                                        ) : col.key === "owner" ? (
-                                                          <select
-                                                            className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                            value={newChildSubtask.owner}
-                                                            onChange={e => setNewChildSubtask({ ...newChildSubtask, owner: e.target.value })}
-                                                          >
-                                                            <option value="MN">MN</option>
-                                                            <option value="SA">SA</option>
-                                                            <option value="AH">AH</option>
-                                                            <option value="MA">MA</option>
-                                                          </select>
-                                                        ) : col.key === "priority" ? (
-                                                          <select
-                                                            className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                            value={newChildSubtask.priority}
-                                                            onChange={e => setNewChildSubtask({ ...newChildSubtask, priority: e.target.value })}
-                                                          >
-                                                            <option value="Low">Low</option>
-                                                            <option value="Medium">Medium</option>
-                                                            <option value="High">High</option>
-                                                          </select>
-                                                        ) : null}
-                                                      </div>
-                                                    );
-                                                  })}
-                                                  <div className="flex items-center gap-1 mt-2">
-                                                    <button
-                                                      type="submit"
-                                                      className="px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs rounded hover:shadow-md transition-all duration-200 font-medium"
-                                                    >
-                                                      Add Child
-                                                    </button>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setShowChildSubtaskForm(null)}
-                                                      className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded transition-all duration-200 font-medium"
-                                                    >
-                                                      Cancel
-                                                    </button>
-                                                  </div>
-                                                </form>
-                                              </div>
-                                            ) : (
-                                              <button
-                                                onClick={() => setShowChildSubtaskForm(sub.id)}
-                                                className="ml-16 text-blue-600 hover:text-blue-800 hover:underline text-xs font-semibold transition-all duration-200 flex items-center gap-1"
-                                              >
-                                                <PlusIcon className="w-3 h-3" />
-                                                Add Child Task
-                                              </button>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      </React.Fragment>
+                                        <td className="w-12 text-center">
+                                          <button
+                                            onClick={() => handleDeleteChildSubtask(task.id, sub.id, childSub.id)}
+                                            className="text-red-500 hover:text-red-700 text-xs"
+                                            title="Delete child subtask"
+                                          >
+                                            ×
+                                          </button>
+                                        </td>
+                                      </tr>
                                     ))}
-                                  </SortableContext>
-                                </DndContext>
+                                    
+                                    {/* Add Child Subtask Button */}
+                                    <tr>
+                                      <td colSpan={columnOrder.length + 1} className="px-4 py-1">
+                                        {showChildSubtaskForm === sub.id ? (
+                                          <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                            <form
+                                              className="flex flex-wrap gap-2 items-center"
+                                              onSubmit={e => {
+                                                e.preventDefault();
+                                                handleAddChildSubtask(task.id, sub.id);
+                                              }}
+                                            >
+                                              {columnOrder.slice(0, 4).map(colKey => {
+                                                const col = columns.find(c => c.key === colKey);
+                                                if (!col) return null;
+                                                return (
+                                                  <div key={col.key} className="flex-1 min-w-0">
+                                                    <label className="block text-xs font-medium text-gray-600 mb-1">{col.key === 'task' ? 'TASK NAME' : col.label}:</label>
+                                                    {col.key === "task" || col.key === "project name" ? (
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="text-gray-400 text-xs">└─</span>
+                                                        <input
+                                                          className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 flex-1"
+                                                          value={newChildSubtask.name}
+                                                          onChange={e => setNewChildSubtask({ ...newChildSubtask, name: e.target.value })}
+                                                          onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                          placeholder="Task Name"
+                                                          autoFocus
+                                                        />
+                                                      </div>
+                                                    ) : col.key === "category" ? (
+                                                      <select
+                                                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                                                        value={newChildSubtask.category}
+                                                        onChange={e => setNewChildSubtask({ ...newChildSubtask, category: e.target.value })}
+                                                        onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                      >
+                                                        <option value="Design">Design</option>
+                                                        <option value="Development">Development</option>
+                                                        <option value="Testing">Testing</option>
+                                                        <option value="Review">Review</option>
+                                                      </select>
+                                                    ) : col.key === "status" ? (
+                                                      <select
+                                                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                                                        value={newChildSubtask.status}
+                                                        onChange={e => setNewChildSubtask({ ...newChildSubtask, status: e.target.value })}
+                                                        onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                      >
+                                                        <option value="pending">pending</option>
+                                                        <option value="working">working</option>
+                                                        <option value="done">done</option>
+                                                        <option value="stuck">stuck</option>
+                                                      </select>
+                                                    ) : col.key === "owner" ? (
+                                                      <select
+                                                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                                                        value={newChildSubtask.owner}
+                                                        onChange={e => setNewChildSubtask({ ...newChildSubtask, owner: e.target.value })}
+                                                        onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                      >
+                                                        <option value="MN">MN</option>
+                                                        <option value="SA">SA</option>
+                                                        <option value="AH">AH</option>
+                                                        <option value="MA">MA</option>
+                                                      </select>
+                                                    ) : col.key === "priority" ? (
+                                                      <select
+                                                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                                                        value={newChildSubtask.priority}
+                                                        onChange={e => setNewChildSubtask({ ...newChildSubtask, priority: e.target.value })}
+                                                        onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
+                                                      >
+                                                        <option value="Low">Low</option>
+                                                        <option value="Medium">Medium</option>
+                                                        <option value="High">High</option>
+                                                      </select>
+                                                    ) : null}
+                                                  </div>
+                                                );
+                                              })}
+                                              <div className="flex items-center gap-1 mt-2">
+                                                <button
+                                                  type="submit"
+                                                  className="px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs rounded hover:shadow-md transition-all duration-200 font-medium"
+                                                >
+                                                  Add Child
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setShowChildSubtaskForm(null)}
+                                                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded transition-all duration-200 font-medium"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </form>
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={() => setShowChildSubtaskForm(sub.id)}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-semibold transition-all duration-200 flex items-center gap-1"
+                                          >
+                                            <PlusIcon className="w-3 h-3" />
+                                            Add Child Task
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  </React.Fragment>
+                                ))}
                               </tbody>
                             </table>
                           </td>
                         </tr>
+
+
                       )}
                     </React.Fragment>
                   ))}

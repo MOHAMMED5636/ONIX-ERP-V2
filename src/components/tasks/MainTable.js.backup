@@ -2031,6 +2031,19 @@ export default function MainTable() {
                                                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                                   value={newSubtask[col.key]}
                                                   onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      handleAddSubtask(task.id);
+                                                    }
+                                                    if (e.key === "Escape") {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      setShowSubtaskForm(null);
+                                                    }
+                                                  }}
+                                                  autoFocus={col.key === "task" || col.key === "project name"}
                                                 />
                                               )}
                                             </div>

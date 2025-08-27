@@ -14,7 +14,7 @@ import CheckboxWithPopup from './CheckboxWithPopup';
 
 const CellRenderer = {
   // Render main task cells
-  renderMainCell: (col, row, onEdit, isAdmin = true, onEditTask = null, onDeleteTask = null, onCopyTask = null) => {
+  renderMainCell: (col, row, onEdit, isAdmin = true, onEditTask = null, onDeleteTask = null, onCopyTask = null, onKeyDown = null) => {
     switch (col.key) {
       case "task":
         return (
@@ -22,6 +22,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
             value={row.name}
             onChange={e => onEdit("name", e.target.value)}
+            onKeyDown={onKeyDown}
           />
         );
       case "referenceNumber":
@@ -30,6 +31,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.referenceNumber || ""}
             onChange={e => onEdit("referenceNumber", e.target.value)}
+            onKeyDown={onKeyDown}
           />
         );
       case "category":
@@ -38,6 +40,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={row.category || "Design"}
             onChange={e => onEdit("category", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="Design">Design</option>
             <option value="Development">Development</option>
@@ -51,6 +54,7 @@ const CellRenderer = {
             className={`border rounded px-2 py-1 text-xs font-bold ${statusColors[row.status] || 'bg-gray-200 text-gray-700'}`}
             value={row.status}
             onChange={e => onEdit("status", e.target.value)}
+            onKeyDown={onKeyDown}
           >
              <option value="done">Done</option>
              <option value="suspended">Suspended</option>
@@ -65,6 +69,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.owner || ""}
             onChange={e => onEdit("owner", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="">Select owner</option>
             <option value="MN">MN</option>
@@ -83,6 +88,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-20 text-center"
             value={row.planDays || 0}
             onChange={e => onEdit("planDays", Number(e.target.value))}
+            onKeyDown={onKeyDown}
             placeholder="Enter plan days"
           />
         );
@@ -92,6 +98,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.remarks || ""}
             onChange={e => onEdit("remarks", e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Enter remarks"
           />
         );
@@ -101,6 +108,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.assigneeNotes || ""}
             onChange={e => onEdit("assigneeNotes", e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Enter assignee notes"
           />
         );
@@ -128,6 +136,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-xs font-bold"
             value={row.priority}
             onChange={e => onEdit("priority", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="Low">Low</option>
             <option value="Medium">Medium</option>
@@ -141,6 +150,7 @@ const CellRenderer = {
               className="border rounded px-2 py-1 text-sm"
               value={row.location}
               onChange={e => onEdit("location", e.target.value)}
+              onKeyDown={onKeyDown}
               placeholder="Enter location or pick on map"
             />
             <button type="button" onClick={() => onEdit("openMapPicker", { type: 'main', taskId: row.id, subId: null, location: row.location })} title="Pick on map">
@@ -154,6 +164,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.plotNumber || ""}
             onChange={e => onEdit("plotNumber", e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Enter plot number"
           />
         );
@@ -163,6 +174,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.community || ""}
             onChange={e => onEdit("community", e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Enter community"
           />
         );
@@ -172,6 +184,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={row.projectType || "Residential"}
             onChange={e => onEdit("projectType", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="Residential">Residential</option>
             <option value="Commercial">Commercial</option>
@@ -186,6 +199,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.projectFloor || ""}
             onChange={e => onEdit("projectFloor", e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Enter project floor"
           />
         );
@@ -195,6 +209,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.developerProject || ""}
             onChange={e => onEdit("developerProject", e.target.value)}
+            onKeyDown={onKeyDown}
             placeholder="Enter developer project"
           />
         );
@@ -204,6 +219,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={row.notes}
             onChange={e => onEdit("notes", e.target.value)}
+            onKeyDown={onKeyDown}
           />
         );
       case "autoNumber":
@@ -216,6 +232,7 @@ const CellRenderer = {
               className={`border rounded px-2 py-1 text-sm pr-6 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
               value={row.predecessors}
               onChange={e => onEdit("predecessors", e.target.value)}
+              onKeyDown={onKeyDown}
               placeholder="Enter task IDs (e.g., 1, 2, 3)"
             />
             {predecessorsHasValue && (
@@ -238,6 +255,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={row.link}
             onChange={e => onEdit("link", e.target.value)}
+            onKeyDown={onKeyDown}
           />
         );
       case "rating":
@@ -354,6 +372,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.category || "Design"}
             onChange={e => onEdit(task.id, sub.id, "category", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="Design">Design</option>
             <option value="Development">Development</option>
@@ -368,6 +387,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.referenceNumber || ""}
             onChange={e => onEdit(task.id, sub.id, "referenceNumber", e.target.value)}
+            onKeyDown={onKeyDown}
           />
         );
       case "status":
@@ -376,6 +396,7 @@ const CellRenderer = {
             className={`border rounded px-2 py-1 text-xs font-bold ${statusColors[sub.status] || 'bg-gray-200 text-gray-700'}`}
             value={sub.status}
             onChange={e => onEdit(task.id, sub.id, "status", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="done">Done</option>
             <option value="working">Working</option>
@@ -388,11 +409,62 @@ const CellRenderer = {
       case "timeline":
         const subTimelineHasPredecessors = sub.predecessors && sub.predecessors.toString().trim() !== '';
         return <TimelineCell value={sub.timeline} onChange={val => onEdit(task.id, sub.id, "timeline", val)} hasPredecessors={subTimelineHasPredecessors} />;
+      case "planDays":
+        return (
+          <input
+            type="number"
+            min={0}
+            className="border rounded px-2 py-1 text-sm w-20 text-center"
+            value={sub.planDays || 0}
+            onChange={e => onEdit(task.id, sub.id, "planDays", Number(e.target.value))}
+            onKeyDown={onKeyDown}
+            placeholder="Enter plan days"
+          />
+        );
+      case "remarks":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.remarks || ""}
+            onChange={e => onEdit(task.id, sub.id, "remarks", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter remarks"
+          />
+        );
+      case "assigneeNotes":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={sub.assigneeNotes || ""}
+            onChange={e => onEdit(task.id, sub.id, "assigneeNotes", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter assignee notes"
+          />
+        );
+      case "attachments":
+        return (
+          <div>
+            <input
+              type="file"
+              multiple
+              onChange={e => {
+                const files = Array.from(e.target.files);
+                onEdit(task.id, sub.id, "attachments", files);
+              }}
+            />
+            <ul className="mt-1 text-xs text-gray-600">
+              {(sub.attachments || []).map((file, idx) => (
+                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
+              ))}
+            </ul>
+          </div>
+        );
       case "priority":
         return <select
           className="border rounded px-2 py-1 text-sm"
           value={sub.priority}
           onChange={e => onEdit(task.id, sub.id, "priority", e.target.value)}
+          onKeyDown={onKeyDown}
         >
           <option value="Low">Low</option>
           <option value="Medium">Medium</option>
@@ -418,6 +490,8 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.plotNumber || ""}
             onChange={e => onEdit(task.id, sub.id, "plotNumber", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter plot number"
           />
         );
       case "community":
@@ -426,6 +500,8 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.community || ""}
             onChange={e => onEdit(task.id, sub.id, "community", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter community"
           />
         );
       case "projectType":
@@ -434,6 +510,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.projectType || "Residential"}
             onChange={e => onEdit(task.id, sub.id, "projectType", e.target.value)}
+            onKeyDown={onKeyDown}
           >
             <option value="Residential">Residential</option>
             <option value="Commercial">Commercial</option>
@@ -448,6 +525,8 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.projectFloor || ""}
             onChange={e => onEdit(task.id, sub.id, "projectFloor", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter project floor"
           />
         );
       case "developerProject":
@@ -456,54 +535,97 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm"
             value={sub.developerProject || ""}
             onChange={e => onEdit(task.id, sub.id, "developerProject", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter developer project"
           />
         );
       case "notes":
         return (
-          <span className="flex items-center gap-1 cursor-pointer hover:bg-blue-50 px-1 py-1 rounded transition">
-            <span className="text-xs">{sub.notes || "Add note"}</span>
-          </span>
+          <input
+            className="border rounded px-2 py-1 text-sm"
+            value={sub.notes || ""}
+            onChange={e => onEdit(task.id, sub.id, "notes", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter notes"
+          />
         );
-      case "attachments":
+      case "autoNumber":
+        return <span>{sub.autoNumber || sub.id}</span>;
+      case "predecessors":
+        const predecessorsHasValue = sub.predecessors && sub.predecessors.toString().trim() !== '';
         return (
-          <div>
+          <div className="relative">
             <input
-              type="file"
-              multiple
-              className="text-xs"
-              onChange={e => {
-                const files = Array.from(e.target.files);
-                onEdit(task.id, sub.id, "attachments", files);
-              }}
+              className={`border rounded px-2 py-1 text-sm pr-6 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              value={sub.predecessors || ""}
+              onChange={e => onEdit(task.id, sub.id, "predecessors", e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Enter task IDs (e.g., 1, 2, 3)"
             />
+            {predecessorsHasValue && (
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
+            )}
           </div>
         );
-      case "priority":
+      case "checklist":
         return (
-          <select
+          <input
+            type="checkbox"
+            checked={!!sub.checklist}
+            onChange={e => onEdit(task.id, sub.id, "checklist", e.target.checked)}
+            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+        );
+      case "link":
+        return (
+          <input
             className="border rounded px-2 py-1 text-sm"
-            value={sub.priority}
-            onChange={e => onEdit(task.id, sub.id, "priority", e.target.value)}
-          >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
+            value={sub.link || ""}
+            onChange={e => onEdit(task.id, sub.id, "link", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter link"
+          />
         );
       case "rating":
-        return (
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map(star => (
-              <button
-                key={star}
-                onClick={() => onEdit(task.id, sub.id, "rating", star)}
-                className={`text-xs ${sub.rating >= star ? 'text-yellow-500' : 'text-gray-300'}`}
-              >
-                ★
-              </button>
-            ))}
-          </div>
-        );
+        if (sub.status === 'done' && isAdmin) {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  onClick={() => onEdit(task.id, sub.id, "rating", i)}
+                  fill={i <= sub.rating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        } else if (isAdmin) {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  onClick={() => onEdit(task.id, sub.id, "showRatingPrompt", true)}
+                  fill={i <= sub.rating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        } else {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-5 h-5 transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill={i <= sub.rating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        }
       case "progress":
         return (
           <div className="flex items-center gap-1">

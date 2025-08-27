@@ -25,7 +25,12 @@ const ProjectRow = ({
   onDeleteTask,
   onCopyTask,
   isSelected,
-  onToggleSelection
+  onToggleSelection,
+  showSubtaskForm,
+  setShowSubtaskForm,
+  newSubtask,
+  setNewSubtask,
+  handleSubtaskKeyDown
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -380,7 +385,8 @@ const ProjectRow = ({
   };
 
   return (
-    <tr className="project-row bg-white hover:bg-blue-100 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
+    <>
+    <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
       {console.log('ProjectRow columnOrder:', columnOrder)}
       {/* Multi-select Checkbox Column */}
       <td className="px-4 py-4 align-middle text-center">
@@ -447,7 +453,7 @@ const ProjectRow = ({
                   </div>
                   {/* Add Task Button */}
                   <button
-                    onClick={() => onAddSubtask(task.id)}
+                    onClick={() => setShowSubtaskForm(task.id)}
                     className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 w-fit"
                     title="Add Task"
                   >
@@ -474,6 +480,119 @@ const ProjectRow = ({
         </button>
       </td>
     </tr>
+    {/* Add Subtask Button and Form */}
+    {showSubtaskForm === task.id && (
+      <tr>
+        <td colSpan={columnOrder.length + 3} className="px-4 py-3">
+          <form
+            className="flex flex-wrap gap-3 items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+            onSubmit={e => {
+              e.preventDefault();
+              onAddSubtask(task.id);
+            }}
+          >
+            {columnOrder.slice(0, 6).map(colKey => {
+              const col = columns.find(c => c.key === colKey);
+              if (!col) return null;
+              return (
+                <div key={col.key} className="flex-1 min-w-0">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{col.label}:</label>
+                  {col.key === "task" || col.key === "project name" ? (
+                    <input
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask.name}
+                      onChange={e => setNewSubtask(s => ({ ...s, name: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      placeholder="Task Name"
+                      autoFocus
+                    />
+                  ) : col.key === "category" ? (
+                    <select
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask.category}
+                      onChange={e => setNewSubtask(s => ({ ...s, category: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                    >
+                      <option value="Design">Design</option>
+                      <option value="Development">Development</option>
+                      <option value="Testing">Testing</option>
+                      <option value="Review">Review</option>
+                    </select>
+                  ) : col.key === "status" ? (
+                    <select
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask.status}
+                      onChange={e => setNewSubtask(s => ({ ...s, status: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                    >
+                      <option value="pending">pending</option>
+                      <option value="working">working</option>
+                      <option value="done">done</option>
+                      <option value="stuck">stuck</option>
+                    </select>
+                  ) : col.key === "owner" ? (
+                    <select
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask.owner}
+                      onChange={e => setNewSubtask(s => ({ ...s, owner: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                    >
+                      <option value="MN">MN</option>
+                      <option value="SA">SA</option>
+                      <option value="AH">AH</option>
+                      <option value="MA">MA</option>
+                    </select>
+                  ) : col.key === "priority" ? (
+                    <select
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask.priority}
+                      onChange={e => setNewSubtask(s => ({ ...s, priority: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  ) : col.key === "link" ? (
+                    <input
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask.link || ""}
+                      onChange={e => setNewSubtask(s => ({ ...s, link: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      placeholder="Enter link"
+                    />
+                  ) : (
+                    <input
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                      value={newSubtask[col.key] || ""}
+                      onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      placeholder={`Enter ${col.label}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs rounded hover:shadow-md transition-all duration-200 font-medium"
+              >
+                Add Subtask
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSubtaskForm(null)}
+                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded transition-all duration-200 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </td>
+      </tr>
+    )}
+  </>
   );
 };
 

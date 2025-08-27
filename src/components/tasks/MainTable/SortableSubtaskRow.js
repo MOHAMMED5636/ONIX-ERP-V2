@@ -10,7 +10,7 @@ const SortableSubtaskRow = ({ sub, subIdx, task, children }) => {
     <tr
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`subtask-row bg-white hover:bg-gray-100 transition-all duration-200 ${isDragging ? "bg-blue-50" : ""}`}
+      className={`subtask-row transition-all duration-200 ${isDragging ? "bg-blue-50" : ""}`}
       {...attributes}
     >
       {/* Drag handle cell */}

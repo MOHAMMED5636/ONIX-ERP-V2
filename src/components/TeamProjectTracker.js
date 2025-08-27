@@ -1890,7 +1890,7 @@ export default function TeamProjectTracker() {
                   {filteredTasks.map(task => (
                     <React.Fragment key={task.id}>
                       {/* Main Task Row */}
-                      <tr className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
+                      <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100">
                         {columnOrder
                           .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
                           .map((colKey, idx) => {
@@ -1951,7 +1951,8 @@ export default function TeamProjectTracker() {
                       {expandedActive[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
-                            <table className="ml-12 table-fixed min-w-full">
+                            <div className="ml-8 pl-4 border-l-2 border-blue-200">
+                              <table className="w-full table-fixed">
                               <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
                                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -2078,6 +2079,19 @@ export default function TeamProjectTracker() {
                                                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
                                                   value={newSubtask[col.key]}
                                                   onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      handleAddSubtask(task.id);
+                                                    }
+                                                    if (e.key === "Escape") {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      setShowSubtaskForm(null);
+                                                    }
+                                                  }}
+                                                  autoFocus={col.key === "task" || col.key === "project name"}
                                                 />
                                               )}
                                             </div>
@@ -2101,6 +2115,7 @@ export default function TeamProjectTracker() {
                                 </tr>
                               </tbody>
                             </table>
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -2184,7 +2199,8 @@ export default function TeamProjectTracker() {
                       {expandedCompleted[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
-                            <table className="ml-12 table-fixed min-w-full">
+                            <div className="ml-8 pl-4 border-l-2 border-green-200">
+                              <table className="w-full table-fixed">
                               <thead>
                                 <tr>
                                   {columnOrder.map(colKey => {
@@ -2224,6 +2240,7 @@ export default function TeamProjectTracker() {
                                 </DndContext>
                               </tbody>
                             </table>
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -2452,6 +2469,29 @@ export default function TeamProjectTracker() {
         @keyframes fabPop { from { transform: scale(0.7);} to { transform: scale(1);} }
         .nav-pop { transition: box-shadow 0.2s, transform 0.2s; }
         .nav-pop:hover, .nav-pop:focus { box-shadow: 0 2px 8px 0 #a5b4fc33; }
+        
+        /* Task row hover styles */
+        .project-row { 
+          background-color: #ffffff !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
+        .project-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
+        .subtask-row { 
+          background-color: #6c757d !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
+        .subtask-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
+        .childtask-row { 
+          background-color: #f8f9fa !important; 
+          transition: background-color 0.2s ease-in-out;
+        }
+        .childtask-row:hover { 
+          background-color: #e6f4ff !important; 
+        }
         
                   /* Calendar styles to ensure visibility */
           .rdrDateRangePickerWrapper {
