@@ -645,7 +645,49 @@ export default function TaskList() {
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                {/* ONIX Logo Spinning Animation */}
+                <div className="mx-auto mb-4">
+                  <svg 
+                    className="animate-spin h-20 w-20" 
+                    viewBox="0 0 100 100" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    {/* Segment 1 - Blue to Teal Gradient (0-120 degrees) */}
+                    <path 
+                      d="M 50 50 L 50 10 A 40 40 0 0 1 10 50 Z" 
+                      fill="url(#blueTealGradient)"
+                      stroke="none"
+                    />
+                    
+                    {/* Segment 2 - Orange to Red Gradient (120-240 degrees) */}
+                    <path 
+                      d="M 50 50 L 10 50 A 40 40 0 0 1 50 90 Z" 
+                      fill="url(#orangeRedGradient)"
+                      stroke="none"
+                    />
+                    
+                    {/* Segment 3 - Grey (240-360 degrees) */}
+                    <path 
+                      d="M 50 50 L 50 90 A 40 40 0 0 1 90 50 Z" 
+                      fill="#9ca3af"
+                      stroke="none"
+                    />
+                    
+                    {/* Gradients */}
+                    <defs>
+                      <linearGradient id="blueTealGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="50%" stopColor="#06b6d4" />
+                        <stop offset="100%" stopColor="#14b8a6" />
+                      </linearGradient>
+                      <linearGradient id="orangeRedGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#f97316" />
+                        <stop offset="50%" stopColor="#ef4444" />
+                        <stop offset="100%" stopColor="#dc2626" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
                 <p className="text-gray-600 font-medium">Loading your tasks...</p>
               </div>
             </div>

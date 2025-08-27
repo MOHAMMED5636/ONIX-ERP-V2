@@ -1610,18 +1610,20 @@ Assignee Notes: ${task.assigneeNotes}
           background-color: #e6f4ff !important; 
         }
         .subtask-row { 
-          background-color: #6c757d !important; 
+          background-color: #faf8f5 !important; 
           transition: background-color 0.2s ease-in-out;
         }
         .subtask-row:hover { 
-          background-color: #e6f4ff !important; 
+          background-color: #fff3cd !important; 
         }
         .childtask-row { 
-          background-color: #f8f9fa !important; 
+          background-color: #f0f8ff !important; 
           transition: background-color 0.2s ease-in-out;
         }
         .childtask-row:hover { 
           background-color: #e6f4ff !important; 
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
       `}</style>
       {/* Main Content */}
@@ -2037,7 +2039,7 @@ Assignee Notes: ${task.assigneeNotes}
                                     
                                     {/* Child Subtasks */}
                                     {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
-                                      <tr key={childSub.id} className="childtask-row transition-all duration-200 bg-gradient-to-r from-gray-25 to-blue-25">
+                                      <tr key={childSub.id} className="childtask-row transition-all duration-200">
                                         {columnOrder.map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
