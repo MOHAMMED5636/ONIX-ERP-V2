@@ -1,70 +1,271 @@
-# Getting Started with Create React App
+# ONIX ERP V2 - Task Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive Enterprise Resource Planning (ERP) system built with React, featuring advanced task management, project tracking, and team collaboration tools.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+### Task Management
+- **Main Table View**: Comprehensive task management with sortable columns
+- **Kanban Board**: Visual task organization with drag-and-drop functionality
+- **Hierarchical Tasks**: Support for main tasks, subtasks, and child subtasks
+- **Real-time Updates**: Dynamic task status and progress tracking
+- **Advanced Filtering**: Filter tasks by status, category, owner, priority, and more
 
-### `npm start`
+### Project Tracking
+- **Project Life Cycle**: Visual project progression tracking
+- **Team Project Tracker**: Multi-user project collaboration
+- **Timeline Management**: Date range selection and timeline visualization
+- **Progress Monitoring**: Real-time progress tracking and reporting
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### User Interface
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Dark/Light Mode**: Customizable theme preferences
+- **Multi-language Support**: English and Arabic language support
+- **Interactive Dashboard**: Statistics and overview widgets
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Data Management
+- **Import/Export**: Excel file import and export capabilities
+- **Data Validation**: Comprehensive task validation
+- **Search & Filter**: Advanced search and filtering options
+- **Column Customization**: Drag-and-drop column reordering
 
-### `npm test`
+## 📋 Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Before running this application, make sure you have the following installed:
 
-### `npm run build`
+- **Node.js** (version 14.0 or higher)
+- **npm** (version 6.0 or higher) or **yarn**
+- **Git** for version control
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🛠️ Installation
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. **Clone the repository**
+   ```bash
+   git clone <your-repository-url>
+   cd ONIX-ERP-V2
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+   or
+   ```bash
+   yarn install
+   ```
 
-### `npm run eject`
+## 🏃‍♂️ Running the Application
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Development Mode
+```bash
+npm start
+```
+or
+```bash
+yarn start
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+This will start the development server at `http://localhost:3000`. The page will reload automatically when you make changes.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Production Build
+```bash
+npm run build
+```
+or
+```bash
+yarn build
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+This creates an optimized production build in the `build` folder.
 
-## Learn More
+### Serve Production Build
+```bash
+npm install -g serve
+serve -s build
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 📁 Project Structure
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+ONIX-ERP-V2/
+├── public/
+│   ├── index.html
+│   └── onix-bg.png          # ONIX logo
+├── src/
+│   ├── components/
+│   │   ├── tasks/           # Task management components
+│   │   │   ├── MainTable.js # Main task table view
+│   │   │   ├── TaskList.js  # Task list container
+│   │   │   └── ...
+│   │   ├── TeamProjectTracker/ # Team collaboration
+│   │   └── ...
+│   ├── layout/
+│   │   ├── Navbar.js        # Top navigation
+│   │   └── Sidebar.js       # Side navigation
+│   ├── modules/             # Core modules
+│   ├── pages/               # Page components
+│   └── utils/               # Utility functions
+├── package.json
+└── README.md
+```
 
-### Code Splitting
+## 🎯 Usage Guide
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Getting Started
 
-### Analyzing the Bundle Size
+1. **Launch the application** using `npm start`
+2. **Navigate to `http://localhost:3000`** in your browser
+3. **Use the sidebar** to navigate between different modules
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Task Management
 
-### Making a Progressive Web App
+#### Main Table View
+- Click on **"Main Table"** tab to access the primary task management interface
+- **Add new tasks** using the "New Project" button
+- **Edit tasks** by clicking on any cell in the table
+- **Create subtasks** using the "Add Task" button within each project row
+- **Keyboard shortcuts**:
+  - `Enter`: Save changes
+  - `Escape`: Cancel editing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+#### Kanban Board
+- Switch to **"Kanban"** view for visual task organization
+- **Drag and drop** tasks between different status columns
+- **Create new tasks** directly in any column
 
-### Advanced Configuration
+### Project Features
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+#### Hierarchical Task Structure
+- **Main Tasks (Projects)**: Top-level project entries (white background)
+- **Subtasks**: Secondary level tasks (light beige background)
+- **Child Tasks**: Third level tasks (light blue background)
 
-### Deployment
+#### Column Management
+- **Drag and drop** column headers to reorder
+- **Add new columns** using the "+" button in the header
+- **Hide/show columns** using the visibility controls
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+#### Task Properties
+Each task supports the following properties:
+- Task Name
+- Reference Number
+- Category (Design, Development, Testing, Review)
+- Status (Done, In Progress, Pending, Stuck, etc.)
+- Owner/Assignee
+- Timeline (Start and End dates)
+- Plan Days
+- Remarks
+- Assignee Notes
+- Priority (Low, Medium, High)
+- Location
+- Link
+- Attachments
+- Rating (1-5 stars)
+- Predecessors
+- Checklist
 
-### `npm run build` fails to minify
+### Navigation
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+#### Sidebar Menu
+- **Dashboard**: Overview and statistics
+- **Tasks**: Task management (Project List, Contracts, Categories)
+- **Team Project Tracker**: Team collaboration tools
+- **Company Resources**: Company management
+- **Workplace Hub**: HR and workplace tools
+
+#### Top Navigation
+- **Language Toggle**: Switch between English and Arabic
+- **User Profile**: User settings and logout
+- **System Status**: Real-time system status indicator
+
+## 🎨 Customization
+
+### Theme Colors
+The application uses a professional color scheme:
+- **Main Tasks**: White background
+- **Subtasks**: Light beige background (`#faf8f5`)
+- **Child Tasks**: Light blue background (`#f0f8ff`)
+- **Hover Effects**: Blue highlight (`#e6f4ff`)
+
+### Language Support
+- English (default)
+- Arabic (RTL support)
+- Switch languages using the globe icon in the top navigation
+
+## 🔧 Configuration
+
+### Environment Variables
+Create a `.env` file in the root directory for custom configuration:
+```env
+REACT_APP_API_URL=your_api_endpoint
+REACT_APP_VERSION=2.0.0
+```
+
+### Build Configuration
+Modify `package.json` for custom build settings:
+```json
+{
+  "homepage": ".",
+  "scripts": {
+    "build": "react-scripts build"
+  }
+}
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Node modules not found**
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+2. **Port already in use**
+   ```bash
+   # Kill process on port 3000
+   lsof -ti:3000 | xargs kill -9
+   # Or use different port
+   PORT=3001 npm start
+   ```
+
+3. **Build errors**
+   ```bash
+   npm run build 2>&1 | tee build.log
+   ```
+
+### Performance Optimization
+- Use production build for deployment
+- Enable gzip compression on your server
+- Implement lazy loading for large datasets
+
+## 📱 Browser Support
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is proprietary software for ONIX.
+
+## 📞 Support
+
+For technical support or questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation wiki
+
+---
+
+**Built with ❤️ by the ONIX Development Team**
