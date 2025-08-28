@@ -60,7 +60,7 @@ function MainLayout() {
         }
       `}>
         {!hideNavbar && <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />}
-        <main className="flex-1 w-full">
+        <main className={`flex-1 w-full ${hideNavbar ? 'h-screen' : ''}`}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />

@@ -2,78 +2,30 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DateRange } from 'react-date-range';
 import { format } from 'date-fns';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
 const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
-  const [tempStartDate, setTempStartDate] = useState(null);
-  const [tempEndDate, setTempEndDate] = useState(null);
   const buttonRef = useRef(null);
   const modalRef = useRef(null);
+  const navigate = useNavigate();
   
   const start = value?.[0] ? new Date(value[0]) : null;
   const end = value?.[1] ? new Date(value[1]) : null;
-  
-  // Initialize temp dates when picker opens
-  useEffect(() => {
-    if (showPicker) {
-      setTempStartDate(start || new Date());
-      setTempEndDate(end || new Date());
-    }
-  }, [showPicker, start, end]);
   
   // Safety check for onChange function
   const handleChange = (newValue) => {
     if (typeof onChange === 'function') {
       onChange(newValue);
-    } else {
-      console.warn('TimelineCell: onChange is not a function', onChange);
     }
-  };
-  
-  // Calculate modal position
-  const calculatePosition = () => {
-    if (!buttonRef.current) return { top: 0, left: 0 };
-    
-    const rect = buttonRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    // Simple modal size
-    const modalWidth = 400;
-    const modalHeight = 300;
-    
-    // Calculate position
-    let left = rect.left;
-    let top = rect.bottom + 10;
-    
-    // Adjust if modal would go off-screen
-    if (left + modalWidth > viewportWidth) {
-      left = viewportWidth - modalWidth - 10;
-    }
-    if (left < 10) {
-      left = 10;
-    }
-    
-    if (top + modalHeight > viewportHeight) {
-      top = rect.top - modalHeight - 10;
-    }
-    if (top < 10) {
-      top = 10;
-    }
-    
-    return { top, left };
   };
   
   // Handle button click
   const handleButtonClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const position = calculatePosition();
-    setModalPosition(position);
     setShowPicker(true);
   };
   
@@ -82,19 +34,6 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
     if (e.target === e.currentTarget) {
       setShowPicker(false);
     }
-  };
-  
-  // Handle apply button click
-  const handleApply = () => {
-    if (tempStartDate && tempEndDate) {
-      handleChange([tempStartDate, tempEndDate]);
-      setShowPicker(false);
-    }
-  };
-  
-  // Handle cancel button click
-  const handleCancel = () => {
-    setShowPicker(false);
   };
   
   // Handle escape key
@@ -144,7 +83,7 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
     if (!showPicker) return null;
     
     return createPortal(
-      <div className="fixed inset-0 z-[9999]">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center">
         {/* Backdrop */}
         <div 
           className="absolute inset-0 bg-black bg-opacity-30"
@@ -154,74 +93,60 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
         {/* Modal */}
         <div 
           ref={modalRef}
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-2xl"
-          style={{ 
-            top: `${modalPosition.top}px`,
-            left: `${modalPosition.left}px`,
-            width: '400px',
-            maxHeight: '90vh',
-            overflow: 'hidden'
-          }}
+          className="relative bg-white border border-gray-200 rounded-lg shadow-lg max-w-sm w-full mx-4"
         >
           {/* Header */}
-          <div className="p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700">Select Date Range</span>
-            <button 
-              onClick={handleCancel}
-              className="text-gray-400 hover:text-gray-600 text-xl font-bold transition-colors"
-              type="button"
-            >
-              ×
-            </button>
+          <div className="p-2 bg-gray-100 border-b border-gray-200 rounded-t-lg">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-700 text-sm">
+                Select Date Range
+              </span>
+              <button 
+                onClick={() => setShowPicker(false)}
+                className="text-gray-500 hover:text-gray-700 text-lg font-bold"
+                type="button"
+              >
+                ×
+              </button>
+            </div>
           </div>
           
           {/* Calendar */}
           <div className="p-2">
             <DateRange
               ranges={[{
-                startDate: tempStartDate || new Date(),
-                endDate: tempEndDate || new Date(),
+                startDate: start || new Date(),
+                endDate: end || new Date(),
                 key: 'selection'
               }]}
               onChange={ranges => {
                 const { startDate, endDate } = ranges.selection;
-                setTempStartDate(startDate);
-                setTempEndDate(endDate);
+                handleChange([startDate, endDate]);
               }}
               moveRangeOnFirstSelection={false}
               rangeColors={['#3B82F6']}
               showMonthAndYearPickers={true}
-              editableDateInputs={true}
+              editableDateInputs={false}
               preventSnapRefocus={true}
               calendarFocus="forwards"
+              dragSelectionEnabled={true}
             />
           </div>
           
-          {/* Footer with buttons */}
-          <div className="p-3 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-            <div className="text-xs text-gray-600">
-              {tempStartDate && tempEndDate && (
-                <span>
-                  {format(tempStartDate, 'MMM d, yyyy')} - {format(tempEndDate, 'MMM d, yyyy')}
-                </span>
+          {/* Footer */}
+          <div className="p-2 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+            <div className="text-center">
+              <div className="text-xs text-gray-600 mb-1">
+                Click and drag to select a date range
+              </div>
+              
+              {start && end && (
+                <div className="bg-white rounded p-1 border text-xs">
+                  <div className="text-blue-600 font-medium">
+                    {format(start, 'MMM d, yyyy')} – {format(end, 'MMM d, yyyy')}
+                  </div>
+                </div>
               )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleCancel}
-                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleApply}
-                disabled={!tempStartDate || !tempEndDate}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                type="button"
-              >
-                Apply
-              </button>
             </div>
           </div>
         </div>

@@ -79,7 +79,7 @@ const CellRenderer = {
         );
       case "timeline":
         const timelineHasPredecessors = row.predecessors && row.predecessors.toString().trim() !== '';
-        return <TimelineCell value={row.timeline} onChange={val => onEdit("timeline", val)} hasPredecessors={timelineHasPredecessors} />;
+        return <TimelineCell value={row.timeline} onChange={val => onEdit(row, "timeline", val)} hasPredecessors={timelineHasPredecessors} />;
       case "planDays":
         return (
           <input

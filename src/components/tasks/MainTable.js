@@ -891,16 +891,21 @@ Assignee Notes: ${task.assigneeNotes}
   }
 
   function handleEdit(task, col, value) {
+    console.log('MainTable handleEdit called with:', { task: task?.id, col, value });
+    
     setTasks(tasks => {
       const idx = tasks.findIndex(t => t.id === task.id);
       let updatedTasks = tasks.map(t => ({ ...t }));
       // Update the changed task
       updatedTasks[idx] = (() => {
         if (col === 'timeline') {
+          console.log('Processing timeline update:', value);
           const [start, end] = value;
+          console.log('Start date:', start, 'End date:', end);
           let planDays = 0;
           if (isValid(start) && isValid(end)) {
             planDays = differenceInCalendarDays(end, start) + 1;
+            console.log('Calculated planDays:', planDays);
           }
           return { ...updatedTasks[idx], timeline: value, planDays };
         } else if (col === 'planDays') {

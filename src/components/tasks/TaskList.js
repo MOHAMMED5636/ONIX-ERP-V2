@@ -11,8 +11,9 @@ import {
   XMarkIcon,
   ChartBarIcon
 } from "@heroicons/react/24/outline";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../../LanguageContext";
+import { format } from "date-fns";
 import TabBar from "./TabBar";
 import ActionControls from "./ActionControls";
 import MainTable from "./MainTable";
@@ -22,6 +23,7 @@ export default function TaskList() {
   const [activeTab, setActiveTab] = useState("main-table");
   const { lang, toggleLanguage } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showSearch, setShowSearch] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -101,6 +103,21 @@ export default function TaskList() {
     };
   }, [showFilters]);
 
+  // Handle date filter from navigation
+  useEffect(() => {
+    if (location.state?.dateFilter) {
+      const { startDate, endDate } = location.state.dateFilter;
+      setFilters(prev => ({
+        ...prev,
+        dateFrom: format(startDate, 'yyyy-MM-dd'),
+        dateTo: format(endDate, 'yyyy-MM-dd')
+      }));
+      
+      // Clear the navigation state to prevent re-applying on refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   // Simulate loading and fetch stats
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -117,7 +134,7 @@ export default function TaskList() {
   }, []);
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col overflow-hidden">
+    <div className="tasks-full-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col overflow-hidden">
       {/* Enhanced Header Bar */}
       <header className="flex-shrink-0 w-full bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 flex items-center px-3 sm:px-6 py-4 z-40 relative min-h-0">
         {/* Animated background elements */}
@@ -571,18 +588,13 @@ export default function TaskList() {
               <span className="sm:hidden text-sm">{lang === "en" ? "EN" : "ع"}</span>
             </button>
 
-            {/* System Status Indicator */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 text-white font-semibold shadow-lg border border-white/50 flex-shrink-0">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span className="hidden sm:inline text-sm">All Systems Online</span>
-              <span className="sm:hidden text-sm">Online</span>
-            </div>
+
           </div>
         </div>
       </header>
 
-      {/* Enhanced Task Content */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+             {/* Enhanced Task Content */}
+       <div className="flex-1 flex flex-col min-h-0 overflow-hidden h-full">
         {/* Stats Dashboard */}
         {!isLoading && (
           <div className="flex-shrink-0 p-4 bg-white/60 backdrop-blur-sm border-b border-white/20 overflow-hidden">
@@ -640,8 +652,8 @@ export default function TaskList() {
           <ActionControls />
         </div>
         
-        {/* Main Content - Enhanced */}
-        <div className="flex-1 min-h-0 overflow-auto bg-gradient-to-br from-slate-50/50 via-blue-50/50 to-indigo-50/50">
+                 {/* Main Content - Enhanced */}
+         <div className="flex-1 min-h-0 overflow-auto bg-gradient-to-br from-slate-50/50 via-blue-50/50 to-indigo-50/50 h-full">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
