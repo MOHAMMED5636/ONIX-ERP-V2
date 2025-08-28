@@ -8,11 +8,21 @@ import 'react-date-range/dist/theme/default.css';
 const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
+  const [tempStartDate, setTempStartDate] = useState(null);
+  const [tempEndDate, setTempEndDate] = useState(null);
   const buttonRef = useRef(null);
   const modalRef = useRef(null);
   
   const start = value?.[0] ? new Date(value[0]) : null;
   const end = value?.[1] ? new Date(value[1]) : null;
+  
+  // Initialize temp dates when picker opens
+  useEffect(() => {
+    if (showPicker) {
+      setTempStartDate(start || new Date());
+      setTempEndDate(end || new Date());
+    }
+  }, [showPicker, start, end]);
   
   // Safety check for onChange function
   const handleChange = (newValue) => {
@@ -31,7 +41,7 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
-    // Default modal size estimates
+    // Simple modal size
     const modalWidth = 400;
     const modalHeight = 300;
     
@@ -72,6 +82,19 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
     if (e.target === e.currentTarget) {
       setShowPicker(false);
     }
+  };
+  
+  // Handle apply button click
+  const handleApply = () => {
+    if (tempStartDate && tempEndDate) {
+      handleChange([tempStartDate, tempEndDate]);
+      setShowPicker(false);
+    }
+  };
+  
+  // Handle cancel button click
+  const handleCancel = () => {
+    setShowPicker(false);
   };
   
   // Handle escape key
@@ -144,7 +167,7 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
           <div className="p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg flex justify-between items-center">
             <span className="text-sm font-medium text-gray-700">Select Date Range</span>
             <button 
-              onClick={() => setShowPicker(false)}
+              onClick={handleCancel}
               className="text-gray-400 hover:text-gray-600 text-xl font-bold transition-colors"
               type="button"
             >
@@ -156,14 +179,14 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
           <div className="p-2">
             <DateRange
               ranges={[{
-                startDate: start || new Date(),
-                endDate: end || new Date(),
+                startDate: tempStartDate || new Date(),
+                endDate: tempEndDate || new Date(),
                 key: 'selection'
               }]}
               onChange={ranges => {
                 const { startDate, endDate } = ranges.selection;
-                handleChange([startDate, endDate]);
-                setShowPicker(false);
+                setTempStartDate(startDate);
+                setTempEndDate(endDate);
               }}
               moveRangeOnFirstSelection={false}
               rangeColors={['#3B82F6']}
@@ -172,6 +195,34 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
               preventSnapRefocus={true}
               calendarFocus="forwards"
             />
+          </div>
+          
+          {/* Footer with buttons */}
+          <div className="p-3 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+            <div className="text-xs text-gray-600">
+              {tempStartDate && tempEndDate && (
+                <span>
+                  {format(tempStartDate, 'MMM d, yyyy')} - {format(tempEndDate, 'MMM d, yyyy')}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancel}
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApply}
+                disabled={!tempStartDate || !tempEndDate}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                type="button"
+              >
+                Apply
+              </button>
+            </div>
           </div>
         </div>
       </div>,
