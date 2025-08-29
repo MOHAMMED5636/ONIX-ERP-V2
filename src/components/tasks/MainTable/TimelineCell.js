@@ -83,27 +83,39 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
     if (!showPicker) return null;
     
     return createPortal(
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-fadeIn">
         {/* Backdrop */}
         <div 
-          className="absolute inset-0 bg-black bg-opacity-30"
+          className="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm"
           onClick={handleBackdropClick}
         />
         
         {/* Modal */}
         <div 
           ref={modalRef}
-          className="relative bg-white border border-gray-200 rounded-lg shadow-lg max-w-sm w-full mx-4"
+          className="relative bg-white border-0 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform transition-all duration-300 animate-scaleIn"
+          style={{
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+          }}
         >
           {/* Header */}
-          <div className="p-2 bg-gray-100 border-b border-gray-200 rounded-t-lg">
+          <div 
+            className="p-4 rounded-t-2xl border-b border-gray-100"
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            }}
+          >
             <div className="flex justify-between items-center">
-              <span className="font-medium text-gray-700 text-sm">
-                Select Date Range
-              </span>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <span className="font-semibold text-white text-sm">
+                  Select Date Range
+                </span>
+              </div>
               <button 
                 onClick={() => setShowPicker(false)}
-                className="text-gray-500 hover:text-gray-700 text-lg font-bold"
+                className="text-white hover:text-gray-200 text-xl font-bold transition-all duration-200 hover:scale-110 hover:bg-white hover:bg-opacity-20 rounded-full w-6 h-6 flex items-center justify-center"
                 type="button"
               >
                 ×
@@ -112,38 +124,60 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
           </div>
           
           {/* Calendar */}
-          <div className="p-2">
-            <DateRange
-              ranges={[{
-                startDate: start || new Date(),
-                endDate: end || new Date(),
-                key: 'selection'
-              }]}
-              onChange={ranges => {
-                const { startDate, endDate } = ranges.selection;
-                handleChange([startDate, endDate]);
-              }}
-              moveRangeOnFirstSelection={false}
-              rangeColors={['#3B82F6']}
-              showMonthAndYearPickers={true}
-              editableDateInputs={false}
-              preventSnapRefocus={true}
-              calendarFocus="forwards"
-              dragSelectionEnabled={true}
-            />
+          <div className="p-4">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+              <DateRange
+                ranges={[{
+                  startDate: start || new Date(),
+                  endDate: end || new Date(),
+                  key: 'selection'
+                }]}
+                onChange={ranges => {
+                  const { startDate, endDate } = ranges.selection;
+                  handleChange([startDate, endDate]);
+                }}
+                moveRangeOnFirstSelection={false}
+                rangeColors={['#667eea']}
+                showMonthAndYearPickers={true}
+                editableDateInputs={false}
+                preventSnapRefocus={true}
+                calendarFocus="forwards"
+                dragSelectionEnabled={true}
+                className="custom-date-range"
+              />
+            </div>
           </div>
           
           {/* Footer */}
-          <div className="p-2 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-            <div className="text-center">
-              <div className="text-xs text-gray-600 mb-1">
-                Click and drag to select a date range
+          <div 
+            className="p-4 rounded-b-2xl"
+            style={{
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+            }}
+          >
+            <div className="text-center space-y-3">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                <span className="text-xs text-gray-600 font-medium">
+                  Click and drag to select a date range
+                </span>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
               </div>
               
               {start && end && (
-                <div className="bg-white rounded p-1 border text-xs">
-                  <div className="text-blue-600 font-medium">
-                    {format(start, 'MMM d, yyyy')} – {format(end, 'MMM d, yyyy')}
+                <div 
+                  className="bg-white rounded-xl p-3 border-0 shadow-lg transform transition-all duration-300 hover:scale-105"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                    boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.05)'
+                  }}
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className="text-blue-600 font-semibold text-sm">
+                      {format(start, 'MMM d, yyyy')} – {format(end, 'MMM d, yyyy')}
+                    </div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   </div>
                 </div>
               )}
