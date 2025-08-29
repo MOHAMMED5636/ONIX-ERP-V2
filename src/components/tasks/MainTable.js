@@ -891,21 +891,16 @@ Assignee Notes: ${task.assigneeNotes}
   }
 
   function handleEdit(task, col, value) {
-    console.log('MainTable handleEdit called with:', { task: task?.id, col, value });
-    
     setTasks(tasks => {
       const idx = tasks.findIndex(t => t.id === task.id);
       let updatedTasks = tasks.map(t => ({ ...t }));
       // Update the changed task
       updatedTasks[idx] = (() => {
         if (col === 'timeline') {
-          console.log('Processing timeline update:', value);
           const [start, end] = value;
-          console.log('Start date:', start, 'End date:', end);
           let planDays = 0;
           if (isValid(start) && isValid(end)) {
             planDays = differenceInCalendarDays(end, start) + 1;
-            console.log('Calculated planDays:', planDays);
           }
           return { ...updatedTasks[idx], timeline: value, planDays };
         } else if (col === 'planDays') {
@@ -1997,6 +1992,10 @@ Assignee Notes: ${task.assigneeNotes}
                             <table className="w-full table-fixed">
                               <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
                                 <tr>
+                                  {/* Checkbox Header Column */}
+                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                    {/* Empty header for checkbox alignment */}
+                                  </th>
                                   {columnOrder.map(colKey => {
                                     const col = columns.find(c => c.key === colKey);
                                     if (!col) return null;
@@ -2022,6 +2021,16 @@ Assignee Notes: ${task.assigneeNotes}
                                 {task.subtasks.map((sub, subIdx) => (
                                   <React.Fragment key={sub.id}>
                                     <tr className="subtask-row transition-all duration-200">
+                                      {/* Checkbox Column for Subtask */}
+                                      <td className="px-4 py-3 align-middle text-center w-12">
+                                        <div className="flex items-center justify-center">
+                                          <input
+                                            type="checkbox"
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                            title={`Select ${sub.name || 'task'}`}
+                                          />
+                                        </div>
+                                      </td>
                                       {columnOrder.map(colKey => {
                                         const col = columns.find(c => c.key === colKey);
                                         if (!col) return null;
@@ -2045,6 +2054,16 @@ Assignee Notes: ${task.assigneeNotes}
                                     {/* Child Subtasks */}
                                     {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
                                       <tr key={childSub.id} className="childtask-row transition-all duration-200">
+                                        {/* Checkbox Column for Child Subtask */}
+                                        <td className="px-4 py-2 align-middle text-center w-12">
+                                          <div className="flex items-center justify-center">
+                                            <input
+                                              type="checkbox"
+                                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                              title={`Select ${childSub.name || 'child task'}`}
+                                            />
+                                          </div>
+                                        </td>
                                         {columnOrder.map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
@@ -2068,7 +2087,7 @@ Assignee Notes: ${task.assigneeNotes}
                                     
                                     {/* Add Child Subtask Button */}
                                     <tr>
-                                      <td colSpan={columnOrder.length + 1} className="px-4 py-1">
+                                      <td colSpan={columnOrder.length + 2} className="px-4 py-1">
                                         {showChildSubtaskForm === sub.id ? (
                                           <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                                             <form
@@ -2184,6 +2203,10 @@ Assignee Notes: ${task.assigneeNotes}
 
 
                       )}
+                      {/* Project End Border */}
+                      <tr>
+                        <td colSpan={columnOrder.length + 3} className="h-1 bg-gray-300"></td>
+                      </tr>
                     </React.Fragment>
                   ))}
                 </tbody>

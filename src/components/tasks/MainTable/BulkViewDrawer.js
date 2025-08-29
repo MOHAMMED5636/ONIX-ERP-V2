@@ -65,7 +65,7 @@ const BulkViewDrawer = ({
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ref. No</label>
                       <p className="text-sm text-gray-900">{formatValue(task.referenceNumber)}</p>
                     </div>
                     

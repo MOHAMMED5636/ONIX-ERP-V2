@@ -310,7 +310,7 @@ const TaskManager = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ref. No</label>
               <input
                 type="text"
                 value={newTask?.referenceNumber || ''}

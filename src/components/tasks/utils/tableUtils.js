@@ -10,7 +10,7 @@ export const statusColors = {
 
 export const INITIAL_COLUMNS = [
   { key: 'task', label: 'TASK' },
-  { key: 'referenceNumber', label: 'REFERENCE NUMBER' },
+  { key: 'referenceNumber', label: 'REF. NO' },
   { key: 'category', label: 'TASK CATEGORY' },
   { key: 'status', label: 'STATUS' },
   { key: 'owner', label: 'OWNER' },
