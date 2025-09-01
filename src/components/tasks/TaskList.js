@@ -18,6 +18,7 @@ import TabBar from "./TabBar";
 import ActionControls from "./ActionControls";
 import MainTable from "./MainTable";
 import KanbanBoard from "./KanbanBoard";
+import TaskSidebar from "./TaskSidebar";
 
 export default function TaskList() {
   const [activeTab, setActiveTab] = useState("main-table");
@@ -134,7 +135,12 @@ export default function TaskList() {
   }, []);
 
   return (
-    <div className="tasks-full-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col overflow-hidden">
+    <div className="tasks-full-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden">
+      {/* Sidebar */}
+      <TaskSidebar />
+      
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Enhanced Header Bar */}
       <header className="flex-shrink-0 w-full bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 flex items-center px-3 sm:px-6 py-4 z-40 relative min-h-0">
         {/* Animated background elements */}
@@ -705,6 +711,7 @@ export default function TaskList() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

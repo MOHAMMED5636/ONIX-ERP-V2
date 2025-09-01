@@ -139,20 +139,22 @@ const ProjectRow = ({
         );
       case "remarks":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
+          <textarea
+            className="border rounded px-2 py-1 text-sm w-full resize-none"
             value={row.remarks || ""}
             onChange={e => onEdit("remarks", e.target.value)}
             placeholder="Enter remarks"
+            rows={2}
           />
         );
       case "assigneeNotes":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
+          <textarea
+            className="border rounded px-2 py-1 text-sm w-full resize-none"
             value={row.assigneeNotes || ""}
             onChange={e => onEdit("assigneeNotes", e.target.value)}
             placeholder="Enter assignee notes"
+            rows={2}
           />
         );
       case "attachments":
@@ -417,7 +419,17 @@ const ProjectRow = ({
           const col = columns.find(c => c.key === colKey);
           if (!col) return null;
           return (
-            <td key={col.key} className="px-4 py-4 align-middle" style={{ overflow: 'visible' }}>
+            <td key={col.key} className={`px-4 py-4 align-middle ${
+              col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+            } ${
+              col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+            } ${
+              col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+            } ${
+              col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+            } ${
+              col.key === 'owner' ? 'w-36 min-w-36' : ''
+            }`} style={{ overflow: 'visible' }}>
               {col.key === 'task' ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">

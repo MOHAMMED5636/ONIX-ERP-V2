@@ -335,6 +335,109 @@ export default function MainTable() {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
+  // Paste project functionality
+  const handlePasteProject = async () => {
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard) {
+        alert('Clipboard API not supported in this browser');
+        return;
+      }
+
+      // Read clipboard content
+      const clipboardText = await navigator.clipboard.readText();
+      
+      if (!clipboardText.trim()) {
+        alert('No content found in clipboard');
+        return;
+      }
+
+      // Try to parse clipboard content as JSON (for project data)
+      try {
+        const projectData = JSON.parse(clipboardText);
+        
+        // Validate if it looks like project data
+        if (projectData && (projectData.name || projectData.title)) {
+          // Create new project from clipboard data
+          const newProject = {
+            id: Date.now(),
+            name: projectData.name || projectData.title || 'Pasted Project',
+            status: projectData.status || 'pending',
+            owner: projectData.owner || 'Unknown',
+            timeline: projectData.timeline || [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)],
+            planDays: projectData.planDays || 7,
+            remarks: projectData.remarks || 'Pasted from clipboard',
+            assigneeNotes: projectData.assigneeNotes || '',
+            attachments: projectData.attachments || [],
+            priority: projectData.priority || 'medium',
+            location: projectData.location || 'Remote',
+            plotNumber: projectData.plotNumber || '',
+            community: projectData.community || '',
+            projectType: projectData.projectType || 'Commercial',
+            subtasks: projectData.subtasks || [],
+            pinned: false,
+            completed: false
+          };
+
+          // Add the new project to tasks
+          setTasks(prev => [newProject, ...prev]);
+          alert('Project pasted successfully!');
+        } else {
+          // If not JSON, create a simple project with the text as name
+          const newProject = {
+            id: Date.now(),
+            name: clipboardText.substring(0, 50) + (clipboardText.length > 50 ? '...' : ''),
+            status: 'pending',
+            owner: 'Unknown',
+            timeline: [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)],
+            planDays: 7,
+            remarks: 'Pasted from clipboard',
+            assigneeNotes: '',
+            attachments: [],
+            priority: 'medium',
+            location: 'Remote',
+            plotNumber: '',
+            community: '',
+            projectType: 'Commercial',
+            subtasks: [],
+            pinned: false,
+            completed: false
+          };
+
+          setTasks(prev => [newProject, ...prev]);
+          alert('Project created from clipboard text!');
+        }
+      } catch (jsonError) {
+        // If not JSON, create a simple project with the text as name
+        const newProject = {
+          id: Date.now(),
+          name: clipboardText.substring(0, 50) + (clipboardText.length > 50 ? '...' : ''),
+          status: 'pending',
+          owner: 'Unknown',
+          timeline: [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)],
+          planDays: 7,
+          remarks: 'Pasted from clipboard',
+          assigneeNotes: '',
+          attachments: [],
+          priority: 'medium',
+          location: 'Remote',
+          plotNumber: '',
+          community: '',
+          projectType: 'Commercial',
+          subtasks: [],
+          pinned: false,
+          completed: false
+        };
+
+        setTasks(prev => [newProject, ...prev]);
+        alert('Project created from clipboard text!');
+      }
+    } catch (error) {
+      console.error('Error pasting project:', error);
+      alert('Failed to paste project. Please check clipboard permissions.');
+    }
+  };
+
   const clearAllFilters = () => {
     setFilters({
       global: '',
@@ -1409,22 +1512,24 @@ Assignee Notes: ${task.assigneeNotes}
         );
       case "remarks":
         return (
-          <input
-            className="border rounded px-1 py-1 text-xs w-full"
+          <textarea
+            className="border rounded px-1 py-1 text-xs w-full resize-none"
             value={childSub.remarks || ""}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "remarks", e.target.value)}
             onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
             placeholder="Remarks"
+            rows={2}
           />
         );
       case "assigneeNotes":
         return (
-          <input
-            className="border rounded px-1 py-1 text-xs w-full"
+          <textarea
+            className="border rounded px-1 py-1 text-xs w-full resize-none"
             value={childSub.assigneeNotes || ""}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "assigneeNotes", e.target.value)}
             onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
             placeholder="Assignee notes"
+            rows={2}
           />
         );
       case "attachments":
@@ -1531,13 +1636,13 @@ Assignee Notes: ${task.assigneeNotes}
           />
         );
       case "autoNumber":
-        return <span className="text-xs">{childSub.autoNumber || childSub.id}</span>;
+        return <span className="text-xs text-gray-600">{childSub.autoNumber || childSub.id}</span>;
       case "predecessors":
         const childPredecessorsHasValue = childSub.predecessors && childSub.predecessors.toString().trim() !== '';
         return (
           <div className="relative">
             <input
-              className={`border rounded px-1 py-1 text-xs pr-4 w-full ${childPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              className={`border rounded px-1 py-1 text-xs pr-4 w-24 ${childPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
               value={childSub.predecessors || ""}
               onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "predecessors", e.target.value)}
               onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
@@ -1549,13 +1654,15 @@ Assignee Notes: ${task.assigneeNotes}
           </div>
         );
       case "checklist":
-        return (
+        return childSub.checklist ? (
           <input
             type="checkbox"
-            checked={!!childSub.checklist}
+            checked={true}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "checklist", e.target.checked)}
             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
+        ) : (
+          <span className="text-gray-400 text-xs">—</span>
         );
       case "link":
         return (
@@ -1568,15 +1675,17 @@ Assignee Notes: ${task.assigneeNotes}
           />
         );
       case "rating":
+        // Always show stars, but only highlight filled ones
+        const childRating = childSub.rating || 0;
         if (childSub.status === 'done' && isAdmin) {
           return (
             <span className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-4 h-4 cursor-pointer transition ${i <= childSub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-4 h-4 cursor-pointer transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
                   onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", i)}
-                  fill={i <= childSub.rating ? '#facc15' : 'none'}
+                  fill={i <= childRating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -1587,9 +1696,9 @@ Assignee Notes: ${task.assigneeNotes}
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-4 h-4 cursor-pointer transition ${i <= childSub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-4 h-4 cursor-pointer transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
                   onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "showRatingPrompt", true)}
-                  fill={i <= childSub.rating ? '#facc15' : 'none'}
+                  fill={i <= childRating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -1600,8 +1709,8 @@ Assignee Notes: ${task.assigneeNotes}
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-4 h-4 transition ${i <= childSub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= childSub.rating ? '#facc15' : 'none'}
+                  className={`w-4 h-4 transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill={i <= childRating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -1646,6 +1755,7 @@ Assignee Notes: ${task.assigneeNotes}
             search={search}
             setSearch={setSearch}
             handleAddNewTask={handleAddNewTask}
+            handlePasteProject={handlePasteProject}
             resetColumnOrder={resetColumnOrder}
             showAddColumnMenu={showAddColumnMenu}
             setShowAddColumnMenu={setShowAddColumnMenu}
@@ -1756,7 +1866,17 @@ Assignee Notes: ${task.assigneeNotes}
                         const col = columns.find(c => c.key === colKey);
                         if (!col) return null;
                         return (
-                          <td key={col.key} className="px-4 py-3 align-middle">
+                          <td key={col.key} className={`px-4 py-3 align-middle ${
+                            col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+                          } ${
+                            col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+                          } ${
+                            col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+                          } ${
+                            col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+                          } ${
+                            col.key === 'owner' ? 'w-36 min-w-36' : ''
+                          }`}>
                             {col.key === "task" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
@@ -1825,18 +1945,22 @@ Assignee Notes: ${task.assigneeNotes}
                                 onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "remarks" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                              <textarea
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full resize-none"
                                 value={newTask.remarks}
                                 onChange={e => setNewTask({ ...newTask, remarks: e.target.value })}
                                 onKeyDown={handleNewTaskKeyDown}
+                                rows={2}
+                                placeholder="Enter remarks"
                               />
                             ) : col.key === "assigneeNotes" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                              <textarea
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full resize-none"
                                 value={newTask.assigneeNotes}
                                 onChange={e => setNewTask({ ...newTask, assigneeNotes: e.target.value })}
                                 onKeyDown={handleNewTaskKeyDown}
+                                rows={2}
+                                placeholder="Enter assignee notes"
                               />
                             ) : col.key === "attachments" ? (
                               <div>
@@ -1935,12 +2059,38 @@ Assignee Notes: ${task.assigneeNotes}
                               <span className="text-gray-600 font-medium">{newTask.autoNumber}</span>
                             ) : col.key === "predecessors" ? (
                               <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-24"
                                     value={newTask.predecessors || ""}
                                     onChange={e => setNewTask(nt => ({ ...nt, predecessors: e.target.value }))}
                                     onKeyDown={handleNewTaskKeyDown}
-                                    placeholder="Enter predecessors"
+                                    placeholder="Task IDs"
                                   />
+                            ) : col.key === "checklist" ? (
+                              <input
+                                type="checkbox"
+                                checked={!!newTask.checklist}
+                                onChange={e => setNewTask(nt => ({ ...nt, checklist: e.target.checked }))}
+                                className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                            ) : col.key === "link" ? (
+                              <input
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                                value={newTask.link || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, link: e.target.value }))}
+                                onKeyDown={handleNewTaskKeyDown}
+                                placeholder="Enter link"
+                              />
+                            ) : col.key === "rating" ? (
+                              <span className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                  <StarIcon
+                                    key={i}
+                                    className={`w-5 h-5 cursor-pointer transition ${i <= (newTask.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                                    onClick={() => setNewTask(nt => ({ ...nt, rating: i }))}
+                                    fill={i <= (newTask.rating || 0) ? '#facc15' : 'none'}
+                                  />
+                                ))}
+                              </span>
                             ) : null}
                           </td>
                         );
@@ -2016,7 +2166,17 @@ Assignee Notes: ${task.assigneeNotes}
                                     const col = columns.find(c => c.key === colKey);
                                     if (!col) return null;
                                     return (
-                                      <th key={col.key} className={`px-4 py-3 text-xs font-bold text-gray-600 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>
+                                      <th key={col.key} className={`px-4 py-3 text-xs font-bold text-gray-600 uppercase${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                        col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+                                      } ${
+                                        col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+                                      } ${
+                                        col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+                                      } ${
+                                        col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+                                      } ${
+                                        col.key === 'owner' ? 'w-36 min-w-36' : ''
+                                      }`}>
                                         {col.label}
                                       </th>
                                     );
@@ -2051,7 +2211,17 @@ Assignee Notes: ${task.assigneeNotes}
                                         const col = columns.find(c => c.key === colKey);
                                         if (!col) return null;
                                         return (
-                                          <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''}`}>
+                                          <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                            col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+                                          } ${
+                                            col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+                                          } ${
+                                            col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+                                          } ${
+                                            col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+                                          } ${
+                                            col.key === 'owner' ? 'w-36 min-w-36' : ''
+                                          }`}>
                                             {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
                                           </td>
                                         );
@@ -2084,7 +2254,17 @@ Assignee Notes: ${task.assigneeNotes}
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
-                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-12' : ''}`}>
+                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                              col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+                                            } ${
+                                              col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+                                            } ${
+                                              col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+                                            } ${
+                                              col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+                                            } ${
+                                              col.key === 'owner' ? 'w-36 min-w-36' : ''
+                                            }`}>
                                               {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx)}
                                             </td>
                                           );

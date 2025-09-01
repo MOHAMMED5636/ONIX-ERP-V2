@@ -94,22 +94,24 @@ const CellRenderer = {
         );
       case "remarks":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
+          <textarea
+            className="border rounded px-2 py-1 text-sm w-full resize-none"
             value={row.remarks || ""}
             onChange={e => onEdit("remarks", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter remarks"
+            rows={2}
           />
         );
       case "assigneeNotes":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
+          <textarea
+            className="border rounded px-2 py-1 text-sm w-full resize-none"
             value={row.assigneeNotes || ""}
             onChange={e => onEdit("assigneeNotes", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter assignee notes"
+            rows={2}
           />
         );
       case "attachments":
@@ -223,17 +225,17 @@ const CellRenderer = {
           />
         );
       case "autoNumber":
-        return <span>{row.autoNumber || row.id}</span>;
+        return <span className="text-sm text-gray-600">{row.autoNumber || row.id}</span>;
       case "predecessors":
         const predecessorsHasValue = row.predecessors && row.predecessors.toString().trim() !== '';
         return (
           <div className="relative">
             <input
-              className={`border rounded px-2 py-1 text-sm pr-6 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              className={`border rounded px-2 py-1 text-sm pr-6 w-24 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
               value={row.predecessors}
               onChange={e => onEdit("predecessors", e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Enter task IDs (e.g., 1, 2, 3)"
+              placeholder="Task IDs"
             />
             {predecessorsHasValue && (
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
@@ -241,13 +243,15 @@ const CellRenderer = {
           </div>
         );
       case "checklist":
-        return (
+        return row.checklist ? (
           <input
             type="checkbox"
-            checked={!!row.checklist}
+            checked={true}
             onChange={e => onEdit("checklist", e.target.checked)}
             className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
+        ) : (
+          <span className="text-gray-400">—</span>
         );
       case "link":
         return (
@@ -259,15 +263,17 @@ const CellRenderer = {
           />
         );
       case "rating":
+        // Always show stars, but only highlight filled ones
+        const rating = row.rating || 0;
         if (row.status === 'done' && isAdmin) {
           return (
             <span className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-5 h-5 cursor-pointer transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
                   onClick={() => onEdit("rating", i)}
-                  fill={i <= row.rating ? '#facc15' : 'none'}
+                  fill={i <= rating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -278,9 +284,9 @@ const CellRenderer = {
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-5 h-5 cursor-pointer transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
                   onClick={() => onEdit("showRatingPrompt", true)}
-                  fill={i <= row.rating ? '#facc15' : 'none'}
+                  fill={i <= rating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -291,8 +297,8 @@ const CellRenderer = {
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-5 h-5 transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= row.rating ? '#facc15' : 'none'}
+                  className={`w-5 h-5 transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill={i <= rating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -423,22 +429,24 @@ const CellRenderer = {
         );
       case "remarks":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
+          <textarea
+            className="border rounded px-2 py-1 text-sm w-full resize-none"
             value={sub.remarks || ""}
             onChange={e => onEdit(task.id, sub.id, "remarks", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter remarks"
+            rows={2}
           />
         );
       case "assigneeNotes":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
+          <textarea
+            className="border rounded px-2 py-1 text-sm w-full resize-none"
             value={sub.assigneeNotes || ""}
             onChange={e => onEdit(task.id, sub.id, "assigneeNotes", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter assignee notes"
+            rows={2}
           />
         );
       case "attachments":
@@ -550,17 +558,17 @@ const CellRenderer = {
           />
         );
       case "autoNumber":
-        return <span>{sub.autoNumber || sub.id}</span>;
+        return <span className="text-sm text-gray-600">{sub.autoNumber || sub.id}</span>;
       case "predecessors":
         const predecessorsHasValue = sub.predecessors && sub.predecessors.toString().trim() !== '';
         return (
           <div className="relative">
             <input
-              className={`border rounded px-2 py-1 text-sm pr-6 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              className={`border rounded px-2 py-1 text-sm pr-6 w-24 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
               value={sub.predecessors || ""}
               onChange={e => onEdit(task.id, sub.id, "predecessors", e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Enter task IDs (e.g., 1, 2, 3)"
+              placeholder="Task IDs"
             />
             {predecessorsHasValue && (
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
@@ -568,13 +576,15 @@ const CellRenderer = {
           </div>
         );
       case "checklist":
-        return (
+        return sub.checklist ? (
           <input
             type="checkbox"
-            checked={!!sub.checklist}
+            checked={true}
             onChange={e => onEdit(task.id, sub.id, "checklist", e.target.checked)}
             className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
+        ) : (
+          <span className="text-gray-400">—</span>
         );
       case "link":
         return (
@@ -587,15 +597,17 @@ const CellRenderer = {
           />
         );
       case "rating":
+        // Always show stars, but only highlight filled ones
+        const subRating = sub.rating || 0;
         if (sub.status === 'done' && isAdmin) {
           return (
             <span className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-5 h-5 cursor-pointer transition ${i <= subRating ? 'text-yellow-400' : 'text-gray-300'}`}
                   onClick={() => onEdit(task.id, sub.id, "rating", i)}
-                  fill={i <= sub.rating ? '#facc15' : 'none'}
+                  fill={i <= subRating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -606,9 +618,9 @@ const CellRenderer = {
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-5 h-5 cursor-pointer transition ${i <= subRating ? 'text-yellow-400' : 'text-gray-300'}`}
                   onClick={() => onEdit(task.id, sub.id, "showRatingPrompt", true)}
-                  fill={i <= sub.rating ? '#facc15' : 'none'}
+                  fill={i <= subRating ? '#facc15' : 'none'}
                 />
               ))}
             </span>
@@ -619,8 +631,8 @@ const CellRenderer = {
               {[1, 2, 3, 4, 5].map(i => (
                 <StarIcon
                   key={i}
-                  className={`w-5 h-5 transition ${i <= sub.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= sub.rating ? '#facc15' : 'none'}
+                  className={`w-5 h-5 transition ${i <= subRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill={i <= subRating ? '#facc15' : 'none'}
                 />
               ))}
             </span>

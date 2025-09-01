@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { 
-  PlusIcon
+  PlusIcon,
+  ClipboardDocumentIcon
 } from "@heroicons/react/24/outline";
 
 const Filters = ({
   search,
   setSearch,
   handleAddNewTask,
+  handlePasteProject,
   resetColumnOrder,
   showAddColumnMenu,
   setShowAddColumnMenu,
@@ -51,13 +53,20 @@ const Filters = ({
       <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200">
         {/* Top row with action buttons */}
         <div className="flex items-center justify-between px-6 py-4">
-          {/* Left side - New Project button */}
+          {/* Left side - New Project and Paste buttons */}
           <div className="flex items-center gap-3">
             <button
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
               onClick={handleAddNewTask}
             >
               <PlusIcon className="w-5 h-5" /> New Project
+            </button>
+            <button
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+              onClick={handlePasteProject}
+              title="Paste Project"
+            >
+              <ClipboardDocumentIcon className="w-5 h-5" /> Paste
             </button>
           </div>
           

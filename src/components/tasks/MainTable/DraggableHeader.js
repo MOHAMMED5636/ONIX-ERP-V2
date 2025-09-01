@@ -16,7 +16,17 @@ const DraggableHeader = ({ col, colKey, isSubtaskTable = false }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase bg-white border-b border-gray-100 ${isDragging ? 'bg-blue-50' : ''}`}
+      className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase bg-white border-b border-gray-100 ${isDragging ? 'bg-blue-50' : ''} ${
+        colKey === 'referenceNumber' ? 'w-32 min-w-32' : ''
+      } ${
+        colKey === 'remarks' || colKey === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+      } ${
+        colKey === 'plotNumber' || colKey === 'community' || colKey === 'projectType' ? 'w-40 min-w-40' : ''
+      } ${
+        colKey === 'projectFloor' || colKey === 'developerProject' ? 'w-40 min-w-40' : ''
+      } ${
+        colKey === 'owner' ? 'w-36 min-w-36' : ''
+      }`}
     >
       <span className="flex items-center gap-1 cursor-grab">
         <Bars3Icon className="w-4 h-4 text-gray-400" />
