@@ -431,6 +431,8 @@ export default function MainTable() {
   // Add two separate expanded state objects
   const [expandedActive, setExpandedActive] = useState({}); // For active projects
   const [expandedCompleted, setExpandedCompleted] = useState({}); // For completed projects
+  // Track a single expanded project id for conditional headers
+  const [expandedProjectId, setExpandedProjectId] = useState(null);
   const [newTask, setNewTask] = useState(null);
   // Add a state for rating prompt
   const [showRatingPrompt, setShowRatingPrompt] = useState(false);
@@ -831,10 +833,21 @@ Assignee Notes: ${task.assigneeNotes}
     setEditSubValue(value);
   }
 
-  // Update toggleExpand to accept a type (active/completed)
+  // Update toggleExpand to accept a type (active/completed) and control single expanded project
   function toggleExpand(taskId, type = 'active') {
     if (type === 'active') {
-      setExpandedActive(exp => ({ ...exp, [taskId]: !exp[taskId] }));
+      setExpandedProjectId(prevId => {
+        const nextId = prevId === taskId ? null : taskId;
+        // Sync expandedActive so only the selected project is expanded
+        setExpandedActive(() => {
+          const newState = {};
+          tasks.forEach(t => {
+            newState[t.id] = nextId !== null && t.id === nextId;
+          });
+          return newState;
+        });
+        return nextId;
+      });
     } else {
       setExpandedCompleted(exp => ({ ...exp, [taskId]: !exp[taskId] }));
     }
@@ -1647,47 +1660,49 @@ Assignee Notes: ${task.assigneeNotes}
           <div className="flex-1 flex flex-col mt-4 min-h-0">
             <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-visible">
               <table className="w-full table-auto bg-white min-w-full" style={{ overflow: 'visible' }}>
-                {/* Enhanced Table header */}
-                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-10">
-                      <tr>
-                        {/* Select All Checkbox Header */}
-                        <th className="px-3 py-4 text-center w-12">
-                          <MultiSelectCheckbox
-                            task={null}
-                            isChecked={selectedTaskIds.size > 0 && selectedTaskIds.size === filteredTasks.length}
-                            onToggle={handleSelectAll}
-                            isSelectAll={true}
-                          />
-                        </th>
-                        {/* Pin Column Header */}
-                        <th className="px-3 py-4 text-center w-12">
-                          <div className="flex items-center justify-center">
-                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pin</span>
-                          </div>
-                        </th>
-                        {columnOrder
-                          .filter(key => key !== 'category') // Remove TASK CATEGORY header for main tasks
-                          .map(key => {
-                            const col = columns.find(c => c.key === key);
-                            if (!col) return null;
-                            return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-                          })}
-                        <th key="add-column" className="px-3 py-4 text-center">
-                          <button
-                            className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                            onClick={handleShowAddColumnMenu}
-                            title="Add column"
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </th>
-                      </tr>
-                    </thead>
-                  </SortableContext>
-                </DndContext>
+                {/* Enhanced Table header - show Project Header only when no project is expanded */}
+                {expandedProjectId === null && (
+                  <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-10">
+                        <tr>
+                          {/* Select All Checkbox Header */}
+                          <th className="px-3 py-4 text-center w-12">
+                            <MultiSelectCheckbox
+                              task={null}
+                              isChecked={selectedTaskIds.size > 0 && selectedTaskIds.size === filteredTasks.length}
+                              onToggle={handleSelectAll}
+                              isSelectAll={true}
+                            />
+                          </th>
+                          {/* Pin Column Header */}
+                          <th className="px-3 py-4 text-center w-12">
+                            <div className="flex items-center justify-center">
+                              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pin</span>
+                            </div>
+                          </th>
+                          {columnOrder
+                            .filter(key => key !== 'category') // Remove TASK CATEGORY header for main tasks
+                            .map(key => {
+                              const col = columns.find(c => c.key === key);
+                              if (!col) return null;
+                              return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+                            })}
+                          <th key="add-column" className="px-3 py-4 text-center">
+                            <button
+                              className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
+                              onClick={handleShowAddColumnMenu}
+                              title="Add column"
+                              type="button"
+                            >
+                              +
+                            </button>
+                          </th>
+                        </tr>
+                      </thead>
+                    </SortableContext>
+                  </DndContext>
+                )}
                 <tbody className="divide-y divide-gray-100" style={{ overflow: 'visible' }}>
                   {/* No Results Message */}
                   {filteredTasks.length === 0 && !newTask && (

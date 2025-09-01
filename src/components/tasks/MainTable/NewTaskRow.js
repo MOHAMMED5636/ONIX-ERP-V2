@@ -186,3 +186,4 @@ const NewTaskRow = ({
 };
 
 export default NewTaskRow;
+
