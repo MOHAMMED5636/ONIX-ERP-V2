@@ -1658,13 +1658,13 @@ Assignee Notes: ${task.assigneeNotes}
           />
           {/* Enhanced Table Container - Scrollable */}
           <div className="flex-1 flex flex-col mt-4 min-h-0">
-            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-visible">
-              <table className="w-full table-auto bg-white min-w-full" style={{ overflow: 'visible' }}>
+            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
+              <table className="w-full table-auto bg-white min-w-full">
                 {/* Enhanced Table header - show Project Header only when no project is expanded */}
                 {expandedProjectId === null && (
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-10">
+                      <thead className="sticky top-0 bg-white z-10 border-b border-gray-200">
                         <tr>
                           {/* Select All Checkbox Header */}
                           <th className="px-3 py-4 text-center w-12">
@@ -2004,8 +2004,9 @@ Assignee Notes: ${task.assigneeNotes}
                       {expandedActive[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length + 3} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
-                            <table className="w-full table-fixed">
-                              <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
+                            <div className="max-h-[400px] overflow-y-auto">
+                              <table className="w-full table-fixed">
+                              <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b border-gray-300">
                                 <tr>
                                   {/* Checkbox Header Column */}
                                   <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
@@ -2213,6 +2214,7 @@ Assignee Notes: ${task.assigneeNotes}
                                 ))}
                               </tbody>
                             </table>
+                            </div>
                           </td>
                         </tr>
 
