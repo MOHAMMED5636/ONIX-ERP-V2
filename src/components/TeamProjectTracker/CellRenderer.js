@@ -105,19 +105,29 @@ const CellRenderer = {
       case "attachments":
         return (
           <div>
-            <input
-              type="file"
-              multiple
-              onChange={e => {
-                const files = Array.from(e.target.files);
-                onEdit("attachments", files);
-              }}
-            />
-            <ul className="mt-1 text-xs text-gray-600">
-              {(row.attachments || []).map((file, idx) => (
-                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              onClick={() => onEdit("openAttachmentsModal", true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+            >
+              <PaperClipIcon className="w-4 h-4" />
+              {row.attachments && row.attachments.length > 0 
+                ? `${row.attachments.length} file(s)` 
+                : 'Add files'
+              }
+            </button>
+            {row.attachments && row.attachments.length > 0 && (
+              <ul className="mt-2 text-xs text-gray-600">
+                {row.attachments.slice(0, 2).map((file, idx) => (
+                  <li key={idx} className="truncate">
+                    {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                  </li>
+                ))}
+                {row.attachments.length > 2 && (
+                  <li className="text-gray-500">+{row.attachments.length - 2} more</li>
+                )}
+              </ul>
+            )}
           </div>
         );
       case "priority":
@@ -423,19 +433,29 @@ const CellRenderer = {
       case "attachments":
         return (
           <div>
-            <input
-              type="file"
-              multiple
-              onChange={e => {
-                const files = Array.from(e.target.files);
-                handleEditSubtask(task.id, sub.id, "attachments", files);
-              }}
-            />
-            <ul className="mt-1 text-xs text-gray-600">
-              {(sub.attachments || []).map((file, idx) => (
-                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              onClick={() => handleEditSubtask(task.id, sub.id, "openAttachmentsModal", true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+            >
+              <PaperClipIcon className="w-4 h-4" />
+              {sub.attachments && sub.attachments.length > 0 
+                ? `${sub.attachments.length} file(s)` 
+                : 'Add files'
+              }
+            </button>
+            {sub.attachments && sub.attachments.length > 0 && (
+              <ul className="mt-2 text-xs text-gray-600">
+                {sub.attachments.slice(0, 2).map((file, idx) => (
+                  <li key={idx} className="truncate">
+                    {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                  </li>
+                ))}
+                {sub.attachments.length > 2 && (
+                  <li className="text-gray-500">+{sub.attachments.length - 2} more</li>
+                )}
+              </ul>
+            )}
           </div>
         );
       case "priority":

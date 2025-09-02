@@ -29,6 +29,7 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, h
 import { CSS } from '@dnd-kit/utilities';
 import MapPicker from '../modules/WorkingLocations.js';
 import ReorderableDropdown from "./tasks/ReorderableDropdown";
+import AttachmentsModal from "./tasks/modals/AttachmentsModal";
 
 const initialTasks = [
   {
@@ -266,6 +267,11 @@ export default function TeamProjectTracker() {
   // Add GoogleMapPicker demo modal
   const [googleMapPickerOpen, setGoogleMapPickerOpen] = useState(false);
   const [projectStartDate, setProjectStartDate] = useState(new Date()); // Add project start date state
+  
+  // Attachments modal state
+  const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false);
+  const [attachmentsModalTarget, setAttachmentsModalTarget] = useState(null); // { type: 'main'|'sub', taskId, subId }
+  const [attachmentsModalItems, setAttachmentsModalItems] = useState([]);
 
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
@@ -393,6 +399,16 @@ export default function TeamProjectTracker() {
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
+    // Handle attachments modal opening
+    if (col === 'openAttachmentsModal') {
+      setAttachmentsModalTarget({ type: 'sub', taskId, subId });
+      const task = tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(s => s.id === subId);
+      setAttachmentsModalItems(subtask?.attachments || []);
+      setAttachmentsModalOpen(true);
+      return;
+    }
+    
     setTasks(tasks => {
       let updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
@@ -503,6 +519,14 @@ export default function TeamProjectTracker() {
   }
 
   function handleEdit(task, col, value) {
+    // Handle attachments modal opening
+    if (col === 'openAttachmentsModal') {
+      setAttachmentsModalTarget({ type: 'main', taskId: task.id, subId: null });
+      setAttachmentsModalItems(task.attachments || []);
+      setAttachmentsModalOpen(true);
+      return;
+    }
+    
     setTasks(tasks => {
       const idx = tasks.findIndex(t => t.id === task.id);
       let updatedTasks = tasks.map(t => ({ ...t }));
@@ -549,6 +573,35 @@ export default function TeamProjectTracker() {
       setTasks(ts => ts.map(t => t.id === mapPickerTarget.taskId ? { ...t, subtasks: t.subtasks.map(s => s.id === mapPickerTarget.subId ? { ...s, location: value } : s) } : t));
     }
     setGoogleMapPickerOpen(false);
+  }
+  
+  // Handle attachments modal save
+  function handleAttachmentsSave(attachments) {
+    if (!attachmentsModalTarget) return;
+    
+    const { type, taskId, subId } = attachmentsModalTarget;
+    
+    setTasks(tasks => {
+      const updatedTasks = tasks.map(t => {
+        if (t.id !== taskId) return t;
+        
+        if (type === 'main') {
+          // Update main task attachments
+          return { ...t, attachments: attachments };
+        } else if (type === 'sub') {
+          // Update subtask attachments
+          const updatedSubtasks = t.subtasks.map(sub => {
+            if (sub.id !== subId) return sub;
+            return { ...sub, attachments: attachments };
+          });
+          return { ...t, subtasks: updatedSubtasks };
+        }
+        
+        return t;
+      });
+      
+      return updatedTasks;
+    });
   }
 
   // Handle project start date changes and recalculate all timelines
@@ -2558,6 +2611,14 @@ export default function TeamProjectTracker() {
             border-radius: 4px !important;
           }
       `}</style>
+      
+      {/* Attachments Modal */}
+      <AttachmentsModal
+        open={attachmentsModalOpen}
+        onClose={() => setAttachmentsModalOpen(false)}
+        attachments={attachmentsModalItems}
+        onSave={handleAttachmentsSave}
+      />
     </div>
   );
 }

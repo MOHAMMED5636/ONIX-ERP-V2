@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronRightIcon, PaperClipIcon } from "@heroicons/react/24/outline";
 import CheckboxWithPopup from './CheckboxWithPopup';
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 
@@ -30,7 +30,8 @@ const ProjectRow = ({
   setShowSubtaskForm,
   newSubtask,
   setNewSubtask,
-  handleSubtaskKeyDown
+  handleSubtaskKeyDown,
+  onOpenAttachmentsModal
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -160,19 +161,29 @@ const ProjectRow = ({
       case "attachments":
         return (
           <div>
-            <input
-              type="file"
-              multiple
-              onChange={e => {
-                const files = Array.from(e.target.files);
-                onEdit("attachments", files);
-              }}
-            />
-            <ul className="mt-1 text-xs text-gray-600">
-              {(row.attachments || []).map((file, idx) => (
-                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              onClick={() => onEdit("openAttachmentsModal", true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+            >
+              <PaperClipIcon className="w-4 h-4" />
+              {row.attachments && row.attachments.length > 0 
+                ? `${row.attachments.length} file(s)` 
+                : 'Add files'
+              }
+            </button>
+            {row.attachments && row.attachments.length > 0 && (
+              <ul className="mt-2 text-xs text-gray-600">
+                {row.attachments.slice(0, 2).map((file, idx) => (
+                  <li key={idx} className="truncate">
+                    {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                  </li>
+                ))}
+                {row.attachments.length > 2 && (
+                  <li className="text-gray-500">+{row.attachments.length - 2} more</li>
+                )}
+              </ul>
+            )}
           </div>
         );
       case "priority":
@@ -280,13 +291,40 @@ const ProjectRow = ({
           </div>
         );
       case "checklist":
+        const checklistItems = row.checklistItems || [];
+        const hasChecklist = checklistItems.length > 0;
         return (
-          <input
-            type="checkbox"
-            checked={!!row.checklist}
-            onChange={e => onEdit("checklist", e.target.checked)}
-            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                // This will be handled by the parent component
+                if (onEdit && typeof onEdit === 'function') {
+                  onEdit("openChecklistModal", true);
+                }
+              }}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                hasChecklist 
+                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              {hasChecklist ? (
+                <>
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {checklistItems.length} items
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Add checklist
+                </>
+              )}
+            </button>
+          </div>
         );
       case "link":
         return (
@@ -573,6 +611,37 @@ const ProjectRow = ({
                       onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
                       placeholder="Enter link"
                     />
+                  ) : col.key === "attachments" ? (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // For new subtasks, we'll open the modal with empty attachments
+                          if (onOpenAttachmentsModal && typeof onOpenAttachmentsModal === 'function') {
+                            onOpenAttachmentsModal('subtask');
+                          }
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors w-full"
+                      >
+                        <PaperClipIcon className="w-3 h-3" />
+                        {newSubtask.attachments && newSubtask.attachments.length > 0 
+                          ? `${newSubtask.attachments.length} file(s)` 
+                          : 'Add files'
+                        }
+                      </button>
+                      {newSubtask.attachments && newSubtask.attachments.length > 0 && (
+                        <ul className="mt-1 text-xs text-gray-600">
+                          {newSubtask.attachments.slice(0, 2).map((file, idx) => (
+                            <li key={idx} className="truncate">
+                              {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                            </li>
+                          ))}
+                          {newSubtask.attachments.length > 2 && (
+                            <li className="text-gray-500">+{newSubtask.attachments.length - 2} more</li>
+                          )}
+                        </ul>
+                      )}
+                    </div>
                   ) : (
                     <input
                       className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"

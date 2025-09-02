@@ -7,7 +7,8 @@ import {
   EyeIcon,
   FunnelIcon,
   XMarkIcon,
-  StarIcon
+  StarIcon,
+  PaperClipIcon
 } from "@heroicons/react/24/outline";
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -29,6 +30,8 @@ import MultiSelectCheckbox from "./MainTable/MultiSelectCheckbox";
 import BulkActionBar from "./MainTable/BulkActionBar";
 import BulkEditDrawer from "./MainTable/BulkEditDrawer";
 import BulkViewDrawer from "./MainTable/BulkViewDrawer";
+import ChecklistModal from "./modals/ChecklistModal";
+import AttachmentsModal from "./modals/AttachmentsModal";
 
 // Import utilities
 import {
@@ -89,6 +92,7 @@ const initialTasks = [
     projectFloor: "5",
     developerProject: "Onix Development",
     checklist: false,
+    checklistItems: [],
     rating: 3,
     progress: 50,
     color: "#60a5fa",
@@ -114,6 +118,7 @@ const initialTasks = [
         developerProject: "Onix Development",
         completed: false,
         checklist: false,
+        checklistItems: [],
         rating: 2,
         progress: 20,
         color: "#f59e42",
@@ -138,6 +143,7 @@ const initialTasks = [
             developerProject: "Onix Development",
             completed: false,
             checklist: false,
+            checklistItems: [],
             rating: 1,
             progress: 10,
             color: "#f59e42"
@@ -162,6 +168,7 @@ const initialTasks = [
             developerProject: "Onix Development",
             completed: false,
             checklist: false,
+            checklistItems: [],
             rating: 3,
             progress: 30,
             color: "#10d081"
@@ -185,6 +192,7 @@ const initialTasks = [
         developerProject: "Onix Development",
         completed: false,
         checklist: false,
+        checklistItems: [],
         rating: 4,
         progress: 70,
         color: "#10d081",
@@ -207,6 +215,7 @@ const initialTasks = [
         developerProject: "Onix Development",
         completed: false,
         checklist: false,
+        checklistItems: [],
         rating: 2,
         progress: 40,
         color: "#f20d11",
@@ -229,6 +238,7 @@ const initialTasks = [
         developerProject: "Onix Development",
         completed: false,
         checklist: false,
+        checklistItems: [],
         rating: 1,
         progress: 10,
         color: "#f20d11"
@@ -255,6 +265,17 @@ const initialTasks = [
     projectFloor: "3",
     developerProject: "Tech Solutions Inc",
     checklist: true,
+    checklistItems: [
+      {
+        id: Date.now(),
+        primaryNotes: "Project requirements review",
+        employeeConfirmation: true,
+        projectManagerYes: true,
+        projectManagerNo: false,
+        noteCategory: "Planning",
+        remarks: "Requirements approved"
+      }
+    ],
     rating: 4,
     progress: 75,
     color: "#10d081",
@@ -281,6 +302,7 @@ const initialTasks = [
     projectFloor: "2",
     developerProject: "Creative Agency",
     checklist: false,
+    checklistItems: [],
     rating: 3,
     progress: 25,
     color: "#f59e42",
@@ -524,6 +546,7 @@ export default function MainTable() {
     notes: "",
     predecessors: "",
     checklist: false,
+    checklistItems: [],
     link: "",
     rating: 0
   });
@@ -547,6 +570,16 @@ export default function MainTable() {
   // Add GoogleMapPicker demo modal
   const [googleMapPickerOpen, setGoogleMapPickerOpen] = useState(false);
   const [projectStartDate, setProjectStartDate] = useState(new Date()); // Add project start date state
+  
+  // Checklist modal state
+  const [checklistModalOpen, setChecklistModalOpen] = useState(false);
+  const [checklistModalTarget, setChecklistModalTarget] = useState(null); // { type: 'main'|'sub'|'child', taskId, subId }
+  const [checklistModalItems, setChecklistModalItems] = useState([]);
+  
+  // Attachments modal state
+  const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false);
+  const [attachmentsModalTarget, setAttachmentsModalTarget] = useState(null); // { type: 'main'|'sub'|'child', taskId, subId }
+  const [attachmentsModalItems, setAttachmentsModalItems] = useState([]);
 
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
@@ -883,6 +916,26 @@ Assignee Notes: ${task.assigneeNotes}
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
+    // Handle checklist modal opening
+    if (col === 'openChecklistModal') {
+      setChecklistModalTarget({ type: 'sub', taskId, subId });
+      const task = tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(s => s.id === subId);
+      setChecklistModalItems(subtask?.checklistItems || []);
+      setChecklistModalOpen(true);
+      return;
+    }
+    
+    // Handle attachments modal opening
+    if (col === 'openAttachmentsModal') {
+      setAttachmentsModalTarget({ type: 'sub', taskId, subId });
+      const task = tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(s => s.id === subId);
+      setAttachmentsModalItems(subtask?.attachments || []);
+      setAttachmentsModalOpen(true);
+      return;
+    }
+
     // Handle delete case
     if (col === 'delete') {
       handleDeleteRow(subId, taskId);
@@ -1007,6 +1060,22 @@ Assignee Notes: ${task.assigneeNotes}
   }
 
   function handleEdit(task, col, value) {
+    // Handle checklist modal opening
+    if (col === 'openChecklistModal') {
+      setChecklistModalTarget({ type: 'main', taskId: task.id, subId: null });
+      setChecklistModalItems(task.checklistItems || []);
+      setChecklistModalOpen(true);
+      return;
+    }
+    
+    // Handle attachments modal opening
+    if (col === 'openAttachmentsModal') {
+      setAttachmentsModalTarget({ type: 'main', taskId: task.id, subId: null });
+      setAttachmentsModalItems(task.attachments || []);
+      setAttachmentsModalOpen(true);
+      return;
+    }
+
     setTasks(tasks => {
       const idx = tasks.findIndex(t => t.id === task.id);
       let updatedTasks = tasks.map(t => ({ ...t }));
@@ -1252,6 +1321,7 @@ Assignee Notes: ${task.assigneeNotes}
     notes: "",
     predecessors: "",
     checklist: false,
+    checklistItems: [],
     link: "",
     rating: 0
   });
@@ -1307,12 +1377,35 @@ Assignee Notes: ${task.assigneeNotes}
       notes: "",
       predecessors: "",
       checklist: false,
+      checklistItems: [],
       link: "",
       rating: 0
     });
   }
 
-  function handleEditChildSubtask(taskId, parentSubtaskId, childSubtaskId, col, value) {
+    function handleEditChildSubtask(taskId, parentSubtaskId, childSubtaskId, col, value) {
+    // Handle checklist modal opening
+    if (col === 'openChecklistModal') {
+      setChecklistModalTarget({ type: 'child', taskId, subId: parentSubtaskId, childSubId: childSubtaskId });
+      const task = tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(s => s.id === parentSubtaskId);
+      const childSubtask = subtask?.childSubtasks?.find(c => c.id === childSubtaskId);
+      setChecklistModalItems(childSubtask?.checklistItems || []);
+      setChecklistModalOpen(true);
+      return;
+    }
+    
+    // Handle attachments modal opening
+    if (col === 'openAttachmentsModal') {
+      setAttachmentsModalTarget({ type: 'child', taskId, subId: parentSubtaskId, childSubId: childSubtaskId });
+      const task = tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(s => s.id === parentSubtaskId);
+      const childSubtask = subtask?.childSubtasks?.find(c => c.id === childSubtaskId);
+      setAttachmentsModalItems(childSubtask?.attachments || []);
+      setAttachmentsModalOpen(true);
+      return;
+    }
+
     setTasks(tasks => {
       const updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
@@ -1335,7 +1428,7 @@ Assignee Notes: ${task.assigneeNotes}
               if (isValid(start) && value > 0) {
                 const newEnd = addDays(new Date(start), value - 1);
                 return { ...child, planDays: value, timeline: [start, newEnd] };
-              }
+            }
               return { ...child, planDays: value };
             } else {
               return { ...child, [col]: value };
@@ -1347,8 +1440,7 @@ Assignee Notes: ${task.assigneeNotes}
           
           return {
             ...sub,
-            childSubtasks: updatedChildSubtasks,
-            status: allDone ? 'done' : sub.status
+            childSubtasks: updatedChildSubtasks
           };
         });
         
@@ -1362,6 +1454,98 @@ Assignee Notes: ${task.assigneeNotes}
       if (col === 'timeline' || col === 'planDays') {
         return calculateTaskTimelines(updatedTasks, projectStartDate);
       }
+      
+      return updatedTasks;
+    });
+  }
+
+  // Handle checklist modal save
+  function handleChecklistSave(items) {
+    if (!checklistModalTarget) return;
+    
+    const { type, taskId, subId, childSubId } = checklistModalTarget;
+    
+    setTasks(tasks => {
+      const updatedTasks = tasks.map(t => {
+        if (t.id !== taskId) return t;
+        
+        if (type === 'main') {
+          // Update main task checklist
+          return { ...t, checklistItems: items };
+        } else if (type === 'sub') {
+          // Update subtask checklist
+          const updatedSubtasks = t.subtasks.map(sub => {
+            if (sub.id !== subId) return sub;
+            return { ...sub, checklistItems: items };
+          });
+          return { ...t, subtasks: updatedSubtasks };
+        } else if (type === 'child') {
+          // Update child subtask checklist
+          const updatedSubtasks = t.subtasks.map(sub => {
+            if (sub.id !== subId) return sub;
+            const updatedChildSubtasks = sub.childSubtasks.map(child => {
+              if (child.id !== childSubId) return child;
+              return { ...child, checklistItems: items };
+            });
+            return { ...sub, childSubtasks: updatedChildSubtasks };
+          });
+          return { ...t, subtasks: updatedSubtasks };
+        }
+        
+        return t;
+      });
+      
+      return updatedTasks;
+    });
+  }
+  
+  // Handle attachments modal save
+  function handleAttachmentsSave(attachments) {
+    if (!attachmentsModalTarget) return;
+    
+    const { type, taskId, subId, childSubId } = attachmentsModalTarget;
+    
+    if (type === 'new') {
+      // For new main tasks, update the newTask state
+      setNewTask(nt => ({ ...nt, attachments: attachments }));
+      return;
+    }
+    
+    if (type === 'newSubtask') {
+      // For new subtasks, update the newSubtask state
+      setNewSubtask(nt => ({ ...nt, attachments: attachments }));
+      return;
+    }
+    
+    setTasks(tasks => {
+      const updatedTasks = tasks.map(t => {
+        if (t.id !== taskId) return t;
+        
+        if (type === 'main') {
+          // Update main task attachments
+          return { ...t, attachments: attachments };
+        } else if (type === 'sub') {
+          // Update subtask attachments
+          const updatedSubtasks = t.subtasks.map(sub => {
+            if (sub.id !== subId) return sub;
+            return { ...sub, attachments: attachments };
+          });
+          return { ...t, subtasks: updatedSubtasks };
+        } else if (type === 'child') {
+          // Update child subtask attachments
+          const updatedSubtasks = t.subtasks.map(sub => {
+            if (sub.id !== subId) return sub;
+            const updatedChildSubtasks = sub.childSubtasks.map(child => {
+              if (child.id !== childSubId) return child;
+              return { ...child, attachments: attachments };
+            });
+            return { ...sub, childSubtasks: updatedChildSubtasks };
+          });
+          return { ...t, subtasks: updatedSubtasks };
+        }
+        
+        return t;
+      });
       
       return updatedTasks;
     });
@@ -1535,20 +1719,29 @@ Assignee Notes: ${task.assigneeNotes}
       case "attachments":
         return (
           <div>
-            <input
-              type="file"
-              multiple
-              className="text-xs"
-              onChange={e => {
-                const files = Array.from(e.target.files);
-                handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "attachments", files);
-              }}
-            />
-            <ul className="mt-1 text-xs text-gray-600">
-              {(childSub.attachments || []).map((file, idx) => (
-                <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "openAttachmentsModal", true)}
+              className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+            >
+              <PaperClipIcon className="w-3 h-3" />
+              {childSub.attachments && childSub.attachments.length > 0 
+                ? `${childSub.attachments.length} file(s)` 
+                : 'Add files'
+              }
+            </button>
+            {childSub.attachments && childSub.attachments.length > 0 && (
+              <ul className="mt-1 text-xs text-gray-600">
+                {childSub.attachments.slice(0, 2).map((file, idx) => (
+                  <li key={idx} className="truncate">
+                    {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                  </li>
+                ))}
+                {childSub.attachments.length > 2 && (
+                  <li className="text-gray-500">+{childSub.attachments.length - 2} more</li>
+                )}
+              </ul>
+            )}
           </div>
         );
       case "location":
@@ -1964,20 +2157,34 @@ Assignee Notes: ${task.assigneeNotes}
                               />
                             ) : col.key === "attachments" ? (
                               <div>
-                                <input
-                                  type="file"
-                                  multiple
-                                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                  onChange={e => {
-                                    const files = Array.from(e.target.files);
-                                    setNewTask(nt => ({ ...nt, attachments: files }));
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // For new tasks, we'll open the modal with empty attachments
+                                    setAttachmentsModalTarget({ type: 'new', taskId: null, subId: null });
+                                    setAttachmentsModalItems([]);
+                                    setAttachmentsModalOpen(true);
                                   }}
-                                />
-                                <ul className="mt-1 text-xs text-gray-600">
-                                  {(newTask.attachments || []).map((file, idx) => (
-                                    <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-                                  ))}
-                                </ul>
+                                  className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm w-full"
+                                >
+                                  <PaperClipIcon className="w-4 h-4" />
+                                  {newTask.attachments && newTask.attachments.length > 0 
+                                    ? `${newTask.attachments.length} file(s)` 
+                                    : 'Add files'
+                                  }
+                                </button>
+                                {newTask.attachments && newTask.attachments.length > 0 && (
+                                  <ul className="mt-2 text-xs text-gray-600">
+                                    {newTask.attachments.slice(0, 2).map((file, idx) => (
+                                      <li key={idx} className="truncate">
+                                        {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                                      </li>
+                                      ))}
+                                    {newTask.attachments.length > 2 && (
+                                      <li className="text-gray-500">+{newTask.attachments.length - 2} more</li>
+                                    )}
+                                  </ul>
+                                )}
                               </div>
                             ) : col.key === "priority" ? (
                               <select
@@ -2149,6 +2356,16 @@ Assignee Notes: ${task.assigneeNotes}
                             newSubtask={newSubtask}
                             setNewSubtask={setNewSubtask}
                             handleSubtaskKeyDown={handleSubtaskKeyDown}
+                            onOpenAttachmentsModal={(type) => {
+                              if (type === 'subtask') {
+                                setAttachmentsModalTarget({ type: 'newSubtask', taskId: null, subId: null });
+                                setAttachmentsModalItems(newSubtask.attachments || []);
+                              } else {
+                                setAttachmentsModalTarget({ type: 'new', taskId: null, subId: null });
+                                setAttachmentsModalItems([]);
+                              }
+                              setAttachmentsModalOpen(true);
+                            }}
                           />
                       {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
@@ -2449,6 +2666,23 @@ Assignee Notes: ${task.assigneeNotes}
         showNewTask={showNewTask} 
         setShowNewTask={setShowNewTask} 
         handleCreateTask={handleCreateTask} 
+      />
+
+      {/* Checklist Modal */}
+      <ChecklistModal
+        open={checklistModalOpen}
+        onClose={() => setChecklistModalOpen(false)}
+        items={checklistModalItems}
+        setItems={setChecklistModalItems}
+        onSave={handleChecklistSave}
+      />
+      
+      {/* Attachments Modal */}
+      <AttachmentsModal
+        open={attachmentsModalOpen}
+        onClose={() => setAttachmentsModalOpen(false)}
+        attachments={attachmentsModalItems}
+        onSave={handleAttachmentsSave}
       />
 
       {/* Bulk Action Components */}
