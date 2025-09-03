@@ -11,6 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { format } from 'date-fns';
 import TimelineCell from './TimelineCell';
+import TruncatedTextCell from './TruncatedTextCell';
 import { statusColors } from '../utils/tableUtils';
 import ChecklistModal from '../modals/ChecklistModal';
 
@@ -81,7 +82,9 @@ const CellRenderer = {
         );
       case "timeline":
         const timelineHasPredecessors = row.predecessors && row.predecessors.toString().trim() !== '';
-        return <TimelineCell value={row.timeline} onChange={val => onEdit(row, "timeline", val)} hasPredecessors={timelineHasPredecessors} />;
+        // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array
+        const timelineValue = row.start && row.end ? [row.start, row.end] : row.timeline;
+        return <TimelineCell value={timelineValue} onChange={val => onEdit(row, "timeline", val)} hasPredecessors={timelineHasPredecessors} />;
       case "planDays":
         return (
           <input
@@ -96,24 +99,22 @@ const CellRenderer = {
         );
       case "remarks":
         return (
-          <textarea
-            className="border rounded px-2 py-1 text-sm w-full resize-none"
+          <TruncatedTextCell
             value={row.remarks || ""}
             onChange={e => onEdit("remarks", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter remarks"
-            rows={2}
+            maxWidth="w-40"
           />
         );
       case "assigneeNotes":
         return (
-          <textarea
-            className="border rounded px-2 py-1 text-sm w-full resize-none"
+          <TruncatedTextCell
             value={row.assigneeNotes || ""}
             onChange={e => onEdit("assigneeNotes", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter assignee notes"
-            rows={2}
+            maxWidth="w-40"
           />
         );
       case "attachments":
@@ -288,55 +289,50 @@ const CellRenderer = {
         );
       case "link":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm"
-            value={row.link}
-            onChange={e => onEdit("link", e.target.value)}
-            onKeyDown={onKeyDown}
-          />
+          <div className="flex items-center gap-2">
+            <input
+              className="border rounded px-2 py-1 text-sm flex-1"
+              value={row.link || ""}
+              onChange={e => onEdit("link", e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Enter link"
+            />
+            {/* Rating stars */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {[1, 2, 3, 4, 5].map(i => {
+                const rating = row.rating || 0;
+                if (row.status === 'done' && isAdmin) {
+                  return (
+                    <StarIcon
+                      key={i}
+                      className={`w-4 h-4 cursor-pointer transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                      onClick={() => onEdit("rating", i)}
+                      fill={i <= rating ? '#facc15' : 'none'}
+                    />
+                  );
+                } else if (isAdmin) {
+                  return (
+                    <StarIcon
+                      key={i}
+                      className={`w-4 h-4 cursor-pointer transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                      onClick={() => onEdit("showRatingPrompt", true)}
+                      fill={i <= rating ? '#facc15' : 'none'}
+                    />
+                  );
+                } else {
+                  return (
+                    <StarIcon
+                      key={i}
+                      className={`w-4 h-4 transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                      fill={i <= rating ? '#facc15' : 'none'}
+                    />
+                  );
+                }
+              })}
+            </div>
+          </div>
         );
-      case "rating":
-        // Always show stars, but only highlight filled ones
-        const rating = row.rating || 0;
-        if (row.status === 'done' && isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => onEdit("rating", i)}
-                  fill={i <= rating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        } else if (isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => onEdit("showRatingPrompt", true)}
-                  fill={i <= rating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        } else {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 transition ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= rating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        }
+      // Rating is now combined with link case above
       case "progress":
         // If there are subtasks, make progress read-only and show average
         const hasSubtasks = row.subtasks && row.subtasks.length > 0;
@@ -447,7 +443,9 @@ const CellRenderer = {
         return <span className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm">{sub.owner}</span>;
       case "timeline":
         const subTimelineHasPredecessors = sub.predecessors && sub.predecessors.toString().trim() !== '';
-        return <TimelineCell value={sub.timeline} onChange={val => onEdit(task.id, sub.id, "timeline", val)} hasPredecessors={subTimelineHasPredecessors} />;
+        // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array
+        const subTimelineValue = sub.start && sub.end ? [sub.start, sub.end] : sub.timeline;
+        return <TimelineCell value={subTimelineValue} onChange={val => onEdit(task.id, sub.id, "timeline", val)} hasPredecessors={subTimelineHasPredecessors} />;
       case "planDays":
         return (
           <input
@@ -462,24 +460,22 @@ const CellRenderer = {
         );
       case "remarks":
         return (
-          <textarea
-            className="border rounded px-2 py-1 text-sm w-full resize-none"
+          <TruncatedTextCell
             value={sub.remarks || ""}
             onChange={e => onEdit(task.id, sub.id, "remarks", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter remarks"
-            rows={2}
+            maxWidth="w-32"
           />
         );
       case "assigneeNotes":
         return (
-          <textarea
-            className="border rounded px-2 py-1 text-sm w-full resize-none"
+          <TruncatedTextCell
             value={sub.assigneeNotes || ""}
             onChange={e => onEdit(task.id, sub.id, "assigneeNotes", e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Enter assignee notes"
-            rows={2}
+            maxWidth="w-32"
           />
         );
       case "attachments":
@@ -653,7 +649,7 @@ const CellRenderer = {
       case "link":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-32"
             value={sub.link || ""}
             onChange={e => onEdit(task.id, sub.id, "link", e.target.value)}
             onKeyDown={onKeyDown}

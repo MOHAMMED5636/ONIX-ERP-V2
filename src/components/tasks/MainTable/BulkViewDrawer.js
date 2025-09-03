@@ -4,6 +4,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 const BulkViewDrawer = ({ 
   isOpen, 
   selectedTasks, 
+  selectedSubtasks = [], 
   onClose 
 }) => {
   if (!isOpen) return null;
@@ -41,7 +42,9 @@ const BulkViewDrawer = ({
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">View Selected Projects</h2>
-              <p className="text-sm text-gray-600">{selectedTasks.length} projects selected</p>
+              <p className="text-sm text-gray-600">
+                {selectedTasks.length} projects, {selectedSubtasks.length} subtasks selected
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -184,6 +187,75 @@ const BulkViewDrawer = ({
                   </div>
                 </div>
               ))}
+              
+              {/* Subtasks Section */}
+              {selectedSubtasks.length > 0 && (
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Subtasks</h3>
+                  <div className="space-y-4">
+                    {selectedSubtasks.map((subtask, index) => (
+                      <div key={subtask.id} className="border border-gray-200 rounded-lg p-4 bg-green-50">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-md font-semibold text-gray-900">
+                            {index + 1}. {subtask.name}
+                          </h4>
+                          <span className="text-sm text-gray-500">
+                            {subtask.type === 'childSubtask' ? 'Child Subtask' : 'Subtask'} ID: {subtask.id}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Ref. No</label>
+                            <p className="text-sm text-gray-900">{formatValue(subtask.referenceNumber)}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(subtask.status)}`}>
+                              {formatValue(subtask.status)}
+                            </span>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
+                            <p className="text-sm text-gray-900">{formatValue(subtask.owner)}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                            <p className="text-sm text-gray-900">{formatValue(subtask.priority)}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <p className="text-sm text-gray-900">{formatValue(subtask.category)}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Plan Days</label>
+                            <p className="text-sm text-gray-900">{formatValue(subtask.planDays)}</p>
+                          </div>
+                          
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+                            <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                              {formatValue(subtask.remarks)}
+                            </p>
+                          </div>
+                          
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Assignee Notes</label>
+                            <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                              {formatValue(subtask.assigneeNotes)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

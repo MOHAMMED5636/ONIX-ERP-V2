@@ -2,14 +2,10 @@ import React from 'react';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import DraggableHeader from './DraggableHeader';
-import MultiSelectCheckbox from './MultiSelectCheckbox';
 
 const TableHeader = ({ 
   columnOrder, 
   columns, 
-  selectedTaskIds, 
-  filteredTasks, 
-  handleSelectAll, 
   handleShowAddColumnMenu 
 }) => {
   return (
@@ -17,14 +13,9 @@ const TableHeader = ({
       <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-10">
           <tr>
-            {/* Select All Checkbox Header */}
+            {/* Select Column Header - No checkbox */}
             <th className="px-3 py-4 text-center w-12">
-              <MultiSelectCheckbox
-                task={null}
-                isChecked={selectedTaskIds.size > 0 && selectedTaskIds.size === filteredTasks.length}
-                onToggle={handleSelectAll}
-                isSelectAll={true}
-              />
+              {/* Empty header for checkbox alignment */}
             </th>
             {/* Pin Column Header */}
             <th className="px-3 py-4 text-center w-12">

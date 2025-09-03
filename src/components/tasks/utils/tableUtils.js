@@ -1,4 +1,5 @@
 import { format, addDays, differenceInCalendarDays, isValid } from 'date-fns';
+import { calculateProjectDates, calculateTaskDates } from './TimelineCalc';
 
 // Constants
 export const statusColors = {
@@ -52,7 +53,7 @@ export function getPredecessorIds(predecessors) {
 }
 
 export function calculateTaskTimelines(tasks, projectStartDate) {
-  // Build a lookup for tasks by id (including subtasks)
+  // First, calculate basic timelines using the existing logic
   const taskMap = {};
   const allTasks = [];
   
@@ -68,7 +69,7 @@ export function calculateTaskTimelines(tasks, projectStartDate) {
     }
   });
 
-  // Calculate timelines for all tasks and subtasks
+  // Calculate basic timelines for all tasks and subtasks
   const updatedTaskMap = {};
   allTasks.forEach(task => {
     // If task already has a timeline, calculate plan days from it
@@ -114,7 +115,7 @@ export function calculateTaskTimelines(tasks, projectStartDate) {
   });
 
   // Update main tasks with their updated subtasks
-  return tasks.map(task => {
+  const tasksWithBasicTimelines = tasks.map(task => {
     const updatedTask = updatedTaskMap[task.id];
     if (task.subtasks) {
       updatedTask.subtasks = task.subtasks.map(subtask => 
@@ -122,6 +123,12 @@ export function calculateTaskTimelines(tasks, projectStartDate) {
       );
     }
     return updatedTask;
+  });
+
+  // Now apply hierarchical date calculation using TimelineCalc
+  return tasksWithBasicTimelines.map(task => {
+    // Treat each main task as a project for hierarchical calculation
+    return calculateProjectDates(task);
   });
 }
 

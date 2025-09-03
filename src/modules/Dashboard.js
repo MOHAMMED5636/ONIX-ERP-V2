@@ -169,7 +169,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative h-full w-full bg-white flex flex-col items-stretch justify-start">
+    <div className="relative min-h-screen w-full bg-white flex flex-col items-stretch justify-start">
       {/* Faded watermark overlay */}
       <div className="absolute inset-0 bg-white bg-opacity-80 z-10" />
       {/* 0. Add imports for useRef and animated SVG blob */}
@@ -189,7 +189,7 @@ export default function Dashboard() {
         </svg>
       </div>
       <DashboardLayout>
-        <div className="relative z-20 p-2 sm:p-4 lg:p-6 xl:p-8 w-full h-full flex flex-col items-stretch justify-start">
+        <div className="relative z-20 p-2 sm:p-4 lg:p-6 xl:p-8 w-full flex flex-col items-stretch justify-start">
           {/* Hero Banner */}
           {/* 2. Hero Banner: add user avatar and personalized greeting */}
           <div className="w-full mb-6 sm:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 px-2 sm:px-6 py-4 rounded-2xl bg-gradient-to-r from-indigo-400 via-cyan-400 to-blue-300 shadow-lg animate-fade-in relative overflow-hidden">
@@ -214,9 +214,9 @@ export default function Dashboard() {
           <AdminMessagePopup title={t("Admin Message")} message={t("System will be down Sunday 2:00 AM")}/>
           <AdminMessageModal open={showAdminMsg} onClose={handleCloseAdminMsg} message={adminMessage} />
           {/* Responsive main grid: stack on mobile, row on xl+ */}
-          <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 lg:gap-8 gap-x-8 w-full h-full items-stretch justify-start">
+          <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 lg:gap-8 gap-x-8 w-full items-stretch justify-start">
             {/* Main content */}
-            <div className="flex-1 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0 h-full items-stretch justify-start">
+            <div className="flex-1 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0 items-stretch justify-start">
               {/* Summary cards: responsive grid, no overflow */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
                 <DashboardCard
@@ -376,7 +376,7 @@ export default function Dashboard() {
               </div>
             </div>
             {/* Right sidebar: stack below on mobile, right on xl+ */}
-            <div className="xl:w-80 w-full mt-6 xl:mt-0 flex-shrink-0 h-full items-stretch justify-start">
+            <div className="xl:w-80 w-full mt-6 xl:mt-0 flex-shrink-0 items-stretch justify-start">
               <RightWidgetBox onDateClick={setSelectedDate} />
             </div>
           </div>

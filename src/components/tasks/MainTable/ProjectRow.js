@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDownIcon, ChevronRightIcon, PaperClipIcon } from "@heroicons/react/24/outline";
 import CheckboxWithPopup from './CheckboxWithPopup';
 import MultiSelectCheckbox from './MultiSelectCheckbox';
+import TruncatedTextCell from './TruncatedTextCell';
 
 const ProjectRow = ({
   task,
@@ -117,12 +118,17 @@ const ProjectRow = ({
           </select>
         );
       case "timeline":
-        // TimelineCell component would be imported or defined here
+        // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array
+        const startDate = row.start || (row.timeline && row.timeline[0]);
+        const endDate = row.end || (row.timeline && row.timeline[1]);
+        
+
+        
         return (
           <div className="relative inline-block">
             <button className="inline-block px-3 py-1 rounded-full text-xs font-bold transition bg-blue-100 text-blue-700 hover:bg-blue-200">
-              {row.timeline && row.timeline[0] && row.timeline[1] 
-                ? `${new Date(row.timeline[0]).toLocaleDateString()} – ${new Date(row.timeline[1]).toLocaleDateString()}`
+              {startDate && endDate 
+                ? `${new Date(startDate).toLocaleDateString()} – ${new Date(endDate).toLocaleDateString()}`
                 : 'Set dates'}
             </button>
           </div>
@@ -140,22 +146,20 @@ const ProjectRow = ({
         );
       case "remarks":
         return (
-          <textarea
-            className="border rounded px-2 py-1 text-sm w-full resize-none"
+          <TruncatedTextCell
             value={row.remarks || ""}
             onChange={e => onEdit("remarks", e.target.value)}
             placeholder="Enter remarks"
-            rows={2}
+            maxWidth="w-40"
           />
         );
       case "assigneeNotes":
         return (
-          <textarea
-            className="border rounded px-2 py-1 text-sm w-full resize-none"
+          <TruncatedTextCell
             value={row.assigneeNotes || ""}
             onChange={e => onEdit("assigneeNotes", e.target.value)}
             placeholder="Enter assignee notes"
-            rows={2}
+            maxWidth="w-40"
           />
         );
       case "attachments":

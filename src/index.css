@@ -2,19 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles to prevent page overflow */
+/* Global styles for proper page layout */
 html, body, #root {
   height: 100%;
   width: 100%;
-  overflow: hidden;
   margin: 0;
   padding: 0;
+}
+
+/* Allow scrolling on body and root */
+body, #root {
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Ensure the app container takes full height */
 #root {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }
 
 /* Full screen styles for tasks */

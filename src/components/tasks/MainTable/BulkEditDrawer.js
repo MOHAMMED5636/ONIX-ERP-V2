@@ -4,6 +4,7 @@ import { XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
 const BulkEditDrawer = ({ 
   isOpen, 
   selectedTasks, 
+  selectedSubtasks = [], 
   onClose, 
   onSave 
 }) => {
@@ -12,13 +13,16 @@ const BulkEditDrawer = ({
 
   // Initialize form data when drawer opens
   useEffect(() => {
-    if (isOpen && selectedTasks.length > 0) {
-      // Find common values across selected tasks
+    if (isOpen && (selectedTasks.length > 0 || selectedSubtasks.length > 0)) {
+      // Find common values across selected tasks and subtasks
       const commonData = {};
       const fields = ['status', 'owner', 'priority', 'category', 'location', 'remarks', 'assigneeNotes'];
       
+      // Combine all selected items for analysis
+      const allItems = [...selectedTasks, ...selectedSubtasks];
+      
       fields.forEach(field => {
-        const values = selectedTasks.map(task => task[field]).filter(Boolean);
+        const values = allItems.map(item => item[field]).filter(Boolean);
         const uniqueValues = [...new Set(values)];
         
         if (uniqueValues.length === 1) {
@@ -31,7 +35,7 @@ const BulkEditDrawer = ({
       setFormData(commonData);
       setHasChanges(false);
     }
-  }, [isOpen, selectedTasks]);
+  }, [isOpen, selectedTasks, selectedSubtasks]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -42,7 +46,7 @@ const BulkEditDrawer = ({
   };
 
   const handleSave = () => {
-    onSave(selectedTasks, formData);
+    onSave(selectedTasks, formData, selectedSubtasks);
     onClose();
   };
 
@@ -73,7 +77,9 @@ const BulkEditDrawer = ({
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Bulk Edit Projects</h2>
-              <p className="text-sm text-gray-600">{selectedTasks.length} projects selected</p>
+              <p className="text-sm text-gray-600">
+                {selectedTasks.length} projects, {selectedSubtasks.length} subtasks selected
+              </p>
             </div>
             <button
               onClick={handleCancel}
@@ -86,13 +92,18 @@ const BulkEditDrawer = ({
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
-              {/* Selected Projects List */}
+              {/* Selected Items List */}
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Selected Projects:</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Selected Items:</h3>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {selectedTasks.map(task => (
-                    <div key={task.id} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                      {task.name}
+                    <div key={task.id} className="text-sm text-gray-600 bg-blue-50 p-2 rounded border-l-2 border-blue-400">
+                      📋 {task.name}
+                    </div>
+                  ))}
+                  {selectedSubtasks.map(subtask => (
+                    <div key={subtask.id} className="text-sm text-gray-600 bg-green-50 p-2 rounded border-l-2 border-green-400">
+                      📝 {subtask.name}
                     </div>
                   ))}
                 </div>

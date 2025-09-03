@@ -27,11 +27,15 @@ import CellRenderer from "./MainTable/CellRenderer";
 import Modals from "./MainTable/Modals";
 import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
 import MultiSelectCheckbox from "./MainTable/MultiSelectCheckbox";
+import SubtaskCheckbox from "./MainTable/SubtaskCheckbox";
 import BulkActionBar from "./MainTable/BulkActionBar";
 import BulkEditDrawer from "./MainTable/BulkEditDrawer";
 import BulkViewDrawer from "./MainTable/BulkViewDrawer";
+import TruncatedTextCell from "./MainTable/TruncatedTextCell";
 import ChecklistModal from "./modals/ChecklistModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
+import Toast from "./MainTable/Toast";
+import CopyPasteDemo from "./MainTable/CopyPasteDemo";
 
 // Import utilities
 import {
@@ -79,7 +83,7 @@ const initialTasks = [
     category: "Development",
     status: "done",
     owner: "MN",
-    timeline: [null, null],
+    timeline: [new Date('2025-09-01'), new Date('2025-09-10')],
     planDays: 10,
     remarks: "",
     assigneeNotes: "",
@@ -105,7 +109,7 @@ const initialTasks = [
         category: "Design",
         status: "done",
         owner: "SA",
-        timeline: [null, null],
+        timeline: [new Date('2025-09-02'), new Date('2025-09-08')],
         remarks: "",
         assigneeNotes: "",
         attachments: [],
@@ -130,7 +134,7 @@ const initialTasks = [
             category: "Design",
             status: "done",
             owner: "SA",
-            timeline: [null, null],
+            timeline: [new Date('2025-09-02'), new Date('2025-09-05')],
             remarks: "",
             assigneeNotes: "",
             attachments: [],
@@ -155,7 +159,7 @@ const initialTasks = [
             category: "Development",
             status: "working",
             owner: "MN",
-            timeline: [null, null],
+            timeline: [new Date('2025-09-06'), new Date('2025-09-08')],
             remarks: "",
             assigneeNotes: "",
             attachments: [],
@@ -252,7 +256,7 @@ const initialTasks = [
     category: "Development",
     status: "working",
     owner: "SA",
-    timeline: [null, null],
+    timeline: [new Date('2025-09-15'), new Date('2025-09-30')],
     planDays: 15,
     remarks: "High priority project",
     assigneeNotes: "Need to complete by end of month",
@@ -289,7 +293,7 @@ const initialTasks = [
     category: "Design",
     status: "pending",
     owner: "AH",
-    timeline: [null, null],
+    timeline: [new Date('2025-10-01'), new Date('2025-10-08')],
     planDays: 8,
     remarks: "",
     assigneeNotes: "",
@@ -490,8 +494,12 @@ export default function MainTable() {
 
   // Multi-select state
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [selectedSubtaskIds, setSelectedSubtaskIds] = useState(new Set());
   const [showBulkEditDrawer, setShowBulkEditDrawer] = useState(false);
   const [showBulkViewDrawer, setShowBulkViewDrawer] = useState(false);
+  
+  // Toast state
+  const [toast, setToast] = useState(null);
 
   // Debounced search for better performance
   const debouncedSearch = useDebounce(search, 300);
@@ -794,6 +802,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
 
   // Multi-select handlers
   const handleTaskSelection = (taskId, isChecked) => {
+    console.log('handleTaskSelection called:', { taskId, isChecked });
     setSelectedTaskIds(prev => {
       const newSet = new Set(prev);
       if (isChecked) {
@@ -801,52 +810,76 @@ Assignee Notes: ${taskData.assigneeNotes}`;
       } else {
         newSet.delete(taskId);
       }
+      console.log('Updated selectedTaskIds:', Array.from(newSet));
       return newSet;
     });
   };
 
-  const handleSelectAll = (taskId, isChecked) => {
-    if (isChecked) {
-      setSelectedTaskIds(new Set(filteredTasks.map(task => task.id)));
-    } else {
-      setSelectedTaskIds(new Set());
-    }
-  };
-
-  const handleBulkEdit = (selectedTasks) => {
-    setShowBulkEditDrawer(true);
-  };
-
-  const handleBulkDelete = (selectedTasks) => {
-    const taskIds = selectedTasks.map(task => task.id);
-    setTasks(tasks => tasks.filter(task => !taskIds.includes(task.id)));
-    setSelectedTaskIds(new Set());
-  };
-
-  const handleBulkCopy = (selectedTasks) => {
-    const content = selectedTasks.map(task => 
-      `Task: ${task.name}
-Reference: ${task.referenceNumber}
-Status: ${task.status}
-Owner: ${task.owner}
-Priority: ${task.priority}
-Category: ${task.category}
-Location: ${task.location}
-Remarks: ${task.remarks}
-Assignee Notes: ${task.assigneeNotes}
----`
-    ).join('\n\n');
-    
-    navigator.clipboard.writeText(content).then(() => {
-      alert('Selected projects copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy to clipboard:', err);
-      alert('Failed to copy to clipboard');
+  // Subtask selection handler
+  const handleSubtaskSelection = (subtaskId, isChecked) => {
+    console.log('handleSubtaskSelection called:', { subtaskId, isChecked });
+    setSelectedSubtaskIds(prev => {
+      const newSet = new Set(prev);
+      if (isChecked) {
+        newSet.add(subtaskId);
+      } else {
+        newSet.delete(subtaskId);
+      }
+      console.log('Updated selectedSubtaskIds:', Array.from(newSet));
+      return newSet;
     });
   };
 
-  const handleBulkView = (selectedTasks) => {
+  // handleSelectAll removed - no more select all functionality
+
+  const handleBulkEdit = (selectedTasks, selectedSubtasks = []) => {
+    console.log('Bulk edit called with:', { selectedTasks, selectedSubtasks });
+    setShowBulkEditDrawer(true);
+  };
+
+  const handleBulkDelete = (selectedTasks, selectedSubtasks = []) => {
+    console.log('Bulk delete called with:', { selectedTasks, selectedSubtasks });
+    
+    // Delete selected tasks
+    if (selectedTasks.length > 0) {
+      const taskIds = selectedTasks.map(task => task.id);
+      setTasks(tasks => tasks.filter(task => !taskIds.includes(task.id)));
+    }
+    
+    // Delete selected subtasks
+    if (selectedSubtasks.length > 0) {
+      setTasks(tasks => tasks.map(task => {
+        if (task.subtasks) {
+          const updatedSubtasks = task.subtasks.filter(subtask => 
+            !selectedSubtasks.some(selected => selected.id === subtask.id)
+          );
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      }));
+    }
+    
+    setSelectedTaskIds(new Set());
+    setSelectedSubtaskIds(new Set());
+  };
+
+  // handleBulkCopy removed - replaced with new copy-paste functionality
+
+  const handleBulkView = (selectedTasks, selectedSubtasks = []) => {
+    console.log('Bulk view called with:', { selectedTasks, selectedSubtasks });
     setShowBulkViewDrawer(true);
+  };
+
+  // Handle pasted tasks from copy-paste functionality
+  const handleTasksPasted = (pastedTasks) => {
+    setTasks(prevTasks => [...prevTasks, ...pastedTasks]);
+    
+    // Show success message
+    showToast(`Successfully pasted ${pastedTasks.length} task(s)`, 'success');
+    
+    // Clear selection after paste
+    setSelectedTaskIds(new Set());
+    setSelectedSubtaskIds(new Set());
   };
 
   const handleBulkSave = (selectedTasks, formData) => {
@@ -866,6 +899,38 @@ Assignee Notes: ${task.assigneeNotes}
 
   const handleClearSelection = () => {
     setSelectedTaskIds(new Set());
+    setSelectedSubtaskIds(new Set());
+  };
+
+  // Helper function to get all selected subtasks
+  const getAllSelectedSubtasks = () => {
+    const selectedSubtasks = [];
+    tasks.forEach(task => {
+      if (task.subtasks) {
+        task.subtasks.forEach(subtask => {
+          if (selectedSubtaskIds.has(subtask.id)) {
+            selectedSubtasks.push({ ...subtask, parentTaskId: task.id });
+          }
+          if (subtask.childSubtasks) {
+            subtask.childSubtasks.forEach(childSubtask => {
+              if (selectedSubtaskIds.has(childSubtask.id)) {
+                selectedSubtasks.push({ ...childSubtask, parentTaskId: task.id, parentSubtaskId: subtask.id });
+              }
+            });
+          }
+        });
+      }
+    });
+    return selectedSubtasks;
+  };
+  
+  // Toast handler
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+  };
+  
+  const hideToast = () => {
+    setToast(null);
   };
 
   function handleAddSubtask(taskId) {
@@ -1959,6 +2024,9 @@ Assignee Notes: ${task.assigneeNotes}
             handleAddColumn={handleAddColumn}
             handleShowAddColumnMenu={handleShowAddColumnMenu}
           />
+          {/* Copy-Paste Feature Demo */}
+          <CopyPasteDemo />
+          
           {/* Enhanced Table Container - Scrollable */}
           <div className="flex-1 flex flex-col mt-4 min-h-0">
             <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -1969,14 +2037,9 @@ Assignee Notes: ${task.assigneeNotes}
                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                       <thead className="sticky top-0 bg-white z-10 border-b border-gray-200">
                         <tr>
-                          {/* Select All Checkbox Header */}
+                          {/* Select Column Header - No checkbox */}
                           <th className="px-3 py-4 text-center w-12">
-                            <MultiSelectCheckbox
-                              task={null}
-                              isChecked={selectedTaskIds.size > 0 && selectedTaskIds.size === filteredTasks.length}
-                              onToggle={handleSelectAll}
-                              isSelectAll={true}
-                            />
+                            {/* Empty header for checkbox alignment */}
                           </th>
                           {/* Pin Column Header */}
                           <th className="px-3 py-4 text-center w-12">
@@ -2419,6 +2482,8 @@ Assignee Notes: ${task.assigneeNotes}
                                         <div className="flex items-center justify-center">
                                           <input
                                             type="checkbox"
+                                            checked={selectedSubtaskIds.has(sub.id)}
+                                            onChange={(e) => handleSubtaskSelection(sub.id, e.target.checked)}
                                             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                             title={`Select ${sub.name || 'task'}`}
                                           />
@@ -2462,6 +2527,8 @@ Assignee Notes: ${task.assigneeNotes}
                                           <div className="flex items-center justify-center">
                                             <input
                                               type="checkbox"
+                                              checked={selectedSubtaskIds.has(childSub.id)}
+                                              onChange={(e) => handleSubtaskSelection(childSub.id, e.target.checked)}
                                               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                                               title={`Select ${childSub.name || 'child task'}`}
                                             />
@@ -2685,14 +2752,33 @@ Assignee Notes: ${task.assigneeNotes}
         onSave={handleAttachmentsSave}
       />
 
+      {/* Toast Component */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
+      )}
+
       {/* Bulk Action Components */}
       <BulkActionBar
         selectedTasks={filteredTasks.filter(task => selectedTaskIds.has(task.id))}
+        selectedSubtasks={getAllSelectedSubtasks()}
+        totalSelected={selectedTaskIds.size + selectedSubtaskIds.size}
+        selectionAnalysis={{
+          canEdit: (selectedTaskIds.size > 0) || (selectedSubtaskIds.size > 0),
+          reason: (selectedTaskIds.size === 0 && selectedSubtaskIds.size === 0) ? 'No items selected' : 
+                 (selectedTaskIds.size > 0 && selectedSubtaskIds.size > 0) ? 'Mixed selection (projects and subtasks)' :
+                 selectedTaskIds.size > 0 ? 'Projects selected' : 'Subtasks selected'
+        }}
         onEdit={handleBulkEdit}
         onDelete={handleBulkDelete}
-        onCopy={handleBulkCopy}
         onView={handleBulkView}
         onClearSelection={handleClearSelection}
+        onShowToast={showToast}
+        allTasks={tasks}
+        onTasksPasted={handleTasksPasted}
       />
 
       <BulkEditDrawer

@@ -2,50 +2,54 @@ import React from 'react';
 import { 
   PencilIcon,
   TrashIcon,
-  ClipboardDocumentIcon,
   EyeIcon,
   XMarkIcon
 } from "@heroicons/react/24/outline";
+import TaskCopyPasteManager from './TaskCopyPasteManager';
 
 const BulkActionBar = ({ 
   selectedTasks, 
+  selectedSubtasks = [], 
+  totalSelected = 0,
+  selectionAnalysis,
   onEdit, 
   onDelete, 
-  onCopy, 
   onView, 
-  onClearSelection 
+  onClearSelection,
+  onShowToast,
+  allTasks,
+  onTasksPasted
 }) => {
-  if (selectedTasks.length < 2) return null;
+  if (totalSelected < 1) return null;
 
   const handleEdit = () => {
-    onEdit(selectedTasks);
+    if (selectionAnalysis.canEdit) {
+      onEdit(selectedTasks, selectedSubtasks);
+    } else {
+      // Show toast for invalid selection
+      onShowToast(selectionAnalysis.reason, 'error');
+    }
   };
 
   const handleDelete = () => {
     const taskNames = selectedTasks.map(task => task.name).join(', ');
-    if (window.confirm(`Are you sure you want to delete ${selectedTasks.length} projects?\n\n${taskNames}`)) {
-      onDelete(selectedTasks);
+    const subtaskNames = selectedSubtasks.map(subtask => subtask.name).join(', ');
+    
+    let message = `Are you sure you want to delete ${totalSelected} item(s)?\n\n`;
+    if (selectedTasks.length > 0) {
+      message += `Tasks: ${taskNames}\n`;
+    }
+    if (selectedSubtasks.length > 0) {
+      message += `Subtasks: ${subtaskNames}\n`;
+    }
+    
+    if (window.confirm(message)) {
+      onDelete(selectedTasks, selectedSubtasks);
     }
   };
 
-  const handleCopy = () => {
-    const contentToCopy = selectedTasks.map(task => ({
-      id: task.id,
-      name: task.name,
-      referenceNumber: task.referenceNumber,
-      status: task.status,
-      owner: task.owner,
-      priority: task.priority,
-      category: task.category,
-      location: task.location,
-      remarks: task.remarks,
-      assigneeNotes: task.assigneeNotes
-    }));
-    onCopy(contentToCopy);
-  };
-
   const handleView = () => {
-    onView(selectedTasks);
+    onView(selectedTasks, selectedSubtasks);
   };
 
   return (
@@ -53,14 +57,24 @@ const BulkActionBar = ({
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
         <div className="flex items-center gap-3">
           <div className="text-sm font-medium text-gray-700">
-            {selectedTasks.length} projects selected
+            {totalSelected} item(s) selected
+            {!selectionAnalysis.canEdit && (
+              <div className="text-xs text-red-500 mt-1">
+                {selectionAnalysis.reason}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
             <button
               onClick={handleEdit}
-              className="flex items-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
-              title="Edit selected projects"
+              disabled={!selectionAnalysis.canEdit}
+              className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
+                selectionAnalysis.canEdit
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={selectionAnalysis.canEdit ? "Edit selected items" : selectionAnalysis.reason}
             >
               <PencilIcon className="w-4 h-4" />
               Edit
@@ -69,25 +83,30 @@ const BulkActionBar = ({
             <button
               onClick={handleView}
               className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm"
-              title="View selected projects"
+              title="View selected items"
             >
               <EyeIcon className="w-4 h-4" />
               View
             </button>
             
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors text-sm"
-              title="Copy selected projects to clipboard"
-            >
-              <ClipboardDocumentIcon className="w-4 h-4" />
-              Copy
-            </button>
+            {/* Copy-Paste Manager */}
+            <TaskCopyPasteManager
+              selectedTasks={selectedTasks}
+              selectedSubtasks={selectedSubtasks}
+              allTasks={allTasks}
+              onTasksPasted={onTasksPasted}
+              onCopySuccess={(copiedData) => {
+                console.log('Tasks copied successfully:', copiedData);
+              }}
+              onPasteSuccess={(pasteResult) => {
+                console.log('Tasks pasted successfully:', pasteResult);
+              }}
+            />
             
             <button
               onClick={handleDelete}
               className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
-              title="Delete selected projects"
+              title="Delete selected items"
             >
               <TrashIcon className="w-4 h-4" />
               Delete
@@ -95,10 +114,11 @@ const BulkActionBar = ({
             
             <button
               onClick={onClearSelection}
-              className="flex items-center gap-1 px-2 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors text-sm"
+              className="flex items-center gap-1 px-3 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors text-sm"
               title="Clear selection"
             >
               <XMarkIcon className="w-4 h-4" />
+              Clear
             </button>
           </div>
         </div>
