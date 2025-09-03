@@ -33,6 +33,7 @@ import ExcelTable from "./pages/ExcelTable";
 import JiraLikePage from "./pages/JiraLikePage";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
+import { AIAssistantProvider, AIAssistantEnhanced } from "./components/AIAssistant";
 
 function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
@@ -92,6 +93,9 @@ function MainLayout() {
           </Routes>
         </main>
       </div>
+      
+      {/* AI Assistant - Available on all pages */}
+      <AIAssistantEnhanced />
     </div>
   );
 }
@@ -110,18 +114,20 @@ export default function App() {
   return (
     <CompanySelectionProvider>
       <RuleProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            {/* Special route for Jira table demo - bypasses main layout */}
-            <Route path="/jira-table-demo" element={<JiraTableDemo />} />
-            <Route path="/*" element={
-              <PrivateRoute>
-                <MainLayout />
-              </PrivateRoute>
-            } />
-          </Routes>
-        </Router>
+        <AIAssistantProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              {/* Special route for Jira table demo - bypasses main layout */}
+              <Route path="/jira-table-demo" element={<JiraTableDemo />} />
+              <Route path="/*" element={
+                <PrivateRoute>
+                  <MainLayout />
+                </PrivateRoute>
+              } />
+            </Routes>
+          </Router>
+        </AIAssistantProvider>
       </RuleProvider>
     </CompanySelectionProvider>
   );
