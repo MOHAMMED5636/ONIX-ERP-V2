@@ -1,5 +1,9 @@
 import { format, addDays, differenceInCalendarDays, isValid } from 'date-fns';
 import { calculateProjectDates, calculateTaskDates } from './TimelineCalc';
+import { generateProjectReference, generateSubtaskReference, initializeReferenceTracker } from './referenceNumberGenerator';
+
+// Initialize reference tracker when module loads
+let referenceTrackerInitialized = false;
 
 // Constants
 export const statusColors = {
@@ -166,6 +170,12 @@ export function filterTasks(tasks, search, filters = {}) {
     const categoryMatch = !filters.category || 
       (t.category && t.category.toLowerCase() === filters.category.toLowerCase());
 
+    const priorityMatch = !filters.priority || 
+      (t.priority && t.priority.toLowerCase() === filters.priority.toLowerCase());
+
+    const locationMatch = !filters.location || 
+      (t.location && t.location.toLowerCase().includes(filters.location.toLowerCase()));
+
     // Date range filtering
     let dateMatch = true;
     if (filters.dateFrom || filters.dateTo) {
@@ -183,7 +193,7 @@ export function filterTasks(tasks, search, filters = {}) {
       }
     }
 
-    return globalMatch && nameMatch && statusMatch && assigneeMatch && planMatch && categoryMatch && dateMatch;
+    return globalMatch && nameMatch && statusMatch && assigneeMatch && planMatch && categoryMatch && priorityMatch && locationMatch && dateMatch;
   });
 }
 
@@ -249,43 +259,94 @@ export function generateTaskId() {
 }
 
 export function createNewTask(tasks, projectStartDate) {
-  return {
-    id: generateTaskId(),
-    name: "",
-    referenceNumber: "",
-    category: "Design",
-    status: "not started",
-    owner: "AL",
-    timeline: [null, null],
-    planDays: 0,
-    remarks: "",
-    assigneeNotes: "",
-    attachments: [],
-    priority: "Low",
-    location: "",
-    plotNumber: "",
-    community: "",
-    projectType: "Residential",
-    projectFloor: "",
-    developerProject: "",
-    notes: "",
-    autoNumber: tasks.length + 1,
-    predecessors: "",
-    checklist: false,
-    checklistItems: [],
-    link: "",
-    rating: 0,
-    progress: 0,
-    color: "#60a5fa",
-    subtasks: []
-  };
+  try {
+    // Initialize reference tracker if not done
+    if (!referenceTrackerInitialized) {
+      initializeReferenceTracker(tasks);
+      referenceTrackerInitialized = true;
+    }
+    
+    // Auto-generate reference number based on category
+    const category = "Design"; // Default category
+    const autoReferenceNumber = generateProjectReference(category, tasks);
+    
+    return {
+      id: generateTaskId(),
+      name: "",
+      referenceNumber: autoReferenceNumber,
+      category: category,
+      status: "not started",
+      owner: "AL",
+      timeline: [null, null],
+      planDays: 0,
+      remarks: "",
+      assigneeNotes: "",
+      attachments: [],
+      priority: "Low",
+      location: "",
+      plotNumber: "",
+      community: "",
+      projectType: "Residential",
+      projectFloor: "",
+      developerProject: "",
+      notes: "",
+      autoNumber: tasks.length + 1,
+      predecessors: "",
+      checklist: false,
+      checklistItems: [],
+      link: "",
+      rating: 0,
+      progress: 0,
+      color: "#60a5fa",
+      subtasks: []
+    };
+  } catch (error) {
+    console.error('Error creating new task:', error);
+    // Fallback to manual reference number if auto-generation fails
+    return {
+      id: generateTaskId(),
+      name: "",
+      referenceNumber: `REF-${Date.now()}`,
+      category: "Design",
+      status: "not started",
+      owner: "AL",
+      timeline: [null, null],
+      planDays: 0,
+      remarks: "",
+      assigneeNotes: "",
+      attachments: [],
+      priority: "Low",
+      location: "",
+      plotNumber: "",
+      community: "",
+      projectType: "Residential",
+      projectFloor: "",
+      developerProject: "",
+      notes: "",
+      autoNumber: tasks.length + 1,
+      predecessors: "",
+      checklist: false,
+      checklistItems: [],
+      link: "",
+      rating: 0,
+      progress: 0,
+      color: "#60a5fa",
+      subtasks: []
+    };
+  }
 }
 
-export function createNewSubtask() {
+export function createNewSubtask(parentReference = null) {
+  // Auto-generate reference number if parent reference is provided
+  let autoReferenceNumber = "";
+  if (parentReference) {
+    autoReferenceNumber = generateSubtaskReference(parentReference);
+  }
+  
   return {
     id: generateTaskId(),
     name: "",
-    referenceNumber: "",
+    referenceNumber: autoReferenceNumber,
     category: "Design",
     status: "not started",
     owner: "",
@@ -335,6 +396,58 @@ export function addColumnToTasks(tasks, columnKey) {
     [columnKey]: '',
     subtasks: (t.subtasks || []).map(s => ({ ...s, [columnKey]: '' }))
   }));
+}
+
+// Reference number utilities
+export function updateTaskReferenceNumber(task, newCategory, existingTasks) {
+  try {
+    // Initialize reference tracker if not done
+    if (!referenceTrackerInitialized) {
+      initializeReferenceTracker(existingTasks);
+      referenceTrackerInitialized = true;
+    }
+    
+    // Generate new reference number based on new category
+    const newReferenceNumber = generateProjectReference(newCategory, existingTasks);
+    
+    return {
+      ...task,
+      referenceNumber: newReferenceNumber,
+      category: newCategory
+    };
+  } catch (error) {
+    console.error('Error updating task reference number:', error);
+    // Fallback to manual reference number if auto-generation fails
+    return {
+      ...task,
+      referenceNumber: `REF-${Date.now()}`,
+      category: newCategory
+    };
+  }
+}
+
+// Function to reset reference tracker (useful for testing or when switching datasets)
+export function resetReferenceTracker() {
+  referenceTrackerInitialized = false;
+}
+
+export function updateSubtaskReferenceNumber(subtask, parentReference, existingSubtasks) {
+  try {
+    // Generate new reference number based on parent reference
+    const newReferenceNumber = generateSubtaskReference(parentReference, existingSubtasks);
+    
+    return {
+      ...subtask,
+      referenceNumber: newReferenceNumber
+    };
+  } catch (error) {
+    console.error('Error updating subtask reference number:', error);
+    // Fallback to manual reference number if auto-generation fails
+    return {
+      ...subtask,
+      referenceNumber: `${parentReference}-${Date.now()}`
+    };
+  }
 }
 
 // Map utilities

@@ -17,6 +17,7 @@ import MapPicker from '../../modules/WorkingLocations.js';
 
 // Import extracted components
 import ProjectRow from "./MainTable/ProjectRow";
+import SortableProjectRow from "./MainTable/SortableProjectRow";
 import CompletedProjects from "./MainTable/CompletedProjects";
 import Filters from "./MainTable/Filters";
 import TimelineCell from "./MainTable/TimelineCell";
@@ -35,13 +36,12 @@ import TruncatedTextCell from "./MainTable/TruncatedTextCell";
 import ChecklistModal from "./modals/ChecklistModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
 import Toast from "./MainTable/Toast";
-import CopyPasteDemo from "./MainTable/CopyPasteDemo";
+
 
 // Import utilities
 import {
   INITIAL_COLUMNS,
   calculateTaskTimelines,
-  filterTasks,
   filterCompletedTasks,
   getDefaultColumnOrder,
   loadColumnOrderFromStorage,
@@ -49,37 +49,27 @@ import {
   getMissingColumns,
   validateTask,
   generateTaskId,
+  createNewTask,
   createNewSubtask,
   calculateTaskProgress,
   areAllSubtasksComplete,
   createNewColumn,
   addColumnToTasks,
   formatLocationString,
-  statusColors
+  statusColors,
+  updateTaskReferenceNumber,
+  updateSubtaskReferenceNumber,
+  resetReferenceTracker
 } from "./utils/tableUtils";
 
-// Custom hook for debounced search
-const useDebounce = (value, delay) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
+// Import shared search and filter hook
+import { useSearchAndFilters } from './hooks/useSearchAndFilters';
 
 const initialTasks = [
   {
     id: 1,
     name: "Building construction",
-    referenceNumber: "REF-001",
+    referenceNumber: "REF-25DEV-001",
     category: "Development",
     status: "done",
     owner: "MN",
@@ -105,7 +95,7 @@ const initialTasks = [
       {
         id: 11,
         name: "Subitem 1",
-        referenceNumber: "REF-001-1",
+        referenceNumber: "REF-25DEV-001-001",
         category: "Design",
         status: "done",
         owner: "SA",
@@ -130,7 +120,7 @@ const initialTasks = [
           {
             id: 111,
             name: "Child Task 1.1",
-            referenceNumber: "REF-001-1-1",
+            referenceNumber: "REF-25DEV-001-001-001",
             category: "Design",
             status: "done",
             owner: "SA",
@@ -464,33 +454,24 @@ export default function MainTable() {
     }
   };
 
-  const clearAllFilters = () => {
-    setFilters({
-      global: '',
-      name: '',
-      status: '',
-      assignee: '',
-      plan: '',
-      category: '',
-      dateFrom: '',
-      dateTo: '',
-    });
-  };
+
 
   const [tasks, setTasks] = useState(initialTasks);
-  const [search, setSearch] = useState("");
-  // Enhanced filter state
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    global: '',
-    name: '',
-    status: '',
-    assignee: '',
-    plan: '',
-    category: '',
-    dateFrom: '',
-    dateTo: '',
-  });
+  // Use shared search and filter hook
+  const {
+    search,
+    setSearch,
+    filters,
+    setFilters,
+    showFilters,
+    setShowFilters,
+    isSearching,
+    clearAllFilters,
+    filterTasks,
+    getFilteredTasks,
+    getActiveFilterCount,
+    hasActiveFilters,
+  } = useSearchAndFilters(tasks);
 
   // Multi-select state
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
@@ -501,19 +482,20 @@ export default function MainTable() {
   // Toast state
   const [toast, setToast] = useState(null);
 
-  // Debounced search for better performance
-  const debouncedSearch = useDebounce(search, 300);
-  const debouncedFilters = useDebounce(filters, 300);
-  
-  // Loading state for search
-  const [isSearching, setIsSearching] = useState(false);
-  
-  // Show loading when search is being processed
+  // Initialize reference tracker when component mounts
   useEffect(() => {
-    setIsSearching(true);
-    const timer = setTimeout(() => setIsSearching(false), 100);
-    return () => clearTimeout(timer);
-  }, [debouncedSearch, debouncedFilters]);
+    // Import and initialize reference tracker
+    import('./utils/referenceNumberGenerator').then(({ initializeReferenceTracker }) => {
+      initializeReferenceTracker(tasks);
+    });
+  }, [tasks]); // Add tasks as dependency
+
+  // Function to manually initialize reference tracker (useful for debugging)
+  const initializeReferenceTracker = () => {
+    import('./utils/referenceNumberGenerator').then(({ initializeReferenceTracker: initTracker }) => {
+      initTracker(tasks);
+    });
+  };
 
   // Keyboard shortcut to focus search (Ctrl/Cmd + K)
   useEffect(() => {
@@ -533,31 +515,7 @@ export default function MainTable() {
   const [showNewTask, setShowNewTask] = useState(false);
   // Add state for subtask form
   const [showSubtaskForm, setShowSubtaskForm] = useState(null); // taskId or null
-  const [newSubtask, setNewSubtask] = useState({
-    name: "",
-    referenceNumber: "",
-    category: "Design",
-    status: "not started",
-    owner: "",
-    timeline: [null, null],
-    planDays: 0,
-    remarks: "",
-    assigneeNotes: "",
-    attachments: [],
-    priority: "Low",
-    location: "",
-    plotNumber: "",
-    community: "",
-    projectType: "Residential",
-    projectFloor: "",
-    developerProject: "",
-    notes: "",
-    predecessors: "",
-    checklist: false,
-    checklistItems: [],
-    link: "",
-    rating: 0
-  });
+  const [newSubtask, setNewSubtask] = useState(createNewSubtask());
   // Add state for editing subtasks
   const [editingSubtask, setEditingSubtask] = useState({}); // {subId_colKey: true}
   const [editSubValue, setEditSubValue] = useState("");
@@ -657,7 +615,7 @@ export default function MainTable() {
       return;
     }
     
-    // Create the task with current newTask data
+    // Create the task with auto-generated reference number
     const taskToAdd = {
       ...newTask,
       id: generateTaskId(),
@@ -697,30 +655,7 @@ export default function MainTable() {
       e.preventDefault();
       e.stopPropagation();
       setShowSubtaskForm(null);
-      setNewSubtask({
-        name: "",
-        referenceNumber: "",
-        category: "Design",
-        status: "not started",
-        owner: "",
-        timeline: [null, null],
-        planDays: 0,
-        remarks: "",
-        assigneeNotes: "",
-        attachments: [],
-        priority: "Low",
-        location: "",
-        plotNumber: "",
-        community: "",
-        projectType: "Residential",
-        projectFloor: "",
-        developerProject: "",
-        notes: "",
-        predecessors: "",
-        checklist: false,
-        link: "",
-        rating: 0
-      });
+      setNewSubtask(createNewSubtask());
     }
   };
 
@@ -934,8 +869,13 @@ Assignee Notes: ${taskData.assigneeNotes}`;
   };
 
   function handleAddSubtask(taskId) {
+    // Find the parent task to get its reference number
+    const parentTask = tasks.find(t => t.id === taskId);
+    if (!parentTask) return;
+    
+    // Create subtask with auto-generated reference number based on parent
     const newSubtaskData = {
-      ...createNewSubtask(),
+      ...createNewSubtask(parentTask.referenceNumber),
       ...newSubtask
     };
     
@@ -954,30 +894,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
       return calculateTaskTimelines(updatedTasks, projectStartDate);
     });
     setShowSubtaskForm(null);
-    setNewSubtask({
-      name: "",
-      referenceNumber: "",
-      category: "Design",
-      status: "not started",
-      owner: "",
-      timeline: [null, null],
-      planDays: 0,
-      remarks: "",
-      assigneeNotes: "",
-      attachments: [],
-      priority: "Low",
-      location: "",
-      plotNumber: "",
-      community: "",
-      projectType: "Residential",
-      projectFloor: "",
-      developerProject: "",
-      notes: "",
-      predecessors: "",
-      checklist: false,
-      link: "",
-      rating: 0
-    });
+    
+    // Reset newSubtask to default values
+    setNewSubtask(createNewSubtask());
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
@@ -1028,6 +947,11 @@ Assignee Notes: ${taskData.assigneeNotes}`;
               return { ...updatedSubtasks[idx], planDays: value, timeline: [start, newEnd] };
             }
             return { ...updatedSubtasks[idx], planDays: value };
+          } else if (col === 'category') {
+            // Auto-update reference number when category changes
+            const parentTask = tasks.find(t => t.id === taskId);
+            const updatedSubtask = updateSubtaskReferenceNumber(updatedSubtasks[idx], parentTask.referenceNumber, t.subtasks);
+            return updatedSubtask;
           } else {
             return { ...updatedSubtasks[idx], [col]: value };
           }
@@ -1092,36 +1016,14 @@ Assignee Notes: ${taskData.assigneeNotes}`;
   }
 
   function handleAddNewTask() {
-    setNewTask({
-      id: Date.now(),
-      name: "",
-      referenceNumber: "",
-      category: "Design",
-      status: "not started",
-      owner: "AL",
-      timeline: [null, null],
-      planDays: 0,
-      remarks: "",
-      assigneeNotes: "",
-      attachments: [],
-      priority: "Low",
-      location: "",
-      plotNumber: "",
-      community: "",
-      projectType: "Residential",
-      projectFloor: "",
-      developerProject: "",
-      notes: "",
-      autoNumber: tasks.length + 1,
-      predecessors: "",
-      checklist: false,
-      link: "",
-      rating: 0,
-      progress: 0,
-      color: "#60a5fa",
-      subtasks: [],
-      pinned: false // Add pinned property
-    });
+    // Ensure reference tracker is initialized
+    if (tasks.length > 0) {
+      initializeReferenceTracker();
+    }
+    
+    // Use createNewTask to auto-generate reference number
+    const newTaskData = createNewTask(tasks, projectStartDate);
+    setNewTask(newTaskData);
   }
 
   function handleEdit(task, col, value) {
@@ -1160,6 +1062,10 @@ Assignee Notes: ${taskData.assigneeNotes}`;
             return { ...updatedTasks[idx], planDays: value, timeline: [start, newEnd] };
           }
           return { ...updatedTasks[idx], planDays: value };
+        } else if (col === 'category') {
+          // Auto-update reference number when category changes
+          const updatedTask = updateTaskReferenceNumber(updatedTasks[idx], value, tasks);
+          return updatedTask;
         } else {
           return { ...updatedTasks[idx], [col]: value };
         }
@@ -1210,7 +1116,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
   }, [projectStartDate]);
 
   // Filter and sort tasks - pinned tasks first, then by existing sorting
-  const filteredTasks = filterTasks(tasks, debouncedSearch, debouncedFilters).sort((a, b) => {
+  const filteredTasks = getFilteredTasks().sort((a, b) => {
     // First sort by pinned status (pinned tasks first)
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -1361,6 +1267,30 @@ Assignee Notes: ${taskData.assigneeNotes}`;
         };
       })
     );
+  }
+
+  // Add the handler for project reordering
+  function handleProjectDragEnd(event) {
+    const { active, over } = event;
+    
+    // Check if both active and over exist and are valid
+    if (!active || !over || !active.id || !over.id) {
+      return;
+    }
+    
+    if (active.id === over.id) return;
+    
+    setTasks(tasks => {
+      const oldIndex = tasks.findIndex(task => task.id === active.id);
+      const newIndex = tasks.findIndex(task => task.id === over.id);
+      
+      // Check if both indices are valid
+      if (oldIndex === -1 || newIndex === -1) {
+        return tasks;
+      }
+      
+      return arrayMove(tasks, oldIndex, newIndex);
+    });
   }
 
   // Add state for child subtask form
@@ -2009,9 +1939,16 @@ Assignee Notes: ${taskData.assigneeNotes}`;
       {/* Main Content */}
       <main className="flex flex-col flex-1 min-h-0">
         <div className="w-full px-4 pt-0 pb-0">
-          <Filters
+                    <Filters
             search={search}
             setSearch={setSearch}
+            filters={filters}
+            setFilters={setFilters}
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+            clearAllFilters={clearAllFilters}
+            isSearching={isSearching}
+            getActiveFilterCount={getActiveFilterCount}
             handleAddNewTask={handleAddNewTask}
             handlePasteProject={handlePasteProject}
             resetColumnOrder={resetColumnOrder}
@@ -2024,10 +1961,27 @@ Assignee Notes: ${taskData.assigneeNotes}`;
             handleAddColumn={handleAddColumn}
             handleShowAddColumnMenu={handleShowAddColumnMenu}
           />
-          {/* Copy-Paste Feature Demo */}
-          <CopyPasteDemo />
           
-          {/* Enhanced Table Container - Scrollable */}
+          {/* Search Results Counter */}
+          {hasActiveFilters && hasActiveFilters() && (
+            <div className="px-6 py-2 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-blue-800">
+                  Found <strong>{filteredTasks.length}</strong> task{filteredTasks.length !== 1 ? 's' : ''} 
+                  {search && ` matching "${search}"`}
+                  {getActiveFilterCount && getActiveFilterCount() > 0 && ' with applied filters'}
+                </span>
+                <button
+                  onClick={clearAllFilters}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
+            
+            {/* Enhanced Table Container - Scrollable */}
           <div className="flex-1 flex flex-col mt-4 min-h-0">
             <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
               <table className="w-full table-auto bg-white min-w-full">
@@ -2037,6 +1991,12 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                       <thead className="sticky top-0 bg-white z-10 border-b border-gray-200">
                         <tr>
+                          {/* Drag Handle Column Header */}
+                          <th className="px-2 py-4 text-center w-16">
+                            <div className="flex items-center justify-center">
+                              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">↕</span>
+                            </div>
+                          </th>
                           {/* Select Column Header - No checkbox */}
                           <th className="px-3 py-4 text-center w-12">
                             {/* Empty header for checkbox alignment */}
@@ -2073,7 +2033,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                   {/* No Results Message */}
                   {filteredTasks.length === 0 && !newTask && (
                     <tr>
-                      <td colSpan={columnOrder.length + 3} className="px-6 py-12 text-center">
+                                              <td colSpan={columnOrder.length + 5} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                             <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
@@ -2096,6 +2056,12 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                   )}
                   {newTask && (
                     <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200" style={{ overflow: 'visible' }}>
+                      {/* Drag Handle Column for New Task */}
+                      <td className="px-2 py-3 align-middle text-center w-16">
+                        <div className="w-6 h-6 text-gray-300 flex items-center justify-center">
+                          <Bars3Icon className="w-4 h-4" />
+                        </div>
+                      </td>
                       {/* Multi-select Checkbox Column for New Task */}
                       <td className="px-4 py-3 align-middle text-center">
                         <MultiSelectCheckbox
@@ -2187,10 +2153,8 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                               </select>
                             ) : col.key === "timeline" ? (
                               <TimelineCell
-                                task={newTask}
-                                onTimelineChange={(timeline) => setNewTask({ ...newTask, timeline })}
-                                isEditing={true}
-                                onKeyDown={handleNewTaskKeyDown}
+                                value={newTask.timeline}
+                                onChange={(timeline) => setNewTask({ ...newTask, timeline })}
                               />
                             ) : col.key === "planDays" ? (
                               <input
@@ -2364,31 +2328,33 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                             ) : null}
                           </td>
                         );
-                      })}
-                          <td key="add-column" className="px-4 py-3 align-middle">
-                            <div className="flex items-center gap-2">
-                              <button
-                                className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm rounded-lg hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 font-medium"
-                                onClick={handleCreateTask}
-                                title="Save new project"
-                              >
-                                Save
-                              </button>
-                              <button
-                                className="px-4 py-2 bg-red-600 text-gray-700 text-sm rounded-lg hover:bg-gray-100 transition-all duration-200"
-                                onClick={() => setNewTask(null)}
-                                title="Cancel new project"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                                                                      })}
+                      <td key="add-column" className="px-4 py-3 align-middle">
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm rounded-lg hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 font-medium"
+                            onClick={handleCreateTask}
+                            title="Save new project"
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="px-4 py-2 bg-red-600 text-gray-700 text-sm rounded-lg hover:bg-gray-100 transition-all duration-200"
+                            onClick={() => setNewTask(null)}
+                            title="Cancel new project"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                  {filteredTasks.map(task => (
-                    <React.Fragment key={task.id}>
-                      {/* Main Task Row */}
-                          <ProjectRow
+                  <DndContext collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
+                    <SortableContext items={filteredTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+                      {filteredTasks.map(task => (
+                        <React.Fragment key={task.id}>
+                          {/* Main Task Row */}
+                          <SortableProjectRow
                             key={task.id}
                             task={task}
                             columnOrder={columnOrder}
@@ -2410,8 +2376,6 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                             onEditTask={handleEditTask}
                             onDeleteTask={handleDeleteTask}
                             onCopyTask={handleCopyTask}
-                            CellRenderer={CellRenderer}
-                            isAdmin={isAdmin}
                             isSelected={selectedTaskIds.has(task.id)}
                             onToggleSelection={handleTaskSelection}
                             showSubtaskForm={showSubtaskForm}
@@ -2433,34 +2397,36 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                       {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
                         <tr>
-                          <td colSpan={columnOrder.length + 3} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
+                                                     <td colSpan={columnOrder.length + 5} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
                             <div className="max-h-[400px] overflow-y-auto">
                               <table className="w-full table-fixed">
                               <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b border-gray-300">
                                 <tr>
+                                  {/* Drag Handle Header Column for Subtasks */}
+                                  <th className="px-2 py-3 text-xs font-bold text-gray-400 uppercase text-center w-16">
+                                    <div className="flex items-center justify-center">
+                                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">↕</span>
+                                    </div>
+                                  </th>
                                   {/* Checkbox Header Column */}
                                   <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
                                     {/* Empty header for checkbox alignment */}
                                   </th>
-                                  {columnOrder.map(colKey => {
-                                    const col = columns.find(c => c.key === colKey);
-                                    if (!col) return null;
-                                    return (
-                                      <th key={col.key} className={`px-4 py-3 text-xs font-bold text-gray-600 uppercase${col.key === 'delete' ? ' text-center w-12' : ''} ${
-                                        col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
-                                      } ${
-                                        col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
-                                      } ${
-                                        col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
-                                      } ${
-                                        col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
-                                      } ${
-                                        col.key === 'owner' ? 'w-36 min-w-36' : ''
-                                      }`}>
-                                        {col.label}
-                                      </th>
-                                    );
-                                  })}
+                                  <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                    <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                                      {columnOrder.map(colKey => {
+                                        const col = columns.find(c => c.key === colKey);
+                                        if (!col) return null;
+                                        return (
+                                          <DraggableHeader
+                                            key={col.key}
+                                            col={col}
+                                            colKey={col.key}
+                                          />
+                                        );
+                                      })}
+                                    </SortableContext>
+                                  </DndContext>
                                   <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
                                     <button
                                       className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
@@ -2475,10 +2441,16 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                               </thead>
                               <tbody>
                                 {task.subtasks.map((sub, subIdx) => (
-                                  <React.Fragment key={sub.id}>
-                                    <tr className="subtask-row transition-all duration-200">
-                                      {/* Checkbox Column for Subtask */}
-                                      <td className="px-4 py-3 align-middle text-center w-12">
+                                                                     <React.Fragment key={sub.id}>
+                                     <tr className="subtask-row transition-all duration-200">
+                                       {/* Drag Handle Column for Subtask */}
+                                       <td className="px-2 py-3 align-middle text-center w-16">
+                                         <div className="w-6 h-6 text-gray-400 flex items-center justify-center">
+                                           <Bars3Icon className="w-4 h-4" />
+                                         </div>
+                                       </td>
+                                       {/* Checkbox Column for Subtask */}
+                                       <td className="px-4 py-3 align-middle text-center w-12">
                                         <div className="flex items-center justify-center">
                                           <input
                                             type="checkbox"
@@ -2519,11 +2491,17 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                       </td>
                                     </tr>
                                     
-                                    {/* Child Subtasks */}
-                                    {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
-                                      <tr key={childSub.id} className="childtask-row transition-all duration-200">
-                                        {/* Checkbox Column for Child Subtask */}
-                                        <td className="px-4 py-2 align-middle text-center w-12">
+                                                                         {/* Child Subtasks */}
+                                     {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
+                                       <tr key={childSub.id} className="childtask-row transition-all duration-200">
+                                         {/* Drag Handle Column for Child Subtask */}
+                                         <td className="px-2 py-2 align-middle text-center w-16">
+                                           <div className="w-6 h-6 text-blue-400 flex items-center justify-center">
+                                             <Bars3Icon className="w-4 h-4" />
+                                           </div>
+                                         </td>
+                                         {/* Checkbox Column for Child Subtask */}
+                                         <td className="px-4 py-2 align-middle text-center w-12">
                                           <div className="flex items-center justify-center">
                                             <input
                                               type="checkbox"
@@ -2565,9 +2543,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                       </tr>
                                     ))}
                                     
-                                    {/* Add Child Subtask Button */}
-                                    <tr>
-                                      <td colSpan={columnOrder.length + 2} className="px-4 py-1">
+                                                                         {/* Add Child Subtask Button */}
+                                     <tr>
+                                       <td colSpan={columnOrder.length + 3} className="px-4 py-1">
                                         {showChildSubtaskForm === sub.id ? (
                                           <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                                             <form
@@ -2686,10 +2664,12 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                       )}
                       {/* Project End Border */}
                       <tr>
-                        <td colSpan={columnOrder.length + 3} className="h-1 bg-gray-300"></td>
+                        <td colSpan={columnOrder.length + 5} className="h-1 bg-gray-300"></td>
                       </tr>
                     </React.Fragment>
                   ))}
+                    </SortableContext>
+                  </DndContext>
                 </tbody>
               </table>
             </div>

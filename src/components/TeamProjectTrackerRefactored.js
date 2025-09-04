@@ -652,7 +652,6 @@ export default function TeamProjectTracker() {
             renderSubtaskCell={renderSubtaskCell}
             setSelectedProject={setSelectedProject}
             setShowProjectDialog={setShowProjectDialog}
-            DraggableHeader={DraggableHeader}
             title="Completed Team Projects"
           />
 

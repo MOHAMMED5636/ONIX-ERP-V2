@@ -3,6 +3,7 @@ import { CheckCircleIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/r
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableSubtaskRow from './SortableSubtaskRow';
+import DraggableHeader from './DraggableHeader';
 
 // Recursive TableRow component for Excel-like hierarchical table
 const TableRow = ({ 
@@ -121,29 +122,35 @@ const TableRow = ({
               
               {/* Excel-like subtask table */}
               <table className="w-full table-auto">
-                <thead>
-                  <tr>
-                    {columnOrder.map(colKey => {
-                      const col = columns.find(c => c.key === colKey);
-                      if (!col) return null;
-                      return (
-                        <th key={col.key} className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase${col.key === 'delete' ? ' text-center w-12' : ''}`}>
-                          {col.label}
+                <DndContext collisionDetection={closestCenter} onDragEnd={() => {}}>
+                  <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                    <thead>
+                      <tr>
+                        {columnOrder.map(colKey => {
+                          const col = columns.find(c => c.key === colKey);
+                          if (!col) return null;
+                          return (
+                            <DraggableHeader
+                              key={col.key}
+                              col={col}
+                              colKey={col.key}
+                            />
+                          );
+                        })}
+                        <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
+                          <button
+                            className="w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-sm flex items-center justify-center shadow"
+                            onClick={onShowAddColumnMenu}
+                            title="Add column"
+                            type="button"
+                          >
+                            +
+                          </button>
                         </th>
-                      );
-                    })}
-                    <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-500 uppercase text-center w-12">
-                      <button
-                        className="w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 text-sm flex items-center justify-center shadow"
-                        onClick={onShowAddColumnMenu}
-                        title="Add column"
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
+                      </tr>
+                    </thead>
+                  </SortableContext>
+                </DndContext>
                 <tbody>
                   <DndContext onDragEnd={event => onSubtaskDragEnd(event, row.id)}>
                     <SortableContext items={row.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
@@ -195,8 +202,7 @@ const CompletedProjects = ({
   renderMainCell,
   renderSubtaskCell,
   setSelectedProject,
-  setShowProjectDialog,
-  DraggableHeader
+  setShowProjectDialog
 }) => {
   if (completedTasks.length === 0) {
     return null;

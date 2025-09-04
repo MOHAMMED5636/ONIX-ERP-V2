@@ -99,6 +99,9 @@ export default function CreateTask() {
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Create Task</h1>
       </div>
+
+
+
       <div className="flex-1 w-full max-w-5xl mx-auto bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-6 sm:p-8 md:p-10">
         <form className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           {/* Task Name & Priority */}
