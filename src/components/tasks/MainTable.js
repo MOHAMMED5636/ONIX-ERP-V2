@@ -2440,56 +2440,52 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                 </tr>
                               </thead>
                               <tbody>
-                                {task.subtasks.map((sub, subIdx) => (
-                                                                     <React.Fragment key={sub.id}>
-                                     <tr className="subtask-row transition-all duration-200">
-                                       {/* Drag Handle Column for Subtask */}
-                                       <td className="px-2 py-3 align-middle text-center w-16">
-                                         <div className="w-6 h-6 text-gray-400 flex items-center justify-center">
-                                           <Bars3Icon className="w-4 h-4" />
-                                         </div>
-                                       </td>
-                                       {/* Checkbox Column for Subtask */}
-                                       <td className="px-4 py-3 align-middle text-center w-12">
-                                        <div className="flex items-center justify-center">
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedSubtaskIds.has(sub.id)}
-                                            onChange={(e) => handleSubtaskSelection(sub.id, e.target.checked)}
-                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                                            title={`Select ${sub.name || 'task'}`}
-                                          />
-                                        </div>
-                                      </td>
-                                      {columnOrder.map(colKey => {
-                                        const col = columns.find(c => c.key === colKey);
-                                        if (!col) return null;
-                                        return (
-                                          <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''} ${
-                                            col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
-                                          } ${
-                                            col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
-                                          } ${
-                                            col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
-                                          } ${
-                                            col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
-                                          } ${
-                                            col.key === 'owner' ? 'w-36 min-w-36' : ''
-                                          }`}>
-                                            {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
+                                <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
+                                  <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
+                                    {task.subtasks.map((sub, subIdx) => (
+                                      <React.Fragment key={sub.id}>
+                                        <SortableSubtaskRow sub={sub} subIdx={subIdx} task={task}>
+                                          {/* Checkbox Column for Subtask */}
+                                          <td className="px-4 py-3 align-middle text-center w-12">
+                                            <div className="flex items-center justify-center">
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedSubtaskIds.has(sub.id)}
+                                                onChange={(e) => handleSubtaskSelection(sub.id, e.target.checked)}
+                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                                title={`Select ${sub.name || 'task'}`}
+                                              />
+                                            </div>
                                           </td>
-                                        );
-                                      })}
-                                      <td className="w-12 text-center">
-                                        <button
-                                          onClick={() => handleDeleteRow(sub.id, task.id)}
-                                          className="text-red-500 hover:text-red-700"
-                                          title="Delete subtask"
-                                        >
-                                          ×
-                                        </button>
-                                      </td>
-                                    </tr>
+                                          {columnOrder.map(colKey => {
+                                            const col = columns.find(c => c.key === colKey);
+                                            if (!col) return null;
+                                            return (
+                                              <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                                col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+                                              } ${
+                                                col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+                                              } ${
+                                                col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+                                              } ${
+                                                col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+                                              } ${
+                                                col.key === 'owner' ? 'w-36 min-w-36' : ''
+                                              }`}>
+                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
+                                              </td>
+                                            );
+                                          })}
+                                          <td className="w-12 text-center">
+                                            <button
+                                              onClick={() => handleDeleteRow(sub.id, task.id)}
+                                              className="text-red-500 hover:text-red-700"
+                                              title="Delete subtask"
+                                            >
+                                              ×
+                                            </button>
+                                          </td>
+                                        </SortableSubtaskRow>
                                     
                                                                          {/* Child Subtasks */}
                                      {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
@@ -2653,7 +2649,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                       </td>
                                     </tr>
                                   </React.Fragment>
-                                ))}
+                                    ))}
+                                  </SortableContext>
+                                </DndContext>
                               </tbody>
                             </table>
                             </div>

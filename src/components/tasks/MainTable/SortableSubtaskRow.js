@@ -10,12 +10,12 @@ const SortableSubtaskRow = ({ sub, subIdx, task, children }) => {
     <tr
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`subtask-row transition-all duration-200 ${isDragging ? "bg-blue-50" : ""}`}
+      className={`subtask-row transition-all duration-200 ${isDragging ? "bg-blue-50 shadow-lg z-10" : "hover:bg-gray-50"}`}
       {...attributes}
     >
       {/* Drag handle cell */}
-      <td {...listeners} style={{ cursor: 'grab' }}>
-        <Bars3Icon className="w-5 h-5 text-gray-400" />
+      <td {...listeners} style={{ cursor: 'grab' }} className="hover:bg-gray-100 transition-colors" title="Drag to reorder subtask">
+        <Bars3Icon className="w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors" />
       </td>
       {children}
     </tr>
