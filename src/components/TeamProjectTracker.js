@@ -1798,13 +1798,9 @@ export default function TeamProjectTracker() {
                                 value={newTask.planDays || 0}
                                 onChange={e => {
                                   const newPlanDays = Number(e.target.value);
-                                  // Update plan days and recalculate timeline
-                                  const updatedNewTask = { ...newTask, planDays: newPlanDays };
-                                  if (newTask.timeline && newTask.timeline[0] && newPlanDays > 0) {
-                                    const newEnd = addDays(new Date(newTask.timeline[0]), newPlanDays - 1);
-                                    updatedNewTask.timeline = [newTask.timeline[0], newEnd];
-                                  }
-                                  setNewTask(updatedNewTask);
+                                  // Update plan days without changing timeline for new projects
+                                  // Timeline should be set independently
+                                  setNewTask({ ...newTask, planDays: newPlanDays });
                                 }}
                                 placeholder="Enter plan days"
                               />

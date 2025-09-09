@@ -108,18 +108,16 @@ const TaskManager = () => {
       }
       updatedTask.planDays = planDays;
     } else if (field === 'planDays') {
-      const [start] = task.timeline || [];
-      if (start && value > 0) {
-        const newEnd = new Date(start);
-        newEnd.setDate(newEnd.getDate() + value - 1);
-        updatedTask.timeline = [start, newEnd];
-      }
+      // For project-level tasks, only update planDays without changing timeline
+      // Timeline updates should only happen for tasks and subtasks, not projects
+      // No timeline update needed here
     }
     
     actions.updateTask(updatedTask);
     
     // Recalculate timelines if needed
-    if (field === 'predecessors' || field === 'timeline' || field === 'planDays') {
+    // Note: planDays changes at project level no longer trigger timeline recalculation
+    if (field === 'predecessors' || field === 'timeline') {
       actions.calculateTimelines();
     }
   };

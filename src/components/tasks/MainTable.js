@@ -1056,11 +1056,8 @@ Assignee Notes: ${taskData.assigneeNotes}`;
           }
           return { ...updatedTasks[idx], timeline: value, planDays };
         } else if (col === 'planDays') {
-          const [start, end] = updatedTasks[idx].timeline || [];
-          if (isValid(start) && value > 0) {
-            const newEnd = addDays(new Date(start), value - 1);
-            return { ...updatedTasks[idx], planDays: value, timeline: [start, newEnd] };
-          }
+          // For project-level tasks, only update planDays without changing timeline
+          // Timeline updates should only happen for tasks and subtasks, not projects
           return { ...updatedTasks[idx], planDays: value };
         } else if (col === 'category') {
           // Auto-update reference number when category changes
@@ -1071,8 +1068,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
         }
       })();
       
-      // If predecessors, timeline, or planDays changed, recalculate all timelines
-      if (col === 'predecessors' || col === 'timeline' || col === 'planDays') {
+      // If predecessors or timeline changed, recalculate all timelines
+      // Note: planDays changes at project level no longer trigger timeline recalculation
+      if (col === 'predecessors' || col === 'timeline') {
         return calculateTaskTimelines(updatedTasks, projectStartDate);
       }
       
