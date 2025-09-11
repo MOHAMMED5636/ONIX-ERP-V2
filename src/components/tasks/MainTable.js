@@ -36,6 +36,7 @@ import TruncatedTextCell from "./MainTable/TruncatedTextCell";
 import ChecklistModal from "./modals/ChecklistModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
 import Toast from "./MainTable/Toast";
+import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 
 
 // Import utilities
@@ -66,179 +67,6 @@ import {
 import { useSearchAndFilters } from './hooks/useSearchAndFilters';
 
 const initialTasks = [
-  {
-    id: 1,
-    name: "Building construction",
-    referenceNumber: "REF-25DEV-001",
-    category: "Development",
-    status: "done",
-    owner: "MN",
-    timeline: [new Date('2025-09-01'), new Date('2025-09-10')],
-    planDays: 10,
-    remarks: "",
-    assigneeNotes: "",
-    attachments: [],
-    priority: "Low",
-    location: "Onix engineering co.",
-    plotNumber: "PLOT-001",
-    community: "Downtown District",
-    projectType: "Residential",
-    projectFloor: "5",
-    developerProject: "Onix Development",
-    checklist: false,
-    checklistItems: [],
-    rating: 3,
-    progress: 50,
-    color: "#60a5fa",
-    pinned: false, // Add pinned property
-    subtasks: [
-      {
-        id: 11,
-        name: "Subitem 1",
-        referenceNumber: "REF-25DEV-001-001",
-        category: "Design",
-        status: "done",
-        owner: "SA",
-        timeline: [new Date('2025-09-02'), new Date('2025-09-08')],
-        remarks: "",
-        assigneeNotes: "",
-        attachments: [],
-        priority: "Low",
-        location: "",
-        plotNumber: "PLOT-001-1",
-        community: "Downtown District",
-        projectType: "Residential",
-        projectFloor: "5",
-        developerProject: "Onix Development",
-        completed: false,
-        checklist: false,
-        checklistItems: [],
-        rating: 2,
-        progress: 20,
-        color: "#f59e42",
-        childSubtasks: [
-          {
-            id: 111,
-            name: "Child Task 1.1",
-            referenceNumber: "REF-25DEV-001-001-001",
-            category: "Design",
-            status: "done",
-            owner: "SA",
-            timeline: [new Date('2025-09-02'), new Date('2025-09-05')],
-            remarks: "",
-            assigneeNotes: "",
-            attachments: [],
-            priority: "Low",
-            location: "",
-            plotNumber: "PLOT-001-1-1",
-            community: "Downtown District",
-            projectType: "Residential",
-            projectFloor: "5",
-            developerProject: "Onix Development",
-            completed: false,
-            checklist: false,
-            checklistItems: [],
-            rating: 1,
-            progress: 10,
-            color: "#f59e42"
-          },
-          {
-            id: 112,
-            name: "Child Task 1.2",
-            referenceNumber: "REF-001-1-2",
-            category: "Development",
-            status: "working",
-            owner: "MN",
-            timeline: [new Date('2025-09-06'), new Date('2025-09-08')],
-            remarks: "",
-            assigneeNotes: "",
-            attachments: [],
-            priority: "Medium",
-            location: "",
-            plotNumber: "PLOT-001-1-2",
-            community: "Downtown District",
-            projectType: "Residential",
-            projectFloor: "5",
-            developerProject: "Onix Development",
-            completed: false,
-            checklist: false,
-            checklistItems: [],
-            rating: 3,
-            progress: 30,
-            color: "#10d081"
-          }
-        ]
-      },
-      {
-        id: 12,
-        name: "Subitem 2",
-        category: "Development",
-        status: "working",
-        owner: "MN",
-        due: "2024-07-19",
-        priority: "Medium",
-        timeline: "2024-07-19 – 2024-07-20",
-        location: "",
-        plotNumber: "PLOT-001-2",
-        community: "Downtown District",
-        projectType: "Residential",
-        projectFloor: "5",
-        developerProject: "Onix Development",
-        completed: false,
-        checklist: false,
-        checklistItems: [],
-        rating: 4,
-        progress: 70,
-        color: "#10d081",
-        childSubtasks: []
-      },
-      {
-        id: 13,
-        name: "Subitem 3",
-        category: "Testing",
-        status: "not started",
-        owner: "AL",
-        due: "2024-07-21",
-        priority: "High",
-        timeline: "2024-07-21 – 2024-07-22",
-        location: "",
-        plotNumber: "PLOT-001-3",
-        community: "Downtown District",
-        projectType: "Residential",
-        projectFloor: "5",
-        developerProject: "Onix Development",
-        completed: false,
-        checklist: false,
-        checklistItems: [],
-        rating: 2,
-        progress: 40,
-        color: "#f20d11",
-        childSubtasks: []
-      },
-      {
-        id: 14,
-        name: "Subitem 4",
-        category: "Review",
-        status: "stuck",
-        owner: "SA",
-        due: "2024-07-23",
-        priority: "Low",
-        timeline: "2024-07-23 – 2024-07-24",
-        location: "",
-        plotNumber: "PLOT-001-4",
-        community: "Downtown District",
-        projectType: "Residential",
-        projectFloor: "5",
-        developerProject: "Onix Development",
-        completed: false,
-        checklist: false,
-        checklistItems: [],
-        rating: 1,
-        progress: 10,
-        color: "#f20d11"
-      }
-    ]
-  },
   {
     id: 2,
     name: "Website Development",
@@ -1124,6 +952,11 @@ Assignee Notes: ${taskData.assigneeNotes}`;
 
   const [columns, setColumns] = useState(INITIAL_COLUMNS);
 
+  // Column visibility state - all columns visible by default
+  const [visibleColumns, setVisibleColumns] = useState(() => 
+    INITIAL_COLUMNS.map(col => col.key)
+  );
+
   // Store column order in state
   const defaultColumnOrder = getDefaultColumnOrder(columns);
   const [columnOrder, setColumnOrder] = useState(() => {
@@ -1218,6 +1051,23 @@ Assignee Notes: ${taskData.assigneeNotes}`;
     setShowAddColumnMenu(false);
     setAddColumnSearch('');
   }
+
+  // Column visibility functions
+  const handleToggleColumn = (columnKey) => {
+    setVisibleColumns(prev => {
+      if (prev.includes(columnKey)) {
+        // Hide column
+        return prev.filter(key => key !== columnKey);
+      } else {
+        // Show column
+        return [...prev, columnKey];
+      }
+    });
+  };
+
+  const handleResetColumns = () => {
+    setVisibleColumns(INITIAL_COLUMNS.map(col => col.key));
+  };
   const filteredColumnOptions = [
     { key: 'status', label: 'Status', icon: '🟢' },
     { key: 'text', label: 'Text', icon: '🔤' },
@@ -2006,12 +1856,20 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                             </div>
                           </th>
                           {columnOrder
-                            .filter(key => key !== 'category') // Remove TASK CATEGORY header for main tasks
+                            .filter(key => key !== 'category' && visibleColumns.includes(key)) // Remove TASK CATEGORY header for main tasks and filter by visible columns
                             .map(key => {
                               const col = columns.find(c => c.key === key);
                               if (!col) return null;
-                              return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+                              return <DraggableHeader key={col.key} col={col} colKey={col.key} onRemoveColumn={handleToggleColumn} />;
                             })}
+                          <th key="column-settings" className="px-3 py-4 text-center">
+                            <ColumnSettingsDropdown
+                              columns={columns}
+                              visibleColumns={visibleColumns}
+                              onToggleColumn={handleToggleColumn}
+                              onResetColumns={handleResetColumns}
+                            />
+                          </th>
                           <th key="add-column" className="px-3 py-4 text-center">
                             <button
                               className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
@@ -2082,7 +1940,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                           📌
                         </button>
                       </td>
-                      {columnOrder.map((colKey, idx) => {
+                      {columnOrder
+                        .filter(colKey => visibleColumns.includes(colKey))
+                        .map((colKey, idx) => {
                         const col = columns.find(c => c.key === colKey);
                         if (!col) return null;
                         return (
@@ -2355,7 +2215,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                           <SortableProjectRow
                             key={task.id}
                             task={task}
-                            columnOrder={columnOrder}
+                            columnOrder={columnOrder.filter(colKey => visibleColumns.includes(colKey))}
                             columns={columns}
                             expandedActive={expandedActive}
                             editingTaskId={editingTaskId}
@@ -2412,7 +2272,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                   </th>
                                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                                      {columnOrder.map(colKey => {
+                                      {columnOrder
+                                        .filter(colKey => visibleColumns.includes(colKey))
+                                        .map(colKey => {
                                         const col = columns.find(c => c.key === colKey);
                                         if (!col) return null;
                                         return (
@@ -2420,6 +2282,8 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                             key={col.key}
                                             col={col}
                                             colKey={col.key}
+                                            isSubtaskTable={true}
+                                            onRemoveColumn={handleToggleColumn}
                                           />
                                         );
                                       })}
@@ -2455,7 +2319,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                               />
                                             </div>
                                           </td>
-                                          {columnOrder.map(colKey => {
+                                          {columnOrder
+                                            .filter(colKey => visibleColumns.includes(colKey))
+                                            .map(colKey => {
                                             const col = columns.find(c => c.key === colKey);
                                             if (!col) return null;
                                             return (
@@ -2506,7 +2372,9 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                             />
                                           </div>
                                         </td>
-                                        {columnOrder.map(colKey => {
+                                        {columnOrder
+                                          .filter(colKey => visibleColumns.includes(colKey))
+                                          .map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
@@ -2549,7 +2417,10 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                                 handleAddChildSubtask(task.id, sub.id);
                                               }}
                                             >
-                                              {columnOrder.slice(0, 4).map(colKey => {
+                                              {columnOrder
+                                                .filter(colKey => visibleColumns.includes(colKey))
+                                                .slice(0, 4)
+                                                .map(colKey => {
                                                 const col = columns.find(c => c.key === colKey);
                                                 if (!col) return null;
                                                 return (

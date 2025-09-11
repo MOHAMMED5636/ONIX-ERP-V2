@@ -32,74 +32,7 @@ import {
 } from "./tasks/utils/tableUtils";
 
 // Initial data for team projects
-const initialTasks = [
-  {
-    id: 1,
-    name: "Building construction",
-    referenceNumber: "REF-001",
-    category: "Development",
-    status: "done",
-    owner: "MN",
-    timeline: [null, null],
-    planDays: 10,
-    remarks: "",
-    assigneeNotes: "",
-    attachments: [],
-    priority: "Low",
-    location: "Onix engineering co.",
-    plotNumber: "PLOT-001",
-    community: "Downtown District",
-    projectType: "Residential",
-    projectFloor: "5",
-    developerProject: "Onix Development",
-    checklist: false,
-    rating: 3,
-    progress: 50,
-    color: "#60a5fa",
-    subtasks: [
-      {
-        id: 11,
-        name: "Subitem 1",
-        referenceNumber: "REF-001-1",
-        category: "Design",
-        status: "done",
-        owner: "SA",
-        timeline: [null, null],
-        remarks: "",
-        assigneeNotes: "",
-        attachments: [],
-        priority: "Low",
-        location: "",
-        plotNumber: "PLOT-001-1",
-        community: "Downtown District",
-        projectType: "Residential",
-        projectFloor: "5",
-        developerProject: "Onix Development",
-        completed: false,
-        checklist: false,
-        rating: 2,
-        progress: 20,
-        color: "#f59e42"
-      },
-      {
-        id: 12,
-        name: "Subitem 2",
-        category: "Development",
-        status: "working",
-        owner: "MN",
-        due: "2024-07-19",
-        priority: "Medium",
-        timeline: "2024-07-19 – 2024-07-20",
-        location: "",
-        completed: false,
-        checklist: false,
-        rating: 4,
-        progress: 60,
-        color: "#10b981"
-      }
-    ]
-  }
-];
+const initialTasks = [];
 
 // Google Map Picker Demo Component
 function GoogleMapPickerDemo({ onPick, onClose }) {

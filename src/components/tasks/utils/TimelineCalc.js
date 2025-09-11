@@ -165,14 +165,12 @@ export function calculateAllProjectDates(projects) {
  * @param {string} format - Format string (default: 'MMM d')
  * @returns {string} Formatted date string
  */
-export function formatDate(date, format = 'MMM d') {
+export function formatDate(date) {
   if (!date || !isValid(date)) return '';
   
   try {
-    // Simple formatting - you can replace this with date-fns format if needed
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
-    return `${month} ${day}`;
+    // Use the user's system locale for formatting to match OS date style
+    return new Date(date).toLocaleDateString();
   } catch (error) {
     console.error('Error formatting date:', error);
     return '';

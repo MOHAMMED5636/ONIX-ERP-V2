@@ -91,6 +91,46 @@ const Filters = ({
             >
               <ClipboardDocumentIcon className="w-5 h-5" /> Paste
             </button>
+            
+            {/* Search Box - Moved here to be near Paste button */}
+            <div className="relative ml-4">
+              <input
+                type="text"
+                placeholder="Search tasks... (Ctrl+K to focus)"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-64 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+              />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              {isSearching && (
+                <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                  <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            
+            {/* Show Filters Button - Moved here to be near search box */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm"
+            >
+              <FunnelIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+              {getActiveFilterCount && getActiveFilterCount() > 0 && (
+                <span className="ml-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                  {getActiveFilterCount()}
+                </span>
+              )}
+            </button>
           </div>
           
           {/* Right side - Add Column button */}
@@ -108,60 +148,20 @@ const Filters = ({
         </div>
       </div>
 
-      {/* Search and Filters Section */}
+      {/* Filters Section */}
       <div className="px-6 py-4 border-t border-gray-100">
-        {/* Search Bar */}
-        <div className="mb-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search tasks... (Ctrl+K to focus)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
-            />
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            {isSearching && (
-              <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Clear search"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        </div>
 
-        {/* Filters Toggle */}
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200"
-          >
-            <FunnelIcon className="w-5 h-5" />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-            {getActiveFilterCount && getActiveFilterCount() > 0 && (
-              <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                {getActiveFilterCount()} active
-              </span>
-            )}
-          </button>
-          
-          {getActiveFilterCount && getActiveFilterCount() > 0 && (
+        {/* Clear All Filters - Only show when filters are active */}
+        {getActiveFilterCount && getActiveFilterCount() > 0 && (
+          <div className="flex justify-end mb-4">
             <button
               onClick={clearAllFilters}
               className="text-sm text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1 rounded-md transition-all duration-200"
             >
               Clear All Filters
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Filters Panel */}
         {showFilters && (

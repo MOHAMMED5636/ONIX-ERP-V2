@@ -37,8 +37,7 @@ export const INITIAL_COLUMNS = [
   { key: 'link', label: 'LINK' },
   { key: 'rating', label: 'RATING' },
   { key: 'progress', label: 'PROGRESS' },
-  { key: 'color', label: 'COLOR' },
-  { key: 'delete', label: '' }
+  { key: 'color', label: 'COLOR' }
 ];
 
 // Date and timeline utilities

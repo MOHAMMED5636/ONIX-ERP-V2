@@ -94,8 +94,8 @@ function MainLayout() {
         </main>
       </div>
       
-      {/* AI Assistant - Available on all pages */}
-      <AIAssistantEnhanced />
+      {/* AI Assistant - Only available on dashboard page */}
+      {location.pathname === '/' && <AIAssistantEnhanced />}
     </div>
   );
 }
