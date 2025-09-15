@@ -97,10 +97,10 @@ const ProjectRow = ({
             value={row.status}
             onChange={e => onEdit("status", e.target.value)}
           >
-             <option value="done">Done</option>
-             <option value="suspended">Suspended</option>
-             <option value="cancelled">Cancelled</option>
-             <option value="in progress">In Progress</option>
+            <option value="done">Done</option>
+            <option value="suspended">Suspended</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="in progress">In Progress</option>
             <option value="pending">Pending</option>
           </select>
         );
@@ -121,13 +121,13 @@ const ProjectRow = ({
         // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array
         const startDate = row.start || (row.timeline && row.timeline[0]);
         const endDate = row.end || (row.timeline && row.timeline[1]);
-        
 
-        
+
+        // TODO: Implement date picker
         return (
           <div className="relative inline-block">
             <button className="inline-block px-3 py-1 rounded-full text-xs font-bold transition bg-blue-100 text-blue-700 hover:bg-blue-200">
-              {startDate && endDate 
+              {startDate && endDate
                 ? `${new Date(startDate).toLocaleDateString()} – ${new Date(endDate).toLocaleDateString()}`
                 : 'Set dates'}
             </button>
@@ -171,8 +171,8 @@ const ProjectRow = ({
               className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
             >
               <PaperClipIcon className="w-4 h-4" />
-              {row.attachments && row.attachments.length > 0 
-                ? `${row.attachments.length} file(s)` 
+              {row.attachments && row.attachments.length > 0
+                ? `${row.attachments.length} file(s)`
                 : 'Add files'
               }
             </button>
@@ -307,8 +307,8 @@ const ProjectRow = ({
                 }
               }}
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-                hasChecklist 
-                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                hasChecklist
+                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
                   : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
               }`}
             >
@@ -428,260 +428,268 @@ const ProjectRow = ({
     }
   };
 
+  const getColumnWidth = (colKey) => {
+    switch (colKey) {
+      case 'task':
+        return 'w-64 min-w-64';
+      case 'timeline':
+        return 'w-48 min-w-48';
+      case 'planDays':
+      case 'status':
+      case 'priority':
+        return 'w-32 min-w-32';
+      case 'remarks':
+      case 'assigneeNotes':
+        return 'w-48 min-w-48';
+      case 'checkbox':
+        return 'w-16 min-w-16';
+      default:
+        return 'w-40 min-w-40';
+    }
+  };
+
   return (
     <>
-    <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
-      {console.log('ProjectRow columnOrder:', columnOrder)}
-      {/* Multi-select Checkbox Column */}
-      <td className="px-4 py-4 align-middle text-center">
-        <MultiSelectCheckbox
-          task={task}
-          isChecked={isSelected}
-          onToggle={onToggleSelection}
-        />
-      </td>
-      {/* Pin Column */}
-      <td className="px-4 py-4 align-middle text-center">
-        <button
-          onClick={() => onTogglePin(task.id)}
-          className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
-            task.pinned 
-              ? 'bg-red-500 text-white hover:bg-red-600' 
-              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-          }`}
-          title={task.pinned ? "Unpin task" : "Pin task"}
-        >
-          📌
-        </button>
-      </td>
-      {columnOrder
-        .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
-        .map((colKey, idx) => {
-          console.log('Rendering column:', colKey, 'at index:', idx);
-          const col = columns.find(c => c.key === colKey);
-          if (!col) return null;
-          return (
-            <td key={col.key} className={`px-4 py-4 align-middle ${
-              col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
-            } ${
-              col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
-            } ${
-              col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
-            } ${
-              col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
-            } ${
-              col.key === 'owner' ? 'w-36 min-w-36' : ''
-            }`} style={{ overflow: 'visible' }}>
-              {col.key === 'task' ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
+      <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
+        {console.log('ProjectRow columnOrder:', columnOrder)}
+        {/* Multi-select Checkbox Column */}
+        <td className="px-4 py-4 align-middle text-center">
+          <MultiSelectCheckbox
+            task={task}
+            isChecked={isSelected}
+            onToggle={onToggleSelection}
+          />
+        </td>
+        {/* Pin Column */}
+        <td className="px-4 py-4 align-middle text-center">
+          <button
+            onClick={() => onTogglePin(task.id)}
+            className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
+              task.pinned
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+            }`}
+            title={task.pinned ? "Unpin task" : "Pin task"}
+          >
+            📌
+          </button>
+        </td>
+        {columnOrder
+          .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
+          .map((colKey, idx) => {
+            console.log('Rendering column:', colKey, 'at index:', idx);
+            const col = columns.find(c => c.key === colKey);
+            if (!col) return null;
+
+            return (
+              <td
+                key={col.key}
+                className={`px-4 py-4 whitespace-nowrap text-sm text-gray-900 ${getColumnWidth(col.key)}`}
+              >
+                {col.key === 'task' ? (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => onToggleExpand(task.id, 'active')}
-                      className="focus:outline-none p-1 rounded-lg hover:bg-gray-100 transition-all duration-200"
-                      title={expandedActive[task.id] ? 'Collapse' : 'Expand'}
+                      onClick={() => onToggleExpand(task.id)}
+                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
                     >
-                      {expandedActive[task.id] ? 
-                        <ChevronDownIcon className="w-5 h-5 text-gray-500" /> : 
-                        <ChevronRightIcon className="w-5 h-5 text-gray-500" />
-                      }
+                      {expandedActive[task.id] ? (
+                        <ChevronDownIcon className="h-4 w-4" />
+                      ) : (
+                        <ChevronRightIcon className="h-4 w-4" />
+                      )}
                     </button>
                     {editingTaskId === task.id ? (
                       <input
                         type="text"
+                        className="border rounded px-2 py-1 text-sm w-full"
                         value={editingTaskName}
-                        autoFocus
                         onChange={onProjectNameChange}
                         onBlur={() => onProjectNameBlur(task)}
-                        onKeyDown={e => onProjectNameKeyDown(e, task)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
+                        onKeyDown={(e) => onProjectNameKeyDown(e, task)}
+                        autoFocus
                       />
                     ) : (
                       <span
-                        className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
+                        className="font-medium text-gray-900 hover:text-blue-600 hover:underline cursor-pointer"
                         onClick={() => onProjectNameClick(task)}
                         onDoubleClick={() => onProjectNameDoubleClick(task)}
                       >
                         {task.name}
                       </span>
                     )}
+                    {task.subtasks && task.subtasks.length > 0 && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({task.subtasks.length})
+                      </span>
+                    )}
                   </div>
-                  {/* Add Task Button */}
-                  <button
-                    onClick={() => setShowSubtaskForm(task.id)}
-                    className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 w-fit"
-                    title="Add Task"
-                  >
-                    + Add Task
-                  </button>
-                </div>
-              ) : (
-                renderMainCell(col, task, (field, value) => {
-                  if (col.key === 'delete') onDelete(task.id);
-                  else onEdit(task, field, value);
-                }, true, onEditTask, onDeleteTask, onCopyTask)
-              )}
-            </td>
-          );
-        })}
-      <td key="add-column" className="px-4 py-4 align-middle">
-        <button
-          className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-          onClick={onShowAddColumnMenu}
-          title="Add column"
-          type="button"
-        >
-          +
-        </button>
-      </td>
-    </tr>
-    {/* Add Subtask Button and Form */}
-    {showSubtaskForm === task.id && (
-      <tr>
-        <td colSpan={columnOrder.length + 3} className="px-4 py-3">
-          <form
-            className="flex flex-wrap gap-3 items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
-            onSubmit={e => {
-              e.preventDefault();
-              onAddSubtask(task.id);
-            }}
+                ) : (
+                  <div className="truncate">
+                    {renderMainCell(col, task, (field, value) => {
+                      if (col.key === 'delete') onDelete(task.id);
+                      else onEdit(task, field, value);
+                    })}
+                  </div>
+                )}
+              </td>
+            );
+          })}
+        <td key="add-column" className="px-4 py-4 align-middle w-16 min-w-16">
+          <button
+            className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-lg flex items-center justify-center shadow hover:shadow-md transition-all duration-200"
+            onClick={onShowAddColumnMenu}
+            title="Add column"
+            type="button"
           >
-            {columnOrder.slice(0, 6).map(colKey => {
-              const col = columns.find(c => c.key === colKey);
-              if (!col) return null;
-              return (
-                <div key={col.key} className="flex-1 min-w-0">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{col.label}:</label>
-                  {col.key === "task" || col.key === "project name" ? (
-                    <input
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask.name}
-                      onChange={e => setNewSubtask(s => ({ ...s, name: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                      placeholder="Task Name"
-                      autoFocus
-                    />
-                  ) : col.key === "category" ? (
-                    <select
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask.category}
-                      onChange={e => setNewSubtask(s => ({ ...s, category: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                    >
-                      <option value="Design">Design</option>
-                      <option value="Development">Development</option>
-                      <option value="Testing">Testing</option>
-                      <option value="Review">Review</option>
-                    </select>
-                  ) : col.key === "status" ? (
-                    <select
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask.status}
-                      onChange={e => setNewSubtask(s => ({ ...s, status: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                    >
-                      <option value="pending">pending</option>
-                      <option value="working">working</option>
-                      <option value="done">done</option>
-                      <option value="stuck">stuck</option>
-                    </select>
-                  ) : col.key === "owner" ? (
-                    <select
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask.owner}
-                      onChange={e => setNewSubtask(s => ({ ...s, owner: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                    >
-                      <option value="MN">MN</option>
-                      <option value="SA">SA</option>
-                      <option value="AH">AH</option>
-                      <option value="MA">MA</option>
-                    </select>
-                  ) : col.key === "priority" ? (
-                    <select
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask.priority}
-                      onChange={e => setNewSubtask(s => ({ ...s, priority: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                  ) : col.key === "link" ? (
-                    <input
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask.link || ""}
-                      onChange={e => setNewSubtask(s => ({ ...s, link: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                      placeholder="Enter link"
-                    />
-                  ) : col.key === "attachments" ? (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // For new subtasks, we'll open the modal with empty attachments
-                          if (onOpenAttachmentsModal && typeof onOpenAttachmentsModal === 'function') {
-                            onOpenAttachmentsModal('subtask');
-                          }
-                        }}
-                        className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors w-full"
-                      >
-                        <PaperClipIcon className="w-3 h-3" />
-                        {newSubtask.attachments && newSubtask.attachments.length > 0 
-                          ? `${newSubtask.attachments.length} file(s)` 
-                          : 'Add files'
-                        }
-                      </button>
-                      {newSubtask.attachments && newSubtask.attachments.length > 0 && (
-                        <ul className="mt-1 text-xs text-gray-600">
-                          {newSubtask.attachments.slice(0, 2).map((file, idx) => (
-                            <li key={idx} className="truncate">
-                              {file.fileName || file.name || (typeof file === 'string' ? file : '')}
-                            </li>
-                          ))}
-                          {newSubtask.attachments.length > 2 && (
-                            <li className="text-gray-500">+{newSubtask.attachments.length - 2} more</li>
-                          )}
-                        </ul>
-                      )}
-                    </div>
-                  ) : (
-                    <input
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                      value={newSubtask[col.key] || ""}
-                      onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
-                      onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
-                      placeholder={`Enter ${col.label}`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-            <div className="flex items-center gap-2">
-              <button
-                type="submit"
-                className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs rounded hover:shadow-md transition-all duration-200 font-medium"
-              >
-                Add Subtask
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSubtaskForm(null)}
-                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded transition-all duration-200 font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+            +
+          </button>
         </td>
       </tr>
-    )}
-  </>
+      {/* Add Subtask Button and Form */}
+      {showSubtaskForm === task.id && (
+        <tr>
+          <td colSpan={columnOrder.length + 3} className="px-4 py-3">
+            <form
+              className="flex flex-wrap gap-3 items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+              onSubmit={e => {
+                e.preventDefault();
+                onAddSubtask(task.id);
+              }}
+            >
+              {columnOrder.slice(0, 6).map(colKey => {
+                const col = columns.find(c => c.key === colKey);
+                if (!col) return null;
+                return (
+                  <div key={col.key} className="flex-1 min-w-0">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{col.label}:</label>
+                    {col.key === "task" || col.key === "project name" ? (
+                      <input
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask.name}
+                        onChange={e => setNewSubtask(s => ({ ...s, name: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                        placeholder="Task Name"
+                        autoFocus
+                      />
+                    ) : col.key === "category" ? (
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask.category}
+                        onChange={e => setNewSubtask(s => ({ ...s, category: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      >
+                        <option value="Design">Design</option>
+                        <option value="Development">Development</option>
+                        <option value="Testing">Testing</option>
+                        <option value="Review">Review</option>
+                      </select>
+                    ) : col.key === "status" ? (
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask.status}
+                        onChange={e => setNewSubtask(s => ({ ...s, status: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      >
+                        <option value="pending">pending</option>
+                        <option value="working">working</option>
+                        <option value="done">done</option>
+                        <option value="stuck">stuck</option>
+                      </select>
+                    ) : col.key === "owner" ? (
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask.owner}
+                        onChange={e => setNewSubtask(s => ({ ...s, owner: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      >
+                        <option value="MN">MN</option>
+                        <option value="SA">SA</option>
+                        <option value="AH">AH</option>
+                        <option value="MA">MA</option>
+                      </select>
+                    ) : col.key === "priority" ? (
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask.priority}
+                        onChange={e => setNewSubtask(s => ({ ...s, priority: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                      >
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                      </select>
+                    ) : col.key === "link" ? (
+                      <input
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask.link || ""}
+                        onChange={e => setNewSubtask(s => ({ ...s, link: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                        placeholder="Enter link"
+                      />
+                    ) : col.key === "attachments" ? (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // For new subtasks, we'll open the modal with empty attachments
+                            if (onOpenAttachmentsModal && typeof onOpenAttachmentsModal === 'function') {
+                              onOpenAttachmentsModal('subtask');
+                            }
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors w-full"
+                        >
+                          <PaperClipIcon className="w-3 h-3" />
+                          {newSubtask.attachments && newSubtask.attachments.length > 0
+                            ? `${newSubtask.attachments.length} file(s)`
+                            : 'Add files'
+                          }
+                        </button>
+                        {newSubtask.attachments && newSubtask.attachments.length > 0 && (
+                          <ul className="mt-1 text-xs text-gray-600">
+                            {newSubtask.attachments.slice(0, 2).map((file, idx) => (
+                              <li key={idx} className="truncate">
+                                {file.fileName || file.name || (typeof file === 'string' ? file : '')}
+                              </li>
+                            ))}
+                            {newSubtask.attachments.length > 2 && (
+                              <li className="text-gray-500">+{newSubtask.attachments.length - 2} more</li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
+                        value={newSubtask[col.key] || ""}
+                        onChange={e => setNewSubtask(s => ({ ...s, [col.key]: e.target.value }))}
+                        onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
+                        placeholder={`Enter ${col.label}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs rounded hover:shadow-md transition-all duration-200 font-medium"
+                >
+                  Add Subtask
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSubtaskForm(null)}
+                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded transition-all duration-200 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </td>
+        </tr>
+      )}
+    </>
   );
 };
 
 export default ProjectRow;
-
-
-
