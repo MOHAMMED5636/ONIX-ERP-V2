@@ -136,11 +136,11 @@ const Filters = ({
       </div>
 
       {/* Filters Section */}
-      <div className="px-6 py-4 border-t border-gray-100">
+      <div className="px-6 py-2 border-t border-gray-100">
 
         {/* Clear All Filters - Only show when filters are active */}
         {getActiveFilterCount && getActiveFilterCount() > 0 && (
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end mb-2">
             <button
               onClick={clearAllFilters}
               className="text-sm text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1 rounded-md transition-all duration-200"

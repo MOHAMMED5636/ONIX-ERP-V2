@@ -2,7 +2,6 @@ import React from "react";
 import { 
   TableCellsIcon, 
   Squares2X2Icon, 
-  ViewColumnsIcon, 
   RectangleGroupIcon, 
   ChartBarIcon, 
   PhotoIcon, 
@@ -14,7 +13,6 @@ import {
 const tabs = [
   { key: "main-table", label: "Main Table", icon: TableCellsIcon },
   { key: "cards", label: "Cards", icon: Squares2X2Icon },
-  { key: "table", label: "Table", icon: ViewColumnsIcon },
   { key: "kanban", label: "Kanban", icon: RectangleGroupIcon },
   { key: "chart", label: "Chart", icon: ChartBarIcon },
   { key: "file-gallery", label: "File Gallery", icon: PhotoIcon },

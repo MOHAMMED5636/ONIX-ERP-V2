@@ -1830,7 +1830,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
           )}
             
             {/* Enhanced Table Container - Scrollable */}
-          <div className="flex-1 flex flex-col mt-4 min-h-0">
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
               <table className="w-full table-auto bg-white min-w-full">
                 {/* Enhanced Table header - show Project Header only when no project is expanded */}

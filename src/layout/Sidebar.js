@@ -54,7 +54,6 @@ const navItems = [
     submenus: [
       { key: "tasks", label: { en: "Project List", ar: "قائمة المهام" }, path: "/tasks" },
       { key: "contracts", label: { en: "Contracts", ar: "العقود" }, path: "/contracts" },
-      { key: "create-contract", label: { en: "Create Contract", ar: "إنشاء عقد" }, path: "/contracts/create" },
       { key: "task-categories", label: { en: "Task Category List", ar: "قائمة فئات المهام" }, path: "/task-categories" },
       { key: "team-project-tracker", label: { en: "Team Project Tracker", ar: "متتبع مشاريع الفريق" }, path: "/team-project-tracker" },
       { key: "project-lifecycle", label: { en: "Project Life Cycle", ar: "دورة حياة المشروع" }, path: "/project-lifecycle" },
@@ -87,7 +86,6 @@ const submenuIcons = {
   'working-locations': CalendarDaysIcon,
   tasks: ClipboardDocumentListIcon,
   contracts: ClipboardDocumentListIcon,
-  'create-contract': ClipboardDocumentListIcon,
   'task-categories': ClipboardDocumentListIcon,
   'team-project-tracker': ClipboardDocumentListIcon,
   'project-lifecycle': ClipboardDocumentListIcon,

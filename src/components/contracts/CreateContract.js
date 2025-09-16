@@ -41,7 +41,6 @@ const CreateContract = () => {
     numberOfFloors: '',
     
     // Financial Details
-    feeCategory: '',
     fees: [
       {
         id: 1,
@@ -106,6 +105,9 @@ const CreateContract = () => {
     name: '',
     description: ''
   });
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [currentStep, setCurrentStep] = useState(1);
 
   // Sample data
   const contractCategories = [
@@ -124,18 +126,6 @@ const CreateContract = () => {
     'Enterprise Systems'
   ];
 
-  const feeCategories = [
-    'Design Fees',
-    'Consultation Fees',
-    'Supervision Fees',
-    'Project Management Fees',
-    'Engineering Fees',
-    'Architectural Fees',
-    'Construction Fees',
-    'Material Costs',
-    'Labor Costs',
-    'Other Fees'
-  ];
 
   const [clients, setClients] = useState([
     { id: 1, name: 'SEYED MEHDI HASSANZADEH', type: 'Person', email: 'mehdi@example.com' },
@@ -211,7 +201,8 @@ const CreateContract = () => {
             id: `${customType.id}-${index}`,
             phaseNumber: index + 1,
             name: phase.name,
-            nameAr: phase.nameAr || phase.name
+            nameAr: phase.nameAr || phase.name,
+            isCustom: true
           });
         });
       } else if (projectPhases[type]) {
@@ -699,6 +690,11 @@ const CreateContract = () => {
       };
       
       setCustomProjectTypes(prev => [...prev, customType]);
+      // Automatically select the new custom project type
+      setFormData(prev => ({
+        ...prev,
+        projectTypes: [...prev.projectTypes, customType.id]
+      }));
       setNewProjectType({
         name: '',
         description: '',
@@ -736,6 +732,11 @@ const CreateContract = () => {
       };
       
       setCustomPhases(prev => [...prev, customPhase]);
+      // Automatically select the new custom phase
+      setFormData(prev => ({
+        ...prev,
+        selectedPhases: [...prev.selectedPhases, customPhase.id]
+      }));
       setNewPhase({
         name: '',
         description: ''
@@ -751,6 +752,74 @@ const CreateContract = () => {
       ...prev,
       selectedPhases: prev.selectedPhases.filter(phase => phase !== phaseId)
     }));
+  };
+
+  const handleRemoveCustomProjectTypePhase = (customTypeId, phaseIndex) => {
+    setCustomProjectTypes(prev => prev.map(type => {
+      if (type.id === customTypeId) {
+        const updatedPhases = type.phases.filter((_, index) => index !== phaseIndex);
+        return {
+          ...type,
+          phases: updatedPhases
+        };
+      }
+      return type;
+    }));
+    
+    // Remove from selected phases if it was selected
+    const phaseId = `${customTypeId}-${phaseIndex}`;
+    setFormData(prev => ({
+      ...prev,
+      selectedPhases: prev.selectedPhases.filter(phase => phase !== phaseId)
+    }));
+  };
+
+  const handleRemoveDefaultPhase = (phaseId) => {
+    // Remove from selected phases if it was selected
+    setFormData(prev => ({
+      ...prev,
+      selectedPhases: prev.selectedPhases.filter(phase => phase !== phaseId)
+    }));
+  };
+
+  // Upload Modal Functions
+  const handleModalFileUpload = (event) => {
+    const files = Array.from(event.target.files);
+    const newFiles = files.map(file => ({
+      id: Date.now() + Math.random(),
+      file: file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      systemRef: `REF-${Date.now()}`,
+      category: 'General',
+      uploadedOn: new Date().toLocaleDateString()
+    }));
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeUploadedFile = (fileId) => {
+    setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  const updateFileCategory = (fileId, category) => {
+    setUploadedFiles(prev => prev.map(file => 
+      file.id === fileId ? { ...file, category } : file
+    ));
+  };
+
+  const handleUploadDone = () => {
+    // Add uploaded files to form data
+    const files = uploadedFiles.map(item => item.file);
+    setFormData(prev => ({
+      ...prev,
+      attachments: [...prev.attachments, ...files]
+    }));
+    
+    // Reset modal state
+    setUploadedFiles([]);
+    setCurrentStep(1);
+    setShowUploadModal(false);
   };
 
   // Form validation
@@ -818,7 +887,6 @@ const CreateContract = () => {
           authorityApproval: '',
           community: '',
           numberOfFloors: '',
-          feeCategory: '',
           fees: [
             {
               id: 1,
@@ -1212,20 +1280,33 @@ const CreateContract = () => {
                                   </div>
                                 </div>
                                 
-                                {/* Remove button for custom phases */}
-                                {phase.isCustom && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveCustomPhase(phase.id);
-                                    }}
-                                    className="absolute top-3 right-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-110"
-                                    title="Remove custom phase"
-                                  >
-                                    <XMarkIcon className="w-4 h-4" />
-                                  </button>
-                                )}
+                                {/* Remove button for all phases */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Check if this is a custom phase
+                                    if (phase.isCustom) {
+                                      // Check if this is a phase from a custom project type
+                                      if (phase.id.includes('-') && !phase.id.startsWith('custom-phase-')) {
+                                        // This is a phase from a custom project type
+                                        const customTypeId = phase.id.split('-')[0] + '-' + phase.id.split('-')[1];
+                                        const phaseIndex = parseInt(phase.id.split('-')[2]);
+                                        handleRemoveCustomProjectTypePhase(customTypeId, phaseIndex);
+                                      } else {
+                                        // This is a standalone custom phase
+                                        handleRemoveCustomPhase(phase.id);
+                                      }
+                                    } else {
+                                      // This is a default phase
+                                      handleRemoveDefaultPhase(phase.id);
+                                    }
+                                  }}
+                                  className="absolute top-3 right-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-110"
+                                  title="Remove phase"
+                                >
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
                                 
                                 <input
                                   type="checkbox"
@@ -1800,22 +1881,6 @@ const CreateContract = () => {
                     </div>
                     
                     <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-200 shadow-lg space-y-6">
-                      {/* Fee Category */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Fee Category
-                        </label>
-                        <select
-                          value={formData.feeCategory}
-                          onChange={(e) => setFormData(prev => ({ ...prev, feeCategory: e.target.value }))}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        >
-                          <option value="">Select fee category</option>
-                          {feeCategories.map(category => (
-                            <option key={category} value={category}>{category}</option>
-                          ))}
-                        </select>
-                      </div>
 
                       {/* Fees List */}
                       <div>
@@ -2306,18 +2371,14 @@ const CreateContract = () => {
                                 <span className="text-white text-2xl">📎</span>
                               </div>
                               <div className="flex items-center justify-center">
-                                <label className="cursor-pointer group">
-                                  <div className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
-                                    <span className="mr-2">📤</span>
-                                    <span className="font-semibold">Upload files</span>
-                                  </div>
-                                  <input
-                                    type="file"
-                                    multiple
-                                    onChange={handleFileUpload}
-                                    className="hidden"
-                                  />
-                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowUploadModal(true)}
+                                  className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                  <span className="mr-2">📤</span>
+                                  <span className="font-semibold">Upload files</span>
+                                </button>
                               </div>
                               <p className="mt-4 text-sm text-gray-600">
                                 <span className="font-medium">Drag and drop files here, or click to select</span>
@@ -2776,6 +2837,183 @@ const CreateContract = () => {
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   Add Phase
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Documents Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Upload Documents</h3>
+                  <p className="text-sm text-gray-600">Upload and manage your contract documents</p>
+                </div>
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Step 1: File Upload */}
+              {currentStep === 1 && (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Step 1: Drag and drop files in the area below OR click Upload File button</h4>
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 bg-gray-50">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <span className="text-white text-2xl">📁</span>
+                        </div>
+                        <p className="text-gray-600 mb-4">Drop files here</p>
+                        <p className="text-sm text-gray-500 mb-4">The total size of all uploaded files should not exceed 1000 MB.</p>
+                        <label className="cursor-pointer">
+                          <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+                            <span className="mr-2">+</span>
+                            Upload a File
+                          </div>
+                          <input
+                            type="file"
+                            multiple
+                            onChange={handleModalFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {uploadedFiles.length > 0 && (
+                    <div className="text-center">
+                      <button
+                        onClick={() => setCurrentStep(2)}
+                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl hover:from-green-600 hover:to-blue-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        Continue to Review ({uploadedFiles.length} files)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 2: Review and Manage */}
+              {currentStep === 2 && (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Step 2: Review and manage uploaded documents</h4>
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">File Name</th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">System Ref #</th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Document Title</th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Document Category</th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Size</th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Uploaded On</th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {uploadedFiles.map((file) => (
+                          <tr key={file.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-4 py-3 text-sm">{file.name}</td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm font-mono">{file.systemRef}</td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">{file.name}</td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              <select
+                                value={file.category}
+                                onChange={(e) => updateFileCategory(file.id, e.target.value)}
+                                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                              >
+                                <option value="General">General</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Invoice">Invoice</option>
+                                <option value="Legal">Legal</option>
+                                <option value="Technical">Technical</option>
+                              </select>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">{(file.size / 1024).toFixed(2)} KB</td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">{file.uploadedOn}</td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              <button
+                                onClick={() => removeUploadedFile(file.id)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Remove file"
+                              >
+                                🗑️
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <button
+                      onClick={() => setCurrentStep(1)}
+                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+                    >
+                      Back to Upload
+                    </button>
+                    <button
+                      onClick={() => setCurrentStep(3)}
+                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl hover:from-green-600 hover:to-blue-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Continue to Done
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Done */}
+              {currentStep === 3 && (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Step 3: Click Done when you are finished</h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Depending on your connection speed and the size of the files you are uploading, this operation may take anywhere from 10 seconds to 20 minutes. Please be patient and do not click "Done" repeatedly.
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <p className="text-blue-800 font-medium">
+                        {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''} ready to upload
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <button
+                      onClick={() => setCurrentStep(2)}
+                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+                    >
+                      Back to Review
+                    </button>
+                    <button
+                      onClick={handleUploadDone}
+                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl hover:from-green-600 hover:to-blue-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 font-semibold"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import TabBar from "./TabBar";
 import MainTable from "./MainTable";
 import KanbanBoard from "./KanbanBoard";
+import CardsView from "./CardsView";
 import TaskSidebar from "./TaskSidebar";
 
 export default function TaskList() {
@@ -702,6 +703,7 @@ export default function TaskList() {
           ) : (
             <div className="p-4">
               {activeTab === "main-table" && <MainTable />}
+              {activeTab === "cards" && <CardsView />}
               {activeTab === "kanban" && <KanbanBoard />}
             </div>
           )}
