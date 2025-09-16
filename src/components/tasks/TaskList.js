@@ -18,6 +18,11 @@ import TabBar from "./TabBar";
 import MainTable from "./MainTable";
 import KanbanBoard from "./KanbanBoard";
 import CardsView from "./CardsView";
+import ChartView from "./ChartView";
+import FormView from "./FormView";
+import FileGallery from "./FileGallery";
+import DocView from "./DocView";
+import CustomizableView from "./CustomizableView";
 import TaskSidebar from "./TaskSidebar";
 
 export default function TaskList() {
@@ -705,6 +710,11 @@ export default function TaskList() {
               {activeTab === "main-table" && <MainTable />}
               {activeTab === "cards" && <CardsView />}
               {activeTab === "kanban" && <KanbanBoard />}
+              {activeTab === "chart" && <ChartView />}
+              {activeTab === "form" && <FormView />}
+              {activeTab === "file-gallery" && <FileGallery />}
+              {activeTab === "doc" && <DocView />}
+              {activeTab === "custom-view" && <CustomizableView />}
             </div>
           )}
         </div>

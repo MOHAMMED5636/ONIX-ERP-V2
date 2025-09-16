@@ -9,11 +9,15 @@ import {
   FlagIcon,
   EyeIcon,
   PencilIcon,
-  TrashIcon
+  TrashIcon,
+  DocumentDuplicateIcon,
+  ShareIcon,
+  ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
 
 const CardsView = () => {
-  const [tasks] = useState([
+  const [loading, setLoading] = useState(false);
+  const [tasks, setTasks] = useState([
     {
       id: 1,
       title: "Foundation Excavation",
@@ -156,47 +160,212 @@ const CardsView = () => {
     return colors[assignee] || 'bg-gray-500';
   };
 
+  // Action handlers with better functionality
+  const handleViewTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      alert(`Viewing Task: ${task?.title}\nStatus: ${task?.status}\nAssignee: ${task?.assignee}\nProgress: ${task?.progress}%`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      const newTitle = prompt('Edit task title:', task?.title);
+      if (newTitle && newTitle !== task?.title) {
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === taskId ? { ...t, title: newTitle } : t
+          )
+        );
+        alert('Task updated successfully!');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (window.confirm(`Are you sure you want to delete "${task?.title}"?`)) {
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+        alert('Task deleted successfully!');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDuplicateTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const taskToDuplicate = tasks.find(task => task.id === taskId);
+      if (taskToDuplicate) {
+        const newTask = {
+          ...taskToDuplicate,
+          id: Math.max(...tasks.map(t => t.id)) + 1,
+          title: `${taskToDuplicate.title} (Copy)`,
+          status: 'To Do',
+          progress: 0
+        };
+        setTasks(prevTasks => [...prevTasks, newTask]);
+        alert('Task duplicated successfully!');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShareTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (navigator.share) {
+        await navigator.share({
+          title: `Task: ${task?.title}`,
+          text: `Check out this construction task: ${task?.title}`,
+          url: window.location.href
+        });
+      } else {
+        alert(`Sharing task: ${task?.title}\nCopy this link to share: ${window.location.href}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArchiveTask = async (taskId) => {
+    setLoading(true);
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (window.confirm(`Archive task "${task?.title}"?`)) {
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === taskId ? { ...t, status: 'Archived' } : t
+          )
+        );
+        alert('Task archived successfully!');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Construction Task Cards</h2>
-        <p className="text-gray-600">Jira-style task cards for construction project management</p>
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+      <div className="mb-8">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+          <h2 className="text-3xl font-bold mb-2">Construction Task Cards</h2>
+          <p className="text-blue-100 text-lg">Jira-style task cards for construction project management</p>
+        </div>
+        {loading && (
+          <div className="mt-4 text-sm text-blue-600 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            Processing action...
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {tasks.map((task) => (
-          <div key={task.id} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 p-4 group">
+        {tasks.map((task, index) => (
+          <div 
+            key={task.id} 
+            className="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 p-6 group transform hover:scale-105 hover:-translate-y-2"
+            style={{
+              animationDelay: `${index * 100}ms`,
+              animation: 'fadeInUp 0.6s ease-out forwards'
+            }}
+          >
             {/* Card Header */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500">TASK-{task.id}</span>
-                <div className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                  TASK-{task.id}
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-semibold border-2 shadow-sm ${getPriorityColor(task.priority)}`}>
                   {task.priority}
                 </div>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="p-1 hover:bg-gray-100 rounded">
-                  <EyeIcon className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                <button 
+                  onClick={() => handleViewTask(task.id)}
+                  disabled={loading}
+                  className="p-2 hover:bg-blue-100 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-110 shadow-sm hover:shadow-md" 
+                  title="View Task"
+                >
+                  <EyeIcon className="w-4 h-4 text-blue-600 hover:text-blue-800" />
                 </button>
-                <button className="p-1 hover:bg-gray-100 rounded">
-                  <PencilIcon className="w-4 h-4 text-gray-500" />
+                <button 
+                  onClick={() => handleEditTask(task.id)}
+                  disabled={loading}
+                  className="p-2 hover:bg-green-100 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-110 shadow-sm hover:shadow-md" 
+                  title="Edit Task"
+                >
+                  <PencilIcon className="w-4 h-4 text-green-600 hover:text-green-800" />
                 </button>
-                <button className="p-1 hover:bg-gray-100 rounded">
-                  <TrashIcon className="w-4 h-4 text-gray-500" />
+                <button 
+                  onClick={() => handleDuplicateTask(task.id)}
+                  disabled={loading}
+                  className="p-2 hover:bg-purple-100 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-110 shadow-sm hover:shadow-md" 
+                  title="Duplicate Task"
+                >
+                  <DocumentDuplicateIcon className="w-4 h-4 text-purple-600 hover:text-purple-800" />
+                </button>
+                <button 
+                  onClick={() => handleShareTask(task.id)}
+                  disabled={loading}
+                  className="p-2 hover:bg-yellow-100 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-110 shadow-sm hover:shadow-md" 
+                  title="Share Task"
+                >
+                  <ShareIcon className="w-4 h-4 text-yellow-600 hover:text-yellow-800" />
+                </button>
+                <button 
+                  onClick={() => handleArchiveTask(task.id)}
+                  disabled={loading}
+                  className="p-2 hover:bg-orange-100 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-110 shadow-sm hover:shadow-md" 
+                  title="Archive Task"
+                >
+                  <ArchiveBoxIcon className="w-4 h-4 text-orange-600 hover:text-orange-800" />
+                </button>
+                <button 
+                  onClick={() => handleDeleteTask(task.id)}
+                  disabled={loading}
+                  className="p-2 hover:bg-red-100 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-110 shadow-sm hover:shadow-md" 
+                  title="Delete Task"
+                >
+                  <TrashIcon className="w-4 h-4 text-red-600 hover:text-red-800" />
                 </button>
               </div>
             </div>
 
             {/* Card Title */}
-            <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{task.title}</h3>
+            <h3 className="font-bold text-gray-900 mb-3 line-clamp-2 text-lg leading-tight">{task.title}</h3>
             
             {/* Card Description */}
-            <p className="text-sm text-gray-600 mb-3 line-clamp-3">{task.description}</p>
+            <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed">{task.description}</p>
 
             {/* Labels */}
-            <div className="flex flex-wrap gap-1 mb-3">
+            <div className="flex flex-wrap gap-2 mb-4">
               {task.labels.map((label, index) => (
-                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                <span key={index} className="px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 text-xs font-medium rounded-full shadow-sm border border-blue-300">
                   {label}
                 </span>
               ))}
@@ -204,14 +373,14 @@ const CardsView = () => {
 
             {/* Progress Bar */}
             {task.progress > 0 && (
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="mb-4">
+                <div className="flex justify-between text-xs font-medium text-gray-600 mb-2">
                   <span>Progress</span>
-                  <span>{task.progress}%</span>
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{task.progress}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
                   <div 
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 shadow-sm"
                     style={{ width: `${task.progress}%` }}
                   ></div>
                 </div>
@@ -219,47 +388,47 @@ const CardsView = () => {
             )}
 
             {/* Card Footer */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-3">
                 {/* Assignee Avatar */}
-                <div className={`w-6 h-6 rounded-full ${getAssigneeColor(task.assignee)} flex items-center justify-center text-white text-xs font-medium`}>
+                <div className={`w-8 h-8 rounded-full ${getAssigneeColor(task.assignee)} flex items-center justify-center text-white text-sm font-bold shadow-md ring-2 ring-white`}>
                   {task.assignee}
                 </div>
                 
                 {/* Story Points */}
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <StarIcon className="w-3 h-3" />
-                  <span>{task.storyPoints}</span>
+                <div className="flex items-center gap-1 text-xs text-gray-600 bg-yellow-100 px-2 py-1 rounded-full">
+                  <StarIcon className="w-3 h-3 text-yellow-600" />
+                  <span className="font-medium">{task.storyPoints}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {/* Attachments */}
                 {task.attachments > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
                     <PaperClipIcon className="w-3 h-3" />
-                    <span>{task.attachments}</span>
+                    <span className="font-medium">{task.attachments}</span>
                   </div>
                 )}
 
                 {/* Comments */}
                 {task.comments > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <ChatBubbleLeftRightIcon className="w-3 h-3" />
-                    <span>{task.comments}</span>
+                  <div className="flex items-center gap-1 text-xs text-gray-600 bg-green-100 px-2 py-1 rounded-full">
+                    <ChatBubbleLeftRightIcon className="w-3 h-3 text-green-600" />
+                    <span className="font-medium">{task.comments}</span>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Status and Due Date */}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+              <div className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${getStatusColor(task.status)}`}>
                 {task.status}
               </div>
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <CalendarIcon className="w-3 h-3" />
-                <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+              <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
+                <CalendarIcon className="w-3 h-3 text-gray-500" />
+                <span className="font-medium">{new Date(task.dueDate).toLocaleDateString()}</span>
               </div>
             </div>
           </div>
