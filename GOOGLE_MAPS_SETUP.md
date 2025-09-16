@@ -68,3 +68,4 @@ The map is automatically integrated into the Create Contract page in the Locatio
 - Map loads asynchronously to avoid blocking the page
 - Loading indicator shows while map initializes
 - Efficient re-rendering when coordinates change
+

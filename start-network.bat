@@ -11,3 +11,4 @@ echo Make sure your firewall allows connections on port 3000
 echo.
 set HOST=0.0.0.0
 npm start
+
