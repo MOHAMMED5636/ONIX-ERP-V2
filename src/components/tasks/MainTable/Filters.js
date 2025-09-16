@@ -63,8 +63,8 @@ const Filters = ({
       {/* Enhanced Top Bar - Restructured for better alignment */}
       <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200">
         {/* Top row with action buttons */}
-        <div className="flex items-center justify-between px-6 py-4">
-          {/* Left side - New Project and Paste buttons */}
+        <div className="flex items-center px-6 py-4">
+          {/* Left side - New Project, Paste, Search, Show Filters */}
           <div className="flex items-center gap-3">
             <button
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
@@ -92,8 +92,8 @@ const Filters = ({
               <ClipboardDocumentIcon className="w-5 h-5" /> Paste
             </button>
             
-            {/* Search Box - Moved here to be near Paste button */}
-            <div className="relative ml-4">
+            {/* Search Box */}
+            <div className="relative">
               <input
                 type="text"
                 placeholder="Search tasks... (Ctrl+K to focus)"
@@ -118,7 +118,7 @@ const Filters = ({
               )}
             </div>
             
-            {/* Show Filters Button - Moved here to be near search box */}
+            {/* Show Filters Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm"
@@ -131,19 +131,6 @@ const Filters = ({
                 </span>
               )}
             </button>
-          </div>
-          
-          {/* Right side - Add Column button */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <button 
-                className="p-2.5 rounded-lg bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5" 
-                onClick={handleShowAddColumnMenu}
-                title="Add column"
-              >
-                <PlusIcon className="w-5 h-5 text-blue-600" />
-              </button>
-            </div>
           </div>
         </div>
       </div>

@@ -27,8 +27,8 @@ const CreateContract = () => {
     // Client Information
     selectedClients: [],
     
-    // Dates & Timeline
-    startDate: '',
+    // Start Date
+    startDate: new Date().toISOString().split('T')[0],
     
     // Location
     latitude: '',
@@ -56,7 +56,18 @@ const CreateContract = () => {
         paymentPeriod: 'One-Time', // 'One-Time', 'Monthly', 'Quarterly', 'Yearly'
         dueDate: '',
         calculatedAmount: 0,
-        generateInvoice: false
+        generateInvoice: false,
+        // Custom installment fields
+        customInstallments: false,
+        numberOfInstallments: 1,
+        installments: [
+          {
+            id: 1,
+            installmentNumber: 1,
+            amount: 0,
+            dueDate: ''
+          }
+        ]
       }
     ],
     
@@ -89,6 +100,12 @@ const CreateContract = () => {
     phases: [{ name: '', nameAr: '' }]
   });
   const [customProjectTypes, setCustomProjectTypes] = useState([]);
+  const [customPhases, setCustomPhases] = useState([]);
+  const [showCustomPhaseModal, setShowCustomPhaseModal] = useState(false);
+  const [newPhase, setNewPhase] = useState({
+    name: '',
+    description: ''
+  });
 
   // Sample data
   const contractCategories = [
@@ -181,9 +198,9 @@ const CreateContract = () => {
 
   // Function to get merged phases based on selected project types
   const getMergedPhases = (selectedTypes) => {
-    if (selectedTypes.length === 0) return [];
-    
     const allPhases = [];
+    
+    // Add phases from selected project types
     selectedTypes.forEach(type => {
       // Check if it's a custom project type
       const customType = customProjectTypes.find(ct => ct.id === type);
@@ -201,6 +218,11 @@ const CreateContract = () => {
         // Add predefined phases
         allPhases.push(...projectPhases[type]);
       }
+    });
+    
+    // Add custom phases (independent of project types)
+    customPhases.forEach(phase => {
+      allPhases.push(phase);
     });
     
     // Remove duplicates based on phase number and name
@@ -381,7 +403,18 @@ const CreateContract = () => {
         paymentPeriod: 'One-Time',
         dueDate: '',
         calculatedAmount: 0,
-        generateInvoice: false
+        generateInvoice: false,
+        // Custom installment fields
+        customInstallments: false,
+        numberOfInstallments: 1,
+        installments: [
+          {
+            id: 1,
+            installmentNumber: 1,
+            amount: 0,
+            dueDate: ''
+          }
+        ]
       }]
     }));
   };
@@ -394,6 +427,111 @@ const CreateContract = () => {
         fees: prev.fees.filter(fee => fee.id !== feeId)
       }));
     }
+  };
+
+  // Handle custom installment toggle
+  const handleCustomInstallmentsToggle = (feeId, enabled) => {
+    setFormData(prev => ({
+      ...prev,
+      fees: prev.fees.map(fee => 
+        fee.id === feeId 
+          ? { 
+              ...fee, 
+              customInstallments: enabled,
+              numberOfInstallments: enabled ? fee.numberOfInstallments : 1,
+              installments: enabled ? generateInstallments(fee.calculatedAmount, fee.numberOfInstallments) : [
+                {
+                  id: 1,
+                  installmentNumber: 1,
+                  amount: fee.calculatedAmount,
+                  dueDate: fee.dueDate
+                }
+              ]
+            }
+          : fee
+      )
+    }));
+  };
+
+  // Generate installments based on total amount and number of installments
+  const generateInstallments = (totalAmount, numberOfInstallments) => {
+    const installments = [];
+    const baseAmount = Math.floor(totalAmount / numberOfInstallments);
+    const remainder = totalAmount % numberOfInstallments;
+    
+    for (let i = 0; i < numberOfInstallments; i++) {
+      const amount = baseAmount + (i < remainder ? 1 : 0);
+      installments.push({
+        id: i + 1,
+        installmentNumber: i + 1,
+        amount: amount,
+        dueDate: ''
+      });
+    }
+    
+    return installments;
+  };
+
+  // Handle number of installments change
+  const handleNumberOfInstallmentsChange = (feeId, numberOfInstallments) => {
+    const fee = formData.fees.find(f => f.id === feeId);
+    if (fee) {
+      setFormData(prev => ({
+        ...prev,
+        fees: prev.fees.map(f => 
+          f.id === feeId 
+            ? { 
+                ...f, 
+                numberOfInstallments: parseInt(numberOfInstallments) || 1,
+                installments: generateInstallments(f.calculatedAmount, parseInt(numberOfInstallments) || 1)
+              }
+            : f
+        )
+      }));
+    }
+  };
+
+  // Handle installment amount change
+  const handleInstallmentAmountChange = (feeId, installmentId, amount) => {
+    setFormData(prev => ({
+      ...prev,
+      fees: prev.fees.map(fee => 
+        fee.id === feeId 
+          ? {
+              ...fee,
+              installments: fee.installments.map(installment =>
+                installment.id === installmentId
+                  ? { ...installment, amount: parseFloat(amount) || 0 }
+                  : installment
+              )
+            }
+          : fee
+      )
+    }));
+  };
+
+  // Handle installment due date change
+  const handleInstallmentDueDateChange = (feeId, installmentId, dueDate) => {
+    setFormData(prev => ({
+      ...prev,
+      fees: prev.fees.map(fee => 
+        fee.id === feeId 
+          ? {
+              ...fee,
+              installments: fee.installments.map(installment =>
+                installment.id === installmentId
+                  ? { ...installment, dueDate }
+                  : installment
+              )
+            }
+          : fee
+      )
+    }));
+  };
+
+  // Calculate total of custom installments
+  const calculateInstallmentTotal = (installments) => {
+    return installments.reduce((total, installment) => total + (installment.amount || 0), 0);
   };
 
   // Calculate fee amount based on fee type
@@ -484,10 +622,17 @@ const CreateContract = () => {
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      fees: prev.fees.map(fee => ({
-        ...fee,
-        calculatedAmount: calculateFeeAmount(fee)
-      }))
+      fees: prev.fees.map(fee => {
+        const newCalculatedAmount = calculateFeeAmount(fee);
+        return {
+          ...fee,
+          calculatedAmount: newCalculatedAmount,
+          // Update installments if custom installments are enabled
+          installments: fee.customInstallments 
+            ? generateInstallments(newCalculatedAmount, fee.numberOfInstallments)
+            : fee.installments
+        };
+      })
     }));
   }, [formData.fees.map(fee => `${fee.type}-${fee.amount}-${fee.squareFeetPrice}-${fee.sizeInSquareFeet}-${fee.profitPercentage}-${fee.months}-${fee.quarters}`).join(',')]);
 
@@ -572,6 +717,42 @@ const CreateContract = () => {
     }));
   };
 
+  // Custom Phase Functions
+  const handleCustomPhaseChange = (field, value) => {
+    setNewPhase(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleAddCustomPhase = () => {
+    if (newPhase.name.trim() && newPhase.description.trim()) {
+      const customPhase = {
+        id: `custom-phase-${Date.now()}`,
+        name: newPhase.name.trim(),
+        description: newPhase.description.trim(),
+        phaseNumber: customPhases.length + 7, // Start from 7 since we have 6 default phases
+        isCustom: true
+      };
+      
+      setCustomPhases(prev => [...prev, customPhase]);
+      setNewPhase({
+        name: '',
+        description: ''
+      });
+      setShowCustomPhaseModal(false);
+    }
+  };
+
+  const handleRemoveCustomPhase = (phaseId) => {
+    setCustomPhases(prev => prev.filter(phase => phase.id !== phaseId));
+    // Remove from selected phases if it was selected
+    setFormData(prev => ({
+      ...prev,
+      selectedPhases: prev.selectedPhases.filter(phase => phase !== phaseId)
+    }));
+  };
+
   // Form validation
   const validateForm = () => {
     const newErrors = {};
@@ -628,7 +809,7 @@ const CreateContract = () => {
           contractCategory: '',
           company: '',
           selectedClients: [],
-          startDate: '',
+          startDate: new Date().toISOString().split('T')[0],
           latitude: '',
           longitude: '',
           region: '',
@@ -652,7 +833,18 @@ const CreateContract = () => {
               paymentPeriod: 'One-Time',
               dueDate: '',
               calculatedAmount: 0,
-              generateInvoice: false
+              generateInvoice: false,
+              // Custom installment fields
+              customInstallments: false,
+              numberOfInstallments: 1,
+              installments: [
+                {
+                  id: 1,
+                  installmentNumber: 1,
+                  amount: 0,
+                  dueDate: ''
+                }
+              ]
             }
           ],
           description: '',
@@ -964,17 +1156,27 @@ const CreateContract = () => {
             </div>
           </div>
                       
-                      {/* Project Phases Section */}
+                      {/* Contract Agreement Section */}
                       {formData.projectTypes.length > 0 && (
           <div className="relative mt-8">
-                          <div className="flex items-center mb-8">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                              <span className="text-white text-lg">🚀</span>
+                          <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+                                <span className="text-white text-lg">🚀</span>
           </div>
           <div>
-                              <h3 className="text-2xl font-bold text-gray-900">Project Phases</h3>
-                              <p className="text-sm text-gray-600">Select the phases that apply to your project</p>
+                                <h3 className="text-2xl font-bold text-gray-900">Contract Agreement</h3>
+                                <p className="text-sm text-gray-600">Select the phases that apply to your contract</p>
+                              </div>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowCustomPhaseModal(true)}
+                              className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                            >
+                              <span className="mr-2">➕</span>
+                              Add Custom Phase
+                            </button>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {getMergedPhases(formData.projectTypes).map((phase) => (
@@ -1007,11 +1209,24 @@ const CreateContract = () => {
                                         {phase.name}
                                       </p>
                                     </div>
-                                    <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300" dir="rtl">
-                                      {phase.nameAr}
-                                    </p>
                                   </div>
                                 </div>
+                                
+                                {/* Remove button for custom phases */}
+                                {phase.isCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveCustomPhase(phase.id);
+                                    }}
+                                    className="absolute top-3 right-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-110"
+                                    title="Remove custom phase"
+                                  >
+                                    <XMarkIcon className="w-4 h-4" />
+                                  </button>
+                                )}
+                                
                                 <input
                                   type="checkbox"
                                   checked={formData.selectedPhases.includes(phase.id)}
@@ -1227,7 +1442,7 @@ const CreateContract = () => {
                     </div>
                   </div>
 
-                  {/* Dates & Timeline */}
+                  {/* Start Date */}
                   <div className="mb-8">
                     <div className="flex items-center mb-8">
                       <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 rounded-2xl flex items-center justify-center shadow-xl mr-4">
@@ -1257,18 +1472,11 @@ const CreateContract = () => {
                             <input
                               type="date"
                               value={formData.startDate}
-                              onChange={(e) => {
-                                console.log('Date changed:', e.target.value);
-                                handleInputChange('startDate', e.target.value);
-                              }}
-                              className={`w-full px-6 py-4 pr-12 border-2 rounded-2xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                                errors.startDate ? 'border-red-500 bg-red-50/80' : 'border-gray-200 hover:border-purple-300'
-                              }`}
-                              placeholder="Select start date"
+                              onChange={(e) => handleInputChange('startDate', e.target.value)}
+                              className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-purple-300 ${errors.startDate ? 'border-red-500 bg-red-50/80' : ''}`}
                               min={new Date().toISOString().split('T')[0]}
                             />
                             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                            <CalendarIcon className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
           </div>
                           {errors.startDate && (
                             <p className="mt-2 text-sm text-red-600 flex items-center">
@@ -1286,12 +1494,12 @@ const CreateContract = () => {
                     <div className="flex items-center mb-8">
                       <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-xl mr-4">
                         <span className="text-white text-xl">📍</span>
-                      </div>
-                      <div>
+          </div>
+          <div>
                         <h2 className="text-2xl font-bold text-gray-900">Location</h2>
                         <p className="text-sm text-gray-600">Define the project location and coordinates</p>
-                      </div>
-                    </div>
+          </div>
+          </div>
                     
                     <div className="relative bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 rounded-3xl p-8 border-2 border-emerald-200 shadow-2xl overflow-hidden">
                       {/* Decorative Background Elements */}
@@ -1303,9 +1511,9 @@ const CreateContract = () => {
                         <div className="flex items-center mb-6">
                           <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-400 rounded-lg flex items-center justify-center mr-3">
                             <span className="text-white text-sm">🌍</span>
-                          </div>
+          </div>
                           <h3 className="text-xl font-bold text-gray-900">Basic Location</h3>
-                        </div>
+          </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           <div className="group">
                             <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
@@ -1407,15 +1615,15 @@ const CreateContract = () => {
                               <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-400 rounded-lg flex items-center justify-center mr-2">
                                 <span className="text-white text-xs">🏘️</span>
                               </div>
-                              Dev Number
+                              Community
                             </label>
                             <div className="relative">
                               <input
                                 type="text"
-                                value={formData.devNumber}
-                                onChange={(e) => handleInputChange('devNumber', e.target.value)}
+                                value={formData.community}
+                                onChange={(e) => handleInputChange('community', e.target.value)}
                                 className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-green-300"
-                                placeholder="Enter dev number"
+                                placeholder="Enter community name"
                               />
                               <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                             </div>
@@ -1460,14 +1668,14 @@ const CreateContract = () => {
                                 </div>
                                 Authority Approval
                               </label>
-                              <button
-                                type="button"
+          <button
+            type="button"
                                 onClick={() => setShowApprovalModal(true)}
                                 className="flex items-center px-3 py-1 text-xs bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-lg hover:from-emerald-600 hover:to-green-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                              >
+          >
                                 <span className="mr-1">+</span>
                                 Add Custom Status
-                              </button>
+          </button>
                             </div>
                             <div className="relative">
                               <select
@@ -1497,33 +1705,33 @@ const CreateContract = () => {
                                     className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border border-emerald-200 shadow-sm"
                                   >
                                     {status}
-                                    <button
+          <button
                                       type="button"
                                       onClick={() => handleRemoveApprovalStatus(status)}
                                       className="ml-2 text-emerald-600 hover:text-red-500 transition-colors duration-200"
                                     >
                                       ×
-                                    </button>
+          </button>
                                   </span>
                                 ))}
-                              </div>
-                            )}
-                          </div>
+        </div>
+            )}
+          </div>
                           
                           <div className="group">
                             <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
                               <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-400 rounded-lg flex items-center justify-center mr-2">
                                 <span className="text-white text-xs">🏘️</span>
                               </div>
-                              Community
+                              Developer Name
                             </label>
                             <div className="relative">
                               <input
                                 type="text"
-                                value={formData.community}
-                                onChange={(e) => handleInputChange('community', e.target.value)}
+                                value={formData.devNumber}
+                                onChange={(e) => handleInputChange('devNumber', e.target.value)}
                                 className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-green-300"
-                                placeholder="Enter community name"
+                                placeholder="Enter developer name"
                               />
                               <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                             </div>
@@ -1852,10 +2060,10 @@ const CreateContract = () => {
                                 </select>
                               </div>
 
-                              {/* Due Date */}
+                              {/* Approximate Due Date */}
                               <div className="mb-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Due Date *
+                                  Approximate Due Date *
                                 </label>
                                 <div className="relative">
                                   <input
@@ -1869,28 +2077,143 @@ const CreateContract = () => {
                                 </div>
                               </div>
 
-                              {/* Installment Information */}
+                              {/* Payment Schedule Options */}
                               <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
                                 <h5 className="text-sm font-semibold text-blue-800 mb-3">💳 Payment Schedule</h5>
-                                {(() => {
-                                  const installmentInfo = calculateInstallmentInfo(fee);
-                                  return (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                      <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
-                                        <span className="text-blue-700 font-medium block mb-1">Total Amount</span>
-                                        <p className="text-blue-900 font-bold text-lg">${(installmentInfo.numberOfInstallments * installmentInfo.installmentAmount).toLocaleString()}</p>
-                                      </div>
-                                      <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
-                                        <span className="text-blue-700 font-medium block mb-1">Installments</span>
-                                        <p className="text-blue-900 font-bold text-lg">{installmentInfo.numberOfInstallments} × {installmentInfo.period}</p>
-                                      </div>
-                                      <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
-                                        <span className="text-blue-700 font-medium block mb-1">Per Installment</span>
-                                        <p className="text-blue-900 font-bold text-lg">${installmentInfo.installmentAmount.toLocaleString()}</p>
+                                
+                                {/* Toggle between Standard and Custom Installments */}
+                                <div className="mb-4">
+                                  <div className="flex items-center space-x-4">
+                                    <label className="flex items-center">
+                                      <input
+                                        type="radio"
+                                        name={`paymentType-${fee.id}`}
+                                        checked={!fee.customInstallments}
+                                        onChange={() => handleCustomInstallmentsToggle(fee.id, false)}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">Standard Schedule</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                      <input
+                                        type="radio"
+                                        name={`paymentType-${fee.id}`}
+                                        checked={fee.customInstallments}
+                                        onChange={() => handleCustomInstallmentsToggle(fee.id, true)}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">Custom Installments</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                {!fee.customInstallments ? (
+                                  /* Standard Payment Schedule */
+                                  (() => {
+                                    const installmentInfo = calculateInstallmentInfo(fee);
+                                    return (
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                        <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
+                                          <span className="text-blue-700 font-medium block mb-1">Total Amount</span>
+                                          <p className="text-blue-900 font-bold text-lg">${(installmentInfo.numberOfInstallments * installmentInfo.installmentAmount).toLocaleString()}</p>
+                                        </div>
+                                        <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
+                                          <span className="text-blue-700 font-medium block mb-1">Installments</span>
+                                          <p className="text-blue-900 font-bold text-lg">{installmentInfo.numberOfInstallments} × {installmentInfo.period}</p>
+                                        </div>
+                                        <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
+                                          <span className="text-blue-700 font-medium block mb-1">Per Installment</span>
+                                          <p className="text-blue-900 font-bold text-lg">${installmentInfo.installmentAmount.toLocaleString()}</p>
       </div>
     </div>
   );
-                                })()}
+                                  })()
+                                ) : (
+                                  /* Custom Installments */
+                                  <div className="space-y-4">
+                                    {/* Number of Installments Input */}
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Number of Installments
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        value={fee.numberOfInstallments}
+                                        onChange={(e) => handleNumberOfInstallmentsChange(fee.id, e.target.value)}
+                                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                        placeholder="Enter number of installments"
+                                      />
+                                    </div>
+
+                                    {/* Installments List */}
+                                    <div className="space-y-3">
+                                      <h6 className="text-sm font-semibold text-gray-800">Installment Details</h6>
+                                      {fee.installments.map((installment) => (
+                                        <div key={installment.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                                Installment #{installment.installmentNumber}
+                                              </label>
+                                              <div className="text-sm font-semibold text-gray-800">
+                                                {installment.installmentNumber}
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                                Amount *
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={installment.amount}
+                                                onChange={(e) => handleInstallmentAmountChange(fee.id, installment.id, e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                                placeholder="0.00"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                                Approximate Due Date *
+                                              </label>
+                                              <input
+                                                type="date"
+                                                value={installment.dueDate}
+                                                onChange={(e) => handleInstallmentDueDateChange(fee.id, installment.id, e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                                min={new Date().toISOString().split('T')[0]}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {/* Total Validation */}
+                                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-green-800">Total Installments:</span>
+                                        <span className="text-lg font-bold text-green-900">
+                                          ${calculateInstallmentTotal(fee.installments).toLocaleString()}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center mt-1">
+                                        <span className="text-sm font-medium text-green-800">Calculated Amount:</span>
+                                        <span className="text-lg font-bold text-green-900">
+                                          ${fee.calculatedAmount.toLocaleString()}
+                                        </span>
+                                      </div>
+                                      {Math.abs(calculateInstallmentTotal(fee.installments) - fee.calculatedAmount) > 0.01 && (
+                                        <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm text-yellow-800">
+                                          ⚠️ Installment total doesn't match calculated amount. Please adjust installment amounts.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Generate Invoice */}
@@ -1916,73 +2239,138 @@ const CreateContract = () => {
 
                   {/* Description & Attachments */}
                   <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                      <DocumentTextIcon className="w-6 h-6 mr-2 text-blue-600" />
-                      Description
-                    </h2>
+                    <div className="flex items-center mb-8">
+                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl mr-4">
+                        <span className="text-white text-xl">📝</span>
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">Description & Attachments</h2>
+                        <p className="text-sm text-gray-600">Add detailed description and supporting documents</p>
+                      </div>
+                    </div>
                     
-                    <div className="mb-6">
-                      <textarea
-                        value={formData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                        rows={6}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter contract description..."
-                      />
-          </div>
-                    
-                    {/* File Upload */}
-          <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Attachments
-                      </label>
+                    <div className="relative bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-3xl p-8 border-2 border-indigo-200 shadow-2xl overflow-hidden">
+                      {/* Decorative Background Elements */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-200 to-purple-200 rounded-full opacity-20 transform translate-x-16 -translate-y-16"></div>
+                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-200 to-indigo-200 rounded-full opacity-20 transform -translate-x-12 translate-y-12"></div>
+                      <div className="absolute top-1/2 left-1/2 w-16 h-16 bg-gradient-to-br from-purple-200 to-indigo-200 rounded-full opacity-15 transform -translate-x-8 -translate-y-8"></div>
                       
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                        <div className="text-center">
-                          <PaperClipIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <div className="flex items-center justify-center">
-                            <label className="cursor-pointer">
-                              <span className="mt-2 block text-sm font-medium text-gray-900">
-                                Upload files
-                              </span>
-                              <input
-                                type="file"
-                                multiple
-                                onChange={handleFileUpload}
-                                className="hidden"
-                              />
-                            </label>
+                      {/* Description Section */}
+                      <div className="relative mb-8">
+                        <div className="flex items-center mb-6">
+                          <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center mr-3">
+                            <span className="text-white text-sm">📄</span>
                           </div>
-                          <p className="mt-2 text-sm text-gray-500">
-                            Drag and drop files here, or click to select
-                          </p>
+                          <h3 className="text-xl font-bold text-gray-900">Description</h3>
+                        </div>
+                        <div className="group">
+                          <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                            <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center mr-2">
+                              <span className="text-white text-xs">✍️</span>
+                            </div>
+                            Contract Description
+                          </label>
+                          <div className="relative">
+                            <textarea
+                              value={formData.description}
+                              onChange={(e) => handleInputChange('description', e.target.value)}
+                              rows={6}
+                              className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 resize-none border-gray-200 hover:border-indigo-300"
+                              placeholder="Enter detailed contract description..."
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                          </div>
+                        </div>
+                      </div>
+                    
+                      {/* Attachments Section */}
+                      <div className="relative">
+                        <div className="flex items-center mb-6">
+                          <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center mr-3">
+                            <span className="text-white text-sm">📎</span>
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900">Attachments</h3>
+                        </div>
+                        
+                        <div className="group">
+                          <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                            <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center mr-2">
+                              <span className="text-white text-xs">📁</span>
+                            </div>
+                            Upload Files
+                          </label>
+                          
+                          <div className="relative border-2 border-dashed border-purple-300 rounded-2xl p-8 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 group-hover:border-purple-400">
+                            <div className="text-center">
+                              <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                                <span className="text-white text-2xl">📎</span>
+                              </div>
+                              <div className="flex items-center justify-center">
+                                <label className="cursor-pointer group">
+                                  <div className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+                                    <span className="mr-2">📤</span>
+                                    <span className="font-semibold">Upload files</span>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                              <p className="mt-4 text-sm text-gray-600">
+                                <span className="font-medium">Drag and drop files here, or click to select</span>
+                              </p>
+                              <p className="mt-2 text-xs text-gray-500">
+                                Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (Max 10MB each)
+                              </p>
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                          </div>
                         </div>
                       </div>
                       
                       {/* File List */}
                       {formData.attachments.length > 0 && (
-                        <div className="mt-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Files:</h4>
-                          <div className="space-y-2">
+                        <div className="mt-8">
+                          <div className="flex items-center mb-4">
+                            <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center mr-2">
+                              <span className="text-white text-xs">📋</span>
+                            </div>
+                            <h4 className="text-lg font-bold text-gray-900">Uploaded Files</h4>
+                            <span className="ml-2 px-2 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 text-xs font-semibold rounded-full">
+                              {formData.attachments.length} file{formData.attachments.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="space-y-3">
                             {formData.attachments.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div key={index} className="group flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                                 <div className="flex items-center">
-                                  <PaperClipIcon className="w-4 h-4 text-gray-400 mr-2" />
-                                  <span className="text-sm text-gray-900">{file.name}</span>
-          </div>
+                                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center mr-3 shadow-md">
+                                    <span className="text-white text-sm">📄</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-semibold text-gray-900 block">{file.name}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                                    </span>
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => removeAttachment(index)}
-                                  className="text-red-600 hover:text-red-700"
+                                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 transform hover:scale-110"
+                                  title="Remove file"
                                 >
-                                  <XMarkIcon className="w-4 h-4" />
+                                  <XMarkIcon className="w-5 h-5" />
                                 </button>
-          </div>
+                              </div>
                             ))}
-          </div>
-          </div>
-            )}
-          </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Action Buttons */}
@@ -2246,11 +2634,11 @@ const CreateContract = () => {
                   />
                 </div>
 
-                {/* Project Phases */}
+                {/* Contract Agreement */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <label className="block text-sm font-medium text-gray-700">
-                      Project Phases
+                      Contract Agreement
                     </label>
                     <button
                       type="button"
@@ -2323,6 +2711,71 @@ const CreateContract = () => {
                   className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   Add Project Type
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Custom Phase Modal */}
+      {showCustomPhaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Add Custom Phase</h3>
+                  <p className="text-sm text-gray-600">Create a new phase for your contract</p>
+                </div>
+                <button
+                  onClick={() => setShowCustomPhaseModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    Phase Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newPhase.name}
+                    onChange={(e) => handleCustomPhaseChange('name', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder="Enter phase name (e.g., Site Preparation)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    Phase Description *
+                  </label>
+                  <textarea
+                    value={newPhase.description}
+                    onChange={(e) => handleCustomPhaseChange('description', e.target.value)}
+                    rows="3"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
+                    placeholder="Describe what this phase involves..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowCustomPhaseModal(false)}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddCustomPhase}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Add Phase
                 </button>
               </div>
             </div>

@@ -15,7 +15,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../../LanguageContext";
 import { format } from "date-fns";
 import TabBar from "./TabBar";
-import ActionControls from "./ActionControls";
 import MainTable from "./MainTable";
 import KanbanBoard from "./KanbanBoard";
 import TaskSidebar from "./TaskSidebar";
@@ -653,10 +652,6 @@ export default function TaskList() {
           <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
         </div>
         
-        {/* Enhanced ActionControls */}
-        <div className="flex-shrink-0 bg-white/60 backdrop-blur-sm border-b border-white/20">
-          <ActionControls />
-        </div>
         
                  {/* Main Content - Enhanced */}
          <div className="flex-1 min-h-0 overflow-auto bg-gradient-to-br from-slate-50/50 via-blue-50/50 to-indigo-50/50 h-full">
