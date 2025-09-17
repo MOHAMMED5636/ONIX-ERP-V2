@@ -61,12 +61,15 @@ const TableRow = ({ item, isSelected, onToggle, columns }) => {
   return (
     <tr className="border-b hover:bg-gray-50 text-sm">
       <td className="px-3 py-2 border-r min-w-[50px]">
+        <div className="flex items-center gap-2">
+        <span className="text-gray-400 cursor-grab">⋮⋮</span>
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => onToggle(item.key)}
           className="cursor-pointer"
         />
+        </div>
       </td>
       <td className="px-3 py-2 border-r min-w-[100px]">{item.type}</td>
       <td className="px-3 py-2 border-r min-w-[90px]">{item.key}</td>
