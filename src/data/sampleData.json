@@ -55,7 +55,7 @@
     },
     {
       "id":"3",  
-      "type": "Task",
+      "type": "Task3",
       "key": "REF-003",
       "status": "DONE",
       "owner": "Ajmal",
