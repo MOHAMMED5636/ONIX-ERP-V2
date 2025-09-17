@@ -1,5 +1,6 @@
 [
     {
+      "id":"1",  
       "type": "Task",
       "key": "REF-002",
       "status": "TO DO",
@@ -26,6 +27,7 @@
       "color": "Blue"
     },
     {
+      "id":"2",  
       "type": "Task",
       "key": "REF-002",
       "status": "IN PROGRESS",
@@ -52,6 +54,7 @@
       "color": "Blue"
     },
     {
+      "id":"3",  
       "type": "Task",
       "key": "REF-002",
       "status": "DONE",
