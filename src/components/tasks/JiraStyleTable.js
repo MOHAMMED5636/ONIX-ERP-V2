@@ -45,12 +45,12 @@ const SortableHeader = ({ id, children, className = "" }) => {
       className={`${className} relative`}
     >
       <div 
-        className="flex items-center justify-between cursor-grab"
+        className="flex items-center justify-between cursor-grab gap-1"
         {...attributes}
         {...listeners}
       >
         {children}
-        <span className="text-gray-400 ml-1">⋮⋮</span>
+        <span className="text-gray-400">⋮⋮</span>
       </div>
     </th>
   );
