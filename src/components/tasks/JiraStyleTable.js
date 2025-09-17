@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
+import { FaChevronDown } from 'react-icons/fa';
 
 // Status options for dropdown
 const STATUS_OPTIONS = [
@@ -62,7 +63,8 @@ const StatusBadge = ({ status, onStatusChange, itemKey }) => {
         onClick={() => setIsOpen(!isOpen)}
       >
         {status}
-        <span className="ml-1 text-xs">▼</span>
+        {isOpen && <FaChevronDown className="ml-1 text-xs" />}
+        
       </span>
       
       {isOpen && (
