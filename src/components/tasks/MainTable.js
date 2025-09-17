@@ -14,6 +14,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { addDays, differenceInCalendarDays, isValid } from 'date-fns';
 import MapPicker from '../../modules/WorkingLocations.js';
+import sampleData from '../../data/sampleData.json';
 
 // Import extracted components
 import ProjectRow from "./MainTable/ProjectRow";
@@ -65,6 +66,7 @@ import {
 
 // Import shared search and filter hook
 import { useSearchAndFilters } from './hooks/useSearchAndFilters';
+import JiraStyleTable from "./JiraStyleTable.js";
 
 const initialTasks = [
   {
@@ -1756,7 +1758,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
         return <span className="text-xs text-gray-500">{childSub[col.key] || ""}</span>;
     }
   };
-
+  
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <style>{`
@@ -1828,6 +1830,8 @@ Assignee Notes: ${taskData.assigneeNotes}`;
               </div>
             </div>
           )}
+          
+          <JiraStyleTable data={sampleData}/>
             
             {/* Enhanced Table Container - Scrollable */}
           <div className="flex-1 flex flex-col min-h-0">
