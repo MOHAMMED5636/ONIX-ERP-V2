@@ -45,7 +45,7 @@ const SortableHeader = ({ id, children, className = "" }) => {
       className={`${className} relative`}
     >
       <div 
-        className="flex items-center justify-between cursor-move"
+        className="flex items-center justify-between cursor-grab"
         {...attributes}
         {...listeners}
       >
