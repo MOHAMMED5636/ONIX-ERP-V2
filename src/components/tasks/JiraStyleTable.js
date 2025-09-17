@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -17,22 +17,80 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 
-// Badge component for status
-const StatusBadge = ({ status }) => {
+// Status options for dropdown
+const STATUS_OPTIONS = [
+  { value: "TO DO", label: "TO DO", color: "bg-gray-200 text-gray-700" },
+  { value: "IN PROGRESS", label: "IN PROGRESS", color: "bg-yellow-200 text-yellow-800" },
+  { value: "DONE", label: "DONE", color: "bg-green-200 text-green-800" },
+];
+
+// Interactive Status Badge with dropdown
+const StatusBadge = ({ status, onStatusChange, itemKey }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
   const colors = {
     "TO DO": "bg-gray-200 text-gray-700",
     "IN PROGRESS": "bg-yellow-200 text-yellow-800",
     DONE: "bg-green-200 text-green-800",
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleStatusSelect = (newStatus) => {
+    onStatusChange(itemKey, newStatus);
+    setIsOpen(false);
+  };
+
   return (
-    <span
-      className={`px-1 py-1 rounded text-xs font-semibold ${
-        colors[status] || "bg-gray-100 text-gray-600"
-      }`}
-    >
-      {status}
-    </span>
+    <div className="relative" ref={dropdownRef}>
+      <span
+        className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold cursor-pointer hover:opacity-80 whitespace-nowrap ${
+          colors[status] || "bg-gray-100 text-gray-600"
+        }`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {status}
+        <span className="ml-1 text-xs">▼</span>
+      </span>
+      
+      {isOpen && (
+        <div 
+          className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-xl min-w-[160px] py-1"
+          style={{ zIndex: 9999 }}
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <div
+              key={option.value}
+              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm flex items-center"
+              onClick={() => handleStatusSelect(option.value)}
+            >
+              <span className={`px-2 py-1 rounded text-xs font-semibold ${option.color}`}>
+                {option.label}
+              </span>
+            </div>
+          ))}
+          <hr className="my-1 border-gray-200" />
+          <div className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-600">
+            Create status
+          </div>
+          <div className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-600">
+            Edit status
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -61,7 +119,7 @@ const SortableHeader = ({ id, children, className = "" }) => {
 };
 
 // Sortable row component
-const SortableRow = ({ item, isSelected, onToggle, columns }) => {
+const SortableRow = ({ item, isSelected, onToggle, columns, onStatusChange }) => {
   const {
     attributes,
     listeners,
@@ -107,7 +165,11 @@ const SortableRow = ({ item, isSelected, onToggle, columns }) => {
       {columns.slice(2).map((column) => (
         <td key={column.id} className="px-3 py-2 border-r min-w-[120px]">
           {column.id === "status" ? (
-            <StatusBadge status={item[column.id]} />
+            <StatusBadge 
+              status={item[column.id]} 
+              onStatusChange={onStatusChange}
+              itemKey={item.key}
+            />
           ) : (
             item[column.id]
           )}
@@ -163,6 +225,15 @@ const JiraStyleTable = ({ data: initialData }) => {
     })
   );
 
+  // Handle status change
+  const handleStatusChange = useCallback((itemKey, newStatus) => {
+    setData((prevData) =>
+      prevData.map((item) =>
+        item.key === itemKey ? { ...item, status: newStatus } : item
+      )
+    );
+  }, []);
+
   // Handle column reordering
   const handleColumnDragEnd = useCallback((event) => {
     const { active, over } = event;
@@ -199,6 +270,8 @@ const JiraStyleTable = ({ data: initialData }) => {
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
   };
+
+
 
   return (
     <div className="p-4">
@@ -254,17 +327,18 @@ const JiraStyleTable = ({ data: initialData }) => {
             onDragEnd={handleRowDragEnd}
           >
             <SortableContext
-              items={data.map((item) => item.key)}
+              items={(data).map((item) => item.key)}
               strategy={verticalListSortingStrategy}
             >
               <tbody>
-                {data.map((item) => (
+                {(data).map((item) => (
                   <SortableRow
                     key={item.key}
                     item={item}
                     isSelected={selectedKeys.includes(item.key)}
                     onToggle={toggleSelection}
                     columns={columns}
+                    onStatusChange={handleStatusChange}
                   />
                 ))}
               </tbody>
