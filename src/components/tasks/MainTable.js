@@ -38,6 +38,9 @@ import AttachmentsModal from "./modals/AttachmentsModal";
 import Toast from "./MainTable/Toast";
 import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 import TaskDetailsDrawer from "../TaskDetailsDrawer";
+import ChatDrawer from "./ChatDrawer";
+import useSocket from "../../hooks/useSocket";
+import { MessageCircle } from 'lucide-react';
 
 
 // Import utilities
@@ -150,6 +153,13 @@ export default function MainTable() {
   
   // Task Details Drawer state
   const [drawerTask, setDrawerTask] = useState(null);
+  
+  // Chat state
+  const [chatProject, setChatProject] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // Socket.IO integration
+  const { socket, isConnected } = useSocket();
 
   const handleProjectNameClick = (task) => {
     setEditingTaskId(task.id);
@@ -181,6 +191,17 @@ export default function MainTable() {
     }
   };
   const closeProjectSummary = () => setSelectedProjectForSummary(null);
+  
+  // Chat handlers
+  const handleOpenChat = (project) => {
+    setChatProject(project);
+    setIsChatOpen(true);
+  };
+  
+  const handleCloseChat = () => {
+    setIsChatOpen(false);
+    setChatProject(null);
+  };
 
   // Enhanced filter handlers
   const handleFilterChange = (e) => {
@@ -2273,6 +2294,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                               }
                               setAttachmentsModalOpen(true);
                             }}
+                            onOpenChat={handleOpenChat}
                           />
                       {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
@@ -2320,6 +2342,12 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                     >
                                       +
                                     </button>
+                                  </th>
+                                  {/* Chat Button Header Column */}
+                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                    <div className="flex items-center justify-center">
+                                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">💬</span>
+                                    </div>
                                   </th>
                                 </tr>
                               </thead>
@@ -2369,6 +2397,16 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                               title="Delete subtask"
                                             >
                                               ×
+                                            </button>
+                                          </td>
+                                          {/* Chat Button Column */}
+                                          <td className="w-12 text-center">
+                                            <button
+                                              onClick={() => handleOpenChat(sub)}
+                                              className="w-9 h-9 rounded-full bg-gray-200 text-gray-700 hover:bg-blue-600 hover:text-white transition-all duration-200 flex items-center justify-center mx-auto"
+                                              title="Open Task Chat"
+                                            >
+                                              <MessageCircle className="w-4 h-4" />
                                             </button>
                                           </td>
                                         </SortableSubtaskRow>
@@ -2422,6 +2460,16 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                             title="Delete child subtask"
                                           >
                                             ×
+                                          </button>
+                                        </td>
+                                        {/* Chat Button Column for Child Subtask */}
+                                        <td className="w-12 text-center">
+                                          <button
+                                            onClick={() => handleOpenChat(childSub)}
+                                            className="w-9 h-9 rounded-full bg-gray-200 text-gray-700 hover:bg-blue-600 hover:text-white transition-all duration-200 flex items-center justify-center mx-auto"
+                                            title="Open Task Chat"
+                                          >
+                                            <MessageCircle className="w-4 h-4" />
                                           </button>
                                         </td>
                                       </tr>
@@ -2678,6 +2726,14 @@ Assignee Notes: ${taskData.assigneeNotes}`;
           // Update the drawer task to reflect changes
           setDrawerTask(updatedTask);
         }}
+      />
+
+      {/* Chat Drawer */}
+      <ChatDrawer
+        isOpen={isChatOpen}
+        project={chatProject}
+        onClose={handleCloseChat}
+        socket={socket}
       />
 
     </div>

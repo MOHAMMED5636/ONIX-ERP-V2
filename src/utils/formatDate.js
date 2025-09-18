@@ -36,3 +36,4 @@ export const getRelativeTime = (dateString) => {
   if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
   return formatDate(dateString);
 };
+

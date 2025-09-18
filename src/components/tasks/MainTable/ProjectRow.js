@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChevronDownIcon, ChevronRightIcon, PaperClipIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronRightIcon, PaperClipIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
+import { MessageCircle } from 'lucide-react';
 import CheckboxWithPopup from './CheckboxWithPopup';
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 import TruncatedTextCell from './TruncatedTextCell';
@@ -33,7 +34,8 @@ const ProjectRow = ({
   newSubtask,
   setNewSubtask,
   handleSubtaskKeyDown,
-  onOpenAttachmentsModal
+  onOpenAttachmentsModal,
+  onOpenChat
 }) => {
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -509,14 +511,25 @@ const ProjectRow = ({
                       </span>
                     )}
                   </div>
-                  {/* Add Task Button */}
-                  <button
-                    onClick={() => setShowSubtaskForm(task.id)}
-                    className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 w-fit"
-                    title="Add Task"
-                  >
-                    + Add Task
-                  </button>
+                  {/* Add Task Button and Chat Button */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowSubtaskForm(task.id)}
+                      className="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-all duration-200 w-fit"
+                      title="Add Task"
+                    >
+                      + Add Task
+                    </button>
+                    
+                    {/* Circular Chat Button */}
+                    <button
+                      onClick={() => onOpenChat && onOpenChat(task)}
+                      className="w-9 h-9 rounded-full bg-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white transition-all duration-200 flex items-center justify-center"
+                      title="Open Project Chat"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 renderMainCell(col, task, (field, value) => {

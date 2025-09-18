@@ -33,7 +33,8 @@ const SortableProjectRow = ({
   newSubtask,
   setNewSubtask,
   handleSubtaskKeyDown,
-  onOpenAttachmentsModal
+  onOpenAttachmentsModal,
+  onOpenChat
 }) => {
   const {
     attributes,
@@ -102,6 +103,7 @@ const SortableProjectRow = ({
           setNewSubtask={setNewSubtask}
           handleSubtaskKeyDown={handleSubtaskKeyDown}
           onOpenAttachmentsModal={onOpenAttachmentsModal}
+          onOpenChat={onOpenChat}
         />
       </td>
     </tr>

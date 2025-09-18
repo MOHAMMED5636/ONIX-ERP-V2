@@ -105,7 +105,7 @@ const FormView = () => {
   return (
     <div className="p-6">
       {/* Filter Bar */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200 mb-6">
+      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200 mb-6 -mt-6">
         <div className="flex items-center justify-between px-6 py-4">
           {/* Left side - Form Builder Indicator */}
           <div className="flex items-center gap-3">
