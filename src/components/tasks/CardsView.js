@@ -12,7 +12,12 @@ import {
   TrashIcon,
   DocumentDuplicateIcon,
   ShareIcon,
-  ArchiveBoxIcon
+  ArchiveBoxIcon,
+  PlusIcon,
+  ClipboardDocumentIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 const CardsView = () => {
@@ -271,20 +276,58 @@ const CardsView = () => {
           }
         }
       `}</style>
-      <div className="mb-8">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <h2 className="text-3xl font-bold mb-2">Construction Task Cards</h2>
-          <p className="text-blue-100 text-lg">Jira-style task cards for construction project management</p>
-        </div>
-        {loading && (
-          <div className="mt-4 text-sm text-blue-600 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            Processing action...
+      
+      {/* Filter Bar */}
+      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200 mb-6 -mt-4">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left side - Cards View Indicator */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <Bars3Icon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Task Cards</h2>
+              <p className="text-sm text-gray-600">Construction project management</p>
+            </div>
           </div>
-        )}
+          
+          {/* Right side - Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">
+              <PlusIcon className="w-5 h-5" /> New Task
+            </button>
+            
+            <button className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">
+              <ClipboardDocumentIcon className="w-5 h-5" /> Paste
+            </button>
+            
+            {/* Search Box */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search tasks... (Ctrl+K to focus)"
+                className="w-56 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+              />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
+            
+            {/* Show Filters Button */}
+            <button className="flex items-center gap-1.5 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm">
+              <FunnelIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">Show Filters</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {loading && (
+        <div className="mb-4 text-sm text-blue-600 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          Processing action...
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4 -mt-6">
         {tasks.map((task, index) => (
           <div 
             key={task.id} 

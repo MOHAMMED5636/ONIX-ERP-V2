@@ -37,6 +37,7 @@ import ChecklistModal from "./modals/ChecklistModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
 import Toast from "./MainTable/Toast";
 import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
+import TaskDetailsDrawer from "../TaskDetailsDrawer";
 
 
 // Import utilities
@@ -146,6 +147,9 @@ export default function MainTable() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
   const [selectedProjectForSummary, setSelectedProjectForSummary] = useState(null);
+  
+  // Task Details Drawer state
+  const [drawerTask, setDrawerTask] = useState(null);
 
   const handleProjectNameClick = (task) => {
     setEditingTaskId(task.id);
@@ -153,6 +157,11 @@ export default function MainTable() {
   };
   const handleProjectNameDoubleClick = (task) => {
     setSelectedProjectForSummary(task);
+  };
+  
+  // Handle opening task details drawer
+  const handleOpenTaskDrawer = (task) => {
+    setDrawerTask(task);
   };
   const handleProjectNameChange = (e) => setEditingTaskName(e.target.value);
   const handleProjectNameBlur = (task) => {
@@ -285,6 +294,18 @@ export default function MainTable() {
 
 
   const [tasks, setTasks] = useState(initialTasks);
+  
+  // Sync drawerTask with updated task from main table
+  useEffect(() => {
+    if (drawerTask && tasks) {
+      const updatedTask = tasks.find(t => t.id === drawerTask.id);
+      if (updatedTask && updatedTask !== drawerTask) {
+        setDrawerTask(updatedTask);
+        console.log('Drawer task synced with main table:', updatedTask);
+      }
+    }
+  }, [tasks, drawerTask]);
+  
   // Use shared search and filter hook
   const {
     search,
@@ -2223,6 +2244,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                             onToggleExpand={toggleExpand}
                             onProjectNameClick={handleProjectNameClick}
                             onProjectNameDoubleClick={handleProjectNameDoubleClick}
+                            onOpenTaskDrawer={handleOpenTaskDrawer}
                             onProjectNameChange={handleProjectNameChange}
                             onProjectNameBlur={handleProjectNameBlur}
                             onProjectNameKeyDown={handleProjectNameKeyDown}
@@ -2639,6 +2661,23 @@ Assignee Notes: ${taskData.assigneeNotes}`;
         isOpen={showBulkViewDrawer}
         selectedTasks={filteredTasks.filter(task => selectedTaskIds.has(task.id))}
         onClose={() => setShowBulkViewDrawer(false)}
+      />
+
+      {/* Task Details Drawer */}
+      <TaskDetailsDrawer
+        open={!!drawerTask}
+        task={drawerTask}
+        onClose={() => setDrawerTask(null)}
+        onTaskUpdate={(updatedTask) => {
+          // Update the task in the main table's tasks array
+          setTasks(prevTasks => 
+            prevTasks.map(task => 
+              task.id === updatedTask.id ? updatedTask : task
+            )
+          );
+          // Update the drawer task to reflect changes
+          setDrawerTask(updatedTask);
+        }}
       />
 
     </div>

@@ -14,6 +14,7 @@ const ProjectRow = ({
   onToggleExpand,
   onProjectNameClick,
   onProjectNameDoubleClick,
+  onOpenTaskDrawer,
   onProjectNameChange,
   onProjectNameBlur,
   onProjectNameKeyDown,
@@ -498,7 +499,10 @@ const ProjectRow = ({
                     ) : (
                       <span
                         className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
-                        onClick={() => onProjectNameClick(task)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenTaskDrawer(task);
+                        }}
                         onDoubleClick={() => onProjectNameDoubleClick(task)}
                       >
                         {task.name}

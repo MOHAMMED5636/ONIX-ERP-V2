@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
+import { 
+  PlusIcon,
+  ClipboardDocumentIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  Bars3Icon
+} from '@heroicons/react/24/outline';
 
 const columns = [
   { key: "pending", label: "Pending", border: "border-orange-400" },
@@ -236,26 +243,49 @@ Progress: ${taskData.percent}%`;
 
   return (
     <div className="w-full">
-      {/* Enhanced Top Bar with Filter Toggle */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm rounded-b-lg mb-4">
-        {/* Left side - Title and basic controls */}
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-gray-800">Kanban Board</h2>
-        </div>
-        
-        {/* Right side - Filter Toggle */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 ${
-              showFilters ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
-            </svg>
-            Filters
-          </button>
+      {/* Filter Bar */}
+      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200 mb-6">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left side - Kanban Board Indicator */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg flex items-center justify-center">
+              <Bars3Icon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Kanban Board</h2>
+              <p className="text-sm text-gray-600">Project workflow management</p>
+            </div>
+          </div>
+          
+          {/* Right side - Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">
+              <PlusIcon className="w-5 h-5" /> New Task
+            </button>
+            
+            <button className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">
+              <ClipboardDocumentIcon className="w-5 h-5" /> Paste
+            </button>
+            
+            {/* Search Box */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search tasks... (Ctrl+K to focus)"
+                className="w-56 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+              />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
+            
+            {/* Show Filters Button */}
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-1.5 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm"
+            >
+              <FunnelIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+            </button>
+          </div>
         </div>
       </div>
 

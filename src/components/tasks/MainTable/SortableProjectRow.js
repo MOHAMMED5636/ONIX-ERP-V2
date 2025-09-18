@@ -14,6 +14,7 @@ const SortableProjectRow = ({
   onToggleExpand,
   onProjectNameClick,
   onProjectNameDoubleClick,
+  onOpenTaskDrawer,
   onProjectNameChange,
   onProjectNameBlur,
   onProjectNameKeyDown,
@@ -81,6 +82,7 @@ const SortableProjectRow = ({
           onToggleExpand={onToggleExpand}
           onProjectNameClick={onProjectNameClick}
           onProjectNameDoubleClick={onProjectNameDoubleClick}
+          onOpenTaskDrawer={onOpenTaskDrawer}
           onProjectNameChange={onProjectNameChange}
           onProjectNameBlur={onProjectNameBlur}
           onProjectNameKeyDown={onProjectNameKeyDown}

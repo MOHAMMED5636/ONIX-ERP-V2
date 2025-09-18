@@ -30,7 +30,11 @@ import {
   BookmarkIcon,
   ShareIcon,
   ArrowPathIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  ClipboardDocumentIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 const CustomizableView = () => {
@@ -428,11 +432,46 @@ const CustomizableView = () => {
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <h2 className="text-3xl font-bold mb-2">Customizable Views</h2>
-          <p className="text-indigo-100 text-lg">Create personalized dashboards for construction project management</p>
+      {/* Filter Bar */}
+      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200 mb-6">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left side - Customizable Views Indicator */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <Bars3Icon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Customizable Views</h2>
+              <p className="text-sm text-gray-600">Personalized dashboards</p>
+            </div>
+          </div>
+          
+          {/* Right side - Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">
+              <PlusIcon className="w-5 h-5" /> New View
+            </button>
+            
+            <button className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5">
+              <ClipboardDocumentIcon className="w-5 h-5" /> Templates
+            </button>
+            
+            {/* Search Box */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search views... (Ctrl+K to focus)"
+                className="w-56 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+              />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
+            
+            {/* Show Filters Button */}
+            <button className="flex items-center gap-1.5 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm">
+              <FunnelIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">Show Filters</span>
+            </button>
+          </div>
         </div>
       </div>
 

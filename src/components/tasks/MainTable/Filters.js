@@ -3,7 +3,8 @@ import {
   PlusIcon,
   ClipboardDocumentIcon,
   MagnifyingGlassIcon,
-  FunnelIcon
+  FunnelIcon,
+  Bars3Icon
 } from "@heroicons/react/24/outline";
 import { Info } from 'lucide-react';
 
@@ -63,9 +64,20 @@ const Filters = ({
       {/* Enhanced Top Bar - Restructured for better alignment */}
       <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200">
         {/* Top row with action buttons */}
-        <div className="flex items-center px-6 py-4">
-          {/* Left side - New Project, Paste, Search, Show Filters */}
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left side - Main Table Indicator */}
           <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+              <Bars3Icon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Main Table</h2>
+              <p className="text-sm text-gray-600">Project management and task tracking</p>
+            </div>
+          </div>
+          
+          {/* Right side - New Project, Paste, Search, Show Filters */}
+          <div className="flex items-center gap-2">
             <button
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
               onClick={handleAddNewTask}
@@ -99,7 +111,7 @@ const Filters = ({
                 placeholder="Search tasks... (Ctrl+K to focus)"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-64 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                className="w-56 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
               />
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               {isSearching && (
@@ -121,7 +133,7 @@ const Filters = ({
             {/* Show Filters Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm"
             >
               <FunnelIcon className="w-4 h-4" />
               <span className="text-sm font-medium">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
