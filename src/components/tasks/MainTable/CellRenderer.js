@@ -387,18 +387,27 @@ const CellRenderer = {
   },
 
   // Render subtask cells
-  renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true, onKeyDown = null, onEditSubtask = null, onDeleteSubtask = null, onCopySubtask = null) => {
+  renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true, onKeyDown = null, onEditSubtask = null, onDeleteSubtask = null, onCopySubtask = null, onOpenChat = null) => {
     switch (col.key) {
       case "task":
       case "project name":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
-            value={sub.name}
-            onChange={e => onEdit(task.id, sub.id, "name", e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Task Name"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              className="border rounded px-2 py-1 text-sm font-bold text-gray-900 flex-1"
+              value={sub.name}
+              onChange={e => onEdit(task.id, sub.id, "name", e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Task Name"
+            />
+            <button
+              onClick={() => onOpenChat && onOpenChat(sub)}
+              className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
+              title="Open Chat"
+            >
+              💬
+            </button>
+          </div>
         );
       case "category":
       case "task category":

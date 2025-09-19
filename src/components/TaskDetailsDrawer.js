@@ -20,6 +20,17 @@ import useTaskDetails from '../hooks/useTaskDetails';
 import { formatDate, formatDateTime, getRelativeTime } from '../utils/formatDate';
 import SubtaskDetailModal from './SubtaskDetailModal';
 
+// API function to update project name
+const updateProjectNameAPI = async (projectId, newName) => {
+  // Simulate API call - replace with actual API endpoint
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      console.log(`Updating project ${projectId} name to: ${newName}`);
+      resolve({ success: true });
+    }, 500);
+  });
+};
+
 const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
   const [expandedSubtasks, setExpandedSubtasks] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -46,6 +57,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
   const [editingSubtaskPriority, setEditingSubtaskPriority] = useState(null);
   const [selectedSubtask, setSelectedSubtask] = useState(null);
   const [showSubtaskModal, setShowSubtaskModal] = useState(false);
+  
+  // Project name editing state
+  const [isEditingProjectName, setIsEditingProjectName] = useState(false);
+  const [tempProjectName, setTempProjectName] = useState('');
   
   // Editable values
   const [description, setDescription] = useState('');
@@ -262,6 +277,72 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
     });
     
     console.log('Subtask updated from modal:', updatedSubtask);
+  };
+
+  // Handle updating project name
+  const handleUpdateProjectName = async (projectId, newName) => {
+    try {
+      // Update the main task name
+      const updatedTask = {
+        ...task,
+        name: newName
+      };
+      
+      // Call the backend API
+      await updateProjectNameAPI(projectId, newName);
+      
+      // Update local state
+      syncToMainTable(updatedTask);
+      
+      console.log('Project name updated successfully');
+    } catch (error) {
+      console.error('Failed to update project name:', error);
+      throw error; // Re-throw to let the modal handle the error
+    }
+  };
+
+  // Project name editing handlers for drawer
+  const handleStartEditingProjectName = () => {
+    console.log('Starting to edit project name:', currentTask?.name || currentTask?.title);
+    setIsEditingProjectName(true);
+    setTempProjectName(currentTask?.name || currentTask?.title || '');
+  };
+
+  const handleSaveProjectName = async () => {
+    if (tempProjectName.trim() && currentTask) {
+      try {
+        const updatedTask = {
+          ...currentTask,
+          name: tempProjectName.trim()
+        };
+        
+        // Call the backend API
+        await updateProjectNameAPI(currentTask.id, tempProjectName.trim());
+        
+        // Update local state
+        syncToMainTable(updatedTask);
+        
+        setIsEditingProjectName(false);
+        console.log('Project name updated successfully');
+      } catch (error) {
+        console.error('Failed to update project name:', error);
+        // Reset to original name on error
+        setTempProjectName(currentTask?.name || currentTask?.title || '');
+      }
+    }
+  };
+
+  const handleCancelProjectNameEdit = () => {
+    setTempProjectName(currentTask?.name || currentTask?.title || '');
+    setIsEditingProjectName(false);
+  };
+
+  const handleProjectNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSaveProjectName();
+    } else if (e.key === 'Escape') {
+      handleCancelProjectNameEdit();
+    }
   };
 
   // Handle adding new subtask
@@ -491,9 +572,37 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                     {(currentTask.title || currentTask.name)?.charAt(0) || 'T'}
                   </div>
                   <div>
-                    <h2 id="drawer-title" className="text-2xl font-bold text-white truncate drop-shadow-sm">
-                      {currentTask.title || currentTask.name}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      {isEditingProjectName ? (
+                        <input
+                          type="text"
+                          value={tempProjectName}
+                          onChange={(e) => setTempProjectName(e.target.value)}
+                          onBlur={handleSaveProjectName}
+                          onKeyDown={handleProjectNameKeyDown}
+                          className="text-2xl font-bold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 w-full max-w-md"
+                          placeholder="Project name"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <h2 
+                            id="drawer-title" 
+                            className="text-2xl font-bold text-white truncate drop-shadow-sm cursor-pointer hover:text-white/80 transition-colors"
+                            onClick={handleStartEditingProjectName}
+                          >
+                            {currentTask.title || currentTask.name}
+                          </h2>
+                          <button
+                            onClick={handleStartEditingProjectName}
+                            className="text-white/70 hover:text-white transition-colors ml-2 px-3 py-1 rounded hover:bg-white/20 text-sm bg-white/10 border border-white/20 flex items-center gap-1"
+                            title="Edit project name"
+                          >
+                            ✏️ Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-white/80 font-medium">#{currentTask.id}</span>
                       <span className="text-xs text-white/60">•</span>
@@ -1139,6 +1248,7 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
         subtask={selectedSubtask}
         onClose={handleCloseSubtaskModal}
         onUpdate={handleUpdateSubtask}
+        onUpdateProjectName={handleUpdateProjectName}
       />
     </div>
   );

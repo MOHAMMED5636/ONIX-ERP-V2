@@ -1502,6 +1502,13 @@ Assignee Notes: ${taskData.assigneeNotes}`;
               onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
               placeholder="Task Name"
             />
+            <button
+              onClick={() => handleOpenChat(childSub)}
+              className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
+              title="Open Chat"
+            >
+              💬
+            </button>
           </div>
         );
       case "category":
@@ -2301,7 +2308,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                         <tr>
                                                      <td colSpan={columnOrder.length + 5} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
                             <div className="max-h-[400px] overflow-y-auto">
-                              <table className="w-full table-fixed">
+                              <table className="w-full table-auto">
                               <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b border-gray-300">
                                 <tr>
                                   {/* Drag Handle Header Column for Subtasks */}
@@ -2311,7 +2318,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                     </div>
                                   </th>
                                   {/* Checkbox Header Column */}
-                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-16">
                                     {/* Empty header for checkbox alignment */}
                                   </th>
                                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -2333,7 +2340,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                       })}
                                     </SortableContext>
                                   </DndContext>
-                                  <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                  <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-16">
                                     <button
                                       className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
                                       onClick={handleShowAddColumnMenu}
@@ -2342,12 +2349,6 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                     >
                                       +
                                     </button>
-                                  </th>
-                                  {/* Chat Button Header Column */}
-                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
-                                    <div className="flex items-center justify-center">
-                                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">💬</span>
-                                    </div>
                                   </th>
                                 </tr>
                               </thead>
@@ -2375,7 +2376,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                             const col = columns.find(c => c.key === colKey);
                                             if (!col) return null;
                                             return (
-                                              <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                              <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-16' : ''} ${
                                                 col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                                               } ${
                                                 col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -2385,8 +2386,22 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                                 col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
                                               } ${
                                                 col.key === 'owner' ? 'w-36 min-w-36' : ''
+                                              } ${
+                                                col.key === 'task' || col.key === 'project name' ? 'w-48 min-w-48' : ''
+                                              } ${
+                                                col.key === 'status' ? 'w-28 min-w-28' : ''
+                                              } ${
+                                                col.key === 'priority' ? 'w-28 min-w-28' : ''
+                                              } ${
+                                                col.key === 'timeline' ? 'w-40 min-w-40' : ''
+                                              } ${
+                                                col.key === 'planDays' ? 'w-20 min-w-20' : ''
+                                              } ${
+                                                col.key === 'attachments' ? 'w-28 min-w-28' : ''
+                                              } ${
+                                                col.key === 'location' ? 'w-32 min-w-32' : ''
                                               }`}>
-                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask)}
+                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask, handleOpenChat)}
                                               </td>
                                             );
                                           })}
@@ -2397,16 +2412,6 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                               title="Delete subtask"
                                             >
                                               ×
-                                            </button>
-                                          </td>
-                                          {/* Chat Button Column */}
-                                          <td className="w-12 text-center">
-                                            <button
-                                              onClick={() => handleOpenChat(sub)}
-                                              className="w-9 h-9 rounded-full bg-gray-200 text-gray-700 hover:bg-blue-600 hover:text-white transition-all duration-200 flex items-center justify-center mx-auto"
-                                              title="Open Task Chat"
-                                            >
-                                              <MessageCircle className="w-4 h-4" />
                                             </button>
                                           </td>
                                         </SortableSubtaskRow>
@@ -2438,7 +2443,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
-                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-16' : ''} ${
                                               col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                                             } ${
                                               col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -2448,6 +2453,20 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                               col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
                                             } ${
                                               col.key === 'owner' ? 'w-36 min-w-36' : ''
+                                            } ${
+                                              col.key === 'task' || col.key === 'project name' ? 'w-48 min-w-48' : ''
+                                            } ${
+                                              col.key === 'status' ? 'w-28 min-w-28' : ''
+                                            } ${
+                                              col.key === 'priority' ? 'w-28 min-w-28' : ''
+                                            } ${
+                                              col.key === 'timeline' ? 'w-40 min-w-40' : ''
+                                            } ${
+                                              col.key === 'planDays' ? 'w-20 min-w-20' : ''
+                                            } ${
+                                              col.key === 'attachments' ? 'w-28 min-w-28' : ''
+                                            } ${
+                                              col.key === 'location' ? 'w-32 min-w-32' : ''
                                             }`}>
                                               {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx)}
                                             </td>
@@ -2460,16 +2479,6 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                             title="Delete child subtask"
                                           >
                                             ×
-                                          </button>
-                                        </td>
-                                        {/* Chat Button Column for Child Subtask */}
-                                        <td className="w-12 text-center">
-                                          <button
-                                            onClick={() => handleOpenChat(childSub)}
-                                            className="w-9 h-9 rounded-full bg-gray-200 text-gray-700 hover:bg-blue-600 hover:text-white transition-all duration-200 flex items-center justify-center mx-auto"
-                                            title="Open Task Chat"
-                                          >
-                                            <MessageCircle className="w-4 h-4" />
                                           </button>
                                         </td>
                                       </tr>

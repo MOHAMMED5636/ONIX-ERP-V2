@@ -499,16 +499,26 @@ const ProjectRow = ({
                         className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                       />
                     ) : (
-                      <span
-                        className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenTaskDrawer(task);
-                        }}
-                        onDoubleClick={() => onProjectNameDoubleClick(task)}
-                      >
-                        {task.name}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="font-bold text-blue-700 hover:text-blue-800 hover:underline focus:outline-none cursor-pointer transition-all duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenTaskDrawer(task);
+                          }}
+                          onDoubleClick={() => onProjectNameDoubleClick(task)}
+                        >
+                          {task.name}
+                        </span>
+                        {/* Chat Button inline with project name */}
+                        <button
+                          onClick={() => onOpenChat && onOpenChat(task)}
+                          className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
+                          title="Open Chat"
+                        >
+                          💬
+                        </button>
+                      </div>
                     )}
                   </div>
                   {/* Add Task Button and Chat Button */}
@@ -521,14 +531,6 @@ const ProjectRow = ({
                       + Add Task
                     </button>
                     
-                    {/* Circular Chat Button */}
-                    <button
-                      onClick={() => onOpenChat && onOpenChat(task)}
-                      className="w-9 h-9 rounded-full bg-gray-200 text-gray-600 hover:bg-blue-600 hover:text-white transition-all duration-200 flex items-center justify-center"
-                      title="Open Project Chat"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               ) : (

@@ -16,7 +16,8 @@ const SubtaskDetailModal = ({
   isOpen, 
   subtask, 
   onClose, 
-  onUpdate 
+  onUpdate,
+  onUpdateProjectName 
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
@@ -26,6 +27,10 @@ const SubtaskDetailModal = ({
   const [editedDescription, setEditedDescription] = useState('');
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState([]);
+  
+  // Project name editing state
+  const [isEditingProjectName, setIsEditingProjectName] = useState(false);
+  const [tempProjectName, setTempProjectName] = useState('');
 
   // Initialize form data when subtask changes
   useEffect(() => {
@@ -35,6 +40,7 @@ const SubtaskDetailModal = ({
       setEditedStatus(subtask.status || 'To Do');
       setEditedPriority(subtask.priority || 'Medium');
       setEditedDescription(subtask.description || '');
+      setTempProjectName(subtask.projectName || subtask.name || '');
     }
   }, [subtask]);
 
@@ -60,6 +66,39 @@ const SubtaskDetailModal = ({
     setEditedPriority(subtask.priority || 'Medium');
     setEditedDescription(subtask.description || '');
     setIsEditing(false);
+  };
+
+  // Project name editing handlers
+  const handleStartEditingProjectName = () => {
+    setIsEditingProjectName(true);
+    setTempProjectName(subtask.projectName || subtask.name || '');
+  };
+
+  const handleSaveProjectName = async () => {
+    if (tempProjectName.trim() && onUpdateProjectName) {
+      try {
+        // Call the parent function to update project name
+        await onUpdateProjectName(subtask.id, tempProjectName.trim());
+        setIsEditingProjectName(false);
+      } catch (error) {
+        console.error('Failed to update project name:', error);
+        // Reset to original name on error
+        setTempProjectName(subtask.projectName || subtask.name || '');
+      }
+    }
+  };
+
+  const handleCancelProjectNameEdit = () => {
+    setTempProjectName(subtask.projectName || subtask.name || '');
+    setIsEditingProjectName(false);
+  };
+
+  const handleProjectNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSaveProjectName();
+    } else if (e.key === 'Escape') {
+      handleCancelProjectNameEdit();
+    }
   };
 
   const handleAddComment = () => {
@@ -128,6 +167,40 @@ const SubtaskDetailModal = ({
                   <p className="text-white/80 text-sm mt-1">
                     Subtask #{subtask.id} • Created {new Date().toLocaleDateString()}
                   </p>
+                  
+                  {/* Project Name Section */}
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/70 text-sm">Project:</span>
+                      {isEditingProjectName ? (
+                        <input
+                          type="text"
+                          value={tempProjectName}
+                          onChange={(e) => setTempProjectName(e.target.value)}
+                          onBlur={handleSaveProjectName}
+                          onKeyDown={handleProjectNameKeyDown}
+                          className="px-2 py-1 rounded text-black w-full max-w-sm text-sm"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className="text-lg font-semibold cursor-pointer text-white hover:text-white/80 transition-colors"
+                            onClick={handleStartEditingProjectName}
+                          >
+                            {subtask.projectName || subtask.name || 'Untitled Project'}
+                          </span>
+                          <button
+                            onClick={handleStartEditingProjectName}
+                            className="text-white/70 hover:text-white transition-colors ml-2"
+                            title="Edit project name"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
