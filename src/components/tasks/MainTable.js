@@ -2318,7 +2318,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                     </div>
                                   </th>
                                   {/* Checkbox Header Column */}
-                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-16">
+                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
                                     {/* Empty header for checkbox alignment */}
                                   </th>
                                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -2340,7 +2340,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                       })}
                                     </SortableContext>
                                   </DndContext>
-                                  <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-16">
+                                  <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
                                     <button
                                       className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
                                       onClick={handleShowAddColumnMenu}
@@ -2376,7 +2376,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                             const col = columns.find(c => c.key === colKey);
                                             if (!col) return null;
                                             return (
-                                              <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-16' : ''} ${
+                                              <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''} ${
                                                 col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                                               } ${
                                                 col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -2386,20 +2386,6 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                                 col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
                                               } ${
                                                 col.key === 'owner' ? 'w-36 min-w-36' : ''
-                                              } ${
-                                                col.key === 'task' || col.key === 'project name' ? 'w-48 min-w-48' : ''
-                                              } ${
-                                                col.key === 'status' ? 'w-28 min-w-28' : ''
-                                              } ${
-                                                col.key === 'priority' ? 'w-28 min-w-28' : ''
-                                              } ${
-                                                col.key === 'timeline' ? 'w-40 min-w-40' : ''
-                                              } ${
-                                                col.key === 'planDays' ? 'w-20 min-w-20' : ''
-                                              } ${
-                                                col.key === 'attachments' ? 'w-28 min-w-28' : ''
-                                              } ${
-                                                col.key === 'location' ? 'w-32 min-w-32' : ''
                                               }`}>
                                                 {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask, handleOpenChat)}
                                               </td>
@@ -2443,7 +2429,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
-                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-16' : ''} ${
+                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-12' : ''} ${
                                               col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                                             } ${
                                               col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -2453,20 +2439,6 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                               col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
                                             } ${
                                               col.key === 'owner' ? 'w-36 min-w-36' : ''
-                                            } ${
-                                              col.key === 'task' || col.key === 'project name' ? 'w-48 min-w-48' : ''
-                                            } ${
-                                              col.key === 'status' ? 'w-28 min-w-28' : ''
-                                            } ${
-                                              col.key === 'priority' ? 'w-28 min-w-28' : ''
-                                            } ${
-                                              col.key === 'timeline' ? 'w-40 min-w-40' : ''
-                                            } ${
-                                              col.key === 'planDays' ? 'w-20 min-w-20' : ''
-                                            } ${
-                                              col.key === 'attachments' ? 'w-28 min-w-28' : ''
-                                            } ${
-                                              col.key === 'location' ? 'w-32 min-w-32' : ''
                                             }`}>
                                               {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx)}
                                             </td>

@@ -14,7 +14,7 @@ const DraggableHeader = ({ col, colKey, isSubtaskTable = false, onRemoveColumn }
     <th
       ref={setNodeRef}
       style={style}
-      className={`px-4 py-3 text-xs font-bold text-gray-500 uppercase bg-white border-b border-gray-100 ${isDragging ? 'bg-blue-50' : ''} ${
+      className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase bg-white border-b border-gray-100 ${isDragging ? 'bg-blue-50' : ''} ${
         colKey === 'referenceNumber' ? 'w-32 min-w-32' : ''
       } ${
         colKey === 'remarks' || colKey === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -24,20 +24,6 @@ const DraggableHeader = ({ col, colKey, isSubtaskTable = false, onRemoveColumn }
         colKey === 'projectFloor' || colKey === 'developerProject' ? 'w-40 min-w-40' : ''
       } ${
         colKey === 'owner' ? 'w-36 min-w-36' : ''
-      } ${
-        colKey === 'task' || colKey === 'project name' ? 'w-48 min-w-48' : ''
-      } ${
-        colKey === 'status' ? 'w-28 min-w-28' : ''
-      } ${
-        colKey === 'priority' ? 'w-28 min-w-28' : ''
-      } ${
-        colKey === 'timeline' ? 'w-40 min-w-40' : ''
-      } ${
-        colKey === 'planDays' ? 'w-20 min-w-20' : ''
-      } ${
-        colKey === 'attachments' ? 'w-28 min-w-28' : ''
-      } ${
-        colKey === 'location' ? 'w-32 min-w-32' : ''
       }`}
     >
       <div className="flex items-center justify-between gap-1">
