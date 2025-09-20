@@ -493,19 +493,19 @@ const JiraStyleTable = ({
   const [tableData, setTableData] = useState(initialData);
 
   // Function to recursively get all task keys
-  const getAllTaskKeys = (tasks, result = {}) => {
+  const getAllTaskKeys = useCallback((tasks, keys = []) => {
     tasks.forEach(task => {
-      result[task.key] = false; // Set all tasks to collapsed by default
+      keys.push(task.key);
       if (task.subtasks && task.subtasks.length > 0) {
-        getAllTaskKeys(task.subtasks, result);
+        getAllTaskKeys(task.subtasks, keys);
       }
     });
-    return result;
-  };
+    return keys;
+  }, []);
 
   // Initialize expandedTasks with all tasks (including nested) collapsed by default
   const [expandedTasks, setExpandedTasks] = useState(
-    getAllTaskKeys(initialData)
+    getAllTaskKeys(initialData).reduce((acc, key) => ({ ...acc, [key]: false }), {})
   );
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [columns, setColumns] = useState([
@@ -554,6 +554,81 @@ const JiraStyleTable = ({
     })
   );
 
+  // Helper function to find a task and its parent by key
+  const findTaskAndParent = (items, key, parent = null) => {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.key === key) {
+        return { task: item, parent, index: i };
+      }
+      if (item.subtasks && item.subtasks.length > 0) {
+        const found = findTaskAndParent(item.subtasks, key, item);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Helper function to update the task in the nested structure
+  const updateTaskInNestedStructure = (items, key, updater) => {
+    return items.map(item => {
+      if (item.key === key) {
+        return { ...item, ...updater(item) };
+      }
+      if (item.subtasks && item.subtasks.length > 0) {
+        return {
+          ...item,
+          subtasks: updateTaskInNestedStructure(item.subtasks, key, updater)
+        };
+      }
+      return item;
+    });
+  };
+
+  // Handle row reordering for both top-level and nested tasks
+  const handleRowDragEnd = useCallback((event) => {
+    const { active, over } = event;
+    
+    if (!over) return;
+    if (active.id === over.id) return;
+
+    setTableData((currentData) => {
+      // Find the active and over tasks with their parents
+      const activeTask = findTaskAndParent(currentData, active.id);
+      const overTask = findTaskAndParent(currentData, over.id);
+
+      if (!activeTask || !overTask) return currentData;
+
+      // If moving within the same parent
+      if (activeTask.parent?.key === overTask.parent?.key) {
+        const parent = activeTask.parent;
+        const items = parent ? parent.subtasks : currentData;
+        
+        const oldIndex = items.findIndex(item => item.key === active.id);
+        const newIndex = items.findIndex(item => item.key === over.id);
+        
+        if (oldIndex === -1 || newIndex === -1) return currentData;
+        
+        const newItems = arrayMove([...items], oldIndex, newIndex);
+        
+        if (parent) {
+          // Update the parent's subtasks
+          return updateTaskInNestedStructure(
+            currentData,
+            parent.key,
+            () => ({ subtasks: newItems })
+          );
+        } else {
+          // Update top-level items
+          return newItems;
+        }
+      } else {
+        // Moving between different parents (optional: implement if needed)
+        return currentData;
+      }
+    });
+  }, []);
+
   // Handle column reordering
   const handleColumnDragEnd = useCallback((event) => {
     const { active, over } = event;
@@ -565,20 +640,6 @@ const JiraStyleTable = ({
 
         // Don't allow reordering the first two columns
         if (oldIndex < 2 || newIndex < 2) return items;
-
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  }, []);
-
-  // Handle row reordering
-  const handleRowDragEnd = useCallback((event) => {
-    const { active, over } = event;
-
-    if (active.id !== over?.id) {
-      setTableData((items) => {
-        const oldIndex = items.findIndex((item) => item.key === active.id);
-        const newIndex = items.findIndex((item) => item.key === over?.id);
 
         return arrayMove(items, oldIndex, newIndex);
       });
@@ -746,7 +807,7 @@ const JiraStyleTable = ({
             collisionDetection={closestCenter}
             onDragEnd={handleRowDragEnd}
           >
-            <SortableContext items={tableData.map((item) => item.key)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={getAllTaskKeys(tableData)} strategy={verticalListSortingStrategy}>
               <tbody>
                 {tableData.map((item) => (
                   <SortableRow
