@@ -232,7 +232,7 @@ const SortableRow = ({
       <tr
         ref={setNodeRef}
         style={style}
-        className={`border-b hover:bg-gray-50 text-sm ${
+        className={`border-b hover:bg-gray-50 text-sm group/row hover:bg-gray-50${
           isDragging ? "bg-blue-50" : ""
         } ${level === 1 ? 'bg-gray-50' : ''} ${level === 2 ? 'bg-gray-100' : ''}`}
       >
@@ -276,13 +276,13 @@ const SortableRow = ({
           <div className="flex items-center gap-1">
             {level === 1 && <span className="text-gray-400">↳</span>}
             {level === 2 && <span className="text-gray-400">↳↳</span>}
-            <div className="flex items-center group">
+            <div className="flex items-center">
               <span>{item.type}</span>
               {/* Dropdown for adding tasks/subtasks - Only show for levels 0 and 1 */}
               {level < 2 && (
                 <div className="relative inline-block">
                   <button
-                    className="text-gray-400 hover:text-gray-600 ml-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center w-4 h-4"
+                    className="text-gray-400 hover:text-gray-600 ml-1 opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center justify-center w-4 h-4"
                     onClick={(e) => {
                       e.stopPropagation();
                       setAddingSubtaskFor(prev => prev === item.key ? null : item.key);
