@@ -180,7 +180,7 @@ const SortableRow = ({
   statusOptions,
   level = 0,
   hasChildren = false,
-  isExpanded = true,
+  isExpanded = false, // Changed from true to false
   onToggleExpand,
   isParentExpanded = true,
   addingSubtaskFor,
@@ -491,7 +491,22 @@ const JiraStyleTable = ({
   ],
 }) => {
   const [tableData, setTableData] = useState(initialData);
-  const [expandedTasks, setExpandedTasks] = useState({});
+
+  // Function to recursively get all task keys
+  const getAllTaskKeys = (tasks, result = {}) => {
+    tasks.forEach(task => {
+      result[task.key] = false; // Set all tasks to collapsed by default
+      if (task.subtasks && task.subtasks.length > 0) {
+        getAllTaskKeys(task.subtasks, result);
+      }
+    });
+    return result;
+  };
+
+  // Initialize expandedTasks with all tasks (including nested) collapsed by default
+  const [expandedTasks, setExpandedTasks] = useState(
+    getAllTaskKeys(initialData)
+  );
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [columns, setColumns] = useState([
     { id: "type", label: "Type", width: "min-w-[100px]" },
