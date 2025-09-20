@@ -18,26 +18,132 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import StatusBadge from "./StatusBadge";
 
-// Sortable table header cell
-const SortableHeader = ({ id, children, className = "" }) => {
+// Column resizing hook
+const useColumnResize = () => {
+  const [columnWidths, setColumnWidths] = useState({});
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizingColumn, setResizingColumn] = useState(null);
+  const resizeData = useRef({});
+
+  const startResize = useCallback((columnId, startX, initialWidth) => {
+    setIsResizing(true);
+    setResizingColumn(columnId);
+    resizeData.current = {
+      columnId,
+      startX,
+      initialWidth,
+    };
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isResizing || !resizeData.current) return;
+
+    const { columnId, startX, initialWidth } = resizeData.current;
+    const deltaX = e.clientX - startX;
+    const newWidth = Math.max(80, initialWidth + deltaX); // Minimum width of 80px
+
+    setColumnWidths(prev => ({
+      ...prev,
+      [columnId]: newWidth,
+    }));
+  }, [isResizing]);
+
+  const stopResize = useCallback(() => {
+    setIsResizing(false);
+    setResizingColumn(null);
+    resizeData.current = {};
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', stopResize);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', stopResize);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleMouseMove, stopResize]);
+
+  return {
+    columnWidths,
+    isResizing,
+    resizingColumn,
+    startResize,
+  };
+};
+
+// Resize handle component
+const ResizeHandle = ({ columnId, onResizeStart }) => {
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = e.currentTarget.closest('th').getBoundingClientRect();
+    onResizeStart(columnId, e.clientX, rect.width);
+  };
+
+  return (
+    <div
+      className="absolute right-0 top-0 h-full w-1 cursor-col-resize transition-all group"
+      onMouseDown={handleMouseDown}
+    >
+      <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-3 h-6 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-full h-full rounded"></div>
+      </div>
+    </div>
+  );
+};
+
+// Sortable table header cell with resize capability
+const SortableHeader = ({ id, children, className = "", width, onResizeStart }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    width: width ? `${width}px` : undefined,
+    minWidth: width ? `${width}px` : undefined,
   };
 
   return (
-    <th ref={setNodeRef} style={style} className={`${className} relative`}>
+    <th 
+      ref={setNodeRef} 
+      style={style} 
+      className={`${className} relative group`}
+    >
       <div
-        className="flex items-center justify-between cursor-grab gap-1"
+        className="flex items-center justify-between cursor-grab gap-1 pr-4"
         {...attributes}
         {...listeners}
       >
         {children}
         <span className="text-gray-400">⋮⋮</span>
       </div>
+      <ResizeHandle columnId={id} onResizeStart={onResizeStart} />
+    </th>
+  );
+};
+
+// Regular header cell with resize capability (for non-sortable columns)
+const RegularHeader = ({ id, children, className = "", width, onResizeStart }) => {
+  const style = {
+    width: width ? `${width}px` : undefined,
+    minWidth: width ? `${width}px` : undefined,
+  };
+
+  return (
+    <th style={style} className={`${className} relative group`}>
+      <div className="flex items-center justify-between gap-1 pr-4">
+        {children}
+      </div>
+      <ResizeHandle columnId={id} onResizeStart={onResizeStart} />
     </th>
   );
 };
@@ -49,6 +155,7 @@ const SortableRow = ({
   onToggle,
   columns,
   onStatusChange,
+  columnWidths,
 }) => {
   const {
     attributes,
@@ -65,6 +172,11 @@ const SortableRow = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const getCellStyle = (columnId) => {
+    const width = columnWidths[columnId];
+    return width ? { width: `${width}px`, minWidth: `${width}px` } : {};
+  };
+
   return (
     <tr
       ref={setNodeRef}
@@ -73,7 +185,7 @@ const SortableRow = ({
         isDragging ? "bg-blue-50" : ""
       }`}
     >
-      <td className="px-3 py-2 border-r min-w-[50px]">
+      <td className="px-3 py-2 border-r" style={getCellStyle('checkbox')}>
         <div className="flex items-center gap-2">
           <span
             className="text-gray-400 cursor-grab hover:text-gray-600"
@@ -90,10 +202,14 @@ const SortableRow = ({
           />
         </div>
       </td>
-      <td className="px-3 py-2 border-r min-w-[100px]">{item.type}</td>
-      <td className="px-3 py-2 border-r min-w-[90px]">{item.key}</td>
+      <td className="px-3 py-2 border-r" style={getCellStyle('type')}>{item.type}</td>
+      <td className="px-3 py-2 border-r" style={getCellStyle('key')}>{item.key}</td>
       {columns.slice(2).map((column) => (
-        <td key={column.id} className="px-3 py-2 border-r min-w-[120px]">
+        <td 
+          key={column.id} 
+          className="px-3 py-2 border-r" 
+          style={getCellStyle(column.id)}
+        >
           {column.id === "status" ? (
             <StatusBadge
               status={item[column.id]}
@@ -101,7 +217,9 @@ const SortableRow = ({
               itemKey={item.key}
             />
           ) : (
-            item[column.id]
+            <div className="truncate" title={item[column.id]}>
+              {item[column.id]}
+            </div>
           )}
         </td>
       ))}
@@ -110,8 +228,8 @@ const SortableRow = ({
 };
 
 // Main Table Component
-const JiraStyleTable = ({ data: initialData }) => {
-  const [data, setData] = useState(initialData);
+const JiraStyleTable = ({ data: initialData = [] }) => {
+  const [tableData, setTableData] = useState(initialData);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [columns, setColumns] = useState([
     { id: "type", label: "Type", width: "min-w-[100px]" },
@@ -144,6 +262,9 @@ const JiraStyleTable = ({ data: initialData }) => {
     { id: "color", label: "Color", width: "min-w-[100px]" },
   ]);
 
+  // Column resizing functionality
+  const { columnWidths, isResizing, resizingColumn, startResize } = useColumnResize();
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -157,7 +278,7 @@ const JiraStyleTable = ({ data: initialData }) => {
 
   // Handle status change
   const handleStatusChange = useCallback((itemKey, newStatus) => {
-    setData((prevData) =>
+    setTableData((prevData) =>
       prevData.map((item) =>
         item.key === itemKey ? { ...item, status: newStatus } : item
       )
@@ -186,7 +307,7 @@ const JiraStyleTable = ({ data: initialData }) => {
     const { active, over } = event;
 
     if (active.id !== over?.id) {
-      setData((items) => {
+      setTableData((items) => {
         const oldIndex = items.findIndex((item) => item.key === active.id);
         const newIndex = items.findIndex((item) => item.key === over?.id);
 
@@ -219,12 +340,32 @@ const JiraStyleTable = ({ data: initialData }) => {
         <table className="w-full border-collapse bg-white text-left">
           <thead className="bg-gray-100 text-sm">
             <tr>
-              <th className="px-3 py-2 border-r min-w-[50px]"></th>
-              {/* Fixed first two columns */}
-              <th className="px-3 py-2 border-r min-w-[100px]">Type</th>
-              <th className="px-3 py-2 border-r min-w-[90px]">Ref.No</th>
+              <RegularHeader
+                id="checkbox"
+                className="px-3 py-2 border-r min-w-[50px]"
+                width={columnWidths.checkbox}
+                onResizeStart={startResize}
+              />
+              
+              <RegularHeader
+                id="type"
+                className="px-3 py-2 border-r min-w-[100px]"
+                width={columnWidths.type}
+                onResizeStart={startResize}
+              >
+                Type
+              </RegularHeader>
+              
+              <RegularHeader
+                id="key"
+                className="px-3 py-2 border-r min-w-[90px]"
+                width={columnWidths.key}
+                onResizeStart={startResize}
+              >
+                Ref.No
+              </RegularHeader>
 
-              {/* Draggable columns */}
+              {/* Draggable columns with resize handles */}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -239,6 +380,8 @@ const JiraStyleTable = ({ data: initialData }) => {
                       key={column.id}
                       id={column.id}
                       className={`px-3 py-2 border-r ${column.width}`}
+                      width={columnWidths[column.id]}
+                      onResizeStart={startResize}
                     >
                       {column.label}
                     </SortableHeader>
@@ -255,11 +398,11 @@ const JiraStyleTable = ({ data: initialData }) => {
             onDragEnd={handleRowDragEnd}
           >
             <SortableContext
-              items={data.map((item) => item.key)}
+              items={tableData.map((item) => item.key)}
               strategy={verticalListSortingStrategy}
             >
               <tbody>
-                {data.map((item) => (
+                {tableData.map((item) => (
                   <SortableRow
                     key={item.key}
                     item={item}
@@ -267,6 +410,7 @@ const JiraStyleTable = ({ data: initialData }) => {
                     onToggle={toggleSelection}
                     columns={columns}
                     onStatusChange={handleStatusChange}
+                    columnWidths={columnWidths}
                   />
                 ))}
               </tbody>
@@ -274,7 +418,6 @@ const JiraStyleTable = ({ data: initialData }) => {
           </DndContext>
         </table>
       </div>
-
     </div>
   );
 };
