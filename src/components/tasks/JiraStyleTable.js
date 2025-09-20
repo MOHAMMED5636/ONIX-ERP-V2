@@ -30,8 +30,6 @@ const STATUS_OPTIONS = [
 ];
 
 // Interactive Status Badge with dropdown
-// Interactive Status Badge with dropdown
-// Interactive Status Badge with dropdown
 const StatusBadge = ({ status, onStatusChange, itemKey }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({
