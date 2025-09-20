@@ -7,6 +7,20 @@
       "owner": "John",
       "projectName": "Website Design",
       "timeline": "Nov 17, 2025",
+      "subtasks": [
+        {
+          "key": "subtask-1",
+          "type": "Subtask",
+          "status": "TO DO",
+          "subtasks": [
+            {
+              "key": "sub-subtask-1",
+              "type": "Sub-subtask",
+              "status": "TO DO"
+            }
+          ]
+        }
+      ],
       "planDays": 20,
       "remarks": "High",
       "assigneeNotes": "Pending API docs",

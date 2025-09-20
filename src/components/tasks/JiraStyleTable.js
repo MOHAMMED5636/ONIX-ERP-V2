@@ -169,15 +169,28 @@ const RegularHeader = ({
   );
 };
 
-// Sortable row component
+// Sortable row component with subtask support
 const SortableRow = ({
   item,
-  isSelected,
+  isSelected = false,
   onToggle,
   columns,
   onStatusChange,
   columnWidths,
   statusOptions,
+  level = 0,
+  hasChildren = false,
+  isExpanded = true,
+  onToggleExpand,
+  isParentExpanded = true,
+  addingSubtaskFor,
+  setAddingSubtaskFor,
+  newSubtaskName,
+  setNewSubtaskName,
+  addSubtask,
+  maxLevel = 2,
+  expandedTasks = {},
+  selectedKeys = new Set(),
 }) => {
   const {
     attributes,
@@ -203,69 +216,264 @@ const SortableRow = ({
     onStatusChange(item.key, newStatus);
   };
 
+  // If parent is not expanded and this is a child, don't render
+  if (level > 0 && !isParentExpanded) {
+    return null;
+  }
+
+  const canHaveChildren = level < maxLevel - 1;
+  const isAtMaxLevel = level === maxLevel - 1;
+  const hasNestedSubtasks = hasChildren && item.subtasks?.length > 0;
+
+  const isExpandedState = expandedTasks[item.key] !== false;
+
   return (
-    <tr
-      ref={setNodeRef}
-      style={style}
-      className={`border-b hover:bg-gray-50 text-sm ${
-        isDragging ? "bg-blue-50" : ""
-      }`}
-    >
-      <td className="px-3 py-2 border-r" style={getCellStyle("checkbox")}>
-        <div className="flex items-center gap-2">
-          <span
-            className="text-gray-400 cursor-grab hover:text-gray-600"
-            {...attributes}
-            {...listeners}
-          >
-            ⋮⋮
-          </span>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggle(item.key)}
-            className="cursor-pointer"
-          />
-        </div>
-      </td>
-      <td className="px-3 py-2 border-r" style={getCellStyle("type")}>
-        {item.type}
-      </td>
-      <td className="px-3 py-2 border-r" style={getCellStyle("key")}>
-        {item.key}
-      </td>
-      {columns.slice(2).map((column) => {
-        if (column.id === "status") {
+    <>
+      <tr
+        ref={setNodeRef}
+        style={style}
+        className={`border-b hover:bg-gray-50 text-sm ${
+          isDragging ? "bg-blue-50" : ""
+        } ${level === 1 ? 'bg-gray-50' : ''} ${level === 2 ? 'bg-gray-100' : ''}`}
+      >
+        <td
+          className="px-3 py-2 border-r"
+          style={{
+            ...getCellStyle("checkbox"),
+            paddingLeft: `${16 + (level * 24)}px`,
+            position: "relative",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            {level > 0 && (
+              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 border-l-2 border-b-2 border-gray-300 rounded-bl-sm"></div>
+            )}
+            <span
+              className="text-gray-400 cursor-grab hover:text-gray-600"
+              {...attributes}
+              {...listeners}
+            >
+              ⋮⋮
+            </span>
+            <input
+              type="checkbox"
+              checked={selectedKeys.has(item.key)}
+              onChange={() => onToggle(item.key)}
+              className="cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {hasNestedSubtasks && (
+              <button
+                onClick={() => onToggleExpand(item.key)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                {isExpandedState ? "▼" : "▶"}
+              </button>
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-2 border-r" style={getCellStyle("type")}>
+          <div className="flex items-center gap-1 group">
+            {level === 1 && <span className="text-gray-400">↳</span>}
+            {level === 2 && <span className="text-gray-400">↳↳</span>}
+            {item.type}
+            {/* Show + button for tasks and subtasks (levels 0 and 1) */}
+            {level < maxLevel - 1 && (
+              <button
+                className="text-gray-400 hover:text-gray-600 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAddingSubtaskFor(
+                    addingSubtaskFor === item.key ? null : item.key
+                  );
+                  setNewSubtaskName("");
+                }}
+                title={
+                  level === 0 
+                    ? "Add subtask" 
+                    : level === 1 
+                      ? "Add sub-subtask" 
+                      : "Add task"
+                }
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4" 
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path 
+                    fillRule="evenodd" 
+                    d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-2 border-r" style={getCellStyle("key")}>
+          {item.key}
+        </td>
+        {columns.slice(2).map((column) => {
+          if (column.id === "status") {
+            return (
+              <td
+                key={column.id}
+                className="px-3 py-2 border-r"
+                style={getCellStyle(column.id)}
+              >
+                <StatusDropdown
+                  currentStatus={item.status}
+                  onStatusChange={handleStatusChange}
+                  statusOptions={statusOptions}
+                  showExtraOptions={true}
+                  className=""
+                  disabled={false}
+                />
+              </td>
+            );
+          }
           return (
             <td
               key={column.id}
               className="px-3 py-2 border-r"
               style={getCellStyle(column.id)}
             >
-              <StatusDropdown
-                currentStatus={item.status}
-                onStatusChange={handleStatusChange}
-                statusOptions={statusOptions}
-                showExtraOptions={true}
-                className=""
-                disabled={false}
-              />
+              <div className="truncate" title={item[column.id]}>
+                {item[column.id]}
+              </div>
             </td>
           );
-        }
-        return (
-          <td
-            key={column.id}
-            className="px-3 py-2 border-r"
-            style={getCellStyle(column.id)}
-          >
-            <div className="truncate" title={item[column.id]}>
-              {item[column.id]}
+        })}
+      </tr>
+
+      {/* Subtask input field */}
+      {addingSubtaskFor === item.key && (
+        <tr className={level === 0 ? "bg-blue-50" : "bg-blue-100"}>
+          <td colSpan={columns.length + 1} className="p-0">
+            <div
+              className="flex items-center gap-2 pl-8 my-1"
+              style={{ paddingLeft: `${40 + (level * 24)}px` }}
+            >
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder={
+                    level === 0 ? "Add subtask" : level === 1 ? "Add sub-subtask" : "Add task"
+                  }
+                  value={newSubtaskName}
+                  onChange={(e) => setNewSubtaskName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newSubtaskName.trim()) {
+                      addSubtask(item.key, newSubtaskName, level + 1);
+                    } else if (e.key === "Escape") {
+                      setAddingSubtaskFor(null);
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() =>
+                    newSubtaskName.trim() && addSubtask(item.key, newSubtaskName, level + 1)
+                  }
+                  className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                  disabled={!newSubtaskName.trim()}
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => setAddingSubtaskFor(null)}
+                  className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </td>
-        );
-      })}
-    </tr>
+        </tr>
+      )}
+
+      {/* Render subtasks if expanded */}
+      {hasNestedSubtasks && isExpandedState && item.subtasks.map((subtask) => (
+        <SortableRow
+          key={subtask.key}
+          item={subtask}
+          isSelected={selectedKeys.has(subtask.key)}
+          onToggle={onToggle}
+          columns={columns}
+          onStatusChange={onStatusChange}
+          columnWidths={columnWidths}
+          statusOptions={statusOptions}
+          level={level + 1}
+          hasChildren={subtask.subtasks && subtask.subtasks.length > 0}
+          isExpanded={expandedTasks[subtask.key] !== false}
+          onToggleExpand={onToggleExpand}
+          isParentExpanded={isExpandedState}
+          addingSubtaskFor={addingSubtaskFor}
+          setAddingSubtaskFor={setAddingSubtaskFor}
+          newSubtaskName={newSubtaskName}
+          setNewSubtaskName={setNewSubtaskName}
+          addSubtask={addSubtask}
+          maxLevel={maxLevel}
+          expandedTasks={expandedTasks}
+          selectedKeys={selectedKeys}
+        />
+      ))}
+    </>
+  );
+};
+
+// Subtask input field component
+const SubtaskInput = ({ parentKey, onAdd, onCancel, newSubtaskName, setNewSubtaskName }) => {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && newSubtaskName.trim()) {
+      onAdd(parentKey, newSubtaskName);
+    } else if (e.key === "Escape") {
+      onCancel();
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 pl-8 my-1">
+      <div className="flex-1 relative">
+        <input
+          ref={inputRef}
+          type="text"
+          className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Enter subtask name"
+          value={newSubtaskName}
+          onChange={(e) => setNewSubtaskName(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
+      <div className="flex gap-1">
+        <button
+          onClick={() => onAdd(parentKey, newSubtaskName)}
+          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+          disabled={!newSubtaskName.trim()}
+        >
+          Add
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -283,7 +491,8 @@ const JiraStyleTable = ({
   ],
 }) => {
   const [tableData, setTableData] = useState(initialData);
-  const [selectedKeys, setSelectedKeys] = useState([]);
+  const [expandedTasks, setExpandedTasks] = useState({});
+  const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [columns, setColumns] = useState([
     { id: "type", label: "Type", width: "min-w-[100px]" },
     { id: "key", label: "Ref.No", width: "min-w-[90px]" },
@@ -371,10 +580,81 @@ const JiraStyleTable = ({
   };
 
   const toggleSelection = (key) => {
-    setSelectedKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
+    setSelectedKeys((prev) => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(key)) {
+        newSelection.delete(key);
+      } else {
+        newSelection.add(key);
+      }
+      return newSelection;
+    });
   };
+
+  // Toggle expansion of subtasks
+  const toggleTaskExpansion = (taskKey) => {
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [taskKey]: !prev[taskKey],
+    }));
+  };
+
+  // Add subtask to a parent task
+  const addSubtask = (parentKey, subtaskName, targetLevel = 1) => {
+    if (!subtaskName.trim()) {
+      setAddingSubtaskFor(null);
+      return;
+    }
+
+    const newSubtask = {
+      key: `subtask-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: targetLevel === 1 ? "Subtask" : "Sub-subtask",
+      status: "TO DO",
+      name: subtaskName,
+      subtasks: [],
+      // Add other default fields as needed
+    };
+
+    const updateSubtasks = (items) => {
+      return items.map((item) => {
+        if (item.key === parentKey) {
+          return {
+            ...item,
+            subtasks: [...(item.subtasks || []), newSubtask],
+          };
+        }
+
+        // Recursively search in subtasks
+        if (item.subtasks && item.subtasks.length > 0) {
+          return {
+            ...item,
+            subtasks: updateSubtasks(item.subtasks),
+          };
+        }
+
+        return item;
+      });
+    };
+
+    setTableData((prevData) => updateSubtasks(prevData));
+    setNewSubtaskName("");
+    setAddingSubtaskFor(null);
+
+    // Auto-expand the parent if it's not already expanded
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [parentKey]: true,
+    }));
+  };
+
+  // Check if a task has subtasks
+  const hasSubtasks = (task) => {
+    return task.subtasks && task.subtasks.length > 0;
+  };
+
+  // State for adding subtask
+  const [addingSubtaskFor, setAddingSubtaskFor] = useState(null);
+  const [newSubtaskName, setNewSubtaskName] = useState("");
 
   return (
     <div className="p-4">
@@ -451,21 +731,30 @@ const JiraStyleTable = ({
             collisionDetection={closestCenter}
             onDragEnd={handleRowDragEnd}
           >
-            <SortableContext
-              items={tableData.map((item) => item.key)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={tableData.map((item) => item.key)} strategy={verticalListSortingStrategy}>
               <tbody>
                 {tableData.map((item) => (
                   <SortableRow
                     key={item.key}
                     item={item}
-                    isSelected={selectedKeys.includes(item.key)}
+                    isSelected={selectedKeys.has(item.key)}
                     onToggle={toggleSelection}
                     columns={columns}
                     onStatusChange={handleStatusChange}
                     columnWidths={columnWidths}
                     statusOptions={statusOptions}
+                    hasChildren={hasSubtasks(item)}
+                    isExpanded={expandedTasks[item.key] !== false}
+                    onToggleExpand={toggleTaskExpansion}
+                    isParentExpanded={true}
+                    addingSubtaskFor={addingSubtaskFor}
+                    setAddingSubtaskFor={setAddingSubtaskFor}
+                    newSubtaskName={newSubtaskName}
+                    setNewSubtaskName={setNewSubtaskName}
+                    addSubtask={addSubtask}
+                    maxLevel={2}
+                    expandedTasks={expandedTasks}
+                    selectedKeys={selectedKeys}
                   />
                 ))}
               </tbody>
