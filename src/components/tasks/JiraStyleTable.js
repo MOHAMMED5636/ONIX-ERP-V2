@@ -110,6 +110,9 @@ const SortableHeader = ({ id, children, className = "", width, onResizeStart }) 
     transition,
     width: width ? `${width}px` : undefined,
     minWidth: width ? `${width}px` : undefined,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
 
   return (
@@ -119,12 +122,12 @@ const SortableHeader = ({ id, children, className = "", width, onResizeStart }) 
       className={`${className} relative group`}
     >
       <div
-        className="flex items-center justify-between cursor-grab gap-1 pr-4"
+        className="flex items-center justify-between cursor-grab gap-1 pr-4 w-full"
         {...attributes}
         {...listeners}
       >
-        {children}
-        <span className="text-gray-400">⋮⋮</span>
+        <span className="truncate">{children}</span>
+        <span className="text-gray-400 flex-shrink-0">⋮⋮</span>
       </div>
       <ResizeHandle columnId={id} onResizeStart={onResizeStart} />
     </th>
@@ -136,12 +139,15 @@ const RegularHeader = ({ id, children, className = "", width, onResizeStart }) =
   const style = {
     width: width ? `${width}px` : undefined,
     minWidth: width ? `${width}px` : undefined,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
 
   return (
     <th style={style} className={`${className} relative group`}>
-      <div className="flex items-center justify-between gap-1 pr-4">
-        {children}
+      <div className="flex items-center justify-between gap-1 pr-4 w-full">
+        <span className="truncate">{children}</span>
       </div>
       <ResizeHandle columnId={id} onResizeStart={onResizeStart} />
     </th>
