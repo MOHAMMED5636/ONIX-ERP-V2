@@ -209,7 +209,19 @@ const SortableRow = ({
 
   const getCellStyle = (columnId) => {
     const width = columnWidths[columnId];
-    return width ? { width: `${width}px`, minWidth: `${width}px` } : {};
+    return width ? { 
+      width: `${width}px`, 
+      minWidth: `${width}px`,
+      maxWidth: columnId === 'projectName' ? '300px' : '200px', // Set max-width for all cells
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    } : {
+      maxWidth: columnId === 'projectName' ? '300px' : '200px',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    };
   };
 
   const handleStatusChange = (newStatus) => {
@@ -341,7 +353,9 @@ const SortableRow = ({
           </div>
         </td>
         <td className="px-3 py-2 border-r" style={getCellStyle("key")}>
-          {item.key}
+          <div className="truncate w-full" title={item.key}>
+            {item.key}
+          </div>
         </td>
         {columns.slice(2).map((column) => {
           if (column.id === "status") {
@@ -368,7 +382,10 @@ const SortableRow = ({
               className="px-3 py-2 border-r"
               style={getCellStyle(column.id)}
             >
-              <div className="truncate" title={item[column.id]}>
+              <div 
+                className="truncate w-full" 
+                title={String(item[column.id] || '')}
+              >
                 {item[column.id]}
               </div>
             </td>
