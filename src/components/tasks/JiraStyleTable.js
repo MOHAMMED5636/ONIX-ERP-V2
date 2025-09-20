@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import StatusBadge from "./StatusBadge";
+import StatusDropdown from "./StatusDropdown";
 
 // Column resizing hook
 const useColumnResize = () => {
@@ -35,18 +35,21 @@ const useColumnResize = () => {
     };
   }, []);
 
-  const handleMouseMove = useCallback((e) => {
-    if (!isResizing || !resizeData.current) return;
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!isResizing || !resizeData.current) return;
 
-    const { columnId, startX, initialWidth } = resizeData.current;
-    const deltaX = e.clientX - startX;
-    const newWidth = Math.max(80, initialWidth + deltaX); // Minimum width of 80px
+      const { columnId, startX, initialWidth } = resizeData.current;
+      const deltaX = e.clientX - startX;
+      const newWidth = Math.max(80, initialWidth + deltaX); // Minimum width of 80px
 
-    setColumnWidths(prev => ({
-      ...prev,
-      [columnId]: newWidth,
-    }));
-  }, [isResizing]);
+      setColumnWidths((prev) => ({
+        ...prev,
+        [columnId]: newWidth,
+      }));
+    },
+    [isResizing]
+  );
 
   const stopResize = useCallback(() => {
     setIsResizing(false);
@@ -56,17 +59,17 @@ const useColumnResize = () => {
 
   useEffect(() => {
     if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', stopResize);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", stopResize);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', stopResize);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", stopResize);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
   }, [isResizing, handleMouseMove, stopResize]);
 
@@ -83,8 +86,8 @@ const ResizeHandle = ({ columnId, onResizeStart }) => {
   const handleMouseDown = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const rect = e.currentTarget.closest('th').getBoundingClientRect();
+
+    const rect = e.currentTarget.closest("th").getBoundingClientRect();
     onResizeStart(columnId, e.clientX, rect.width);
   };
 
@@ -101,7 +104,13 @@ const ResizeHandle = ({ columnId, onResizeStart }) => {
 };
 
 // Sortable table header cell with resize capability
-const SortableHeader = ({ id, children, className = "", width, onResizeStart }) => {
+const SortableHeader = ({
+  id,
+  children,
+  className = "",
+  width,
+  onResizeStart,
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
 
@@ -110,15 +119,15 @@ const SortableHeader = ({ id, children, className = "", width, onResizeStart }) 
     transition,
     width: width ? `${width}px` : undefined,
     minWidth: width ? `${width}px` : undefined,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
   return (
-    <th 
-      ref={setNodeRef} 
-      style={style} 
+    <th
+      ref={setNodeRef}
+      style={style}
       className={`${className} relative group`}
     >
       <div
@@ -135,13 +144,19 @@ const SortableHeader = ({ id, children, className = "", width, onResizeStart }) 
 };
 
 // Regular header cell with resize capability (for non-sortable columns)
-const RegularHeader = ({ id, children, className = "", width, onResizeStart }) => {
+const RegularHeader = ({
+  id,
+  children,
+  className = "",
+  width,
+  onResizeStart,
+}) => {
   const style = {
     width: width ? `${width}px` : undefined,
     minWidth: width ? `${width}px` : undefined,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
   return (
@@ -162,6 +177,7 @@ const SortableRow = ({
   columns,
   onStatusChange,
   columnWidths,
+  statusOptions,
 }) => {
   const {
     attributes,
@@ -183,6 +199,10 @@ const SortableRow = ({
     return width ? { width: `${width}px`, minWidth: `${width}px` } : {};
   };
 
+  const handleStatusChange = (newStatus) => {
+    onStatusChange(item.key, newStatus);
+  };
+
   return (
     <tr
       ref={setNodeRef}
@@ -191,7 +211,7 @@ const SortableRow = ({
         isDragging ? "bg-blue-50" : ""
       }`}
     >
-      <td className="px-3 py-2 border-r" style={getCellStyle('checkbox')}>
+      <td className="px-3 py-2 border-r" style={getCellStyle("checkbox")}>
         <div className="flex items-center gap-2">
           <span
             className="text-gray-400 cursor-grab hover:text-gray-600"
@@ -208,33 +228,60 @@ const SortableRow = ({
           />
         </div>
       </td>
-      <td className="px-3 py-2 border-r" style={getCellStyle('type')}>{item.type}</td>
-      <td className="px-3 py-2 border-r" style={getCellStyle('key')}>{item.key}</td>
-      {columns.slice(2).map((column) => (
-        <td 
-          key={column.id} 
-          className="px-3 py-2 border-r" 
-          style={getCellStyle(column.id)}
-        >
-          {column.id === "status" ? (
-            <StatusBadge
-              status={item[column.id]}
-              onStatusChange={onStatusChange}
-              itemKey={item.key}
-            />
-          ) : (
+      <td className="px-3 py-2 border-r" style={getCellStyle("type")}>
+        {item.type}
+      </td>
+      <td className="px-3 py-2 border-r" style={getCellStyle("key")}>
+        {item.key}
+      </td>
+      {columns.slice(2).map((column) => {
+        if (column.id === "status") {
+          return (
+            <td
+              key={column.id}
+              className="px-3 py-2 border-r"
+              style={getCellStyle(column.id)}
+            >
+              <StatusDropdown
+                currentStatus={item.status}
+                onStatusChange={handleStatusChange}
+                statusOptions={statusOptions}
+                showExtraOptions={true}
+                className=""
+                disabled={false}
+              />
+            </td>
+          );
+        }
+        return (
+          <td
+            key={column.id}
+            className="px-3 py-2 border-r"
+            style={getCellStyle(column.id)}
+          >
             <div className="truncate" title={item[column.id]}>
               {item[column.id]}
             </div>
-          )}
-        </td>
-      ))}
+          </td>
+        );
+      })}
     </tr>
   );
 };
 
 // Main Table Component
-const JiraStyleTable = ({ data: initialData = [] }) => {
+const JiraStyleTable = ({
+  data: initialData = [],
+  statusOptions = [
+    { value: "TO DO", label: "TO DO", color: "bg-gray-100 text-gray-700" },
+    {
+      value: "IN PROGRESS",
+      label: "IN PROGRESS",
+      color: "bg-blue-100 text-blue-700",
+    },
+    { value: "DONE", label: "DONE", color: "bg-green-100 text-green-700" },
+  ],
+}) => {
   const [tableData, setTableData] = useState(initialData);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [columns, setColumns] = useState([
@@ -269,7 +316,8 @@ const JiraStyleTable = ({ data: initialData = [] }) => {
   ]);
 
   // Column resizing functionality
-  const { columnWidths, isResizing, resizingColumn, startResize } = useColumnResize();
+  const { columnWidths, isResizing, resizingColumn, startResize } =
+    useColumnResize();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -281,15 +329,6 @@ const JiraStyleTable = ({ data: initialData = [] }) => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Handle status change
-  const handleStatusChange = useCallback((itemKey, newStatus) => {
-    setTableData((prevData) =>
-      prevData.map((item) =>
-        item.key === itemKey ? { ...item, status: newStatus } : item
-      )
-    );
-  }, []);
 
   // Handle column reordering
   const handleColumnDragEnd = useCallback((event) => {
@@ -322,6 +361,15 @@ const JiraStyleTable = ({ data: initialData = [] }) => {
     }
   }, []);
 
+  // Handle status change
+  const handleStatusChange = (itemKey, newStatus) => {
+    setTableData((items) =>
+      items.map((item) =>
+        item.key === itemKey ? { ...item, status: newStatus } : item
+      )
+    );
+  };
+
   const toggleSelection = (key) => {
     setSelectedKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
@@ -352,7 +400,7 @@ const JiraStyleTable = ({ data: initialData = [] }) => {
                 width={columnWidths.checkbox}
                 onResizeStart={startResize}
               />
-              
+
               <RegularHeader
                 id="type"
                 className="px-3 py-2 border-r min-w-[100px]"
@@ -361,7 +409,7 @@ const JiraStyleTable = ({ data: initialData = [] }) => {
               >
                 Type
               </RegularHeader>
-              
+
               <RegularHeader
                 id="key"
                 className="px-3 py-2 border-r min-w-[90px]"
@@ -417,6 +465,7 @@ const JiraStyleTable = ({ data: initialData = [] }) => {
                     columns={columns}
                     onStatusChange={handleStatusChange}
                     columnWidths={columnWidths}
+                    statusOptions={statusOptions}
                   />
                 ))}
               </tbody>
