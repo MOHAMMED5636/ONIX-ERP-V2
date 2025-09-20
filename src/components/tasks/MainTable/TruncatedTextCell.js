@@ -45,13 +45,13 @@ const TruncatedTextCell = ({
 
   // Debug logging
   useEffect(() => {
-    console.log('TruncatedTextCell render:', {
-      value,
-      displayValue,
-      hasContent,
-      truncatedText,
-      showTooltip
-    });
+    // console.log('TruncatedTextCell render:', {
+    //   value,
+    //   displayValue,
+    //   hasContent,
+    //   truncatedText,
+    //   showTooltip
+    // });
   }, [value, displayValue, hasContent, truncatedText, showTooltip]);
 
   if (!isEditable) {

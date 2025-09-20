@@ -12,12 +12,12 @@ const ColumnSettingsDropdown = ({
   const buttonRef = useRef(null);
 
   // Debug logging
-  console.log('ColumnSettingsDropdown props:', { 
-    columns: columns?.length, 
-    visibleColumns: visibleColumns?.length,
-    onToggleColumn: !!onToggleColumn,
-    onResetColumns: !!onResetColumns
-  });
+  // console.log('ColumnSettingsDropdown props:', { 
+  //   columns: columns?.length, 
+  //   visibleColumns: visibleColumns?.length,
+  //   onToggleColumn: !!onToggleColumn,
+  //   onResetColumns: !!onResetColumns
+  // });
 
   // Close dropdown when clicking outside
   useEffect(() => {

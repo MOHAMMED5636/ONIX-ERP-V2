@@ -431,7 +431,7 @@ const ProjectRow = ({
   return (
     <>
     <tr className="project-row rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border-b border-gray-100" style={{ overflow: 'visible' }}>
-      {console.log('ProjectRow columnOrder:', columnOrder)}
+      {/* {console.log('ProjectRow columnOrder:', columnOrder)} */}
       {/* Multi-select Checkbox Column */}
       <td className="px-4 py-4 align-middle text-center">
         <MultiSelectCheckbox
@@ -457,7 +457,7 @@ const ProjectRow = ({
       {columnOrder
         .filter(key => key !== 'category') // REMOVE TASK CATEGORY ONLY FOR MAIN TASK ROWS
         .map((colKey, idx) => {
-          console.log('Rendering column:', colKey, 'at index:', idx);
+          // console.log('Rendering column:', colKey, 'at index:', idx);
           const col = columns.find(c => c.key === colKey);
           if (!col) return null;
           return (

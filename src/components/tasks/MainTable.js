@@ -983,7 +983,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
 
   // Ensure checkbox column is always first
   useEffect(() => {
-    console.log('Current columnOrder:', columnOrder);
+    // console.log('Current columnOrder:', columnOrder);
     if (!columnOrder.includes('checkbox')) {
       console.log('Adding checkbox column to columnOrder');
       const newOrder = ['checkbox', ...columnOrder];
