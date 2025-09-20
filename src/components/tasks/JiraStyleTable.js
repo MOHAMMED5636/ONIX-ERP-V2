@@ -646,14 +646,16 @@ const JiraStyleTable = ({
     }
   }, []);
 
-  // Handle status change
-  const handleStatusChange = (itemKey, newStatus) => {
-    setTableData((items) =>
-      items.map((item) =>
-        item.key === itemKey ? { ...item, status: newStatus } : item
+  // Handle status change for both top-level and nested tasks
+  const handleStatusChange = useCallback((itemKey, newStatus) => {
+    setTableData(currentData => 
+      updateTaskInNestedStructure(
+        currentData,
+        itemKey,
+        () => ({ status: newStatus })
       )
     );
-  };
+  }, []);
 
   const toggleSelection = (key) => {
     setSelectedKeys((prev) => {
