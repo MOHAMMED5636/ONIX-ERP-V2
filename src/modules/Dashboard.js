@@ -6,6 +6,8 @@ import DashboardLayout from "../layout/DashboardLayout";
 import AdminMessagePopup from "../components/AdminMessagePopup";
 import { useLanguage } from "../LanguageContext";
 import onixLogo from '../assets/onix-logo.png';
+import AIChatbot from "../components/tasks/AIChatbot";
+import { SparklesIcon } from "@heroicons/react/24/outline";
 
 function PieChart({ colors = ["#a78bfa", "#fbbf24", "#f87171"], size = 80 }) {
   return (
@@ -125,6 +127,7 @@ function AdminMessageModal({ open, onClose, message }) {
           </button>
         </div>
       </div>
+
     </div>
   );
 }
@@ -154,6 +157,7 @@ function AnimatedNumber({ n }) {
 export default function Dashboard() {
   const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(null);
+  const [showAIChatbot, setShowAIChatbot] = useState(false);
   // Admin message popup state
   const [showAdminMsg, setShowAdminMsg] = useState(() => {
     // Disable the modal by default for now
@@ -208,6 +212,15 @@ export default function Dashboard() {
               <button className="bg-white bg-opacity-80 hover:bg-opacity-100 text-cyan-700 font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 ripple">
                 <svg className="h-5 w-5 text-cyan-500 bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
                 Add Employee
+              </button>
+              <button 
+                onClick={() => setShowAIChatbot(true)}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2 ripple relative group"
+                title="AI Dashboard Assistant"
+              >
+                <SparklesIcon className="h-5 w-5 group-hover:rotate-12 transition-transform duration-300" />
+                AI Assistant
+                <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold shadow-lg border border-white animate-pulse">AI</span>
               </button>
             </div>
           </div>
@@ -420,6 +433,12 @@ export default function Dashboard() {
         .animate-progress-bar { animation: progressBar 1.2s cubic-bezier(.4,0,.2,1); }
         @keyframes progressBar { from { width: 0; } to { width: 80%; } }
       `}</style>
+
+      {/* AI Chatbot Modal */}
+      <AIChatbot 
+        isOpen={showAIChatbot} 
+        onClose={() => setShowAIChatbot(false)} 
+      />
     </div>
   );
 }

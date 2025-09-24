@@ -132,7 +132,7 @@ export default function CreateTask() {
           </div>
           {/* Owner & Assignee */}
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">Owner <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-semibold text-gray-700">Project Manager <span className="text-red-500">*</span></label>
             <select 
               name="owner" 
               value={form.owner} 

@@ -17,6 +17,7 @@ import {
   UserCircleIcon,
   BuildingOfficeIcon,
   FolderIcon,
+  ComputerDesktopIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
@@ -54,6 +55,7 @@ const navItems = [
     submenus: [
       { key: "tasks", label: { en: "Project List", ar: "قائمة المهام" }, path: "/tasks" },
       { key: "contracts", label: { en: "Contracts", ar: "العقود" }, path: "/contracts" },
+      { key: "clients", label: { en: "Clients", ar: "العملاء" }, path: "/clients" },
       { key: "task-categories", label: { en: "Task Category List", ar: "قائمة فئات المهام" }, path: "/task-categories" },
       { key: "team-project-tracker", label: { en: "Team Project Tracker", ar: "متتبع مشاريع الفريق" }, path: "/team-project-tracker" },
       { key: "project-lifecycle", label: { en: "Project Life Cycle", ar: "دورة حياة المشروع" }, path: "/project-lifecycle" },
@@ -77,6 +79,7 @@ const navItems = [
   { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/attendance" },
   { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
   { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },
+  { key: "it-support", icon: ComputerDesktopIcon, label: { en: "IT Support", ar: "دعم تكنولوجيا المعلومات" }, path: "/it-support" },
   { key: "settings", icon: Cog6ToothIcon, label: { en: "Settings", ar: "الإعدادات" }, path: "/settings" },
 ];
 

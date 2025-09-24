@@ -9,7 +9,7 @@ import Navbar from "./layout/Navbar";
 import Login from "./modules/Login";
 import ProjectChatApp from "./modules/ProjectChatApp";
 import Employees from "./modules/Employees";
-import Clients from "./modules/Clients";
+import Clients from "./pages/Clients";
 import Departments from "./modules/Departments";
 import WorkingLocations from "./modules/WorkingLocations";
 import Task from "./pages/Task";
@@ -31,6 +31,7 @@ import ProjectLifeCycle from "./components/ProjectLifeCycle";
 import { JiraTableDemo } from "./components/JiraTable/JiraTableDemo";
 import ExcelTable from "./pages/ExcelTable";
 import JiraLikePage from "./pages/JiraLikePage";
+import ITSupport from "./pages/ITSupport";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 import { AIAssistantProvider, AIAssistantEnhanced } from "./components/AIAssistant";
@@ -87,6 +88,7 @@ function MainLayout() {
             <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
             <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
+            <Route path="/it-support" element={<ITSupport />} />
                             <Route path="/excel-table/*" element={<ExcelTable />} />
                 <Route path="/jira-like/*" element={<JiraLikePage />} />
             {/* Add other authenticated routes here */}

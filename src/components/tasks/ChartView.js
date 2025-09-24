@@ -75,59 +75,8 @@ const ChartView = () => {
   ];
 
   const renderOverviewChart = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {/* Key Metrics Cards */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-blue-100 text-sm font-medium">Total Tasks</p>
-            <p className="text-3xl font-bold">{taskData.total}</p>
-          </div>
-          <ChartBarIcon className="w-8 h-8 text-blue-200" />
-        </div>
-        <div className="mt-2 text-sm text-blue-100">
-          <span className="text-green-300">+12%</span> from last month
-        </div>
-      </div>
-
-      <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-green-100 text-sm font-medium">Completed</p>
-            <p className="text-3xl font-bold">{taskData.completed}</p>
-          </div>
-          <CheckCircleIcon className="w-8 h-8 text-green-200" />
-        </div>
-        <div className="mt-2 text-sm text-green-100">
-          <span className="text-green-300">57%</span> completion rate
-        </div>
-      </div>
-
-      <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-yellow-100 text-sm font-medium">In Progress</p>
-            <p className="text-3xl font-bold">{taskData.inProgress}</p>
-          </div>
-          <ClockIcon className="w-8 h-8 text-yellow-200" />
-        </div>
-        <div className="mt-2 text-sm text-yellow-100">
-          <span className="text-yellow-300">27%</span> of total tasks
-        </div>
-      </div>
-
-      <div className="bg-gradient-to-br from-red-500 to-pink-500 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-red-100 text-sm font-medium">Pending</p>
-            <p className="text-3xl font-bold">{taskData.pending}</p>
-          </div>
-          <ExclamationTriangleIcon className="w-8 h-8 text-red-200" />
-        </div>
-        <div className="mt-2 text-sm text-red-100">
-          <span className="text-red-300">16%</span> pending tasks
-        </div>
-      </div>
+    <div className="mb-8">
+      {/* Duplicate summary cards removed - they appear in the main TaskList header */}
     </div>
   );
 

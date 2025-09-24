@@ -18,7 +18,7 @@ export const INITIAL_COLUMNS = [
   { key: 'referenceNumber', label: 'REF. NO' },
   { key: 'category', label: 'TASK CATEGORY' },
   { key: 'status', label: 'STATUS' },
-  { key: 'owner', label: 'OWNER' },
+  { key: 'owner', label: 'PROJECT MANAGER' },
   { key: 'timeline', label: 'TIMELINE' },
   { key: 'planDays', label: 'PLAN DAYS' },
   { key: 'remarks', label: 'REMARKS' },

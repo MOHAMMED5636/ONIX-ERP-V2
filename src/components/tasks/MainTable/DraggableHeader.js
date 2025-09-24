@@ -31,7 +31,8 @@ const DraggableHeader = ({ col, colKey, isSubtaskTable = false, onRemoveColumn }
           <Bars3Icon className="w-4 h-4 text-gray-400" />
           {col.key === 'checkbox' ? (
             <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">CHECKBOX</span>
-          ) : col.key === 'task' ? (isSubtaskTable ? 'TASK NAME' : 'PROJECT NAME') : col.label}
+          ) : col.key === 'task' ? (isSubtaskTable ? 'TASK NAME' : 'PROJECT NAME') : 
+            col.key === 'owner' ? (isSubtaskTable ? 'EMPLOYEE' : 'PROJECT MANAGER') : col.label}
         </span>
         
         {/* Minimize/Close button - only show for removable columns */}

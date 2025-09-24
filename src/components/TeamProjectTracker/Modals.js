@@ -43,7 +43,7 @@ const Modals = {
           <div className="mb-4 text-sm text-gray-500">Reference #: <span className="font-semibold text-gray-700">{selectedProject.referenceNumber}</span></div>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div><span className="font-semibold">Status:</span> <span className="inline-block px-2 py-1 rounded text-white" style={{ background: statusColors[selectedProject.status] || '#ccc' }}>{selectedProject.status}</span></div>
-            <div><span className="font-semibold">Owner:</span> {selectedProject.owner}</div>
+            <div><span className="font-semibold">Client Details:</span> {selectedProject.owner}</div>
             <div><span className="font-semibold">Priority:</span> {selectedProject.priority}</div>
             <div><span className="font-semibold">Category:</span> {selectedProject.category}</div>
             <div><span className="font-semibold">Timeline:</span> {selectedProject.timeline && selectedProject.timeline[0] && selectedProject.timeline[1] ? `${format(new Date(selectedProject.timeline[0]), 'MMM d, yyyy')} – ${format(new Date(selectedProject.timeline[1]), 'MMM d, yyyy')}` : '—'}</div>

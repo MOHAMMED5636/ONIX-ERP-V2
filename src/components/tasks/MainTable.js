@@ -32,6 +32,7 @@ import SubtaskCheckbox from "./MainTable/SubtaskCheckbox";
 import BulkActionBar from "./MainTable/BulkActionBar";
 import BulkEditDrawer from "./MainTable/BulkEditDrawer";
 import BulkViewDrawer from "./MainTable/BulkViewDrawer";
+import BulkPasteModal from "./MainTable/BulkPasteModal";
 import TruncatedTextCell from "./MainTable/TruncatedTextCell";
 import ChecklistModal from "./modals/ChecklistModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
@@ -39,6 +40,7 @@ import Toast from "./MainTable/Toast";
 import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 import TaskDetailsDrawer from "../TaskDetailsDrawer";
 import ChatDrawer from "./ChatDrawer";
+import EmployeeDetailsModal from "./MainTable/EmployeeDetailsModal";
 import useSocket from "../../hooks/useSocket";
 import { MessageCircle } from 'lucide-react';
 
@@ -157,6 +159,21 @@ export default function MainTable() {
   // Chat state
   const [chatProject, setChatProject] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatType, setChatType] = useState('project');
+  
+  // Copy/Paste state
+  const [copiedTask, setCopiedTask] = useState(null);
+  const [copiedSubtask, setCopiedSubtask] = useState(null);
+  const [copiedChildTask, setCopiedChildTask] = useState(null);
+  
+  // Bulk Copy/Paste state
+  const [bulkCopiedItems, setBulkCopiedItems] = useState({
+    tasks: [],
+    subtasks: [],
+    childTasks: []
+  });
+  const [showBulkPasteModal, setShowBulkPasteModal] = useState(false);
+  const [pasteTarget, setPasteTarget] = useState(null);
   
   // Socket.IO integration
   const { socket, isConnected } = useSocket();
@@ -193,14 +210,294 @@ export default function MainTable() {
   const closeProjectSummary = () => setSelectedProjectForSummary(null);
   
   // Chat handlers
-  const handleOpenChat = (project) => {
-    setChatProject(project);
+  const handleOpenChat = (item, type = 'project') => {
+    setChatProject(item);
+    setChatType(type);
     setIsChatOpen(true);
   };
   
   const handleCloseChat = () => {
     setIsChatOpen(false);
     setChatProject(null);
+  };
+
+  // Copy/Paste handlers
+  const handleCopyTask = (task) => {
+    if (!task) {
+      setToast({ message: 'Error: Invalid task', type: 'error' });
+      return;
+    }
+    setCopiedTask(task);
+    setToast({ message: `Task "${task.name}" copied to clipboard`, type: 'success' });
+  };
+
+  const handleCopySubtask = (subtask, parentTask) => {
+    if (!subtask || !parentTask) {
+      setToast({ message: 'Error: Invalid subtask or parent task', type: 'error' });
+      return;
+    }
+    setCopiedSubtask({ ...subtask, parentTaskId: parentTask.id, parentTaskName: parentTask.name });
+    setToast({ message: `Subtask "${subtask.name}" copied to clipboard`, type: 'success' });
+  };
+
+  const handleCopyChildTask = (childTask, parentSubtask, parentTask) => {
+    if (!childTask || !parentSubtask || !parentTask) {
+      setToast({ message: 'Error: Invalid child task, parent subtask, or parent task', type: 'error' });
+      return;
+    }
+    setCopiedChildTask({ 
+      ...childTask, 
+      parentSubtaskId: parentSubtask.id, 
+      parentSubtaskName: parentSubtask.name,
+      parentTaskId: parentTask.id,
+      parentTaskName: parentTask.name 
+    });
+    setToast({ message: `Child task "${childTask.name}" copied to clipboard`, type: 'success' });
+  };
+
+  const handlePasteTask = (targetTask) => {
+    if (!copiedTask) {
+      setToast({ message: 'No task copied to clipboard', type: 'error' });
+      return;
+    }
+    if (!targetTask) {
+      setToast({ message: 'Error: Invalid target task', type: 'error' });
+      return;
+    }
+
+    // Create a new task based on the copied task
+    const newTask = {
+      ...copiedTask,
+      id: Date.now(),
+      name: `${copiedTask.name} (Copy)`,
+      referenceNumber: `REF-${Date.now()}`,
+      subtasks: copiedTask.subtasks.map(subtask => ({
+        ...subtask,
+        id: Date.now() + Math.random(),
+        name: `${subtask.name} (Copy)`
+      }))
+    };
+
+    // Add the new task to the tasks array
+    setTasks(prevTasks => [...prevTasks, newTask]);
+    setToast({ message: `Task "${newTask.name}" pasted successfully`, type: 'success' });
+  };
+
+  const handlePasteSubtask = (targetTask) => {
+    if (!copiedSubtask) {
+      setToast({ message: 'No subtask copied to clipboard', type: 'error' });
+      return;
+    }
+    if (!targetTask) {
+      setToast({ message: 'Error: Invalid target task', type: 'error' });
+      return;
+    }
+
+    // Create a new subtask based on the copied subtask
+    const newSubtask = {
+      ...copiedSubtask,
+      id: Date.now(),
+      name: `${copiedSubtask.name} (Copy)`,
+      childSubtasks: copiedSubtask.childSubtasks?.map(child => ({
+        ...child,
+        id: Date.now() + Math.random(),
+        name: `${child.name} (Copy)`
+      })) || []
+    };
+
+    // Add the new subtask to the target task
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === targetTask.id 
+          ? { ...task, subtasks: [...task.subtasks, newSubtask] }
+          : task
+      )
+    );
+    setToast({ message: `Subtask "${newSubtask.name}" pasted to "${targetTask.name}"`, type: 'success' });
+  };
+
+  const handlePasteChildTask = (targetSubtask, targetTask) => {
+    if (!copiedChildTask) {
+      setToast({ message: 'No child task copied to clipboard', type: 'error' });
+      return;
+    }
+    if (!targetSubtask || !targetTask) {
+      setToast({ message: 'Error: Invalid target subtask or task', type: 'error' });
+      return;
+    }
+
+    // Create a new child task based on the copied child task
+    const newChildTask = {
+      ...copiedChildTask,
+      id: Date.now(),
+      name: `${copiedChildTask.name} (Copy)`
+    };
+
+    // Add the new child task to the target subtask
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === targetTask.id 
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === targetSubtask.id
+                  ? { ...subtask, childSubtasks: [...(subtask.childSubtasks || []), newChildTask] }
+                  : subtask
+              )
+            }
+          : task
+      )
+    );
+    setToast({ message: `Child task "${newChildTask.name}" pasted to "${targetSubtask.name}"`, type: 'success' });
+  };
+
+  // Bulk Copy/Paste handlers
+  const handleBulkCopy = () => {
+    const selectedTasks = tasks.filter(task => selectedTaskIds.has(task.id));
+    const selectedSubtasks = [];
+    const selectedChildTasks = [];
+
+    // Collect selected subtasks and child tasks
+    tasks.forEach(task => {
+      if (task.subtasks) {
+        task.subtasks.forEach(subtask => {
+          if (selectedSubtaskIds.has(subtask.id)) {
+            selectedSubtasks.push({
+              ...subtask,
+              parentTaskId: task.id,
+              parentTaskName: task.name
+            });
+          }
+          
+          // Collect child tasks
+          if (subtask.childSubtasks) {
+            subtask.childSubtasks.forEach(childTask => {
+              if (selectedSubtaskIds.has(childTask.id)) {
+                selectedChildTasks.push({
+                  ...childTask,
+                  parentSubtaskId: subtask.id,
+                  parentSubtaskName: subtask.name,
+                  parentTaskId: task.id,
+                  parentTaskName: task.name
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+
+    setBulkCopiedItems({
+      tasks: selectedTasks,
+      subtasks: selectedSubtasks,
+      childTasks: selectedChildTasks
+    });
+
+    const totalItems = selectedTasks.length + selectedSubtasks.length + selectedChildTasks.length;
+    setToast({ 
+      message: `${totalItems} items copied to clipboard (${selectedTasks.length} tasks, ${selectedSubtasks.length} subtasks, ${selectedChildTasks.length} child tasks)`, 
+      type: 'success' 
+    });
+  };
+
+  const handleBulkPaste = () => {
+    if (bulkCopiedItems.tasks.length === 0 && bulkCopiedItems.subtasks.length === 0 && bulkCopiedItems.childTasks.length === 0) {
+      setToast({ message: 'No items copied to clipboard', type: 'error' });
+      return;
+    }
+
+    setShowBulkPasteModal(true);
+  };
+
+  const executeBulkPaste = (targetTask) => {
+    const newTasks = [];
+    const newSubtasks = [];
+    const newChildTasks = [];
+
+    // Copy tasks
+    bulkCopiedItems.tasks.forEach(task => {
+      const newTask = {
+        ...task,
+        id: Date.now() + Math.random(),
+        name: `${task.name} (Copy)`,
+        referenceNumber: `REF-${Date.now()}`,
+        subtasks: task.subtasks?.map(subtask => ({
+          ...subtask,
+          id: Date.now() + Math.random(),
+          name: `${subtask.name} (Copy)`,
+          childSubtasks: subtask.childSubtasks?.map(child => ({
+            ...child,
+            id: Date.now() + Math.random(),
+            name: `${child.name} (Copy)`
+          })) || []
+        })) || []
+      };
+      newTasks.push(newTask);
+    });
+
+    // Copy subtasks to target task
+    if (targetTask && bulkCopiedItems.subtasks.length > 0) {
+      const targetTaskIndex = tasks.findIndex(t => t.id === targetTask.id);
+      if (targetTaskIndex !== -1) {
+        const updatedTasks = [...tasks];
+        bulkCopiedItems.subtasks.forEach(subtask => {
+          const newSubtask = {
+            ...subtask,
+            id: Date.now() + Math.random(),
+            name: `${subtask.name} (Copy)`,
+            childSubtasks: subtask.childSubtasks?.map(child => ({
+              ...child,
+              id: Date.now() + Math.random(),
+              name: `${child.name} (Copy)`
+            })) || []
+          };
+          updatedTasks[targetTaskIndex].subtasks.push(newSubtask);
+        });
+        setTasks(updatedTasks);
+      }
+    }
+
+    // Copy child tasks to target subtask
+    if (targetTask && bulkCopiedItems.childTasks.length > 0) {
+      const targetTaskIndex = tasks.findIndex(t => t.id === targetTask.id);
+      if (targetTaskIndex !== -1) {
+        const updatedTasks = [...tasks];
+        bulkCopiedItems.childTasks.forEach(childTask => {
+          const targetSubtask = updatedTasks[targetTaskIndex].subtasks.find(s => s.id === childTask.parentSubtaskId);
+          if (targetSubtask) {
+            const newChildTask = {
+              ...childTask,
+              id: Date.now() + Math.random(),
+              name: `${childTask.name} (Copy)`
+            };
+            if (!targetSubtask.childSubtasks) {
+              targetSubtask.childSubtasks = [];
+            }
+            targetSubtask.childSubtasks.push(newChildTask);
+          }
+        });
+        setTasks(updatedTasks);
+      }
+    }
+
+    // Add new tasks to the tasks array
+    if (newTasks.length > 0) {
+      setTasks(prevTasks => [...prevTasks, ...newTasks]);
+    }
+
+    const totalPasted = newTasks.length + bulkCopiedItems.subtasks.length + bulkCopiedItems.childTasks.length;
+    setToast({ 
+      message: `${totalPasted} items pasted successfully`, 
+      type: 'success' 
+    });
+
+    setShowBulkPasteModal(false);
+    setPasteTarget(null);
+  };
+
+  const closeBulkPasteModal = () => {
+    setShowBulkPasteModal(false);
+    setPasteTarget(null);
   };
 
   // Enhanced filter handlers
@@ -416,6 +713,15 @@ export default function MainTable() {
   const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false);
   const [attachmentsModalTarget, setAttachmentsModalTarget] = useState(null); // { type: 'main'|'sub'|'child', taskId, subId }
   const [attachmentsModalItems, setAttachmentsModalItems] = useState([]);
+  
+  // Employee details modal state
+  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+
+  // Debug employee modal state
+  useEffect(() => {
+    console.log('Employee modal state:', { employeeModalOpen, selectedEmployeeId });
+  }, [employeeModalOpen, selectedEmployeeId]);
 
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
@@ -586,24 +892,6 @@ export default function MainTable() {
     }
   };
 
-  const handleCopyTask = (taskData) => {
-    const content = `Task: ${taskData.name}
-Reference: ${taskData.referenceNumber}
-Status: ${taskData.status}
-Owner: ${taskData.owner}
-Priority: ${taskData.priority}
-Category: ${taskData.category}
-Location: ${taskData.location}
-Remarks: ${taskData.remarks}
-Assignee Notes: ${taskData.assigneeNotes}`;
-    
-    navigator.clipboard.writeText(content).then(() => {
-      alert('Task copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy to clipboard:', err);
-      alert('Failed to copy to clipboard');
-    });
-  };
 
   // Multi-select handlers
   const handleTaskSelection = (taskId, isChecked) => {
@@ -770,6 +1058,18 @@ Assignee Notes: ${taskData.assigneeNotes}`;
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
+    console.log('handleEditSubtask called with:', { taskId, subId, col, value });
+    
+    // Handle employee modal opening
+    if (col === 'openEmployeeModal') {
+      console.log('Opening employee modal for:', value);
+      console.log('Current employee modal state:', { employeeModalOpen, selectedEmployeeId });
+      setSelectedEmployeeId(value);
+      setEmployeeModalOpen(true);
+      console.log('Employee modal state updated');
+      return;
+    }
+    
     // Handle checklist modal opening
     if (col === 'openChecklistModal') {
       setChecklistModalTarget({ type: 'sub', taskId, subId });
@@ -1503,7 +1803,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
               placeholder="Task Name"
             />
             <button
-              onClick={() => handleOpenChat(childSub)}
+              onClick={() => handleOpenChat(childSub, 'child-task')}
               className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
               title="Open Chat"
             >
@@ -2284,6 +2584,8 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                             onEditTask={handleEditTask}
                             onDeleteTask={handleDeleteTask}
                             onCopyTask={handleCopyTask}
+                            onPasteTask={handlePasteTask}
+                            copiedTask={copiedTask}
                             isSelected={selectedTaskIds.has(task.id)}
                             onToggleSelection={handleTaskSelection}
                             showSubtaskForm={showSubtaskForm}
@@ -2387,7 +2689,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                               } ${
                                                 col.key === 'owner' ? 'w-36 min-w-36' : ''
                                               }`}>
-                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleCopyTask, handleOpenChat)}
+                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat)}
                                               </td>
                                             );
                                           })}
@@ -2520,6 +2822,7 @@ Assignee Notes: ${taskData.assigneeNotes}`;
                                                         onChange={e => setNewChildSubtask({ ...newChildSubtask, owner: e.target.value })}
                                                         onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
                                                       >
+                                                        <option value="">Select employee</option>
                                                         <option value="MN">MN</option>
                                                         <option value="SA">SA</option>
                                                         <option value="AH">AH</option>
@@ -2715,6 +3018,38 @@ Assignee Notes: ${taskData.assigneeNotes}`;
         project={chatProject}
         onClose={handleCloseChat}
         socket={socket}
+        chatType={chatType}
+      />
+
+      {/* Employee Details Modal */}
+      <EmployeeDetailsModal
+        isOpen={employeeModalOpen}
+        onClose={() => {
+          console.log('Closing employee modal');
+          setEmployeeModalOpen(false);
+          setSelectedEmployeeId(null);
+        }}
+        employeeId={selectedEmployeeId}
+        allTasks={tasks}
+      />
+      
+      {/* Debug Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 left-4 bg-black text-white p-2 text-xs rounded">
+          Employee Modal: {employeeModalOpen ? 'OPEN' : 'CLOSED'} | 
+          Employee ID: {selectedEmployeeId || 'NONE'}
+        </div>
+      )}
+
+
+      {/* Bulk Paste Modal */}
+      <BulkPasteModal
+        isOpen={showBulkPasteModal}
+        onClose={closeBulkPasteModal}
+        bulkCopiedItems={bulkCopiedItems}
+        tasks={tasks}
+        onExecutePaste={executeBulkPaste}
+        onSetPasteTarget={setPasteTarget}
       />
 
     </div>

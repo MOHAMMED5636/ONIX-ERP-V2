@@ -9,7 +9,8 @@ import {
   ExclamationTriangleIcon,
   FunnelIcon,
   XMarkIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  SparklesIcon
 } from "@heroicons/react/24/outline";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../../LanguageContext";
@@ -24,6 +25,7 @@ import FileGallery from "./FileGallery";
 import DocView from "./DocView";
 import CustomizableView from "./CustomizableView";
 import TaskSidebar from "./TaskSidebar";
+import AIChatbot from "./AIChatbot";
 
 export default function TaskList() {
   const [activeTab, setActiveTab] = useState("main-table");
@@ -32,6 +34,7 @@ export default function TaskList() {
   const location = useLocation();
   const [showSearch, setShowSearch] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAIChatbot, setShowAIChatbot] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -588,6 +591,17 @@ export default function TaskList() {
               <span className="hidden sm:inline text-sm">Chatroom</span>
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold shadow-lg border border-white animate-pulse">2</span>
             </button>
+
+            {/* AI Assistant Button */}
+            <button
+              onClick={() => setShowAIChatbot(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative group flex-shrink-0"
+              title="AI Task Assistant"
+            >
+              <SparklesIcon className="h-4 w-4 group-hover:rotate-12 transition-transform duration-300" />
+              <span className="hidden sm:inline text-sm">AI Assistant</span>
+              <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold shadow-lg border border-white animate-pulse">AI</span>
+            </button>
             
             {/* Enhanced Language toggle */}
             <button
@@ -720,6 +734,12 @@ export default function TaskList() {
         </div>
       </div>
       </div>
+
+      {/* AI Chatbot Modal */}
+      <AIChatbot 
+        isOpen={showAIChatbot} 
+        onClose={() => setShowAIChatbot(false)} 
+      />
     </div>
   );
 } 

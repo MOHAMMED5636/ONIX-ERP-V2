@@ -27,6 +27,8 @@ const ProjectRow = ({
   onEditTask,
   onDeleteTask,
   onCopyTask,
+  onPasteTask,
+  copiedTask,
   isSelected,
   onToggleSelection,
   showSubtaskForm,
@@ -50,6 +52,8 @@ const ProjectRow = ({
                 onEdit={onEditTask}
                 onDelete={onDeleteTask}
                 onCopy={onCopyTask}
+                onPaste={onPasteTask}
+                copiedItem={copiedTask}
                 isSubtask={false}
               />
             </div>
@@ -114,7 +118,7 @@ const ProjectRow = ({
             value={row.owner || ""}
             onChange={e => onEdit("owner", e.target.value)}
           >
-            <option value="">Select owner</option>
+            <option value="">Select project manager</option>
             <option value="MN">MN</option>
             <option value="SA">SA</option>
             <option value="AL">AL</option>
@@ -512,7 +516,7 @@ const ProjectRow = ({
                         </span>
                         {/* Chat Button inline with project name */}
                         <button
-                          onClick={() => onOpenChat && onOpenChat(task)}
+                          onClick={() => onOpenChat && onOpenChat(task, 'project')}
                           className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
                           title="Open Chat"
                         >
@@ -610,6 +614,7 @@ const ProjectRow = ({
                       onChange={e => setNewSubtask(s => ({ ...s, owner: e.target.value }))}
                       onKeyDown={(e) => handleSubtaskKeyDown(e, task.id)}
                     >
+                      <option value="">Select employee</option>
                       <option value="MN">MN</option>
                       <option value="SA">SA</option>
                       <option value="AH">AH</option>

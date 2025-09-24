@@ -88,6 +88,7 @@ const BulkActionBar = ({
               <EyeIcon className="w-4 h-4" />
               View
             </button>
+
             
             {/* Copy-Paste Manager */}
             <TaskCopyPasteManager

@@ -19,6 +19,7 @@ import {
 import useTaskDetails from '../hooks/useTaskDetails';
 import { formatDate, formatDateTime, getRelativeTime } from '../utils/formatDate';
 import SubtaskDetailModal from './SubtaskDetailModal';
+import EmployeeDetailsModal from './tasks/MainTable/EmployeeDetailsModal';
 
 // API function to update project name
 const updateProjectNameAPI = async (projectId, newName) => {
@@ -61,6 +62,13 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
   // Project name editing state
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState('');
+  
+  // Client details modal state
+  const [showClientDetails, setShowClientDetails] = useState(false);
+  
+  // Employee details modal state
+  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   
   // Editable values
   const [description, setDescription] = useState('');
@@ -299,6 +307,13 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
       console.error('Failed to update project name:', error);
       throw error; // Re-throw to let the modal handle the error
     }
+  };
+
+  // Handler for opening employee modal
+  const handleOpenEmployeeModal = (employeeId) => {
+    console.log('Opening employee modal for:', employeeId);
+    setSelectedEmployeeId(employeeId);
+    setEmployeeModalOpen(true);
   };
 
   // Project name editing handlers for drawer
@@ -842,12 +857,22 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                                       autoFocus
                                     />
                                   ) : (
-                                    <span 
-                                      className="text-sm text-gray-900 hover:text-blue-600 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded transition-colors duration-200"
-                                      onClick={() => handleSubtaskAssigneeClick(subtask.id)}
+                                    <button
+                                      className="text-sm text-gray-900 hover:text-blue-600 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded transition-colors duration-200 flex items-center gap-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Prevent row click
+                                        if (subtask.assignee && subtask.assignee !== 'Unassigned') {
+                                          handleOpenEmployeeModal(subtask.assignee);
+                                        } else {
+                                          handleSubtaskAssigneeClick(subtask.id);
+                                        }
+                                      }}
                                     >
                                       {subtask.assignee || 'Unassigned'}
-                                    </span>
+                                      {subtask.assignee && subtask.assignee !== 'Unassigned' && (
+                                        <span className="text-xs text-blue-500">👤</span>
+                                      )}
+                                    </button>
                                   )}
                                 </div>
                               </td>
@@ -984,7 +1009,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Project Name */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Project Name</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Project Name clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.name || currentTask.title || 'N/A'}</span>
                     </div>
                   </div>
@@ -992,15 +1020,21 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Reference Number */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Reference Number</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Reference Number clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.referenceNumber || 'N/A'}</span>
                     </div>
                   </div>
 
-                  {/* Owner */}
+                  {/* Client Details */}
                   <div>
-                    <label className="text-sm text-gray-600 block mb-2">Owner</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <label className="text-sm text-gray-600 block mb-2">Client Details</label>
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => setShowClientDetails(true)}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.owner || 'N/A'}</span>
                     </div>
                   </div>
@@ -1008,7 +1042,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Status */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Status</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Status clicked')}
+                    >
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         currentTask.status === 'done' ? 'bg-green-100 text-green-800' :
                         currentTask.status === 'working' ? 'bg-yellow-100 text-yellow-800' :
@@ -1023,7 +1060,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Timeline */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Timeline</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Timeline clicked')}
+                    >
                       <span className="font-medium text-gray-900">
                         {currentTask.timeline && currentTask.timeline[0] && currentTask.timeline[1] 
                           ? `${new Date(currentTask.timeline[0]).toLocaleDateString()} - ${new Date(currentTask.timeline[1]).toLocaleDateString()}`
@@ -1036,7 +1076,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Plan Days */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Plan Days</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Plan Days clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.planDays || 'N/A'}</span>
                     </div>
                   </div>
@@ -1044,7 +1087,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Priority */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Priority</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Priority clicked')}
+                    >
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         currentTask.priority === 'High' ? 'bg-red-100 text-red-800' :
                         currentTask.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
@@ -1059,7 +1105,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Category */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Category</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Category clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.category || 'N/A'}</span>
                     </div>
                   </div>
@@ -1067,7 +1116,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Location */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Location</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Location clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.location || 'N/A'}</span>
                     </div>
                   </div>
@@ -1075,7 +1127,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Project Type */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Project Type</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Project Type clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.projectType || 'N/A'}</span>
                     </div>
                   </div>
@@ -1083,7 +1138,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Remarks */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Remarks</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Remarks clicked')}
+                    >
                       <span className="font-medium text-gray-900 text-sm">{currentTask.remarks || 'N/A'}</span>
                     </div>
                   </div>
@@ -1091,7 +1149,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Assignee Notes */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Assignee Notes</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Assignee Notes clicked')}
+                    >
                       <span className="font-medium text-gray-900 text-sm">{currentTask.assigneeNotes || 'N/A'}</span>
                     </div>
                   </div>
@@ -1099,7 +1160,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Plot Number */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Plot Number</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Plot Number clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.plotNumber || 'N/A'}</span>
                     </div>
                   </div>
@@ -1107,7 +1171,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Community */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Community</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Community clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.community || 'N/A'}</span>
                     </div>
                   </div>
@@ -1115,7 +1182,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Project Floor */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Project Floor</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Project Floor clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.projectFloor || 'N/A'}</span>
                     </div>
                   </div>
@@ -1123,7 +1193,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Developer Project */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Developer Project</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Developer Project clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.developerProject || 'N/A'}</span>
                     </div>
                   </div>
@@ -1131,7 +1204,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Auto Number */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Auto #</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Auto Number clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.autoNumber || 'N/A'}</span>
                     </div>
                   </div>
@@ -1139,7 +1215,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Predecessors */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Predecessors</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Predecessors clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.predecessors || 'N/A'}</span>
                     </div>
                   </div>
@@ -1147,7 +1226,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Checklist */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Checklist</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Checklist clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.checklist || 'N/A'}</span>
                     </div>
                   </div>
@@ -1155,7 +1237,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Link */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Link</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Link clicked')}
+                    >
                       {currentTask.link ? (
                         <a 
                           href={currentTask.link} 
@@ -1174,7 +1259,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Rating */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Rating</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Rating clicked')}
+                    >
                       <span className="font-medium text-gray-900">{currentTask.rating || 'N/A'}</span>
                     </div>
                   </div>
@@ -1182,7 +1270,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Progress */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Progress</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Progress clicked')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div 
@@ -1198,7 +1289,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Color */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Color</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
+                    <div 
+                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                      onClick={() => console.log('Color clicked')}
+                    >
                       <div className="flex items-center gap-2">
                         {currentTask.color ? (
                           <>
@@ -1249,6 +1343,129 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
         onClose={handleCloseSubtaskModal}
         onUpdate={handleUpdateSubtask}
         onUpdateProjectName={handleUpdateProjectName}
+      />
+
+      {/* Client Details Modal */}
+      {showClientDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowClientDetails(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <UserIcon className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Client Details</h2>
+                  <p className="text-sm text-gray-600">Comprehensive client information</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowClientDetails(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+              {/* Client Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-600 mb-2">Client Name</h3>
+                  <p className="text-lg font-semibold text-gray-900">{currentTask.owner || 'N/A'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-600 mb-2">Client ID</h3>
+                  <p className="text-lg font-semibold text-gray-900">{currentTask.clientId || 'CL-001'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-600 mb-2">Contact Number</h3>
+                  <p className="text-lg font-semibold text-gray-900">{currentTask.clientContact || '+1 234 567 8900'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-600 mb-2">Email Address</h3>
+                  <p className="text-lg font-semibold text-gray-900">{currentTask.clientEmail || 'client@example.com'}</p>
+                </div>
+              </div>
+
+              {/* Project Information */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-blue-600 mb-2">Project Name</h4>
+                    <p className="text-sm font-semibold text-blue-900">{currentTask.name || currentTask.title || 'N/A'}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-blue-600 mb-2">Reference Number</h4>
+                    <p className="text-sm font-semibold text-blue-900">{currentTask.referenceNumber || 'N/A'}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-blue-600 mb-2">Status</h4>
+                    <p className="text-sm font-semibold text-blue-900">{currentTask.status || 'N/A'}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-blue-600 mb-2">Priority</h4>
+                    <p className="text-sm font-semibold text-blue-900">{currentTask.priority || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Client Details */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Company</h4>
+                    <p className="text-sm font-semibold text-gray-900">{currentTask.clientCompany || 'Tech Solutions Inc.'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Address</h4>
+                    <p className="text-sm font-semibold text-gray-900">{currentTask.clientAddress || '123 Business Street, City, State 12345'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">Notes</h4>
+                    <p className="text-sm font-semibold text-gray-900">{currentTask.clientNotes || 'No additional notes available.'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowClientDetails(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  // Handle edit client details
+                  console.log('Edit client details');
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Edit Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Details Modal */}
+      <EmployeeDetailsModal
+        isOpen={employeeModalOpen}
+        onClose={() => {
+          console.log('Closing employee modal');
+          setEmployeeModalOpen(false);
+          setSelectedEmployeeId(null);
+        }}
+        employeeId={selectedEmployeeId}
+        allTasks={[currentTask]} // Pass current task as array for the modal
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
+import ProjectDetailDrawer from "./ProjectDetailDrawer";
 import { 
   PlusIcon,
   ClipboardDocumentIcon,
@@ -111,6 +112,11 @@ export default function KanbanBoard() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
   const [summaryTask, setSummaryTask] = useState(null);
+  
+  // Project Detail Drawer state
+  const [showProjectDrawer, setShowProjectDrawer] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  
   let clickTimer = null;
 
   // Handle filter input changes
@@ -206,6 +212,18 @@ export default function KanbanBoard() {
     }
   };
   const closeSummary = () => setSummaryTask(null);
+
+  // Handle card click to open project drawer
+  const handleCardClick = (task) => {
+    setSelectedProject(task);
+    setShowProjectDrawer(true);
+  };
+
+  // Close project drawer
+  const closeProjectDrawer = () => {
+    setShowProjectDrawer(false);
+    setSelectedProject(null);
+  };
 
   // Checkbox column handlers for Kanban
   const handleEditTask = (task) => {
@@ -487,8 +505,13 @@ Progress: ${taskData.percent}%`;
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-white rounded-lg shadow hover:shadow-lg border-l-4 ${col.border} p-3 flex flex-col gap-2 transition-all duration-150 ${snapshot.isDragging ? 'ring-2 ring-blue-300' : ''}`}
+                            className={`bg-white rounded-lg shadow hover:shadow-lg border-l-4 ${col.border} p-3 flex flex-col gap-2 transition-all duration-150 ${snapshot.isDragging ? 'ring-2 ring-blue-300' : ''} cursor-pointer`}
                             style={{ minHeight: '110px', ...provided.draggableProps.style }}
+                            onClick={(e) => {
+                              // Prevent click when editing or interacting with checkbox
+                              if (editingTaskId === task.id || e.target.closest('.checkbox-popup')) return;
+                              handleCardClick(task);
+                            }}
                           >
                             {/* Checkbox for Kanban card */}
                             <div className="flex justify-end mb-1">
@@ -563,6 +586,14 @@ Progress: ${taskData.percent}%`;
           </div>
         </div>
       )}
+
+      {/* Project Detail Drawer */}
+      <ProjectDetailDrawer
+        isOpen={showProjectDrawer}
+        onClose={closeProjectDrawer}
+        projectId={selectedProject?.id}
+        projectData={selectedProject}
+      />
     </div>
   );
 } 

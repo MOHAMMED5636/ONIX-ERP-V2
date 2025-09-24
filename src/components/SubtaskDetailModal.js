@@ -365,6 +365,19 @@ const SubtaskDetailModal = ({
                     )}
                   </div>
 
+                  {/* Created By */}
+                  <div>
+                    <label className="text-sm text-gray-600 block mb-2">Created By</label>
+                    <div className="p-2 bg-gray-50 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {subtask.createdBy?.charAt(0) || 'K'}
+                        </div>
+                        <span className="font-medium text-gray-900">{subtask.createdBy || 'kaddour alkaddour'}</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Status */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Status</label>
@@ -573,6 +586,128 @@ const SubtaskDetailModal = ({
                         <span className="text-sm font-medium text-gray-700">
                           {subtask.progress || 0}%
                         </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timeline Section */}
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-blue-500" />
+                      Timeline
+                    </h4>
+                    
+                    {/* Planned Dates */}
+                    <div className="mb-3">
+                      <label className="text-xs text-blue-600 font-medium block mb-1">Planned Start</label>
+                      <div className="p-2 bg-blue-50 rounded-md">
+                        <span className="text-sm font-medium text-blue-900">
+                          {subtask.plannedStart || '16 Sep 2025'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-blue-600 font-medium block mb-1">Planned Deadline</label>
+                      <div className="p-2 bg-blue-50 rounded-md">
+                        <span className="text-sm font-medium text-blue-900">
+                          {subtask.plannedDeadline || '24 Sep 2025'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-blue-600 font-medium block mb-1">Duration</label>
+                      <div className="p-2 bg-blue-50 rounded-md">
+                        <span className="text-sm font-medium text-blue-900">
+                          {subtask.plannedDuration || '8 Days'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actual Dates Section */}
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                      Actual Dates
+                    </h4>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-green-600 font-medium block mb-1">Actual Start</label>
+                      <div className="p-2 bg-green-50 rounded-md">
+                        <span className="text-sm font-medium text-green-900">
+                          {subtask.actualStart || '10 Jun 2025'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-green-600 font-medium block mb-1">Actual Complete</label>
+                      <div className="p-2 bg-green-50 rounded-md">
+                        <span className="text-sm font-medium text-green-900">
+                          {subtask.actualComplete || '10 Jun 2025'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-green-600 font-medium block mb-1">Actual Duration</label>
+                      <div className="p-2 bg-green-50 rounded-md">
+                        <span className="text-sm font-medium text-green-900">
+                          {subtask.actualDuration || '0 Days'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schedule Status */}
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <ClockIcon className="w-4 h-4 text-purple-500" />
+                      Schedule Status
+                    </h4>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-purple-600 font-medium block mb-1">Expected Start</label>
+                      <div className="p-2 bg-purple-50 rounded-md">
+                        <span className="text-sm font-medium text-purple-900">
+                          {subtask.expectedStart || '3 Jun 2025'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-purple-600 font-medium block mb-1">Schedule Status</label>
+                      <div className="p-2 bg-purple-50 rounded-md">
+                        <span className="text-sm font-medium text-purple-900">
+                          {subtask.scheduleStatus || '106 Days - Ahead of Schedule'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Completion Percentage */}
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />
+                      Completion
+                    </h4>
+                    
+                    <div className="mb-3">
+                      <label className="text-xs text-orange-600 font-medium block mb-1">Completion Percentage</label>
+                      <div className="p-2 bg-orange-50 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${subtask.completionPercentage || 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium text-orange-900">
+                            {subtask.completionPercentage || 100}%
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

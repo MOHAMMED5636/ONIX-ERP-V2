@@ -74,7 +74,7 @@ const CellRenderer = {
             onChange={e => onEdit("owner", e.target.value)}
             onKeyDown={onKeyDown}
           >
-            <option value="">Select owner</option>
+            <option value="">Select project manager</option>
             <option value="MN">MN</option>
             <option value="SA">SA</option>
             <option value="AL">AL</option>
@@ -387,7 +387,7 @@ const CellRenderer = {
   },
 
   // Render subtask cells
-  renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true, onKeyDown = null, onEditSubtask = null, onDeleteSubtask = null, onCopySubtask = null, onOpenChat = null) => {
+  renderSubtaskCell: (col, sub, task, subIdx, onEdit, isAdmin = true, onKeyDown = null, onEditSubtask = null, onDeleteSubtask = null, onOpenChat = null) => {
     switch (col.key) {
       case "task":
       case "project name":
@@ -401,7 +401,7 @@ const CellRenderer = {
               placeholder="Task Name"
             />
             <button
-              onClick={() => onOpenChat && onOpenChat(sub)}
+              onClick={() => onOpenChat && onOpenChat(sub, 'task')}
               className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
               title="Open Chat"
             >
@@ -449,7 +449,26 @@ const CellRenderer = {
           </select>
         );
       case "owner":
-        return <span className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm">{sub.owner}</span>;
+        return (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Employee badge clicked:', sub.owner);
+              console.log('onEdit function available:', !!onEdit);
+              if (onEdit) {
+                console.log('Calling onEdit with:', task.id, sub.id, "openEmployeeModal", sub.owner);
+                onEdit(task.id, sub.id, "openEmployeeModal", sub.owner);
+              } else {
+                console.error('onEdit function not available');
+              }
+            }}
+            className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm hover:bg-pink-300 transition-colors cursor-pointer"
+            title={`View ${sub.owner} details`}
+          >
+            {sub.owner}
+          </button>
+        );
       case "timeline":
         const subTimelineHasPredecessors = sub.predecessors && sub.predecessors.toString().trim() !== '';
         // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array

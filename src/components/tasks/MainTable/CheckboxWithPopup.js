@@ -11,6 +11,8 @@ const CheckboxWithPopup = ({
   onEdit, 
   onDelete, 
   onCopy, 
+  onPaste,
+  copiedItem,
   isSubtask = false,
   parentTaskId = null 
 }) => {
@@ -141,6 +143,22 @@ const CheckboxWithPopup = ({
             <ClipboardDocumentIcon className="w-4 h-4" />
             Copy to Clipboard
           </button>
+          {onPaste && (
+            <button
+              onClick={() => {
+                setShowPopup(false);
+                onPaste(task);
+              }}
+              className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors duration-150 ${
+                copiedItem ? 'text-green-700 hover:bg-green-100' : 'text-gray-400 cursor-not-allowed'
+              }`}
+              disabled={!copiedItem}
+              title={copiedItem ? `Paste ${copiedItem.name || 'item'}` : 'No item copied'}
+            >
+              <ClipboardDocumentIcon className="w-4 h-4" />
+              {copiedItem ? `Paste ${copiedItem.name || 'item'}` : 'Paste (No item copied)'}
+            </button>
+          )}
           <div className="border-t border-gray-200 my-1"></div>
           <button
             onClick={handleDelete}
