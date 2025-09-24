@@ -262,6 +262,7 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
 
   // Handle opening subtask modal
   const handleOpenSubtaskModal = (subtask) => {
+    console.log('Opening subtask modal for:', subtask);
     setSelectedSubtask(subtask);
     setShowSubtaskModal(true);
   };
@@ -801,7 +802,10 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                             <tr 
                               key={subtask.id} 
                               className="hover:bg-gray-50 border-b border-gray-100 cursor-pointer transition-colors duration-200"
-                              onClick={() => handleOpenSubtaskModal(subtask)}
+                              onClick={(e) => {
+                                console.log('Subtask row clicked:', subtask);
+                                handleOpenSubtaskModal(subtask);
+                              }}
                             >
                               <td className="py-4 px-4 border-r border-gray-200">
                                 <div className="flex items-center gap-3">

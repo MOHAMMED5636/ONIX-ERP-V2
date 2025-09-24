@@ -3033,13 +3033,6 @@ export default function MainTable() {
         allTasks={tasks}
       />
       
-      {/* Debug Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 left-4 bg-black text-white p-2 text-xs rounded">
-          Employee Modal: {employeeModalOpen ? 'OPEN' : 'CLOSED'} | 
-          Employee ID: {selectedEmployeeId || 'NONE'}
-        </div>
-      )}
 
 
       {/* Bulk Paste Modal */}
