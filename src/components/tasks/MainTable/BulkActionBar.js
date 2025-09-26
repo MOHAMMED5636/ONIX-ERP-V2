@@ -12,12 +12,13 @@ const BulkActionBar = ({
   selectedSubtasks = [], 
   totalSelected = 0,
   selectionAnalysis,
-  onEdit, 
-  onDelete, 
-  onView, 
+  onEdit,
+  onDelete,
+  onView,
   onClearSelection,
   onShowToast,
   allTasks,
+  filteredTasks = [],
   onTasksPasted
 }) => {
   if (totalSelected < 1) return null;
@@ -95,6 +96,7 @@ const BulkActionBar = ({
               selectedTasks={selectedTasks}
               selectedSubtasks={selectedSubtasks}
               allTasks={allTasks}
+              filteredTasks={filteredTasks}
               onTasksPasted={onTasksPasted}
               onCopySuccess={(copiedData) => {
                 console.log('Tasks copied successfully:', copiedData);

@@ -19,7 +19,6 @@ import {
 import useTaskDetails from '../hooks/useTaskDetails';
 import { formatDate, formatDateTime, getRelativeTime } from '../utils/formatDate';
 import SubtaskDetailModal from './SubtaskDetailModal';
-import EmployeeDetailsModal from './tasks/MainTable/EmployeeDetailsModal';
 
 // API function to update project name
 const updateProjectNameAPI = async (projectId, newName) => {
@@ -66,9 +65,6 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
   // Client details modal state
   const [showClientDetails, setShowClientDetails] = useState(false);
   
-  // Employee details modal state
-  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   
   // Editable values
   const [description, setDescription] = useState('');
@@ -310,12 +306,6 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
     }
   };
 
-  // Handler for opening employee modal
-  const handleOpenEmployeeModal = (employeeId) => {
-    console.log('Opening employee modal for:', employeeId);
-    setSelectedEmployeeId(employeeId);
-    setEmployeeModalOpen(true);
-  };
 
   // Project name editing handlers for drawer
   const handleStartEditingProjectName = () => {
@@ -861,22 +851,9 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                                       autoFocus
                                     />
                                   ) : (
-                                    <button
-                                      className="text-sm text-gray-900 hover:text-blue-600 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded transition-colors duration-200 flex items-center gap-2"
-                                      onClick={(e) => {
-                                        e.stopPropagation(); // Prevent row click
-                                        if (subtask.assignee && subtask.assignee !== 'Unassigned') {
-                                          handleOpenEmployeeModal(subtask.assignee);
-                                        } else {
-                                          handleSubtaskAssigneeClick(subtask.id);
-                                        }
-                                      }}
-                                    >
-                                      {subtask.assignee || 'Unassigned'}
-                                      {subtask.assignee && subtask.assignee !== 'Unassigned' && (
-                                        <span className="text-xs text-blue-500">👤</span>
-                                      )}
-                                    </button>
+            <span className="text-sm text-gray-900">
+              {subtask.assignee || 'Unassigned'}
+            </span>
                                   )}
                                 </div>
                               </td>
@@ -1460,17 +1437,6 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
         </div>
       )}
 
-      {/* Employee Details Modal */}
-      <EmployeeDetailsModal
-        isOpen={employeeModalOpen}
-        onClose={() => {
-          console.log('Closing employee modal');
-          setEmployeeModalOpen(false);
-          setSelectedEmployeeId(null);
-        }}
-        employeeId={selectedEmployeeId}
-        allTasks={[currentTask]} // Pass current task as array for the modal
-      />
     </div>
   );
 };

@@ -287,4 +287,3 @@ interface Client {
 2. **Caching**: Client data is cached for improved performance
 3. **Pagination**: Large datasets are paginated to improve response times
 4. **Search Optimization**: Full-text search indexes for efficient searching
-

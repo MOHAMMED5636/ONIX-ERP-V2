@@ -27,22 +27,22 @@ export const validateTaskSelection = (selectedTasks, allTasks) => {
     };
   }
 
-  // Check if all selected tasks are parent tasks (have subtasks or are main projects)
-  const allAreParentTasks = selectedTasks.every(task => {
-    // A task is a parent if it has subtasks or is a main project
-    return (task.subtasks && task.subtasks.length > 0) || !task.parentTaskId;
+  // Check if all selected tasks are main tasks (not subtasks or child tasks)
+  const allAreMainTasks = selectedTasks.every(task => {
+    // A task is a main task if it doesn't have a parentTaskId and is not a subtask
+    return !task.parentTaskId && task.type !== 'subtask' && task.type !== 'childSubtask';
   });
 
-  if (!allAreParentTasks) {
+  if (!allAreMainTasks) {
     return {
       isValid: false,
-      message: 'All selected tasks must be parent tasks with subtasks'
+      message: 'Only main tasks can be copied. Subtasks and child tasks cannot be copied independently.'
     };
   }
 
   return {
     isValid: true,
-    message: `${selectedTasks.length} parent task(s) selected for copying`
+    message: `${selectedTasks.length} task(s) selected for copying`
   };
 };
 

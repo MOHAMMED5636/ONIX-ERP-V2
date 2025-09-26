@@ -11,7 +11,7 @@ import {
   ExclamationTriangleIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
-import EmployeeDetailsModal from './tasks/MainTable/EmployeeDetailsModal';
+import EngineerInviteModal from './tasks/MainTable/EngineerInviteModal';
 
 const SubtaskDetailModal = ({ 
   isOpen, 
@@ -29,13 +29,13 @@ const SubtaskDetailModal = ({
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState([]);
   
-  // Employee details modal state
-  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   
   // Project name editing state
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState('');
+  
+  // Engineer invite modal state
+  const [engineerInviteModalOpen, setEngineerInviteModalOpen] = useState(false);
 
   // Initialize form data when subtask changes
   useEffect(() => {
@@ -106,12 +106,6 @@ const SubtaskDetailModal = ({
     }
   };
 
-  // Handler for opening employee modal
-  const handleOpenEmployeeModal = (employeeId) => {
-    console.log('Opening employee modal for:', employeeId);
-    setSelectedEmployeeId(employeeId);
-    setEmployeeModalOpen(true);
-  };
 
   const handleAddComment = () => {
     if (newComment.trim()) {
@@ -123,6 +117,22 @@ const SubtaskDetailModal = ({
       };
       setComments(prev => [...prev, comment]);
       setNewComment('');
+    }
+  };
+
+  // Handle engineer invitation
+  const handleInviteEngineer = (inviteData) => {
+    console.log('Inviting engineer to subtask:', inviteData);
+    alert(`Engineer ${inviteData.engineerName} has been invited to work on "${inviteData.taskName}"!`);
+    
+    // Update the subtask assignee
+    if (onUpdate) {
+      const updatedSubtask = {
+        ...subtask,
+        assignee: inviteData.engineerName,
+        owner: inviteData.engineerId
+      };
+      onUpdate(updatedSubtask);
     }
   };
 
@@ -366,54 +376,28 @@ const SubtaskDetailModal = ({
                         placeholder="Enter assignee"
                       />
                     ) : (
-                      <div className="p-2 bg-gray-50 rounded-md">
-                        <button
-                          onClick={(e) => {
-                            console.log('Assignee clicked:', subtask.assignee);
-                            if (subtask.assignee && subtask.assignee !== 'Unassigned') {
-                              handleOpenEmployeeModal(subtask.assignee);
-                            }
-                          }}
-                          className="flex items-center gap-2 w-full text-left hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 cursor-pointer border border-transparent hover:border-blue-300"
-                          disabled={!subtask.assignee || subtask.assignee === 'Unassigned'}
-                          title={subtask.assignee && subtask.assignee !== 'Unassigned' ? "Click to view employee details" : "No employee assigned"}
-                        >
-                          <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                            {subtask.assignee?.charAt(0) || 'U'}
-                          </div>
-                          <span className="font-medium text-gray-900">{subtask.assignee || 'Unassigned'}</span>
-                          {subtask.assignee && subtask.assignee !== 'Unassigned' && (
-                            <span className="text-xs text-blue-500 ml-auto">👤</span>
-                          )}
-                        </button>
-                      </div>
+                    <div className="p-2 bg-gray-50 rounded-md">
+                      <span className="font-medium text-gray-900">{subtask.assignee || 'Unassigned'}</span>
+                    </div>
                     )}
                   </div>
 
-                  {/* Created By */}
+                  {/* Who is doing the task */}
                   <div>
-                    <label className="text-sm text-gray-600 block mb-2">Created By</label>
-                    <div className="p-2 bg-gray-50 rounded-md">
-                      <button
-                        onClick={(e) => {
-                          console.log('Created By clicked:', subtask.createdBy);
-                          // Use the fallback value if createdBy is not set
-                          const employeeId = subtask.createdBy || 'kaddour alkaddour';
-                          handleOpenEmployeeModal(employeeId);
-                        }}
-                        className="flex items-center gap-2 w-full text-left hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 cursor-pointer border border-transparent hover:border-blue-300"
-                        title="Click to view employee details"
-                        type="button"
-                      >
-                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {subtask.createdBy?.charAt(0) || 'K'}
+                    <label className="text-sm text-gray-600 block mb-2">Who is doing the task</label>
+                    <button
+                      onClick={() => setEngineerInviteModalOpen(true)}
+                      className="w-full p-2 bg-gray-50 rounded-md hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200 text-left"
+                      title="Click to invite engineer to this task"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {(subtask.assignee || 'U').charAt(0)}
                         </div>
-                        <span className="font-medium text-gray-900">{subtask.createdBy || 'kaddour alkaddour'}</span>
-                        {subtask.createdBy && (
-                          <span className="text-xs text-blue-500 ml-auto">👤</span>
-                        )}
-                      </button>
-                    </div>
+                        <span className="font-medium text-gray-900">{subtask.assignee || 'Unassigned'}</span>
+                        <span className="text-xs text-blue-500 ml-auto">👤</span>
+                      </div>
+                    </button>
                   </div>
 
                   {/* Status */}
@@ -772,53 +756,17 @@ const SubtaskDetailModal = ({
         </div>
       </div>
 
-      {/* Employee Details Modal - Simple Test Version */}
-      {employeeModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Employee Details</h2>
-              <button
-                onClick={() => {
-                  console.log('Closing employee modal');
-                  setEmployeeModalOpen(false);
-                  setSelectedEmployeeId(null);
-                }}
-                className="text-gray-500 hover:text-gray-700 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
-                  {selectedEmployeeId?.charAt(0) || 'K'}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedEmployeeId || 'kaddour alkaddour'}</h3>
-                  <p className="text-sm text-gray-600">Employee ID: {selectedEmployeeId}</p>
-                </div>
-              </div>
-              
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Employee Information</h4>
-                <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Name:</span> {selectedEmployeeId || 'kaddour alkaddour'}</p>
-                  <p><span className="font-medium">Position:</span> Senior Developer</p>
-                  <p><span className="font-medium">Department:</span> Engineering</p>
-                  <p><span className="font-medium">Status:</span> Active</p>
-                </div>
-              </div>
-              
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Assigned Tasks</h4>
-                <p className="text-sm text-gray-600">This employee is assigned to the current subtask: <strong>{subtask?.title || 'N/A'}</strong></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
+
+      {/* Engineer Invite Modal */}
+      <EngineerInviteModal
+        isOpen={engineerInviteModalOpen}
+        onClose={() => setEngineerInviteModalOpen(false)}
+        taskId={subtask?.id}
+        taskName={subtask?.title || subtask?.name}
+        currentAssignee={subtask?.assignee}
+        onInviteEngineer={handleInviteEngineer}
+      />
 
     </div>
   );

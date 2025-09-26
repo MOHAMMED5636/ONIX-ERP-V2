@@ -9,7 +9,11 @@ import {
   BuildingOfficeIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChartBarIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import ClientsAPI from '../services/clientsAPI';
 
@@ -158,6 +162,14 @@ const Clients = () => {
   const [documents, setDocuments] = useState([]);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [clientType, setClientType] = useState('');
+  const [companyInfo, setCompanyInfo] = useState({
+    corporateName: '',
+    website: '',
+    licenseNumber: '',
+    address: '',
+    description: ''
+  });
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -267,6 +279,14 @@ const Clients = () => {
     setUserAccount({ username: '', password: '', confirmPassword: '' });
     setDocuments([]);
     setUploadedDocuments([]);
+    setClientType('');
+    setCompanyInfo({
+      corporateName: '',
+      website: '',
+      licenseNumber: '',
+      address: '',
+      description: ''
+    });
     
     // Show success message
     const message = 'Client created successfully!' + 
@@ -281,6 +301,14 @@ const Clients = () => {
     setUserAccount({ username: '', password: '', confirmPassword: '' });
     setDocuments([]);
     setUploadedDocuments([]);
+    setClientType('');
+    setCompanyInfo({
+      corporateName: '',
+      website: '',
+      licenseNumber: '',
+      address: '',
+      description: ''
+    });
   };
 
   const handleFileUpload = (e) => {
@@ -359,6 +387,19 @@ const Clients = () => {
     return isCorporate === 'Company' ? BuildingOfficeIcon : UserIcon;
   };
 
+  // Calculate client statistics
+  const clientStats = {
+    total: clients.length,
+    companies: clients.filter(client => client.isCorporate === 'Company').length,
+    persons: clients.filter(client => client.isCorporate === 'Person').length,
+    rankA: clients.filter(client => client.rank === 'A').length,
+    rankB: clients.filter(client => client.rank === 'B').length,
+    rankC: clients.filter(client => client.rank === 'C').length,
+    socialMedia: clients.filter(client => client.leadSource === 'Social Media').length,
+    website: clients.filter(client => client.leadSource === 'Company Website').length,
+    friends: clients.filter(client => client.leadSource === 'Friends').length
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -384,6 +425,103 @@ const Clients = () => {
               <PlusIcon className="w-5 h-5" />
               Add Client
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Client Statistics */}
+      <div className="bg-white border-b border-gray-200 px-6 py-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Client Statistics</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Clients */}
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-blue-100 text-xs font-medium truncate">Total Clients</p>
+                <p className="text-xl font-bold">{clientStats.total}</p>
+              </div>
+              <ChartBarIcon className="h-6 w-6 text-blue-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Companies */}
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-green-100 text-xs font-medium truncate">Companies</p>
+                <p className="text-xl font-bold">{clientStats.companies}</p>
+              </div>
+              <BuildingOfficeIcon className="h-6 w-6 text-green-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Persons */}
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-purple-100 text-xs font-medium truncate">Persons</p>
+                <p className="text-xl font-bold">{clientStats.persons}</p>
+              </div>
+              <UserIcon className="h-6 w-6 text-purple-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Rank A Clients */}
+          <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-yellow-100 text-xs font-medium truncate">Rank A</p>
+                <p className="text-xl font-bold">{clientStats.rankA}</p>
+              </div>
+              <CheckCircleIcon className="h-6 w-6 text-yellow-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+        </div>
+        
+        {/* Additional Statistics Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {/* Social Media Leads */}
+          <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-pink-100 text-xs font-medium truncate">Social Media</p>
+                <p className="text-xl font-bold">{clientStats.socialMedia}</p>
+              </div>
+              <ClockIcon className="h-6 w-6 text-pink-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Website Leads */}
+          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-indigo-100 text-xs font-medium truncate">Website</p>
+                <p className="text-xl font-bold">{clientStats.website}</p>
+              </div>
+              <ExclamationTriangleIcon className="h-6 w-6 text-indigo-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Friends Leads */}
+          <div className="bg-gradient-to-br from-teal-500 to-cyan-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-teal-100 text-xs font-medium truncate">Friends</p>
+                <p className="text-xl font-bold">{clientStats.friends}</p>
+              </div>
+              <UserIcon className="h-6 w-6 text-teal-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Rank B Clients */}
+          <div className="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-amber-100 text-xs font-medium truncate">Rank B</p>
+                <p className="text-xl font-bold">{clientStats.rankB}</p>
+              </div>
+              <ClockIcon className="h-6 w-6 text-amber-200 flex-shrink-0 ml-2" />
+            </div>
           </div>
         </div>
       </div>
@@ -640,7 +778,11 @@ const Clients = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <select 
+                        value={clientType}
+                        onChange={(e) => setClientType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
                         <option value="">Select type</option>
                         <option value="Person">Person</option>
                         <option value="Company">Company</option>
@@ -694,6 +836,69 @@ const Clients = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Company Information - Only show when Company is selected */}
+                {clientType === 'Company' && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <BuildingOfficeIcon className="w-5 h-5 text-blue-600" />
+                      Company Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Corporate Name *</label>
+                        <input
+                          type="text"
+                          value={companyInfo.corporateName}
+                          onChange={(e) => setCompanyInfo({...companyInfo, corporateName: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter corporate name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                        <input
+                          type="url"
+                          value={companyInfo.website}
+                          onChange={(e) => setCompanyInfo({...companyInfo, website: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="https://company.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
+                        <input
+                          type="text"
+                          value={companyInfo.licenseNumber}
+                          onChange={(e) => setCompanyInfo({...companyInfo, licenseNumber: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter license number"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Corporate Address</label>
+                        <textarea
+                          value={companyInfo.address}
+                          onChange={(e) => setCompanyInfo({...companyInfo, address: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows="3"
+                          placeholder="Enter corporate address"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Description</label>
+                        <textarea
+                          value={companyInfo.description}
+                          onChange={(e) => setCompanyInfo({...companyInfo, description: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows="4"
+                          placeholder="Enter company description, services, or business details"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Additional Information */}
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -992,7 +1197,7 @@ const Clients = () => {
       {showViewModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowViewModal(false)}></div>
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Client Details</h2>
               <button
@@ -1002,40 +1207,90 @@ const Clients = () => {
                 <XMarkIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Reference Number</label>
-                  <p className="text-sm text-gray-900">{selectedClient.referenceNumber}</p>
+            <div className="p-6 overflow-y-auto flex-1 pb-8">
+              {/* Three-Section Layout */}
+              <div className="space-y-8">
+                
+                {/* Section 1: Basic Information */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">1</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Reference Number</label>
+                      <p className="text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border">{selectedClient.referenceNumber}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Name</label>
+                      <p className="text-sm text-gray-900 font-semibold bg-white px-3 py-2 rounded border">{selectedClient.name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Type</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.isCorporate}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Rank</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.rank}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Name</label>
-                  <p className="text-sm text-gray-900">{selectedClient.name}</p>
+
+                {/* Section 2: Contact Information */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">2</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">📧 Email</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">📞 Phone</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.phone}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-sm font-medium text-gray-700">📍 Address</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border min-h-[60px]">{selectedClient.address}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Type</label>
-                  <p className="text-sm text-gray-900">{selectedClient.isCorporate}</p>
+
+                {/* Section 3: Business Information */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">3</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Business Information</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Lead Source</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.leadSource}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Client Since</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.createdAt || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Status</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.status || 'Active'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Priority</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.priority || 'Medium'}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Lead Source</label>
-                  <p className="text-sm text-gray-900">{selectedClient.leadSource}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Rank</label>
-                  <p className="text-sm text-gray-900">{selectedClient.rank}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Email</label>
-                  <p className="text-sm text-gray-900">{selectedClient.email}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Phone</label>
-                  <p className="text-sm text-gray-900">{selectedClient.phone}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Address</label>
-                  <p className="text-sm text-gray-900">{selectedClient.address}</p>
-                </div>
+
               </div>
             </div>
           </div>

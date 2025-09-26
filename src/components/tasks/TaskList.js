@@ -26,6 +26,7 @@ import DocView from "./DocView";
 import CustomizableView from "./CustomizableView";
 import TaskSidebar from "./TaskSidebar";
 import AIChatbot from "./AIChatbot";
+import ProjectLifeCycle from "../ProjectLifeCycle";
 
 export default function TaskList() {
   const [activeTab, setActiveTab] = useState("main-table");
@@ -729,6 +730,7 @@ export default function TaskList() {
               {activeTab === "file-gallery" && <FileGallery />}
               {activeTab === "doc" && <DocView />}
               {activeTab === "custom-view" && <CustomizableView />}
+              {activeTab === "project-lifecycle" && <ProjectLifeCycle />}
             </div>
           )}
         </div>

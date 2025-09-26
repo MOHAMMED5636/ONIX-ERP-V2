@@ -40,9 +40,9 @@ import Toast from "./MainTable/Toast";
 import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 import TaskDetailsDrawer from "../TaskDetailsDrawer";
 import ChatDrawer from "./ChatDrawer";
-import EmployeeDetailsModal from "./MainTable/EmployeeDetailsModal";
 import useSocket from "../../hooks/useSocket";
 import { MessageCircle } from 'lucide-react';
+import EngineerInviteModal from "./MainTable/EngineerInviteModal";
 
 
 // Import utilities
@@ -219,6 +219,23 @@ export default function MainTable() {
   const handleCloseChat = () => {
     setIsChatOpen(false);
     setChatProject(null);
+  };
+
+  // Handle engineer invitation
+  const handleInviteEngineer = (inviteData) => {
+    console.log('Inviting engineer:', inviteData);
+    // Here you would typically send an API request to invite the engineer
+    // For now, we'll just show a success message
+    alert(`Engineer ${inviteData.engineerName} has been invited to work on "${inviteData.taskName}"!`);
+    
+    // You could also update the task's assignee here
+    // setTasks(prevTasks => 
+    //   prevTasks.map(task => 
+    //     task.id === inviteData.taskId 
+    //       ? { ...task, owner: inviteData.engineerId }
+    //       : task
+    //   )
+    // );
   };
 
   // Copy/Paste handlers
@@ -714,14 +731,10 @@ export default function MainTable() {
   const [attachmentsModalTarget, setAttachmentsModalTarget] = useState(null); // { type: 'main'|'sub'|'child', taskId, subId }
   const [attachmentsModalItems, setAttachmentsModalItems] = useState([]);
   
-  // Employee details modal state
-  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
-
-  // Debug employee modal state
-  useEffect(() => {
-    console.log('Employee modal state:', { employeeModalOpen, selectedEmployeeId });
-  }, [employeeModalOpen, selectedEmployeeId]);
+  // Engineer invite modal state
+  const [engineerInviteModalOpen, setEngineerInviteModalOpen] = useState(false);
+  const [engineerInviteTarget, setEngineerInviteTarget] = useState(null); // { taskId, taskName, currentAssignee }
+  
 
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
@@ -1058,15 +1071,19 @@ export default function MainTable() {
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
+    console.log('=== HANDLE EDIT SUBTASK CALLED ===');
     console.log('handleEditSubtask called with:', { taskId, subId, col, value });
     
-    // Handle employee modal opening
-    if (col === 'openEmployeeModal') {
-      console.log('Opening employee modal for:', value);
-      console.log('Current employee modal state:', { employeeModalOpen, selectedEmployeeId });
-      setSelectedEmployeeId(value);
-      setEmployeeModalOpen(true);
-      console.log('Employee modal state updated');
+    // Handle engineer invite modal opening
+    if (col === 'inviteEngineer') {
+      const task = tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(s => s.id === subId);
+      setEngineerInviteTarget({
+        taskId: subtask.id,
+        taskName: subtask.name,
+        currentAssignee: subtask.owner
+      });
+      setEngineerInviteModalOpen(true);
       return;
     }
     
@@ -1849,9 +1866,24 @@ export default function MainTable() {
         );
       case "owner":
         return (
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Child task employee badge clicked for invite:', childSub.owner);
+              // Handle engineer invite for child task
+              setEngineerInviteTarget({
+                taskId: childSub.id,
+                taskName: childSub.name,
+                currentAssignee: childSub.owner
+              });
+              setEngineerInviteModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm hover:bg-pink-300 transition-colors cursor-pointer"
+            title={`Click to invite engineer to ${childSub.name}`}
+          >
             {childSub.owner}
-          </span>
+          </button>
         );
       case "timeline":
         const childTimelineHasPredecessors = childSub.predecessors && childSub.predecessors.toString().trim() !== '';
@@ -2979,6 +3011,7 @@ export default function MainTable() {
         onClearSelection={handleClearSelection}
         onShowToast={showToast}
         allTasks={tasks}
+        filteredTasks={filteredTasks}
         onTasksPasted={handleTasksPasted}
       />
 
@@ -3021,17 +3054,6 @@ export default function MainTable() {
         chatType={chatType}
       />
 
-      {/* Employee Details Modal */}
-      <EmployeeDetailsModal
-        isOpen={employeeModalOpen}
-        onClose={() => {
-          console.log('Closing employee modal');
-          setEmployeeModalOpen(false);
-          setSelectedEmployeeId(null);
-        }}
-        employeeId={selectedEmployeeId}
-        allTasks={tasks}
-      />
       
 
 
@@ -3043,6 +3065,16 @@ export default function MainTable() {
         tasks={tasks}
         onExecutePaste={executeBulkPaste}
         onSetPasteTarget={setPasteTarget}
+      />
+
+      {/* Engineer Invite Modal */}
+      <EngineerInviteModal
+        isOpen={engineerInviteModalOpen}
+        onClose={() => setEngineerInviteModalOpen(false)}
+        taskId={engineerInviteTarget?.taskId}
+        taskName={engineerInviteTarget?.taskName}
+        currentAssignee={engineerInviteTarget?.currentAssignee}
+        onInviteEngineer={handleInviteEngineer}
       />
 
     </div>

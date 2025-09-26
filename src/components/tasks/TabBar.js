@@ -7,7 +7,8 @@ import {
   PhotoIcon, 
   DocumentTextIcon, 
   Cog6ToothIcon, 
-  DocumentPlusIcon 
+  DocumentPlusIcon,
+  ArrowPathIcon
 } from "@heroicons/react/24/outline";
 
 const tabs = [
@@ -19,6 +20,7 @@ const tabs = [
   { key: "doc", label: "Doc", icon: DocumentTextIcon },
   { key: "custom-view", label: "Customizable View", icon: Cog6ToothIcon },
   { key: "form", label: "Form", icon: DocumentPlusIcon },
+  { key: "project-lifecycle", label: "Project Life Cycle", icon: ArrowPathIcon },
 ];
 
 export default function TabBar({ activeTab, setActiveTab }) {

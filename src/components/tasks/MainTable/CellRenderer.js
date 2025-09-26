@@ -454,17 +454,13 @@ const CellRenderer = {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('Employee badge clicked:', sub.owner);
-              console.log('onEdit function available:', !!onEdit);
+              console.log('Employee badge clicked for invite:', sub.owner);
               if (onEdit) {
-                console.log('Calling onEdit with:', task.id, sub.id, "openEmployeeModal", sub.owner);
-                onEdit(task.id, sub.id, "openEmployeeModal", sub.owner);
-              } else {
-                console.error('onEdit function not available');
+                onEdit(task.id, sub.id, "inviteEngineer", sub.owner);
               }
             }}
             className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs bg-pink-200 text-pink-700 border border-white shadow-sm hover:bg-pink-300 transition-colors cursor-pointer"
-            title={`View ${sub.owner} details`}
+            title={`Click to invite engineer to ${sub.name}`}
           >
             {sub.owner}
           </button>
