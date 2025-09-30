@@ -404,15 +404,23 @@ export default function MainTable() {
       }
     });
 
+    // Remove duplicates from selectedTasks to prevent multiple copies
+    const uniqueTasks = selectedTasks.filter((task, index, self) => 
+      index === self.findIndex(t => t.id === task.id)
+    );
+
+    console.log('Copy operation - Selected tasks:', selectedTasks.map(t => ({ id: t.id, name: t.name })));
+    console.log('Copy operation - Unique tasks:', uniqueTasks.map(t => ({ id: t.id, name: t.name })));
+
     setBulkCopiedItems({
-      tasks: selectedTasks,
+      tasks: uniqueTasks,
       subtasks: selectedSubtasks,
       childTasks: selectedChildTasks
     });
 
-    const totalItems = selectedTasks.length + selectedSubtasks.length + selectedChildTasks.length;
+    const totalItems = uniqueTasks.length + selectedSubtasks.length + selectedChildTasks.length;
     setToast({ 
-      message: `${totalItems} items copied to clipboard (${selectedTasks.length} tasks, ${selectedSubtasks.length} subtasks, ${selectedChildTasks.length} child tasks)`, 
+      message: `${totalItems} items copied to clipboard (${uniqueTasks.length} tasks, ${selectedSubtasks.length} subtasks, ${selectedChildTasks.length} child tasks)`, 
       type: 'success' 
     });
   };
@@ -427,12 +435,42 @@ export default function MainTable() {
   };
 
   const executeBulkPaste = (targetTask) => {
+    console.log('executeBulkPaste called with:', { targetTask, bulkCopiedItems });
+    
+    // Prevent multiple executions
+    if (bulkCopiedItems.tasks.length === 0) {
+      console.log('No tasks to paste, skipping');
+      return;
+    }
+    
+    // Check if paste is already in progress
+    if (isPasteInProgress.current) {
+      console.log('Paste already in progress, skipping');
+      return;
+    }
+    
+    // Set paste in progress flag
+    isPasteInProgress.current = true;
+    
     const newTasks = [];
     const newSubtasks = [];
     const newChildTasks = [];
 
-    // Copy tasks
+    // Copy tasks (projects) - create new independent projects
+    // Use a Set to track unique projects to avoid duplicates
+    const processedTaskIds = new Set();
+    
+    console.log('Processing tasks:', bulkCopiedItems.tasks.map(t => ({ id: t.id, name: t.name })));
+    
     bulkCopiedItems.tasks.forEach(task => {
+      // Skip if we've already processed this task (avoid duplicates)
+      if (processedTaskIds.has(task.id)) {
+        console.log('Skipping duplicate task:', task.id, task.name);
+        return;
+      }
+      processedTaskIds.add(task.id);
+      console.log('Processing task:', task.id, task.name);
+      
       const newTask = {
         ...task,
         id: Date.now() + Math.random(),
@@ -451,6 +489,19 @@ export default function MainTable() {
       };
       newTasks.push(newTask);
     });
+
+    // Add new projects to the tasks list (at the beginning)
+    if (newTasks.length > 0) {
+      console.log('Adding new tasks to list:', newTasks.map(t => ({ id: t.id, name: t.name })));
+      setTasks(prev => {
+        console.log('Previous tasks count:', prev.length);
+        console.log('Previous tasks:', prev.map(t => ({ id: t.id, name: t.name })));
+        const updated = [...newTasks, ...prev];
+        console.log('Updated tasks count:', updated.length);
+        console.log('Updated tasks:', updated.map(t => ({ id: t.id, name: t.name })));
+        return updated;
+      });
+    }
 
     // Copy subtasks to target task
     if (targetTask && bulkCopiedItems.subtasks.length > 0) {
@@ -497,19 +548,26 @@ export default function MainTable() {
       }
     }
 
-    // Add new tasks to the tasks array
-    if (newTasks.length > 0) {
-      setTasks(prevTasks => [...prevTasks, ...newTasks]);
-    }
+    // Note: newTasks are already added above at line 496, no need to add again
 
     const totalPasted = newTasks.length + bulkCopiedItems.subtasks.length + bulkCopiedItems.childTasks.length;
-    setToast({ 
-      message: `${totalPasted} items pasted successfully`, 
-      type: 'success' 
+    setToast({
+      message: `${newTasks.length} project(s) duplicated successfully`,
+      type: 'success'
+    });
+
+    // Clear the clipboard after paste to prevent multiple pastes
+    setBulkCopiedItems({
+      tasks: [],
+      subtasks: [],
+      childTasks: []
     });
 
     setShowBulkPasteModal(false);
     setPasteTarget(null);
+    
+    // Reset paste in progress flag
+    isPasteInProgress.current = false;
   };
 
   const closeBulkPasteModal = () => {
@@ -705,7 +763,7 @@ export default function MainTable() {
   const [editSubValue, setEditSubValue] = useState("");
   const [showAddColumnDropdown, setShowAddColumnDropdown] = useState(false);
   // Add two separate expanded state objects
-  const [expandedActive, setExpandedActive] = useState({}); // For active projects
+  const [expandedActive, setExpandedActive] = useState({}); // For active projects - start with no projects expanded
   const [expandedCompleted, setExpandedCompleted] = useState({}); // For completed projects
   // Track a single expanded project id for conditional headers
   const [expandedProjectId, setExpandedProjectId] = useState(null);
@@ -742,6 +800,8 @@ export default function MainTable() {
   const [arrowPos, setArrowPos] = useState({}); // {taskId: {x1, y1, x2, y2}}
   // Add a ref for the main task name span
   const mainTaskNameRefs = useRef({}); // {taskId: ref}
+  // Add a ref to track if paste operation is in progress
+  const isPasteInProgress = useRef(false);
 
   useLayoutEffect(() => {
     const newArrowPos = {};
@@ -2636,6 +2696,9 @@ export default function MainTable() {
                               setAttachmentsModalOpen(true);
                             }}
                             onOpenChat={handleOpenChat}
+                            visibleColumns={visibleColumns}
+                            onToggleColumn={handleToggleColumn}
+                            onResetColumns={handleResetColumns}
                           />
                       {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
@@ -3013,6 +3076,10 @@ export default function MainTable() {
         allTasks={tasks}
         filteredTasks={filteredTasks}
         onTasksPasted={handleTasksPasted}
+        onCopy={handleBulkCopy}
+        onPaste={() => setShowBulkPasteModal(true)}
+        bulkCopiedItems={bulkCopiedItems}
+        showBulkPasteModal={showBulkPasteModal}
       />
 
       <BulkEditDrawer

@@ -3,9 +3,11 @@ import {
   PencilIcon,
   TrashIcon,
   EyeIcon,
-  XMarkIcon
+  XMarkIcon,
+  ClipboardDocumentIcon,
+  DocumentDuplicateIcon
 } from "@heroicons/react/24/outline";
-import TaskCopyPasteManager from './TaskCopyPasteManager';
+// import TaskCopyPasteManager from './TaskCopyPasteManager'; // Removed - using BulkPasteModal instead
 
 const BulkActionBar = ({ 
   selectedTasks, 
@@ -19,7 +21,11 @@ const BulkActionBar = ({
   onShowToast,
   allTasks,
   filteredTasks = [],
-  onTasksPasted
+  onTasksPasted,
+  onCopy,
+  onPaste,
+  bulkCopiedItems,
+  showBulkPasteModal
 }) => {
   if (totalSelected < 1) return null;
 
@@ -90,21 +96,30 @@ const BulkActionBar = ({
               View
             </button>
 
-            
-            {/* Copy-Paste Manager */}
-            <TaskCopyPasteManager
-              selectedTasks={selectedTasks}
-              selectedSubtasks={selectedSubtasks}
-              allTasks={allTasks}
-              filteredTasks={filteredTasks}
-              onTasksPasted={onTasksPasted}
-              onCopySuccess={(copiedData) => {
-                console.log('Tasks copied successfully:', copiedData);
-              }}
-              onPasteSuccess={(pasteResult) => {
-                console.log('Tasks pasted successfully:', pasteResult);
-              }}
-            />
+            {/* Copy Button */}
+            <button
+              onClick={onCopy}
+              className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors text-sm"
+              title="Copy selected items"
+            >
+              <ClipboardDocumentIcon className="w-4 h-4" />
+              Copy
+            </button>
+
+            {/* Paste Button */}
+            <button
+              onClick={onPaste}
+              disabled={!bulkCopiedItems || (bulkCopiedItems.tasks.length === 0 && bulkCopiedItems.subtasks.length === 0 && bulkCopiedItems.childTasks.length === 0)}
+              className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
+                bulkCopiedItems && (bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0)
+                  ? 'bg-green-500 text-white hover:bg-green-600'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={bulkCopiedItems && (bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0) ? "Paste copied items" : "No items to paste"}
+            >
+              <DocumentDuplicateIcon className="w-4 h-4" />
+              Paste
+            </button>
             
             <button
               onClick={handleDelete}

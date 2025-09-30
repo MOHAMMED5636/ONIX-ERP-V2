@@ -16,9 +16,8 @@ const BulkPasteModal = ({
   const totalItems = bulkCopiedItems.tasks.length + bulkCopiedItems.subtasks.length + bulkCopiedItems.childTasks.length;
 
   const handlePaste = () => {
-    if (selectedTarget) {
-      onExecutePaste(selectedTarget);
-    }
+    // For project duplication, we don't need a target - just duplicate the projects
+    onExecutePaste(null);
   };
 
   const handleTargetChange = (e) => {
@@ -47,8 +46,8 @@ const BulkPasteModal = ({
                   <ClipboardDocumentIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">Paste Tasks</h2>
-                  <p className="text-white/80 text-sm">Select target for pasting</p>
+                  <h2 className="text-xl font-bold">Paste Projects</h2>
+                  <p className="text-white/80 text-sm">Duplicate projects as new independent projects</p>
                 </div>
               </div>
               <button
@@ -72,7 +71,7 @@ const BulkPasteModal = ({
                 {bulkCopiedItems.tasks.length > 0 && (
                   <div className="flex items-center gap-2 text-blue-600">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium">{bulkCopiedItems.tasks.length} parent task(s)</span>
+                    <span className="font-medium">{bulkCopiedItems.tasks.length} project(s)</span>
                   </div>
                 )}
                 {bulkCopiedItems.subtasks.length > 0 && (
@@ -93,48 +92,25 @@ const BulkPasteModal = ({
               </div>
             </div>
 
-            {/* Target Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Target Project
-              </label>
-              <select
-                value={selectedTarget?.id || ''}
-                onChange={handleTargetChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              >
-                <option value="">Choose a project...</option>
-                {tasks.map(task => (
-                  <option key={task.id} value={task.id}>
-                    {task.name} ({task.referenceNumber})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0 
-                  ? "Subtasks and child tasks will be pasted into the selected project"
-                  : "Tasks will be created as new projects"
-                }
-              </p>
-            </div>
-
-            {/* Preview */}
-            {selectedTarget && (
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-blue-800 mb-2">Paste Preview:</h4>
-                <div className="text-sm text-blue-700">
-                  {bulkCopiedItems.tasks.length > 0 && (
-                    <div>• {bulkCopiedItems.tasks.length} new project(s) will be created</div>
-                  )}
-                  {bulkCopiedItems.subtasks.length > 0 && (
-                    <div>• {bulkCopiedItems.subtasks.length} subtask(s) will be added to "{selectedTarget.name}"</div>
-                  )}
-                  {bulkCopiedItems.childTasks.length > 0 && (
-                    <div>• {bulkCopiedItems.childTasks.length} child task(s) will be added to their parent subtasks</div>
-                  )}
+            {/* Project Duplication Info */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-blue-800 mb-2">Duplication Preview:</h4>
+              <div className="text-sm text-blue-700">
+                {bulkCopiedItems.tasks.length > 0 && (
+                  <div>• {bulkCopiedItems.tasks.length} new project(s) will be created as duplicates</div>
+                )}
+                {bulkCopiedItems.subtasks.length > 0 && (
+                  <div>• {bulkCopiedItems.subtasks.length} subtask(s) will be duplicated</div>
+                )}
+                {bulkCopiedItems.childTasks.length > 0 && (
+                  <div>• {bulkCopiedItems.childTasks.length} child task(s) will be duplicated</div>
+                )}
+                <div className="mt-2 text-blue-600 font-medium">
+                  Projects will be duplicated as new independent projects below the original ones.
                 </div>
               </div>
-            )}
+            </div>
+
           </div>
 
           {/* Footer */}
@@ -147,14 +123,14 @@ const BulkPasteModal = ({
             </button>
             <button
               onClick={handlePaste}
-              disabled={!selectedTarget && bulkCopiedItems.tasks.length === 0}
+              disabled={bulkCopiedItems.tasks.length === 0 && bulkCopiedItems.subtasks.length === 0 && bulkCopiedItems.childTasks.length === 0}
               className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
-                selectedTarget || bulkCopiedItems.tasks.length > 0
+                bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0
                   ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              Paste Tasks
+              Duplicate Projects
             </button>
           </div>
         </div>
@@ -164,5 +140,8 @@ const BulkPasteModal = ({
 };
 
 export default BulkPasteModal;
+
+
+
 
 

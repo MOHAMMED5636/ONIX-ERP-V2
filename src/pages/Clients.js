@@ -13,7 +13,9 @@ import {
   ChartBarIcon,
   CheckCircleIcon,
   ClockIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  StarIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline';
 import ClientsAPI from '../services/clientsAPI';
 
@@ -376,9 +378,10 @@ const Clients = () => {
 
   const getRankColor = (rank) => {
     switch (rank) {
-      case 'A': return 'bg-green-100 text-green-800';
-      case 'B': return 'bg-yellow-100 text-yellow-800';
-      case 'C': return 'bg-red-100 text-red-800';
+      case 'Gold': return 'bg-yellow-100 text-yellow-800';
+      case 'Silver': return 'bg-gray-100 text-gray-800';
+      case 'Diamond': return 'bg-blue-100 text-blue-800';
+      case 'VIP': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -392,9 +395,10 @@ const Clients = () => {
     total: clients.length,
     companies: clients.filter(client => client.isCorporate === 'Company').length,
     persons: clients.filter(client => client.isCorporate === 'Person').length,
-    rankA: clients.filter(client => client.rank === 'A').length,
-    rankB: clients.filter(client => client.rank === 'B').length,
-    rankC: clients.filter(client => client.rank === 'C').length,
+    rankGold: clients.filter(client => client.rank === 'Gold').length,
+    rankSilver: clients.filter(client => client.rank === 'Silver').length,
+    rankDiamond: clients.filter(client => client.rank === 'Diamond').length,
+    rankVIP: clients.filter(client => client.rank === 'VIP').length,
     socialMedia: clients.filter(client => client.leadSource === 'Social Media').length,
     website: clients.filter(client => client.leadSource === 'Company Website').length,
     friends: clients.filter(client => client.leadSource === 'Friends').length
@@ -466,12 +470,12 @@ const Clients = () => {
             </div>
           </div>
           
-          {/* Rank A Clients */}
+          {/* Gold Clients */}
           <div className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-yellow-100 text-xs font-medium truncate">Rank A</p>
-                <p className="text-xl font-bold">{clientStats.rankA}</p>
+                <p className="text-yellow-100 text-xs font-medium truncate">Gold</p>
+                <p className="text-xl font-bold">{clientStats.rankGold}</p>
               </div>
               <CheckCircleIcon className="h-6 w-6 text-yellow-200 flex-shrink-0 ml-2" />
             </div>
@@ -513,14 +517,36 @@ const Clients = () => {
             </div>
           </div>
           
-          {/* Rank B Clients */}
-          <div className="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+          {/* Silver Clients */}
+          <div className="bg-gradient-to-br from-gray-500 to-slate-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-amber-100 text-xs font-medium truncate">Rank B</p>
-                <p className="text-xl font-bold">{clientStats.rankB}</p>
+                <p className="text-gray-100 text-xs font-medium truncate">Silver</p>
+                <p className="text-xl font-bold">{clientStats.rankSilver}</p>
               </div>
-              <ClockIcon className="h-6 w-6 text-amber-200 flex-shrink-0 ml-2" />
+              <ClockIcon className="h-6 w-6 text-gray-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* Diamond Clients */}
+          <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-blue-100 text-xs font-medium truncate">Diamond</p>
+                <p className="text-xl font-bold">{clientStats.rankDiamond}</p>
+              </div>
+              <StarIcon className="h-6 w-6 text-blue-200 flex-shrink-0 ml-2" />
+            </div>
+          </div>
+          
+          {/* VIP Clients */}
+          <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-purple-100 text-xs font-medium truncate">VIP</p>
+                <p className="text-xl font-bold">{clientStats.rankVIP}</p>
+              </div>
+              <TrophyIcon className="h-6 w-6 text-purple-200 flex-shrink-0 ml-2" />
             </div>
           </div>
         </div>
@@ -802,9 +828,9 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Rank *</label>
                       <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Select rank</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
+                        <option value="Gold">Gold</option>
+                        <option value="Diamond">Diamond</option>
+                        <option value="Silver">Silver</option>
                         <option value="VIP">VIP</option>
                       </select>
                     </div>
@@ -909,11 +935,103 @@ const Clients = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter nationality"
-                      />
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select nationality</option>
+                        <option value="Afghan">Afghan</option>
+                        <option value="Albanian">Albanian</option>
+                        <option value="Algerian">Algerian</option>
+                        <option value="American">American</option>
+                        <option value="Argentine">Argentine</option>
+                        <option value="Armenian">Armenian</option>
+                        <option value="Australian">Australian</option>
+                        <option value="Austrian">Austrian</option>
+                        <option value="Azerbaijani">Azerbaijani</option>
+                        <option value="Bahraini">Bahraini</option>
+                        <option value="Bangladeshi">Bangladeshi</option>
+                        <option value="Belgian">Belgian</option>
+                        <option value="Brazilian">Brazilian</option>
+                        <option value="British">British</option>
+                        <option value="Bulgarian">Bulgarian</option>
+                        <option value="Burmese">Burmese</option>
+                        <option value="Cambodian">Cambodian</option>
+                        <option value="Canadian">Canadian</option>
+                        <option value="Chilean">Chilean</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="Colombian">Colombian</option>
+                        <option value="Croatian">Croatian</option>
+                        <option value="Cypriot">Cypriot</option>
+                        <option value="Czech">Czech</option>
+                        <option value="Danish">Danish</option>
+                        <option value="Dutch">Dutch</option>
+                        <option value="Egyptian">Egyptian</option>
+                        <option value="Estonian">Estonian</option>
+                        <option value="Ethiopian">Ethiopian</option>
+                        <option value="Filipino">Filipino</option>
+                        <option value="Finnish">Finnish</option>
+                        <option value="French">French</option>
+                        <option value="Georgian">Georgian</option>
+                        <option value="German">German</option>
+                        <option value="Ghanaian">Ghanaian</option>
+                        <option value="Greek">Greek</option>
+                        <option value="Hungarian">Hungarian</option>
+                        <option value="Icelandic">Icelandic</option>
+                        <option value="Indian">Indian</option>
+                        <option value="Indonesian">Indonesian</option>
+                        <option value="Iranian">Iranian</option>
+                        <option value="Iraqi">Iraqi</option>
+                        <option value="Irish">Irish</option>
+                        <option value="Israeli">Israeli</option>
+                        <option value="Italian">Italian</option>
+                        <option value="Japanese">Japanese</option>
+                        <option value="Jordanian">Jordanian</option>
+                        <option value="Kazakhstani">Kazakhstani</option>
+                        <option value="Kenyan">Kenyan</option>
+                        <option value="Korean">Korean</option>
+                        <option value="Kuwaiti">Kuwaiti</option>
+                        <option value="Latvian">Latvian</option>
+                        <option value="Lebanese">Lebanese</option>
+                        <option value="Libyan">Libyan</option>
+                        <option value="Lithuanian">Lithuanian</option>
+                        <option value="Luxembourgish">Luxembourgish</option>
+                        <option value="Malaysian">Malaysian</option>
+                        <option value="Maltese">Maltese</option>
+                        <option value="Mexican">Mexican</option>
+                        <option value="Moroccan">Moroccan</option>
+                        <option value="Nepalese">Nepalese</option>
+                        <option value="New Zealander">New Zealander</option>
+                        <option value="Nigerian">Nigerian</option>
+                        <option value="Norwegian">Norwegian</option>
+                        <option value="Omani">Omani</option>
+                        <option value="Pakistani">Pakistani</option>
+                        <option value="Palestinian">Palestinian</option>
+                        <option value="Peruvian">Peruvian</option>
+                        <option value="Polish">Polish</option>
+                        <option value="Portuguese">Portuguese</option>
+                        <option value="Qatari">Qatari</option>
+                        <option value="Romanian">Romanian</option>
+                        <option value="Russian">Russian</option>
+                        <option value="Saudi Arabian">Saudi Arabian</option>
+                        <option value="Singaporean">Singaporean</option>
+                        <option value="Slovak">Slovak</option>
+                        <option value="Slovenian">Slovenian</option>
+                        <option value="South African">South African</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="Sri Lankan">Sri Lankan</option>
+                        <option value="Sudanese">Sudanese</option>
+                        <option value="Swedish">Swedish</option>
+                        <option value="Swiss">Swiss</option>
+                        <option value="Syrian">Syrian</option>
+                        <option value="Thai">Thai</option>
+                        <option value="Tunisian">Tunisian</option>
+                        <option value="Turkish">Turkish</option>
+                        <option value="Ukrainian">Ukrainian</option>
+                        <option value="Emirati">Emirati</option>
+                        <option value="Uruguayan">Uruguayan</option>
+                        <option value="Venezuelan">Venezuelan</option>
+                        <option value="Vietnamese">Vietnamese</option>
+                        <option value="Yemeni">Yemeni</option>
+                        <option value="Zimbabwean">Zimbabwean</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
@@ -921,6 +1039,13 @@ const Clients = () => {
                         type="text"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter ID number"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ID Expiry Date</label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                     <div>

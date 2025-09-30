@@ -3,7 +3,20 @@ import { UserIcon, BriefcaseIcon, CalendarIcon, EnvelopeIcon, PhoneIcon, UsersIc
 import { useNavigate } from 'react-router-dom';
 
 const leadSources = ["Company Website", "Social Media", "Referral", "Friends"];
-const ranks = ["A", "B", "C", "VIP"];
+const ranks = ["Gold", "Diamond", "Silver", "VIP"];
+// Nationality options for dropdown
+const nationalities = [
+  "Afghan", "Albanian", "Algerian", "American", "Argentine", "Armenian", "Australian", "Austrian", "Azerbaijani",
+  "Bahraini", "Bangladeshi", "Belgian", "Brazilian", "British", "Bulgarian", "Burmese", "Cambodian", "Canadian",
+  "Chilean", "Chinese", "Colombian", "Croatian", "Cypriot", "Czech", "Danish", "Dutch", "Egyptian", "Estonian",
+  "Ethiopian", "Filipino", "Finnish", "French", "Georgian", "German", "Ghanaian", "Greek", "Hungarian", "Icelandic",
+  "Indian", "Indonesian", "Iranian", "Iraqi", "Irish", "Israeli", "Italian", "Japanese", "Jordanian", "Kazakhstani",
+  "Kenyan", "Korean", "Kuwaiti", "Latvian", "Lebanese", "Libyan", "Lithuanian", "Luxembourgish", "Malaysian",
+  "Maltese", "Mexican", "Moroccan", "Nepalese", "New Zealander", "Nigerian", "Norwegian", "Omani", "Pakistani",
+  "Palestinian", "Peruvian", "Polish", "Portuguese", "Qatari", "Romanian", "Russian", "Saudi Arabian", "Singaporean",
+  "Slovak", "Slovenian", "South African", "Spanish", "Sri Lankan", "Sudanese", "Swedish", "Swiss", "Syrian",
+  "Thai", "Tunisian", "Turkish", "Ukrainian", "Emirati", "Uruguayan", "Venezuelan", "Vietnamese", "Yemeni", "Zimbabwean"
+];
 
 export default function CreateClient() {
   const navigate = useNavigate();
@@ -251,12 +264,17 @@ export default function CreateClient() {
                   {errors.idNumber && <div className="text-red-500 text-xs">{errors.idNumber}</div>}
                 </div>
                 <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ID End Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ID Expiry Date</label>
                   <input type="date" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={clientInfo.idEndDate} onChange={e => handleClientInfoChange('idEndDate', e.target.value)} />
                 </div>
                 <div className="w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nationality <span className="text-red-500">*</span></label>
-                  <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Nationality" value={clientInfo.nationality} onChange={e => handleClientInfoChange('nationality', e.target.value)} />
+                  <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={clientInfo.nationality} onChange={e => handleClientInfoChange('nationality', e.target.value)}>
+                    <option value="">Select nationality</option>
+                    {nationalities.map(nationality => (
+                      <option key={nationality} value={nationality}>{nationality}</option>
+                    ))}
+                  </select>
                   {errors.nationality && <div className="text-red-500 text-xs">{errors.nationality}</div>}
                 </div>
                 <div className="w-full">
