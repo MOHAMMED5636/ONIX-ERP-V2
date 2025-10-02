@@ -87,7 +87,7 @@ export const AIAssistantProvider = ({ children }) => {
         ]
       },
       tasks: {
-        title: "Task Management",
+        title: "Project Management",
         description: "Organize and track project tasks efficiently",
         tips: [
           "Use bulk actions to update multiple tasks at once",

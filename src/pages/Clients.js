@@ -18,6 +18,7 @@ import {
   TrophyIcon
 } from '@heroicons/react/24/outline';
 import ClientsAPI from '../services/clientsAPI';
+import DocumentUploadForm, { DOCUMENT_TYPES_MASTER } from '../components/DocumentUploadForm';
 
 // Mock data - replace with API call
 const mockClients = [
@@ -27,10 +28,17 @@ const mockClients = [
       name: 'KVIEM REAL ESTATE LLC',
       isCorporate: 'Company',
       leadSource: 'Social Media',
-      rank: 'A',
+      rank: 'Gold',
       email: 'kviem@realestate.com',
       phone: '+971 50 123 4567',
       address: 'Dubai, UAE',
+      idNumber: '784-1985-1234567-8',
+      idEndDate: '2025-12-31',
+      nationality: 'Emirati',
+      passportNumber: 'A1234567',
+      birthDate: '1985-06-15',
+      trnNumber: 'TRN123456789',
+      ibanNumber: 'AE070331234567890123456',
       createdAt: '2024-01-15'
     },
     {
@@ -39,10 +47,15 @@ const mockClients = [
       name: 'JAGGIM SALMAN',
       isCorporate: 'Person',
       leadSource: 'Company Website',
-      rank: 'B',
+      rank: 'Silver',
       email: 'jaggim@email.com',
       phone: '+971 50 234 5678',
       address: 'Abu Dhabi, UAE',
+      idNumber: '784-1990-2345678-9',
+      idEndDate: '2026-03-15',
+      nationality: 'Pakistani',
+      passportNumber: 'B2345678',
+      birthDate: '1990-03-15',
       createdAt: '2024-01-20'
     },
     {
@@ -51,7 +64,7 @@ const mockClients = [
       name: 'MAZEN IBRAHIM ALNATOUR',
       isCorporate: 'Person',
       leadSource: 'Friends',
-      rank: 'A',
+      rank: 'Gold',
       email: 'mazen@email.com',
       phone: '+971 50 345 6789',
       address: 'Sharjah, UAE',
@@ -63,7 +76,7 @@ const mockClients = [
       name: 'AHMAD MOHAMMED ABDULRAHMAN AHMAD',
       isCorporate: 'Person',
       leadSource: 'Social Media',
-      rank: 'C',
+      rank: 'Diamond',
       email: 'ahmad@email.com',
       phone: '+971 50 456 7890',
       address: 'Ajman, UAE',
@@ -75,7 +88,7 @@ const mockClients = [
       name: 'SUNNY MAHESH VASWIANI',
       isCorporate: 'Person',
       leadSource: 'Company Website',
-      rank: 'B',
+      rank: 'Silver',
       email: 'sunny@email.com',
       phone: '+971 50 567 8901',
       address: 'Dubai, UAE',
@@ -87,7 +100,7 @@ const mockClients = [
       name: 'MAD ABDULLA ALMI',
       isCorporate: 'Person',
       leadSource: 'Friends',
-      rank: 'A',
+      rank: 'Gold',
       email: 'mad@email.com',
       phone: '+971 50 678 9012',
       address: 'Ras Al Khaimah, UAE',
@@ -99,7 +112,7 @@ const mockClients = [
       name: 'ZAHID HASAN',
       isCorporate: 'Person',
       leadSource: 'Social Media',
-      rank: 'B',
+      rank: 'Silver',
       email: 'zahid@email.com',
       phone: '+971 50 789 0123',
       address: 'Fujairah, UAE',
@@ -111,7 +124,7 @@ const mockClients = [
       name: 'RASHID SAEED ALMANSOORI',
       isCorporate: 'Person',
       leadSource: 'Company Website',
-      rank: 'C',
+      rank: 'Diamond',
       email: 'rashid@email.com',
       phone: '+971 50 890 1234',
       address: 'Umm Al Quwain, UAE',
@@ -123,7 +136,7 @@ const mockClients = [
       name: 'PRINCESS AL JOHARA AHMED SAUD AL SAUD',
       isCorporate: 'Person',
       leadSource: 'Friends',
-      rank: 'A',
+      rank: 'Gold',
       email: 'princess@email.com',
       phone: '+971 50 901 2345',
       address: 'Dubai, UAE',
@@ -135,11 +148,30 @@ const mockClients = [
       name: 'RANIA AGAMOU',
       isCorporate: 'Person',
       leadSource: 'Social Media',
-      rank: 'B',
+      rank: 'Silver',
       email: 'rania@email.com',
       phone: '+971 50 012 3456',
       address: 'Abu Dhabi, UAE',
       createdAt: '2024-03-01'
+    },
+    {
+      id: 11,
+      referenceNumber: 'O-CL-2523',
+      name: 'VIP CLIENT LLC',
+      isCorporate: 'Company',
+      leadSource: 'Company Website',
+      rank: 'VIP',
+      email: 'vip@client.com',
+      phone: '+971 50 999 9999',
+      address: 'Dubai, UAE',
+      idNumber: '784-1980-9999999-9',
+      idEndDate: '2027-12-31',
+      nationality: 'Emirati',
+      passportNumber: 'VIP999999',
+      birthDate: '1980-01-01',
+      trnNumber: 'TRN999999999',
+      ibanNumber: 'AE070339999999999999999',
+      createdAt: '2024-03-15'
     }
   ];
 
@@ -170,7 +202,9 @@ const Clients = () => {
     website: '',
     licenseNumber: '',
     address: '',
-    description: ''
+    description: '',
+    trnNumber: '',
+    ibanNumber: ''
   });
 
   useEffect(() => {
@@ -287,7 +321,9 @@ const Clients = () => {
       website: '',
       licenseNumber: '',
       address: '',
-      description: ''
+      description: '',
+      trnNumber: '',
+      ibanNumber: ''
     });
     
     // Show success message
@@ -309,17 +345,84 @@ const Clients = () => {
       website: '',
       licenseNumber: '',
       address: '',
-      description: ''
+      description: '',
+      trnNumber: '',
+      ibanNumber: ''
     });
   };
 
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     setDocuments(prev => [...prev, ...files]);
+    
+    // Immediately add files to uploaded documents for instant preview
+    const newUploadedDocs = files.map(file => ({
+      id: Date.now() + Math.random(),
+      fileName: file.name,
+      systemRef: `REF-${Date.now()}`,
+      documentTitle: file.name,
+      documentCategory: 'General',
+      size: formatFileSize(file.size),
+      uploadedOn: new Date().toLocaleDateString(),
+      file: file // Keep reference to original file
+    }));
+    
+    setUploadedDocuments(prev => [...prev, ...newUploadedDocs]);
+  };
+
+  const handleDocumentUpload = (documentData) => {
+    console.log('Document uploaded:', documentData);
+    
+    // Find the document type details from master table
+    const docType = DOCUMENT_TYPES_MASTER.find(
+      doc => doc.code === documentData.documentType && doc.module === documentData.module
+    );
+    
+    // Create new attachment entry with all the structured data
+    const newAttachment = {
+      id: Date.now() + Math.random(),
+      file: documentData.file,
+      fileName: documentData.fileName,
+      systemRef: documentData.referenceCode, // Use the generated reference code
+      documentTitle: documentData.file.name,
+      documentCategory: docType ? docType.label : 'General',
+      module: documentData.module,
+      entityCode: documentData.entityCode,
+      documentType: documentData.documentType,
+      year: documentData.year,
+      sequence: documentData.sequence,
+      size: formatFileSize(documentData.file.size),
+      uploadedOn: new Date().toLocaleDateString(),
+      description: docType ? docType.description : ''
+    };
+    
+    setUploadedDocuments(prev => [...prev, newAttachment]);
+    
+    // Optional: Show success message
+    console.log(`Document added with reference: ${documentData.referenceCode}`);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const removeDocument = (index) => {
     setDocuments(documents.filter((_, i) => i !== index));
+  };
+
+  const removeDocumentFromPreview = (docId) => {
+    // Remove from both documents and uploadedDocuments
+    const docToRemove = uploadedDocuments.find(doc => doc.id === docId);
+    if (docToRemove) {
+      // Remove from documents array by file name
+      setDocuments(prev => prev.filter(doc => doc.name !== docToRemove.fileName));
+      // Remove from uploaded documents
+      setUploadedDocuments(prev => prev.filter(doc => doc.id !== docId));
+    }
   };
 
   const uploadDocuments = async () => {
@@ -922,6 +1025,26 @@ const Clients = () => {
                           placeholder="Enter company description, services, or business details"
                         />
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">TRN Number</label>
+                        <input
+                          type="text"
+                          value={companyInfo.trnNumber}
+                          onChange={(e) => setCompanyInfo({...companyInfo, trnNumber: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter TRN number"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">IBAN Number</label>
+                        <input
+                          type="text"
+                          value={companyInfo.ibanNumber}
+                          onChange={(e) => setCompanyInfo({...companyInfo, ibanNumber: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter IBAN number"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1156,143 +1279,12 @@ const Clients = () => {
                   </div>
                   
                   <div className="bg-white rounded-lg p-4 border border-green-200">
-                    <div className="space-y-6">
-                      {/* Step 1: File Upload */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">Step 1: Drag and drop files in the area below OR click Upload File button</h4>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors">
-                          <div className="flex flex-col items-center">
-                            <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            <p className="text-sm text-gray-600 mb-2">Drop files here</p>
-                            <p className="text-xs text-gray-500 mb-4">The total size of all uploaded files should not exceed 1000 MB.</p>
-                            <input
-                              type="file"
-                              multiple
-                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                              id="documentUpload"
-                            />
-                            <label
-                              htmlFor="documentUpload"
-                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                            >
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                              + Upload a File
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Step 2: Review and Manage */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">Step 2: Review and manage uploaded documents</h4>
-                        
-                        {/* Pending Uploads */}
-                        {documents.length > 0 && (
-                          <div className="mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-gray-700">Files to Upload ({documents.length})</span>
-                              <button
-                                onClick={uploadDocuments}
-                                disabled={isUploading}
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isUploading ? 'Uploading...' : 'Upload All'}
-                              </button>
-                            </div>
-                            <div className="space-y-2 max-h-32 overflow-y-auto">
-                              {documents.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                      <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                                      </svg>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                                      <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(2)} KB</p>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => removeDocument(index)}
-                                    className="text-red-500 hover:text-red-700 transition-colors"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Uploaded Documents Table */}
-                        {uploadedDocuments.length > 0 && (
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">System Ref #</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document Title</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document Category</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded On</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                {uploadedDocuments.map((doc) => (
-                                  <tr key={doc.id} className="hover:bg-gray-50">
-                                    <td className="px-3 py-2 text-sm text-gray-900">{doc.fileName}</td>
-                                    <td className="px-3 py-2 text-sm text-gray-900">{doc.systemRef}</td>
-                                    <td className="px-3 py-2 text-sm text-gray-900">{doc.documentTitle}</td>
-                                    <td className="px-3 py-2 text-sm text-gray-900">{doc.documentCategory}</td>
-                                    <td className="px-3 py-2 text-sm text-gray-900">{doc.size}</td>
-                                    <td className="px-3 py-2 text-sm text-gray-900">{doc.uploadedOn}</td>
-                                    <td className="px-3 py-2 text-sm text-gray-900">
-                                      <button
-                                        onClick={() => removeUploadedDocument(doc.id)}
-                                        className="text-red-500 hover:text-red-700 transition-colors"
-                                        title="Delete document"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-
-                        {uploadedDocuments.length === 0 && documents.length === 0 && (
-                          <div className="text-center py-8 text-gray-500">
-                            <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <p className="text-sm">No documents uploaded yet</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Step 3: Instructions */}
-                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Step 3: Click Done when you are finished</h4>
-                        <p className="text-xs text-gray-600">
-                          Depending on your connection speed and the size of the files you are uploading, this operation may take anywhere from 10 seconds to 20 minutes. Please be patient and do not click "Done" repeatedly.
-                        </p>
-                      </div>
-                    </div>
+                    <DocumentUploadForm 
+                      onSubmit={handleDocumentUpload}
+                      onCancel={handleCloseAddModal}
+                      defaultModule="CLI"
+                      clientReferenceNumber={`CLI-${Date.now()}`}
+                    />
                   </div>
                 </div>
 
@@ -1361,6 +1353,26 @@ const Clients = () => {
                       <label className="text-sm font-medium text-gray-700">Rank</label>
                       <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.rank}</p>
                     </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">ID Number</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.idNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">ID Expiry Date</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.idEndDate || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Nationality</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.nationality || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Passport Number</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.passportNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Birth Date</label>
+                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.birthDate || 'N/A'}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -1413,6 +1425,18 @@ const Clients = () => {
                       <label className="text-sm font-medium text-gray-700">Priority</label>
                       <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.priority || 'Medium'}</p>
                     </div>
+                    {selectedClient.isCorporate === 'Company' && (
+                      <>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">TRN Number</label>
+                          <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.trnNumber || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">IBAN Number</label>
+                          <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.ibanNumber || 'N/A'}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

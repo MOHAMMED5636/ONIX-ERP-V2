@@ -7,8 +7,8 @@ const REF_CONFIG = {
   SUBTASK_PREFIX: 'SUB',
   SEPARATOR: '-',
   PADDING_LENGTH: 3, // 001, 002, etc.
-  YEAR_PREFIX: true, // Include year in reference
-  CATEGORY_PREFIX: true, // Include category prefix
+  YEAR_PREFIX: false, // Don't include year in reference
+  CATEGORY_PREFIX: false, // Don't include category prefix
 };
 
 // Store for tracking used reference numbers

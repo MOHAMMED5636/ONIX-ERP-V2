@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { PlusIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
+import ProjectSelector from './ProjectLifeCycle/ProjectSelector';
 
 // Import modular components and utilities
 import {
@@ -25,6 +26,7 @@ const ProjectLifeCycleWithDatesRefactored = () => {
   const navigate = useNavigate();
   const [hoveredStage, setHoveredStage] = useState(null);
   const [stages, setStages] = useState(initialStages);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -179,6 +181,12 @@ const ProjectLifeCycleWithDatesRefactored = () => {
     setStages(prev => addTaskToStage(prev, stageId));
   };
 
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    // You can add logic here to filter stages based on selected project
+    // For now, we'll just update the selected project
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -187,10 +195,53 @@ const ProjectLifeCycleWithDatesRefactored = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Project Management Life Cycle
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Visualize and navigate through the complete project lifecycle stages with timeline tracking. 
             Click on any stage to view related projects and tasks.
           </p>
+          
+          {/* Project Selector */}
+          <div className="max-w-md mx-auto mb-8">
+            <ProjectSelector 
+              selectedProject={selectedProject}
+              onProjectSelect={handleProjectSelect}
+            />
+          </div>
+
+          {/* Selected Project Info */}
+          {selectedProject && (
+            <div className="max-w-4xl mx-auto mb-8">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: selectedProject.color }}
+                    ></div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{selectedProject.name}</h3>
+                      <p className="text-gray-600">{selectedProject.referenceNumber}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Progress</div>
+                    <div className="text-2xl font-bold text-gray-900">{selectedProject.progress}%</div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${selectedProject.progress}%`,
+                        backgroundColor: selectedProject.color
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Add Stage Button */}
           <button

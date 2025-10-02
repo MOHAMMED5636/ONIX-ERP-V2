@@ -18,6 +18,7 @@ import {
   BuildingOfficeIcon,
   FolderIcon,
   ComputerDesktopIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
@@ -69,7 +70,7 @@ const navItems = [
     dropdown: true,
     submenus: [
       { key: "project-overview", label: { en: "Project Overview", ar: "نظرة عامة على المشروع" }, path: "/team-project-tracker/overview" },
-      { key: "task-management", label: { en: "Task Management", ar: "إدارة المهام" }, path: "/team-project-tracker/tasks" },
+      { key: "task-management", label: { en: "Project Management", ar: "إدارة المشاريع" }, path: "/team-project-tracker/tasks" },
       { key: "team-members", label: { en: "Team Members", ar: "أعضاء الفريق" }, path: "/team-project-tracker/members" },
       { key: "progress-tracking", label: { en: "Progress Tracking", ar: "تتبع التقدم" }, path: "/team-project-tracker/progress" },
       { key: "reports", label: { en: "Reports", ar: "التقارير" }, path: "/team-project-tracker/reports" },
@@ -80,6 +81,7 @@ const navItems = [
   { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
   { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },
   { key: "it-support", icon: ComputerDesktopIcon, label: { en: "IT Support", ar: "دعم تكنولوجيا المعلومات" }, path: "/it-support" },
+  { key: "ai-employee-evaluations", icon: StarIcon, label: { en: "AI Employee Evaluations", ar: "تقييم الموظفين بالذكاء الاصطناعي" }, path: "/ai-employee-evaluations" },
   { key: "settings", icon: Cog6ToothIcon, label: { en: "Settings", ar: "الإعدادات" }, path: "/settings" },
 ];
 

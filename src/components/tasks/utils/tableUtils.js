@@ -265,15 +265,14 @@ export function createNewTask(tasks, projectStartDate) {
       referenceTrackerInitialized = true;
     }
     
-    // Auto-generate reference number based on category
-    const category = "Design"; // Default category
-    const autoReferenceNumber = generateProjectReference(category, tasks);
+    // Auto-generate reference number (simple format)
+    const autoReferenceNumber = generateProjectReference("GEN", tasks);
     
     return {
       id: generateTaskId(),
       name: "",
       referenceNumber: autoReferenceNumber,
-      category: category,
+      category: "General",
       status: "not started",
       owner: "AL",
       timeline: [null, null],
@@ -305,8 +304,8 @@ export function createNewTask(tasks, projectStartDate) {
     return {
       id: generateTaskId(),
       name: "",
-      referenceNumber: `REF-${Date.now()}`,
-      category: "Design",
+      referenceNumber: `REF-${String(tasks.length + 1).padStart(3, '0')}`,
+      category: "General",
       status: "not started",
       owner: "AL",
       timeline: [null, null],

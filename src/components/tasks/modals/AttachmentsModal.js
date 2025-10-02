@@ -1,12 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { XMarkIcon, PlusIcon, TrashIcon, DocumentIcon } from '@heroicons/react/24/outline';
+import DocumentUploadForm, { DOCUMENT_TYPES_MASTER } from '../../DocumentUploadForm';
 
-const AttachmentsModal = ({ open, onClose, attachments = [], onSave }) => {
+const AttachmentsModal = ({ open, onClose, attachments = [], onSave, defaultModule = '', projectReferenceNumber = '' }) => {
   const [localAttachments, setLocalAttachments] = useState([]);
-  const [dragActive, setDragActive] = useState(false);
-  const [systemRef, setSystemRef] = useState('');
-  const [documentTitle, setDocumentTitle] = useState('');
-  const [documentCategory, setDocumentCategory] = useState('');
 
   // Initialize local attachments when modal opens
   React.useEffect(() => {
@@ -15,46 +12,36 @@ const AttachmentsModal = ({ open, onClose, attachments = [], onSave }) => {
     }
   }, [open, attachments]);
 
-  const handleDrag = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const handleDocumentUpload = (documentData) => {
+    console.log('Document uploaded:', documentData);
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFiles(e.dataTransfer.files);
-    }
-  }, []);
-
-  const handleFiles = (files) => {
-    Array.from(files).forEach(file => {
-      const newAttachment = {
-        id: Date.now() + Math.random(),
-        file: file,
-        fileName: file.name,
-        systemRef: systemRef || `REF-${Date.now()}`,
-        documentTitle: documentTitle || file.name,
-        documentCategory: documentCategory || 'General',
-        size: file.size,
-        uploadedOn: new Date().toISOString()
-      };
-      setLocalAttachments(prev => [...prev, newAttachment]);
-    });
-  };
-
-  const handleFileUpload = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFiles(e.target.files);
-    }
+    // Find the document type details from master table
+    const docType = DOCUMENT_TYPES_MASTER.find(
+      doc => doc.code === documentData.documentType && doc.module === documentData.module
+    );
+    
+    // Create new attachment entry with all the structured data
+    const newAttachment = {
+      id: Date.now() + Math.random(),
+      file: documentData.file,
+      fileName: documentData.fileName,
+      systemRef: documentData.referenceCode, // Use the generated reference code
+      documentTitle: documentData.file.name,
+      documentCategory: docType ? docType.label : 'General',
+      module: documentData.module,
+      entityCode: documentData.entityCode,
+      documentType: documentData.documentType,
+      year: documentData.year,
+      sequence: documentData.sequence,
+      size: documentData.file.size,
+      uploadedOn: documentData.uploadedOn,
+      description: docType ? docType.description : ''
+    };
+    
+    setLocalAttachments(prev => [...prev, newAttachment]);
+    
+    // Optional: Show success message
+    console.log(`Document added with reference: ${documentData.referenceCode}`);
   };
 
   const removeAttachment = (id) => {
@@ -97,43 +84,14 @@ const AttachmentsModal = ({ open, onClose, attachments = [], onSave }) => {
 
         {/* Content */}
         <div className="p-6 overflow-auto max-h-[calc(90vh-140px)]">
-          {/* Step 1: Upload Area */}
+          {/* Document Upload Form */}
           <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Step 1: Drag and drop files in the area below OR click Upload File button
-            </h3>
-            
-            {/* Upload Area */}
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <DocumentIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-lg text-gray-600 mb-4">Drop files here</p>
-              <p className="text-sm text-gray-500 mb-4">
-                The total size of all uploaded files should not exceed 1000 MB.
-              </p>
-              
-              {/* Upload Button */}
-              <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Upload a File
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileUpload}
-                  accept="*/*"
-                />
-              </label>
-            </div>
+            <DocumentUploadForm 
+              onSubmit={handleDocumentUpload}
+              onCancel={handleCancel}
+              defaultModule={defaultModule}
+              projectReferenceNumber={projectReferenceNumber}
+            />
           </div>
 
           {/* Step 2: Submitted Documents */}

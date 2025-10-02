@@ -793,6 +793,7 @@ export default function MainTable() {
   const [engineerInviteModalOpen, setEngineerInviteModalOpen] = useState(false);
   const [engineerInviteTarget, setEngineerInviteTarget] = useState(null); // { taskId, taskName, currentAssignee }
   
+  
 
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
@@ -3046,6 +3047,19 @@ export default function MainTable() {
         onClose={() => setAttachmentsModalOpen(false)}
         attachments={attachmentsModalItems}
         onSave={handleAttachmentsSave}
+        defaultModule="PRJ"
+        projectReferenceNumber={attachmentsModalTarget ? 
+          (() => {
+            if (attachmentsModalTarget.type === 'main') {
+              const task = tasks.find(t => t.id === attachmentsModalTarget.taskId);
+              return task?.referenceNumber || '';
+            } else if (attachmentsModalTarget.type === 'sub') {
+              const task = tasks.find(t => t.id === attachmentsModalTarget.taskId);
+              return task?.referenceNumber || '';
+            }
+            return '';
+          })() : ''
+        }
       />
 
       {/* Toast Component */}

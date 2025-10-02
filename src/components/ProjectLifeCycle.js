@@ -20,35 +20,62 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import ProjectSelector from './ProjectLifeCycle/ProjectSelector';
 
 // Custom scrollbar styles
 const scrollbarStyles = `
   .task-scroll-container {
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     max-height: 200px !important;
+    min-height: 120px !important;
     scrollbar-width: thin;
     scrollbar-color: #94a3b8 #f1f5f9;
+    position: relative;
   }
   .task-scroll-container::-webkit-scrollbar {
-    width: 12px !important;
+    width: 8px !important;
     display: block !important;
   }
   .task-scroll-container::-webkit-scrollbar-track {
     background: #f1f5f9 !important;
-    border-radius: 6px !important;
+    border-radius: 4px !important;
     margin: 2px !important;
   }
   .task-scroll-container::-webkit-scrollbar-thumb {
     background: #64748b !important;
-    border-radius: 6px !important;
-    border: 2px solid #f1f5f9 !important;
-    min-height: 40px !important;
+    border-radius: 4px !important;
+    border: 1px solid #f1f5f9 !important;
+    min-height: 20px !important;
   }
   .task-scroll-container::-webkit-scrollbar-thumb:hover {
     background: #475569 !important;
   }
   .task-scroll-container::-webkit-scrollbar-corner {
     background: #f1f5f9 !important;
+  }
+  
+  /* Force scrolling for task containers */
+  .task-list-container {
+    max-height: 180px !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+  }
+  .task-list-container::-webkit-scrollbar {
+    width: 6px !important;
+  }
+  .task-list-container::-webkit-scrollbar-track {
+    background: #f8fafc !important;
+    border-radius: 3px !important;
+  }
+  .task-list-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 3px !important;
+  }
+  .task-list-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8 !important;
   }
 `;
 
@@ -276,7 +303,21 @@ const SortableStageCard = ({
               </button>
             </div>
             
-                                  <div className="space-y-2 task-scroll-container" style={{ maxHeight: '200px', minHeight: '120px', overflowY: 'auto' }}>
+                       <div 
+            className="space-y-2 task-list-container" 
+            style={{ 
+              maxHeight: '180px', 
+              minHeight: '120px', 
+              overflowY: 'scroll',
+              overflowX: 'hidden',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#94a3b8 #f1f5f9',
+              border: '1px solid rgba(0,0,0,0.1)',
+              borderRadius: '8px',
+              padding: '8px',
+              backgroundColor: 'rgba(255,255,255,0.5)'
+            }}
+          >
               {stage.tasks && stage.tasks.length > 0 ? (
                 stage.tasks.map((task, taskIndex) => (
                   <div
@@ -602,7 +643,21 @@ const SortableStageCard = ({
             </button>
           </div>
           
-                     <div className="space-y-2 task-scroll-container" style={{ maxHeight: '200px', minHeight: '120px', overflowY: 'auto' }}>
+          <div 
+            className="space-y-2 task-list-container" 
+            style={{ 
+              maxHeight: '180px', 
+              minHeight: '120px', 
+              overflowY: 'scroll',
+              overflowX: 'hidden',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#94a3b8 #f1f5f9',
+              border: '1px solid rgba(0,0,0,0.1)',
+              borderRadius: '8px',
+              padding: '8px',
+              backgroundColor: 'rgba(255,255,255,0.5)'
+            }}
+          >
              {stage.tasks && stage.tasks.length > 0 ? (
               stage.tasks.map((task, taskIndex) => (
                 <div
@@ -770,6 +825,19 @@ const SortableStageCard = ({
 const ProjectLifeCycle = () => {
   const navigate = useNavigate();
   const [hoveredStage, setHoveredStage] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  
+  // Inject scrollbar styles
+  React.useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = scrollbarStyles;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
+  
   const [stages, setStages] = useState([
     {
       id: 'design',
@@ -783,28 +851,33 @@ const ProjectLifeCycle = () => {
       route: '/tasks',
       startDate: '2024-01-15',
       endDate: '2024-02-15',
-             tasks: [
-         'Create wireframes',
-         'Design user interface',
-         'Create style guide',
-         'Design system components',
-         'User experience mapping',
-         'Prototype development',
-         'Design review meeting',
-         'Client feedback integration',
-         'Final design approval',
-         'Design handoff preparation',
-         'Design system documentation',
-         'Accessibility audit',
-         'Responsive design testing',
-         'Design quality assurance',
-         'Design team collaboration',
-         'Design iteration cycles',
-         'User testing sessions',
-         'Design optimization',
-         'Brand consistency check',
-         'Design finalization'
-       ]
+      tasks: [
+        'Create wireframes',
+        'Design user interface',
+        'Create style guide',
+        'Design system components',
+        'User experience mapping',
+        'Prototype development',
+        'Design review meeting',
+        'Client feedback integration',
+        'Final design approval',
+        'Design handoff preparation',
+        'Design system documentation',
+        'Accessibility audit',
+        'Responsive design testing',
+        'Design quality assurance',
+        'Design team collaboration',
+        'Design iteration cycles',
+        'User testing sessions',
+        'Design optimization',
+        'Brand consistency check',
+        'Design finalization',
+        'Wireframe validation',
+        'UI component library',
+        'Design system implementation',
+        'User journey mapping',
+        'Visual design exploration'
+      ]
     },
     {
       id: 'development',
@@ -1141,6 +1214,12 @@ const ProjectLifeCycle = () => {
     ));
   };
 
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    // You can add logic here to filter stages based on selected project
+    // For now, we'll just update the selected project
+  };
+
   const renderModal = () => {
     console.log('Modal states:', { showEditModal, showAddModal, showDeleteModal });
     if (showEditModal || showAddModal) {
@@ -1383,6 +1462,49 @@ const ProjectLifeCycle = () => {
             Visualize and navigate through the complete project lifecycle stages with timeline tracking. 
             Click on any stage to view related projects and tasks.
           </p>
+          
+          {/* Project Selector */}
+          <div className="max-w-md mx-auto mb-8">
+            <ProjectSelector 
+              selectedProject={selectedProject}
+              onProjectSelect={handleProjectSelect}
+            />
+          </div>
+
+          {/* Selected Project Info */}
+          {selectedProject && (
+            <div className="max-w-4xl mx-auto mb-8">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: selectedProject.color }}
+                    ></div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{selectedProject.name}</h3>
+                      <p className="text-gray-600">{selectedProject.referenceNumber}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Progress</div>
+                    <div className="text-2xl font-bold text-gray-900">{selectedProject.progress}%</div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${selectedProject.progress}%`,
+                        backgroundColor: selectedProject.color
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Add Stage Button */}
           <button

@@ -32,6 +32,7 @@ import { JiraTableDemo } from "./components/JiraTable/JiraTableDemo";
 import ExcelTable from "./pages/ExcelTable";
 import JiraLikePage from "./pages/JiraLikePage";
 import ITSupport from "./pages/ITSupport";
+import AIEmployeeEvaluations from "./components/AIEmployeeEvaluations";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 import { AIAssistantProvider, AIAssistantEnhanced } from "./components/AIAssistant";
@@ -89,6 +90,7 @@ function MainLayout() {
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
             <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
             <Route path="/it-support" element={<ITSupport />} />
+            <Route path="/ai-employee-evaluations" element={<AIEmployeeEvaluations />} />
                             <Route path="/excel-table/*" element={<ExcelTable />} />
                 <Route path="/jira-like/*" element={<JiraLikePage />} />
             {/* Add other authenticated routes here */}

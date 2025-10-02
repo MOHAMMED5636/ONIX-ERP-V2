@@ -205,7 +205,7 @@ const TaskManager = () => {
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Task Management</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Project Management</h2>
           <button
             onClick={handleAddNewTask}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
