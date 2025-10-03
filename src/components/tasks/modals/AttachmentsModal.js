@@ -38,7 +38,12 @@ const AttachmentsModal = ({ open, onClose, attachments = [], onSave, defaultModu
       description: docType ? docType.description : ''
     };
     
-    setLocalAttachments(prev => [...prev, newAttachment]);
+    console.log('Adding new attachment:', newAttachment);
+    setLocalAttachments(prev => {
+      const updated = [...prev, newAttachment];
+      console.log('Updated attachments:', updated);
+      return updated;
+    });
     
     // Optional: Show success message
     console.log(`Document added with reference: ${documentData.referenceCode}`);
@@ -161,24 +166,97 @@ const AttachmentsModal = ({ open, onClose, attachments = [], onSave, defaultModu
                           <select
                             value={attachment.documentCategory}
                             onChange={(e) => {
+                              const selectedCategory = e.target.value;
+                              
+                              // Find the document type object for the selected category
+                              const docType = DOCUMENT_TYPES_MASTER.find(doc => doc.label === selectedCategory);
+                              
+                              // Generate new system reference based on document type
+                              const generateNewSystemRef = (docType, existingRef) => {
+                                if (!docType) return existingRef;
+                                
+                                const currentYear = new Date().getFullYear();
+                                const sequence = String(Date.now()).slice(-3); // Last 3 digits of timestamp
+                                
+                                // Extract module and entity code from existing ref or use defaults
+                                let module = docType.module;
+                                let entityCode = 'REF-002'; // Default entity code
+                                
+                                // Try to extract entity code from existing system ref
+                                if (existingRef && existingRef.includes('-')) {
+                                  const parts = existingRef.split('-');
+                                  if (parts.length >= 2) {
+                                    entityCode = parts[1];
+                                  }
+                                }
+                                
+                                return `${module}-${entityCode}-${docType.code}-${currentYear}-${sequence}`;
+                              };
+                              
+                              const newSystemRef = generateNewSystemRef(docType, attachment.systemRef);
+                              
                               setLocalAttachments(prev => 
                                 prev.map(att => 
                                   att.id === attachment.id 
-                                    ? { ...att, documentCategory: e.target.value }
+                                    ? { 
+                                        ...att, 
+                                        documentCategory: selectedCategory,
+                                        systemRef: newSystemRef,
+                                        documentType: docType?.code || att.documentType,
+                                        module: docType?.module || att.module
+                                      }
                                     : att
                                 )
                               );
                             }}
                             className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           >
-                            <option value="General">General</option>
-                            <option value="Technical">Technical</option>
-                            <option value="Financial">Financial</option>
-                            <option value="Legal">Legal</option>
-                            <option value="Design">Design</option>
-                            <option value="Construction">Construction</option>
-                            <option value="Permits">Permits</option>
-                            <option value="Inspections">Inspections</option>
+                            <option value="">Select Category</option>
+                            
+                            {/* Project Module */}
+                            <optgroup label="📋 Project (PRJ) Documents">
+                              {DOCUMENT_TYPES_MASTER.filter(doc => doc.module === 'PRJ').map(docType => (
+                                <option key={`${docType.module}-${docType.code}`} value={docType.label}>
+                                  {docType.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            
+                            {/* Human Resources Module */}
+                            <optgroup label="👥 Human Resources (HR) Documents">
+                              {DOCUMENT_TYPES_MASTER.filter(doc => doc.module === 'HR').map(docType => (
+                                <option key={`${docType.module}-${docType.code}`} value={docType.label}>
+                                  {docType.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            
+                            {/* Client Module */}
+                            <optgroup label="🏢 Client (CLI) Documents">
+                              {DOCUMENT_TYPES_MASTER.filter(doc => doc.module === 'CLI').map(docType => (
+                                <option key={`${docType.module}-${docType.code}`} value={docType.label}>
+                                  {docType.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            
+                            {/* Finance Module */}
+                            <optgroup label="💰 Finance (FIN) Documents">
+                              {DOCUMENT_TYPES_MASTER.filter(doc => doc.module === 'FIN').map(docType => (
+                                <option key={`${docType.module}-${docType.code}`} value={docType.label}>
+                                  {docType.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                            
+                            {/* General Module */}
+                            <optgroup label="📄 General (GEN) Documents">
+                              {DOCUMENT_TYPES_MASTER.filter(doc => doc.module === 'GEN').map(docType => (
+                                <option key={`${docType.module}-${docType.code}`} value={docType.label}>
+                                  {docType.label}
+                                </option>
+                              ))}
+                            </optgroup>
                           </select>
                         </td>
                         <td className="border border-gray-300 px-3 py-2 text-sm text-gray-600">

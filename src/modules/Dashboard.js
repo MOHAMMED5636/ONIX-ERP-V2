@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Calendar from "react-calendar";
 import 'react-calendar/dist/Calendar.css';
 import './calendar-custom.css'; // Custom styles for react-calendar
@@ -8,6 +8,21 @@ import { useLanguage } from "../LanguageContext";
 import onixLogo from '../assets/onix-logo.png';
 import AIChatbot from "../components/tasks/AIChatbot";
 import { SparklesIcon } from "@heroicons/react/24/outline";
+import DraggableDashboard, { DraggableDashboardCard, DraggableWidgetBox } from "../components/DraggableDashboard";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 function PieChart({ colors = ["#a78bfa", "#fbbf24", "#f87171"], size = 80 }) {
   return (
@@ -19,7 +34,7 @@ function PieChart({ colors = ["#a78bfa", "#fbbf24", "#f87171"], size = 80 }) {
   );
 }
 
-// 1. Enhanced DashboardCard for themed gradients, icons, badges, and micro-interactions
+// Enhanced DashboardCard for themed gradients, icons, badges, and micro-interactions
 function DashboardCard({ title, value, icon, accent, gradient, shadow, children, className = "" }) {
   return (
     <div className={`relative rounded-2xl shadow-md p-4 sm:p-5 lg:p-7 flex flex-col items-start border border-gray-100 glass-card transition-all duration-300 animate-fade-in ${gradient} ${shadow} hover:scale-[1.04] hover:shadow-2xl group ${className}`}>
@@ -158,6 +173,71 @@ export default function Dashboard() {
   const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAIChatbot, setShowAIChatbot] = useState(false);
+  
+  // State for widget order
+  const [widgetOrder, setWidgetOrder] = useState([
+    'active-employees',
+    'active-contracts', 
+    'attendance',
+    'active-tasks',
+    'team-progress'
+  ]);
+
+  const [sidebarWidgetOrder, setSidebarWidgetOrder] = useState([
+    'quick-links',
+    'calendar'
+  ]);
+
+  // Load widget order from localStorage on mount
+  useEffect(() => {
+    const savedOrder = localStorage.getItem('dashboard-widget-order');
+    if (savedOrder) {
+      setWidgetOrder(JSON.parse(savedOrder));
+    }
+
+    const savedSidebarOrder = localStorage.getItem('dashboard-sidebar-order');
+    if (savedSidebarOrder) {
+      setSidebarWidgetOrder(JSON.parse(savedSidebarOrder));
+    }
+  }, []);
+
+  // Save widget order to localStorage
+  useEffect(() => {
+    localStorage.setItem('dashboard-widget-order', JSON.stringify(widgetOrder));
+  }, [widgetOrder]);
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-sidebar-order', JSON.stringify(sidebarWidgetOrder));
+  }, [sidebarWidgetOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function handleDragEnd(event) {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      // Check if it's a main widget or sidebar widget
+      if (widgetOrder.includes(active.id)) {
+        setWidgetOrder((items) => {
+          const oldIndex = items.indexOf(active.id);
+          const newIndex = items.indexOf(over.id);
+          return arrayMove(items, oldIndex, newIndex);
+        });
+      } else if (sidebarWidgetOrder.includes(active.id)) {
+        setSidebarWidgetOrder((items) => {
+          const oldIndex = items.indexOf(active.id);
+          const newIndex = items.indexOf(over.id);
+          return arrayMove(items, oldIndex, newIndex);
+        });
+      }
+    }
+  }
+
   // Admin message popup state
   const [showAdminMsg, setShowAdminMsg] = useState(() => {
     // Disable the modal by default for now
@@ -173,26 +253,31 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-white flex flex-col items-stretch justify-start">
-      {/* Faded watermark overlay */}
-      <div className="absolute inset-0 bg-white bg-opacity-80 z-10" />
-      {/* 0. Add imports for useRef and animated SVG blob */}
-      {/* 1. Animated SVG Blob background (add just inside main container, before DashboardLayout): */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <svg width="100%" height="100%" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-          <defs>
-            <linearGradient id="blobGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0.18" />
-              <stop offset="100%" stopColor="#67e8f9" stopOpacity="0.12" />
-            </linearGradient>
-          </defs>
-          <g>
-            <animateTransform attributeName="transform" type="rotate" from="0 400 300" to="360 400 300" dur="24s" repeatCount="indefinite" />
-            <path d="M600,300Q600,400,500,450Q400,500,300,450Q200,400,200,300Q200,200,300,150Q400,100,500,150Q600,200,600,300Z" fill="url(#blobGrad)" />
-          </g>
-        </svg>
-      </div>
-      <DashboardLayout>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="relative min-h-screen w-full bg-white flex flex-col items-stretch justify-start">
+        {/* Faded watermark overlay */}
+        <div className="absolute inset-0 bg-white bg-opacity-80 z-10" />
+        {/* 0. Add imports for useRef and animated SVG blob */}
+        {/* 1. Animated SVG Blob background (add just inside main container, before DashboardLayout): */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <svg width="100%" height="100%" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <defs>
+              <linearGradient id="blobGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0.18" />
+                <stop offset="100%" stopColor="#67e8f9" stopOpacity="0.12" />
+              </linearGradient>
+            </defs>
+            <g>
+              <animateTransform attributeName="transform" type="rotate" from="0 400 300" to="360 400 300" dur="24s" repeatCount="indefinite" />
+              <path d="M600,300Q600,400,500,450Q400,500,300,450Q200,400,200,300Q200,200,300,150Q400,100,500,150Q600,200,600,300Z" fill="url(#blobGrad)" />
+            </g>
+          </svg>
+        </div>
+        <DashboardLayout>
         <div className="relative z-20 p-2 sm:p-4 lg:p-6 xl:p-8 w-full flex flex-col items-stretch justify-start">
           {/* Hero Banner */}
           {/* 2. Hero Banner: add user avatar and personalized greeting */}
@@ -230,80 +315,113 @@ export default function Dashboard() {
           <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 lg:gap-8 gap-x-8 w-full items-stretch justify-start">
             {/* Main content */}
             <div className="flex-1 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0 items-stretch justify-start">
-              {/* Summary cards: responsive grid, no overflow */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-                <DashboardCard
-                  title={t('Active Employees')}
-                  value={<AnimatedNumber n={61} />}
-                  icon={<svg className="h-9 w-9 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m9-4a4 4 0 1 0-8 0 4 4 0 0 0 8 0z" /></svg>}
-                  accent={'+5 today'}
-                  gradient="bg-white"
-                  shadow="shadow-lg"
-                  className="w-full"
-                />
-                <DashboardCard
-                  title={t('Active Contracts')}
-                  value={<AnimatedNumber n={424} />}
-                  icon={<svg className="h-9 w-9 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>}
-                  accent={'100% valid'}
-                  gradient="bg-white"
-                  shadow="shadow-lg"
-                  className="w-full"
-                />
-                <DashboardCard
-                  title={t('Your Daily Attendance')}
-                  value={
-                    <div className="flex flex-col w-full gap-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-gray-600">Check-In:</span>
-                        <span className="text-base sm:text-lg font-bold text-green-600">8:30</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-gray-600">Check-Out:</span>
-                        <span className="text-base sm:text-lg font-bold text-red-500">6:30</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 rounded-full mt-2">
-                        <div className="h-2 rounded-full bg-gradient-to-r from-green-400 to-red-400 animate-progress-bar" style={{ width: '80%' }} />
-                      </div>
-                    </div>
-                  }
-                  icon={<svg className="h-9 w-9 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h6m-7 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" /></svg>}
-                  accent={'On Time'}
-                  gradient="bg-white"
-                  shadow="shadow-lg"
-                  className="w-full"
-                />
-                <DashboardCard
-                  title={t('Active Tasks')}
-                  value={<AnimatedNumber n={0} />}
-                  icon={<svg className="h-9 w-9 text-pink-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-6-8h6" /></svg>}
-                  accent={'!'}
-                  gradient="bg-white"
-                  shadow="shadow-lg"
-                  className="w-full"
-                />
-                <DashboardCard
-                  title={t('Team Active Tasks')}
-                  value={
-                    <div className="flex flex-col items-center w-full">
-                      <div className="relative flex items-center justify-center">
-                        <svg className="w-14 h-14" viewBox="0 0 48 48">
-                          <circle cx="24" cy="24" r="20" fill="#f1f5f9" />
-                          <circle cx="24" cy="24" r="20" fill="none" stroke="#a5b4fc" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset="0" />
-                          <circle cx="24" cy="24" r="20" fill="none" stroke="#38bdf8" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset="40" strokeLinecap="round" className="progress-ring" />
-                        </svg>
-                        <span className="absolute text-lg font-bold text-blue-700 animate-countup">211</span>
-                      </div>
-                      <span className="text-xs text-gray-600 font-medium mt-1">In Progress</span>
-                    </div>
-                  }
-                  icon={<svg className="h-9 w-9 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" /></svg>}
-                  accent={'+12'}
-                  gradient="bg-white"
-                  shadow="shadow-lg"
-                  className="sm:col-span-2 lg:col-span-1 w-full"
-                />
-              </div>
+              {/* Summary cards: responsive grid with drag and drop */}
+              <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+                  {widgetOrder.map((widgetId) => {
+                    switch (widgetId) {
+                      case 'active-employees':
+                        return (
+                          <DraggableDashboardCard
+                            key={widgetId}
+                            id={widgetId}
+                            title={t('Active Employees')}
+                            value={<AnimatedNumber n={61} />}
+                            icon={<svg className="h-9 w-9 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m9-4a4 4 0 1 0-8 0 4 4 0 0 0 8 0z" /></svg>}
+                            accent={'+5 today'}
+                            gradient="bg-white"
+                            shadow="shadow-lg"
+                            className="w-full"
+                          />
+                        );
+                      case 'active-contracts':
+                        return (
+                          <DraggableDashboardCard
+                            key={widgetId}
+                            id={widgetId}
+                            title={t('Active Contracts')}
+                            value={<AnimatedNumber n={424} />}
+                            icon={<svg className="h-9 w-9 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>}
+                            accent={'100% valid'}
+                            gradient="bg-white"
+                            shadow="shadow-lg"
+                            className="w-full"
+                          />
+                        );
+                      case 'attendance':
+                        return (
+                          <DraggableDashboardCard
+                            key={widgetId}
+                            id={widgetId}
+                            title={t('Your Daily Attendance')}
+                            value={
+                              <div className="flex flex-col w-full gap-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs sm:text-sm text-gray-600">Check-In:</span>
+                                  <span className="text-base sm:text-lg font-bold text-green-600">8:30</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs sm:text-sm text-gray-600">Check-Out:</span>
+                                  <span className="text-base sm:text-lg font-bold text-red-500">6:30</span>
+                                </div>
+                                <div className="w-full h-2 bg-gray-200 rounded-full mt-2">
+                                  <div className="h-2 rounded-full bg-gradient-to-r from-green-400 to-red-400 animate-progress-bar" style={{ width: '80%' }} />
+                                </div>
+                              </div>
+                            }
+                            icon={<svg className="h-9 w-9 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10m-9 4h6m-7 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" /></svg>}
+                            accent={'On Time'}
+                            gradient="bg-white"
+                            shadow="shadow-lg"
+                            className="w-full"
+                          />
+                        );
+                      case 'active-tasks':
+                        return (
+                          <DraggableDashboardCard
+                            key={widgetId}
+                            id={widgetId}
+                            title={t('Active Tasks')}
+                            value={<AnimatedNumber n={0} />}
+                            icon={<svg className="h-9 w-9 text-pink-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-6-8h6" /></svg>}
+                            accent={'!'}
+                            gradient="bg-white"
+                            shadow="shadow-lg"
+                            className="w-full"
+                          />
+                        );
+                      case 'team-progress':
+                        return (
+                          <DraggableDashboardCard
+                            key={widgetId}
+                            id={widgetId}
+                            title={t('Team Active Tasks')}
+                            value={
+                              <div className="flex flex-col items-center w-full">
+                                <div className="relative flex items-center justify-center">
+                                  <svg className="w-14 h-14" viewBox="0 0 48 48">
+                                    <circle cx="24" cy="24" r="20" fill="#f1f5f9" />
+                                    <circle cx="24" cy="24" r="20" fill="none" stroke="#a5b4fc" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset="0" />
+                                    <circle cx="24" cy="24" r="20" fill="none" stroke="#38bdf8" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset="40" strokeLinecap="round" className="progress-ring" />
+                                  </svg>
+                                  <span className="absolute text-lg font-bold text-blue-700 animate-countup">211</span>
+                                </div>
+                                <span className="text-xs text-gray-600 font-medium mt-1">In Progress</span>
+                              </div>
+                            }
+                            icon={<svg className="h-9 w-9 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" /></svg>}
+                            accent={'+12'}
+                            gradient="bg-white"
+                            shadow="shadow-lg"
+                            className="sm:col-span-2 lg:col-span-1 w-full"
+                          />
+                        );
+                      default:
+                        return null;
+                    }
+                  })}
+                </div>
+              </SortableContext>
               
               {/* Balance Sheet & Invoice Pending Payments: responsive grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 w-full">
@@ -390,7 +508,15 @@ export default function Dashboard() {
             </div>
             {/* Right sidebar: stack below on mobile, right on xl+ */}
             <div className="xl:w-80 w-full mt-6 xl:mt-0 flex-shrink-0 items-stretch justify-start">
-              <RightWidgetBox onDateClick={setSelectedDate} />
+              <SortableContext items={sidebarWidgetOrder} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-6">
+                  {sidebarWidgetOrder.map((widgetId) => (
+                    <DraggableWidgetBox key={widgetId} id={widgetId}>
+                      <RightWidgetBox onDateClick={setSelectedDate} />
+                    </DraggableWidgetBox>
+                  ))}
+                </div>
+              </SortableContext>
             </div>
           </div>
         </div>
@@ -439,6 +565,7 @@ export default function Dashboard() {
         isOpen={showAIChatbot} 
         onClose={() => setShowAIChatbot(false)} 
       />
-    </div>
+      </div>
+    </DndContext>
   );
 }

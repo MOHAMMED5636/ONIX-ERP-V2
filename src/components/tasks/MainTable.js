@@ -437,9 +437,9 @@ export default function MainTable() {
   const executeBulkPaste = (targetTask) => {
     console.log('executeBulkPaste called with:', { targetTask, bulkCopiedItems });
     
-    // Prevent multiple executions
-    if (bulkCopiedItems.tasks.length === 0) {
-      console.log('No tasks to paste, skipping');
+    // Prevent multiple executions - check if there's anything to paste
+    if (bulkCopiedItems.tasks.length === 0 && bulkCopiedItems.subtasks.length === 0 && bulkCopiedItems.childTasks.length === 0) {
+      console.log('No items to paste, skipping');
       return;
     }
     
@@ -456,51 +456,56 @@ export default function MainTable() {
     const newSubtasks = [];
     const newChildTasks = [];
 
-    // Copy tasks (projects) - create new independent projects
-    // Use a Set to track unique projects to avoid duplicates
-    const processedTaskIds = new Set();
-    
-    console.log('Processing tasks:', bulkCopiedItems.tasks.map(t => ({ id: t.id, name: t.name })));
-    
-    bulkCopiedItems.tasks.forEach(task => {
-      // Skip if we've already processed this task (avoid duplicates)
-      if (processedTaskIds.has(task.id)) {
-        console.log('Skipping duplicate task:', task.id, task.name);
-        return;
-      }
-      processedTaskIds.add(task.id);
-      console.log('Processing task:', task.id, task.name);
+    // Handle project duplication (when targetTask is null)
+    if (!targetTask && bulkCopiedItems.tasks.length > 0) {
+      console.log('Duplicating projects...');
       
-      const newTask = {
-        ...task,
-        id: Date.now() + Math.random(),
-        name: `${task.name} (Copy)`,
-        referenceNumber: `REF-${Date.now()}`,
-        subtasks: task.subtasks?.map(subtask => ({
-          ...subtask,
+      // Copy tasks (projects) - create new independent projects
+      // Use a Set to track unique projects to avoid duplicates
+      const processedTaskIds = new Set();
+      
+      console.log('Processing tasks:', bulkCopiedItems.tasks.map(t => ({ id: t.id, name: t.name })));
+      
+      bulkCopiedItems.tasks.forEach(task => {
+        // Skip if we've already processed this task (avoid duplicates)
+        if (processedTaskIds.has(task.id)) {
+          console.log('Skipping duplicate task:', task.id, task.name);
+          return;
+        }
+        processedTaskIds.add(task.id);
+        console.log('Processing task:', task.id, task.name);
+        
+        const newTask = {
+          ...task,
           id: Date.now() + Math.random(),
-          name: `${subtask.name} (Copy)`,
-          childSubtasks: subtask.childSubtasks?.map(child => ({
-            ...child,
+          name: `${task.name} (Copy)`,
+          referenceNumber: `REF-${Date.now()}`,
+          subtasks: task.subtasks?.map(subtask => ({
+            ...subtask,
             id: Date.now() + Math.random(),
-            name: `${child.name} (Copy)`
+            name: `${subtask.name} (Copy)`,
+            childSubtasks: subtask.childSubtasks?.map(child => ({
+              ...child,
+              id: Date.now() + Math.random(),
+              name: `${child.name} (Copy)`
+            })) || []
           })) || []
-        })) || []
-      };
-      newTasks.push(newTask);
-    });
-
-    // Add new projects to the tasks list (at the beginning)
-    if (newTasks.length > 0) {
-      console.log('Adding new tasks to list:', newTasks.map(t => ({ id: t.id, name: t.name })));
-      setTasks(prev => {
-        console.log('Previous tasks count:', prev.length);
-        console.log('Previous tasks:', prev.map(t => ({ id: t.id, name: t.name })));
-        const updated = [...newTasks, ...prev];
-        console.log('Updated tasks count:', updated.length);
-        console.log('Updated tasks:', updated.map(t => ({ id: t.id, name: t.name })));
-        return updated;
+        };
+        newTasks.push(newTask);
       });
+
+      // Add new projects to the tasks list (at the beginning)
+      if (newTasks.length > 0) {
+        console.log('Adding new tasks to list:', newTasks.map(t => ({ id: t.id, name: t.name })));
+        setTasks(prev => {
+          console.log('Previous tasks count:', prev.length);
+          console.log('Previous tasks:', prev.map(t => ({ id: t.id, name: t.name })));
+          const updated = [...newTasks, ...prev];
+          console.log('Updated tasks count:', updated.length);
+          console.log('Updated tasks:', updated.map(t => ({ id: t.id, name: t.name })));
+          return updated;
+        });
+      }
     }
 
     // Copy subtasks to target task
@@ -551,10 +556,20 @@ export default function MainTable() {
     // Note: newTasks are already added above at line 496, no need to add again
 
     const totalPasted = newTasks.length + bulkCopiedItems.subtasks.length + bulkCopiedItems.childTasks.length;
-    setToast({
-      message: `${newTasks.length} project(s) duplicated successfully`,
-      type: 'success'
-    });
+    
+    // Show appropriate success message
+    if (newTasks.length > 0) {
+      setToast({
+        message: `${newTasks.length} project(s) duplicated successfully`,
+        type: 'success'
+      });
+    } else if (targetTask && (bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0)) {
+      const transferredCount = bulkCopiedItems.subtasks.length + bulkCopiedItems.childTasks.length;
+      setToast({
+        message: `${transferredCount} task(s)/subtask(s) transferred to "${targetTask.name}" successfully`,
+        type: 'success'
+      });
+    }
 
     // Clear the clipboard after paste to prevent multiple pastes
     setBulkCopiedItems({

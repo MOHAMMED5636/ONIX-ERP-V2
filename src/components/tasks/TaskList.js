@@ -10,7 +10,15 @@ import {
   FunnelIcon,
   XMarkIcon,
   ChartBarIcon,
-  SparklesIcon
+  SparklesIcon,
+  BellIcon,
+  UserPlusIcon,
+  ExclamationCircleIcon,
+  CogIcon,
+  UsersIcon,
+  DocumentTextIcon,
+  CalendarIcon,
+  BoltIcon
 } from "@heroicons/react/24/outline";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../../LanguageContext";
@@ -30,7 +38,88 @@ import ProjectLifeCycle from "../ProjectLifeCycle";
 
 export default function TaskList() {
   const [activeTab, setActiveTab] = useState("main-table");
+  const [showNotifications, setShowNotifications] = useState(false);
   const { lang, toggleLanguage } = useLanguage();
+
+  // Enhanced notifications data with more details
+  const notifications = [
+    {
+      id: 1,
+      title: "New Task Assigned",
+      message: "You have been assigned to 'Website Development' project with high priority",
+      time: "2 minutes ago",
+      type: "task",
+      read: false,
+      priority: "high",
+      avatar: "👨‍💻",
+      action: "View Task"
+    },
+    {
+      id: 2,
+      title: "Project Deadline Reminder",
+      message: "Mobile App Design project deadline is approaching in 3 days",
+      time: "15 minutes ago",
+      type: "deadline",
+      read: false,
+      priority: "urgent",
+      avatar: "⏰",
+      action: "View Project"
+    },
+    {
+      id: 3,
+      title: "System Maintenance",
+      message: "ERP system will be updated tonight at 2:00 AM for 30 minutes",
+      time: "1 hour ago",
+      type: "system",
+      read: true,
+      priority: "medium",
+      avatar: "🔧",
+      action: "Learn More"
+    },
+    {
+      id: 4,
+      title: "Team Update",
+      message: "Sarah Johnson joined the Architecture Department as Senior Architect",
+      time: "2 hours ago",
+      type: "team",
+      read: true,
+      priority: "low",
+      avatar: "👋",
+      action: "View Team"
+    },
+    {
+      id: 5,
+      title: "Document Approved",
+      message: "Your project proposal has been approved by the management team",
+      time: "3 hours ago",
+      type: "approval",
+      read: false,
+      priority: "medium",
+      avatar: "✅",
+      action: "View Document"
+    }
+  ];
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  // Close notifications when clicking outside
+  const notificationsRef = useRef(null);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
   const navigate = useNavigate();
   const location = useLocation();
   const [showSearch, setShowSearch] = useState(false);
@@ -582,6 +671,125 @@ export default function TaskList() {
 
           {/* Right section: Enhanced Controls */}
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+            {/* Notifications Bell */}
+            <div className="relative" ref={notificationsRef}>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`relative p-3 rounded-xl bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-110 group flex-shrink-0 ${
+                  showNotifications ? 'ring-4 ring-orange-200 shadow-2xl' : ''
+                }`}
+                title="ERP Notifications"
+              >
+                <BellIcon className={`h-6 w-6 transition-all duration-300 ${
+                  showNotifications ? 'animate-bounce' : 'group-hover:animate-pulse group-hover:rotate-12'
+                }`} />
+                {/* Enhanced Notification badge */}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full px-2 py-1 font-bold shadow-lg border-2 border-white animate-bounce">
+                    {unreadCount}
+                  </span>
+                )}
+                {/* Glow effect */}
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-400 to-red-400 opacity-0 group-hover:opacity-30 transition-opacity duration-300 blur-xl"></div>
+              </button>
+
+              {/* Enhanced Notifications Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 max-h-[500px] overflow-hidden animate-in slide-in-from-top-2 duration-300">
+                  {/* Enhanced Header */}
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl">
+                          <BellIcon className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 text-lg">Notifications</h3>
+                          <p className="text-sm text-gray-600">
+                            {unreadCount > 0 ? `${unreadCount} new updates` : 'All caught up! 🎉'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowNotifications(false)}
+                        className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                      >
+                        <XMarkIcon className="h-4 w-4 text-gray-500" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Enhanced Notifications List */}
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.map((notification, index) => (
+                      <div
+                        key={notification.id}
+                        className={`px-6 py-4 border-b border-gray-100 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+                          !notification.read ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-l-blue-500' : ''
+                        }`}
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Avatar with priority indicator */}
+                          <div className="relative">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-gradient-to-br ${
+                              notification.type === 'task' ? 'from-blue-400 to-blue-600' :
+                              notification.type === 'deadline' ? 'from-red-400 to-red-600' :
+                              notification.type === 'system' ? 'from-yellow-400 to-yellow-600' :
+                              notification.type === 'approval' ? 'from-green-400 to-green-600' :
+                              'from-purple-400 to-purple-600'
+                            } shadow-lg`}>
+                              {notification.avatar}
+                            </div>
+                            {/* Priority indicator */}
+                            <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                              notification.priority === 'urgent' ? 'bg-red-500 animate-pulse' :
+                              notification.priority === 'high' ? 'bg-orange-500' :
+                              notification.priority === 'medium' ? 'bg-yellow-500' :
+                              'bg-gray-400'
+                            }`}></div>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
+                              <h4 className={`text-sm font-bold ${
+                                !notification.read ? 'text-gray-900' : 'text-gray-700'
+                              }`}>
+                                {notification.title}
+                              </h4>
+                              <span className="text-xs text-gray-500 ml-2 whitespace-nowrap bg-gray-100 px-2 py-1 rounded-full">
+                                {notification.time}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                              {notification.message}
+                            </p>
+                            
+                            {/* Action button */}
+                            <button className="mt-3 text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1.5 rounded-full hover:shadow-md transition-all duration-300 transform hover:scale-105">
+                              {notification.action}
+                            </button>
+                          </div>
+
+                          {/* Unread indicator */}
+                          {!notification.read && (
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse mt-2"></div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Enhanced Footer */}
+                  <div className="px-6 py-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+                    <button className="w-full text-center text-sm bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-medium">
+                      View All Notifications
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Enhanced Chatroom Button */}
             <button
               onClick={() => navigate("/project-chat")}
