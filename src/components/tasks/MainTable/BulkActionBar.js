@@ -5,7 +5,8 @@ import {
   EyeIcon,
   XMarkIcon,
   ClipboardDocumentIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  ArrowUturnLeftIcon
 } from "@heroicons/react/24/outline";
 // import TaskCopyPasteManager from './TaskCopyPasteManager'; // Removed - using BulkPasteModal instead
 
@@ -25,7 +26,9 @@ const BulkActionBar = ({
   onCopy,
   onPaste,
   bulkCopiedItems,
-  showBulkPasteModal
+  showBulkPasteModal,
+  onUndo,
+  hasDeletedItems = false
 }) => {
   if (totalSelected < 1) return null;
 
@@ -128,6 +131,21 @@ const BulkActionBar = ({
             >
               <TrashIcon className="w-4 h-4" />
               Delete
+            </button>
+
+            {/* Undo Button */}
+            <button
+              onClick={onUndo}
+              disabled={!hasDeletedItems}
+              className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
+                hasDeletedItems
+                  ? 'bg-orange-500 text-white hover:bg-orange-600'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={hasDeletedItems ? "Undo last deletion" : "No recent deletions to undo"}
+            >
+              <ArrowUturnLeftIcon className="w-4 h-4" />
+              Undo
             </button>
             
             <button

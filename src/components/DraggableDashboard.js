@@ -38,11 +38,14 @@ function DraggableDashboardCard({
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id });
+    isDragging: dragging,
+  } = useSortable({ id, animateLayoutChanges: () => false });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    transition: dragging ? undefined : (transition || 'transform 200ms cubic-bezier(.2,.8,.2,1)'),
+    willChange: 'transform',
+    zIndex: dragging ? 50 : 'auto',
   };
 
   return (
@@ -50,7 +53,7 @@ function DraggableDashboardCard({
       ref={setNodeRef}
       style={style}
       className={`relative rounded-2xl shadow-md p-4 sm:p-5 lg:p-7 flex flex-col items-start border border-gray-100 glass-card transition-all duration-300 animate-fade-in ${gradient} ${shadow} hover:scale-[1.04] hover:shadow-2xl group ${className} ${
-        isDragging ? 'opacity-50 scale-105 shadow-2xl' : ''
+        dragging ? 'opacity-70 scale-105 shadow-2xl cursor-grabbing' : ''
       }`}
     >
       {/* Drag Handle */}
@@ -88,18 +91,21 @@ function DraggableWidgetBox({ id, children, isDragging = false }) {
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id });
+    isDragging: dragging,
+  } = useSortable({ id, animateLayoutChanges: () => false });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    transition: dragging ? undefined : (transition || 'transform 200ms cubic-bezier(.2,.8,.2,1)'),
+    willChange: 'transform',
+    zIndex: dragging ? 50 : 'auto',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative ${isDragging ? 'opacity-50 scale-105 shadow-2xl' : ''}`}
+      className={`relative ${dragging ? 'opacity-70 scale-105 shadow-2xl cursor-grabbing' : ''}`}
     >
       {/* Drag Handle for Widget Box */}
       <div

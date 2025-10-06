@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ChartBarIcon,
@@ -10,6 +10,8 @@ import {
   BuildingOfficeIcon,
   HomeIcon
 } from '@heroicons/react/24/outline';
+import ContractViewModal from './ContractViewModal';
+import AmendmentForm from './AmendmentForm';
 
 const demoContracts = [
   { ref: "C-CO-25279", start: "7/1/2023", end: "7/1/2025", category: "Residential Villa", status: "Active", value: 2500000 },
@@ -26,17 +28,68 @@ const demoContracts = [
 
 export default function ContractList() {
   const navigate = useNavigate();
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedContract, setSelectedContract] = useState(null);
+  const [showAmendmentModal, setShowAmendmentModal] = useState(false);
+  const [contractForAmendment, setContractForAmendment] = useState(null);
+  const [contracts, setContracts] = useState(demoContracts);
+
+  const handleViewContract = (contract) => {
+    setSelectedContract(contract);
+    setShowViewModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowViewModal(false);
+    setSelectedContract(null);
+  };
+
+  const handleCreateAmendment = (contract) => {
+    setContractForAmendment(contract);
+    setShowAmendmentModal(true);
+  };
+
+  const handleCloseAmendmentModal = () => {
+    setShowAmendmentModal(false);
+    setContractForAmendment(null);
+  };
+
+  const handleCreateAmendmentSubmit = async (newContract, amendmentData) => {
+    try {
+      // Add the new contract to the list
+      setContracts(prevContracts => [...prevContracts, newContract]);
+      
+      // Show success message
+      alert(`Amendment created successfully! New contract reference: ${newContract.ref}`);
+      
+      // In a real application, you would:
+      // 1. Save to database/API
+      // 2. Send notifications to stakeholders
+      // 3. Update contract history
+      // 4. Generate audit trail
+      
+      console.log('New Amendment Created:', {
+        newContract,
+        amendmentData,
+        originalContract: contractForAmendment
+      });
+      
+    } catch (error) {
+      console.error('Error creating amendment:', error);
+      throw error;
+    }
+  };
   
   // Calculate contract statistics
   const contractStats = {
-    total: demoContracts.length,
-    active: demoContracts.filter(contract => contract.status === "Active").length,
-    completed: demoContracts.filter(contract => contract.status === "Completed").length,
-    residential: demoContracts.filter(contract => contract.category === "Residential Villa").length,
-    commercial: demoContracts.filter(contract => contract.category === "Commercial Building").length,
-    industrial: demoContracts.filter(contract => contract.category === "Industrial Complex").length,
-    totalValue: demoContracts.reduce((sum, contract) => sum + contract.value, 0),
-    averageValue: Math.round(demoContracts.reduce((sum, contract) => sum + contract.value, 0) / demoContracts.length)
+    total: contracts.length,
+    active: contracts.filter(contract => contract.status === "Active").length,
+    completed: contracts.filter(contract => contract.status === "Completed").length,
+    residential: contracts.filter(contract => contract.category === "Residential Villa").length,
+    commercial: contracts.filter(contract => contract.category === "Commercial Building").length,
+    industrial: contracts.filter(contract => contract.category === "Industrial Complex").length,
+    totalValue: contracts.reduce((sum, contract) => sum + contract.value, 0),
+    averageValue: Math.round(contracts.reduce((sum, contract) => sum + contract.value, 0) / contracts.length)
   };
 
   return (
@@ -159,20 +212,48 @@ export default function ContractList() {
             </tr>
           </thead>
           <tbody>
-            {demoContracts.map((c, idx) => (
+            {contracts.map((c, idx) => (
               <tr key={idx} className="even:bg-gray-50">
                 <td className="py-2 px-2 whitespace-nowrap">{c.ref}</td>
                 <td className="py-2 px-2 whitespace-nowrap">{c.start}</td>
                 <td className="py-2 px-2 whitespace-nowrap">{c.end}</td>
                 <td className="py-2 px-2 whitespace-nowrap">{c.category}</td>
                 <td className="py-2 px-2 whitespace-nowrap">
-                  <button className="text-blue-600 hover:underline text-xs sm:text-sm">View</button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleViewContract(c)}
+                      className="text-blue-600 hover:underline text-xs sm:text-sm hover:text-blue-800 transition-colors"
+                    >
+                      View
+                    </button>
+                    <button 
+                      onClick={() => handleCreateAmendment(c)}
+                      className="text-green-600 hover:underline text-xs sm:text-sm hover:text-green-800 transition-colors"
+                    >
+                      Create Amendment
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Contract View Modal */}
+      <ContractViewModal
+        isOpen={showViewModal}
+        onClose={handleCloseModal}
+        contract={selectedContract}
+      />
+
+      {/* Amendment Form Modal */}
+      <AmendmentForm
+        isOpen={showAmendmentModal}
+        onClose={handleCloseAmendmentModal}
+        originalContract={contractForAmendment}
+        onCreateAmendment={handleCreateAmendmentSubmit}
+      />
     </div>
   );
 } 

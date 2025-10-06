@@ -40,6 +40,13 @@ const CreateContract = () => {
     community: '',
     numberOfFloors: '',
     
+    // Building Details
+    buildingCost: '',
+    builtUpArea: '',
+    structuralSystem: '',
+    buildingHeight: '',
+    buildingType: '',
+    
     // Financial Details
     fees: [
       {
@@ -1727,6 +1734,144 @@ const CreateContract = () => {
                                 min="1"
                               />
                               <div className="absolute inset-0 bg-gradient-to-r from-teal-500/5 to-emerald-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Building Details */}
+                      <div className="relative mb-8">
+                        <div className="flex items-center mb-6">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center mr-3">
+                            <span className="text-white text-sm">🏗️</span>
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900">Building Details</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          <div className="group">
+                            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                              <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center mr-2">
+                                <span className="text-white text-xs">💰</span>
+                              </div>
+                              Building Cost
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={formData.buildingCost}
+                                onChange={(e) => handleInputChange('buildingCost', e.target.value)}
+                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-blue-300"
+                                placeholder="Enter building cost (AED)"
+                                min="0"
+                                step="0.01"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="group">
+                            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                              <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center mr-2">
+                                <span className="text-white text-xs">📐</span>
+                              </div>
+                              Built Up Area
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={formData.builtUpArea}
+                                onChange={(e) => handleInputChange('builtUpArea', e.target.value)}
+                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-indigo-300"
+                                placeholder="Enter built up area (sq ft)"
+                                min="0"
+                                step="0.01"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="group">
+                            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                              <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center mr-2">
+                                <span className="text-white text-xs">🏗️</span>
+                              </div>
+                              Structural System
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={formData.structuralSystem}
+                                onChange={(e) => handleInputChange('structuralSystem', e.target.value)}
+                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-purple-300 appearance-none cursor-pointer"
+                              >
+                                <option value="">Select structural system</option>
+                                <option value="Reinforced Concrete">Reinforced Concrete</option>
+                                <option value="Steel Frame">Steel Frame</option>
+                                <option value="Masonry">Masonry</option>
+                                <option value="Wood Frame">Wood Frame</option>
+                                <option value="Precast Concrete">Precast Concrete</option>
+                                <option value="Composite">Composite</option>
+                                <option value="Other">Other</option>
+                              </select>
+                              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="group">
+                            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                              <div className="w-6 h-6 bg-gradient-to-br from-pink-400 to-red-400 rounded-lg flex items-center justify-center mr-2">
+                                <span className="text-white text-xs">📏</span>
+                              </div>
+                              Building Height
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={formData.buildingHeight}
+                                onChange={(e) => handleInputChange('buildingHeight', e.target.value)}
+                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-pink-300"
+                                placeholder="Enter building height (m)"
+                                min="0"
+                                step="0.1"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/5 to-red-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="group">
+                            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                              <div className="w-6 h-6 bg-gradient-to-br from-red-400 to-orange-400 rounded-lg flex items-center justify-center mr-2">
+                                <span className="text-white text-xs">🏢</span>
+                              </div>
+                              Building Type
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={formData.buildingType}
+                                onChange={(e) => handleInputChange('buildingType', e.target.value)}
+                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-red-300 appearance-none cursor-pointer"
+                              >
+                                <option value="">Select building type</option>
+                                <option value="Residential">Residential</option>
+                                <option value="Commercial">Commercial</option>
+                                <option value="Mixed-Use">Mixed-Use</option>
+                                <option value="Industrial">Industrial</option>
+                                <option value="Institutional">Institutional</option>
+                                <option value="Hospitality">Hospitality</option>
+                                <option value="Healthcare">Healthcare</option>
+                                <option value="Educational">Educational</option>
+                                <option value="Other">Other</option>
+                              </select>
+                              <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-orange-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
                             </div>
                           </div>
                         </div>

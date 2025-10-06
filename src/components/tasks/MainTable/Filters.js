@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   PlusIcon,
-  ClipboardDocumentIcon,
+  ArrowDownTrayIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   Bars3Icon
@@ -19,7 +19,7 @@ const Filters = ({
   isSearching,
   getActiveFilterCount,
   handleAddNewTask,
-  handlePasteProject,
+  handleExport,
   resetColumnOrder,
   showAddColumnMenu,
   setShowAddColumnMenu,
@@ -98,10 +98,10 @@ const Filters = ({
             
             <button
               className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-              onClick={handlePasteProject}
-              title="Paste Project"
+              onClick={handleExport}
+              title="Export Table Data"
             >
-              <ClipboardDocumentIcon className="w-5 h-5" /> Paste
+              <ArrowDownTrayIcon className="w-5 h-5" /> Export
             </button>
             
             {/* Search Box */}

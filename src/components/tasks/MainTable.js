@@ -33,6 +33,7 @@ import BulkActionBar from "./MainTable/BulkActionBar";
 import BulkEditDrawer from "./MainTable/BulkEditDrawer";
 import BulkViewDrawer from "./MainTable/BulkViewDrawer";
 import BulkPasteModal from "./MainTable/BulkPasteModal";
+import ExportModal from "./MainTable/ExportModal";
 import TruncatedTextCell from "./MainTable/TruncatedTextCell";
 import ChecklistModal from "./modals/ChecklistModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
@@ -72,6 +73,11 @@ import {
 // Import shared search and filter hook
 import { useSearchAndFilters } from './hooks/useSearchAndFilters';
 
+// Import undo functionality
+import UndoToast from '../common/UndoToast';
+import useUndoManager from '../../hooks/useUndoManager';
+import { filterActiveItems, applySoftDelete, applyRestore } from '../../utils/softDeleteUtils';
+
 const initialTasks = [
   {
     id: 2,
@@ -108,7 +114,9 @@ const initialTasks = [
     progress: 75,
     color: "#10d081",
     pinned: true, // Add pinned property - this one is pinned
-    subtasks: []
+    subtasks: [],
+    is_deleted: false, // Add soft delete flag
+    deleted_at: null
   },
   {
     id: 3,
@@ -135,7 +143,9 @@ const initialTasks = [
     progress: 25,
     color: "#f59e42",
     pinned: false, // Add pinned property
-    subtasks: []
+    subtasks: [],
+    is_deleted: false, // Add soft delete flag
+    deleted_at: null
   }
 ];
 
@@ -173,10 +183,62 @@ export default function MainTable() {
     childTasks: []
   });
   const [showBulkPasteModal, setShowBulkPasteModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportData, setExportData] = useState([]);
   const [pasteTarget, setPasteTarget] = useState(null);
   
   // Socket.IO integration
   const { socket, isConnected } = useSocket();
+
+  // Undo functionality
+  const undoManager = useUndoManager();
+
+  // Handle undo restoration
+  const handleUndoRestore = (deletedItems) => {
+    const projectItems = deletedItems.filter(item => !item.subtaskId);
+    const subtaskItems = deletedItems.filter(item => item.subtaskId);
+    
+    if (projectItems.length > 0) {
+      setTasks(tasks => {
+        const updatedTasks = applyRestore(tasks, projectItems);
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
+      });
+    }
+    
+    if (subtaskItems.length > 0) {
+      setTasks(tasks => {
+        const updatedTasks = tasks.map(task => {
+          if (task.subtasks) {
+            const updatedSubtasks = task.subtasks.map(subtask => {
+              const subtaskToRestore = subtaskItems.find(item => item.id === subtask.id);
+              if (subtaskToRestore) {
+                return { ...subtask, is_deleted: false, deleted_at: null };
+              }
+              
+              // Check if this subtask has child subtasks that need restoration
+              if (subtask.childSubtasks) {
+                const updatedChildSubtasks = subtask.childSubtasks.map(childSubtask => {
+                  const childSubtaskToRestore = subtaskItems.find(item => 
+                    item.id === childSubtask.id && item.parentSubtaskId === subtask.id
+                  );
+                  if (childSubtaskToRestore) {
+                    return { ...childSubtask, is_deleted: false, deleted_at: null };
+                  }
+                  return childSubtask;
+                });
+                return { ...subtask, childSubtasks: updatedChildSubtasks };
+              }
+              
+              return subtask;
+            });
+            return { ...task, subtasks: updatedSubtasks };
+          }
+          return task;
+        });
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
+      });
+    }
+  };
 
   const handleProjectNameClick = (task) => {
     setEditingTaskId(task.id);
@@ -596,107 +658,45 @@ export default function MainTable() {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  // Paste project functionality
-  const handlePasteProject = async () => {
-    try {
-      // Check if clipboard API is available
-      if (!navigator.clipboard) {
-        alert('Clipboard API not supported in this browser');
-        return;
-      }
-
-      // Read clipboard content
-      const clipboardText = await navigator.clipboard.readText();
-      
-      if (!clipboardText.trim()) {
-        alert('No content found in clipboard');
-        return;
-      }
-
-      // Try to parse clipboard content as JSON (for project data)
-      try {
-        const projectData = JSON.parse(clipboardText);
-        
-        // Validate if it looks like project data
-        if (projectData && (projectData.name || projectData.title)) {
-          // Create new project from clipboard data
-          const newProject = {
-            id: Date.now(),
-            name: projectData.name || projectData.title || 'Pasted Project',
-            status: projectData.status || 'pending',
-            owner: projectData.owner || 'Unknown',
-            timeline: projectData.timeline || [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)],
-            planDays: projectData.planDays || 7,
-            remarks: projectData.remarks || 'Pasted from clipboard',
-            assigneeNotes: projectData.assigneeNotes || '',
-            attachments: projectData.attachments || [],
-            priority: projectData.priority || 'medium',
-            location: projectData.location || 'Remote',
-            plotNumber: projectData.plotNumber || '',
-            community: projectData.community || '',
-            projectType: projectData.projectType || 'Commercial',
-            subtasks: projectData.subtasks || [],
-            pinned: false,
-            completed: false
-          };
-
-          // Add the new project to tasks
-          setTasks(prev => [newProject, ...prev]);
-          alert('Project pasted successfully!');
-        } else {
-          // If not JSON, create a simple project with the text as name
-          const newProject = {
-            id: Date.now(),
-            name: clipboardText.substring(0, 50) + (clipboardText.length > 50 ? '...' : ''),
-            status: 'pending',
-            owner: 'Unknown',
-            timeline: [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)],
-            planDays: 7,
-            remarks: 'Pasted from clipboard',
-            assigneeNotes: '',
-            attachments: [],
-            priority: 'medium',
-            location: 'Remote',
-            plotNumber: '',
-            community: '',
-            projectType: 'Commercial',
-            subtasks: [],
-            pinned: false,
-            completed: false
-          };
-
-          setTasks(prev => [newProject, ...prev]);
-          alert('Project created from clipboard text!');
-        }
-      } catch (jsonError) {
-        // If not JSON, create a simple project with the text as name
-        const newProject = {
-          id: Date.now(),
-          name: clipboardText.substring(0, 50) + (clipboardText.length > 50 ? '...' : ''),
-          status: 'pending',
-          owner: 'Unknown',
-          timeline: [new Date(), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)],
-          planDays: 7,
-          remarks: 'Pasted from clipboard',
-          assigneeNotes: '',
-          attachments: [],
-          priority: 'medium',
-          location: 'Remote',
-          plotNumber: '',
-          community: '',
-          projectType: 'Commercial',
-          subtasks: [],
-          pinned: false,
-          completed: false
-        };
-
-        setTasks(prev => [newProject, ...prev]);
-        alert('Project created from clipboard text!');
-      }
-    } catch (error) {
-      console.error('Error pasting project:', error);
-      alert('Failed to paste project. Please check clipboard permissions.');
+  // Export functionality
+  const handleExport = () => {
+    // Get the current filtered tasks (excluding soft-deleted items)
+    const activeTasks = filterActiveItems(getFilteredTasks());
+    
+    if (activeTasks.length === 0) {
+      alert('No data to export');
+      return;
     }
+
+    // Prepare data for export
+    const exportData = activeTasks.map(task => ({
+      'Project Name': task.name,
+      'Reference Number': task.referenceNumber || '',
+      'Category': task.category || '',
+      'Status': task.status,
+      'Owner': task.owner,
+      'Start Date': task.timeline[0] ? task.timeline[0].toLocaleDateString() : '',
+      'End Date': task.timeline[1] ? task.timeline[1].toLocaleDateString() : '',
+      'Plan Days': task.planDays || 0,
+      'Priority': task.priority,
+      'Progress': `${task.progress || 0}%`,
+      'Location': task.location || '',
+      'Plot Number': task.plotNumber || '',
+      'Community': task.community || '',
+      'Project Type': task.projectType || '',
+      'Project Floor': task.projectFloor || '',
+      'Developer Project': task.developerProject || '',
+      'Remarks': task.remarks || '',
+      'Assignee Notes': task.assigneeNotes || '',
+      'Rating': task.rating || 0,
+      'Checklist': task.checklist ? 'Yes' : 'No',
+      'Pinned': task.pinned ? 'Yes' : 'No',
+      'Subtasks Count': task.subtasks ? task.subtasks.filter(sub => !sub.is_deleted).length : 0
+    }));
+
+    // Store export data and show modal
+    setExportData(exportData);
+    setShowExportModal(true);
   };
 
 
@@ -1022,23 +1022,53 @@ export default function MainTable() {
   const handleBulkDelete = (selectedTasks, selectedSubtasks = []) => {
     console.log('Bulk delete called with:', { selectedTasks, selectedSubtasks });
     
-    // Delete selected tasks
+    let deletedItems = [];
+    let itemType = '';
+    let message = '';
+    
+    // Soft delete selected tasks
     if (selectedTasks.length > 0) {
-      const taskIds = selectedTasks.map(task => task.id);
-      setTasks(tasks => tasks.filter(task => !taskIds.includes(task.id)));
+      setTasks(tasks => {
+        const updatedTasks = applySoftDelete(tasks, selectedTasks);
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
+      });
+      deletedItems = [...deletedItems, ...selectedTasks];
+      itemType = 'project';
+      message = `${selectedTasks.length} project${selectedTasks.length > 1 ? 's' : ''} deleted`;
     }
     
-    // Delete selected subtasks
+    // Soft delete selected subtasks
     if (selectedSubtasks.length > 0) {
-      setTasks(tasks => tasks.map(task => {
-        if (task.subtasks) {
-          const updatedSubtasks = task.subtasks.filter(subtask => 
-            !selectedSubtasks.some(selected => selected.id === subtask.id)
-          );
-          return { ...task, subtasks: updatedSubtasks };
-        }
-        return task;
-      }));
+      setTasks(tasks => {
+        const updatedTasks = tasks.map(task => {
+          if (task.subtasks) {
+            const timestamp = Date.now();
+            const updatedSubtasks = task.subtasks.map(subtask => {
+              if (selectedSubtasks.some(selected => selected.id === subtask.id)) {
+                return { ...subtask, is_deleted: true, deleted_at: timestamp };
+              }
+              return subtask;
+            });
+            return { ...task, subtasks: updatedSubtasks };
+          }
+          return task;
+        });
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
+      });
+      // Add subtaskId to identify subtasks for undo functionality
+      const subtasksWithId = selectedSubtasks.map(subtask => ({ ...subtask, subtaskId: true }));
+      deletedItems = [...deletedItems, ...subtasksWithId];
+      itemType = selectedTasks.length > 0 ? 'item' : 'subtask';
+      if (selectedTasks.length > 0) {
+        message = `${deletedItems.length} item${deletedItems.length > 1 ? 's' : ''} deleted`;
+      } else {
+        message = `${selectedSubtasks.length} subtask${selectedSubtasks.length > 1 ? 's' : ''} deleted`;
+      }
+    }
+    
+    // Show undo toast
+    if (deletedItems.length > 0) {
+      undoManager.showUndoToast(deletedItems, itemType, message);
     }
     
     setSelectedTaskIds(new Set());
@@ -1262,20 +1292,46 @@ export default function MainTable() {
   }
 
   function handleDeleteRow(id, parentTaskId = null) {
-    setTasks(tasks => {
-      let updatedTasks;
-      if (parentTaskId) {
-        updatedTasks = tasks.map(task =>
-          task.id === parentTaskId
-            ? { ...task, subtasks: task.subtasks.filter(sub => sub.id !== id) }
-            : task
-        );
-      } else {
-        updatedTasks = tasks.filter(task => task.id !== id);
+    if (parentTaskId) {
+      // Handle subtask deletion
+      const task = tasks.find(t => t.id === parentTaskId);
+      const subtask = task?.subtasks.find(sub => sub.id === id);
+      
+      if (subtask) {
+        const timestamp = Date.now();
+        setTasks(tasks => {
+          const updatedTasks = tasks.map(t => {
+            if (t.id === parentTaskId) {
+              const updatedSubtasks = t.subtasks.map(sub => 
+                sub.id === id 
+                  ? { ...sub, is_deleted: true, deleted_at: timestamp }
+                  : sub
+              );
+              return { ...t, subtasks: updatedSubtasks };
+            }
+            return t;
+          });
+          return calculateTaskTimelines(updatedTasks, projectStartDate);
+        });
+        
+        // Show undo toast for subtask - add subtaskId to identify it as a subtask
+        const subtaskWithId = { ...subtask, subtaskId: true, parentTaskId };
+        undoManager.showUndoToast([subtaskWithId], 'subtask', `Subtask "${subtask.name}" deleted`);
       }
-      // Recalculate timelines after deletion to ensure proper dependencies
-      return calculateTaskTimelines(updatedTasks, projectStartDate);
-    });
+    } else {
+      // Handle main task deletion
+      const taskToDelete = tasks.find(t => t.id === id);
+      
+      if (taskToDelete) {
+        setTasks(tasks => {
+          const updatedTasks = applySoftDelete(tasks, [taskToDelete]);
+          return calculateTaskTimelines(updatedTasks, projectStartDate);
+        });
+        
+        // Show undo toast for task
+        undoManager.showUndoToast([taskToDelete], 'project', `Project "${taskToDelete.name}" deleted`);
+      }
+    }
   }
 
   function handleAddNewTask() {
@@ -1376,8 +1432,16 @@ export default function MainTable() {
     setTasks(ts => calculateTaskTimelines(ts, projectStartDate));
   }, [projectStartDate]);
 
+  // Cleanup undo manager on unmount
+  useEffect(() => {
+    return () => {
+      undoManager.cleanup();
+    };
+  }, [undoManager]);
+
   // Filter and sort tasks - pinned tasks first, then by existing sorting
-  const filteredTasks = getFilteredTasks().sort((a, b) => {
+  // Also filter out soft-deleted items
+  const filteredTasks = filterActiveItems(getFilteredTasks()).sort((a, b) => {
     // First sort by pinned status (pinned tasks first)
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -1835,33 +1899,50 @@ export default function MainTable() {
   }
 
   function handleDeleteChildSubtask(taskId, parentSubtaskId, childSubtaskId) {
-    setTasks(tasks => {
-      const updatedTasks = tasks.map(t => {
-        if (t.id !== taskId) return t;
-        
-        const updatedSubtasks = t.subtasks.map(sub => {
-          if (sub.id !== parentSubtaskId) return sub;
+    // Find the child subtask to delete
+    const task = tasks.find(t => t.id === taskId);
+    const parentSubtask = task?.subtasks.find(sub => sub.id === parentSubtaskId);
+    const childSubtask = parentSubtask?.childSubtasks.find(child => child.id === childSubtaskId);
+    
+    if (childSubtask) {
+      const timestamp = Date.now();
+      setTasks(tasks => {
+        const updatedTasks = tasks.map(t => {
+          if (t.id !== taskId) return t;
           
-          const updatedChildSubtasks = sub.childSubtasks.filter(child => child.id !== childSubtaskId);
-          
-          // If all child subtasks are done, set parent subtask status to 'done'
-          const allDone = updatedChildSubtasks.length > 0 && updatedChildSubtasks.every(child => child.status === 'done');
+          const updatedSubtasks = t.subtasks.map(sub => {
+            if (sub.id !== parentSubtaskId) return sub;
+            
+            const updatedChildSubtasks = sub.childSubtasks.map(child => 
+              child.id === childSubtaskId 
+                ? { ...child, is_deleted: true, deleted_at: timestamp }
+                : child
+            );
+            
+            // If all active child subtasks are done, set parent subtask status to 'done'
+            const activeChildSubtasks = updatedChildSubtasks.filter(child => !child.is_deleted);
+            const allDone = activeChildSubtasks.length > 0 && activeChildSubtasks.every(child => child.status === 'done');
+            
+            return {
+              ...sub,
+              childSubtasks: updatedChildSubtasks,
+              status: allDone ? 'done' : sub.status
+            };
+          });
           
           return {
-            ...sub,
-            childSubtasks: updatedChildSubtasks,
-            status: allDone ? 'done' : sub.status
+            ...t,
+            subtasks: updatedSubtasks
           };
         });
         
-        return {
-          ...t,
-          subtasks: updatedSubtasks
-        };
+        return calculateTaskTimelines(updatedTasks, projectStartDate);
       });
       
-      return calculateTaskTimelines(updatedTasks, projectStartDate);
-    });
+      // Show undo toast for child subtask
+      const childSubtaskWithId = { ...childSubtask, subtaskId: true, parentTaskId: taskId, parentSubtaskId };
+      undoManager.showUndoToast([childSubtaskWithId], 'subtask', `Child subtask "${childSubtask.name}" deleted`);
+    }
   }
 
   // Create a context-aware wrapper for child subtasks
@@ -2255,7 +2336,7 @@ export default function MainTable() {
             isSearching={isSearching}
             getActiveFilterCount={getActiveFilterCount}
             handleAddNewTask={handleAddNewTask}
-            handlePasteProject={handlePasteProject}
+            handleExport={handleExport}
             resetColumnOrder={resetColumnOrder}
             showAddColumnMenu={showAddColumnMenu}
             setShowAddColumnMenu={setShowAddColumnMenu}
@@ -2767,8 +2848,8 @@ export default function MainTable() {
                               </thead>
                               <tbody>
                                 <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
-                                  <SortableContext items={task.subtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
-                                    {task.subtasks.map((sub, subIdx) => (
+                                  <SortableContext items={filterActiveItems(task.subtasks).map(sub => sub.id)} strategy={verticalListSortingStrategy}>
+                                    {filterActiveItems(task.subtasks).map((sub, subIdx) => (
                                       <React.Fragment key={sub.id}>
                                         <SortableSubtaskRow sub={sub} subIdx={subIdx} task={task}>
                                           {/* Checkbox Column for Subtask */}
@@ -2816,7 +2897,7 @@ export default function MainTable() {
                                         </SortableSubtaskRow>
                                     
                                                                          {/* Child Subtasks */}
-                                     {sub.childSubtasks && sub.childSubtasks.map((childSub, childIdx) => (
+                                     {sub.childSubtasks && filterActiveItems(sub.childSubtasks).map((childSub, childIdx) => (
                                        <tr key={childSub.id} className="childtask-row transition-all duration-200">
                                          {/* Drag Handle Column for Child Subtask */}
                                          <td className="px-2 py-2 align-middle text-center w-16">
@@ -3109,6 +3190,8 @@ export default function MainTable() {
         onPaste={() => setShowBulkPasteModal(true)}
         bulkCopiedItems={bulkCopiedItems}
         showBulkPasteModal={showBulkPasteModal}
+        onUndo={() => undoManager.undoDeletion(handleUndoRestore)}
+        hasDeletedItems={undoManager.undoState.deletedItems.length > 0}
       />
 
       <BulkEditDrawer
@@ -3163,6 +3246,14 @@ export default function MainTable() {
         onSetPasteTarget={setPasteTarget}
       />
 
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        exportData={exportData}
+        totalCount={exportData.length}
+      />
+
       {/* Engineer Invite Modal */}
       <EngineerInviteModal
         isOpen={engineerInviteModalOpen}
@@ -3171,6 +3262,16 @@ export default function MainTable() {
         taskName={engineerInviteTarget?.taskName}
         currentAssignee={engineerInviteTarget?.currentAssignee}
         onInviteEngineer={handleInviteEngineer}
+      />
+
+      {/* Undo Toast */}
+      <UndoToast
+        isVisible={undoManager.undoState.isVisible}
+        onUndo={() => undoManager.undoDeletion(handleUndoRestore)}
+        onDismiss={undoManager.dismissUndoToast}
+        message={undoManager.undoState.message}
+        itemType={undoManager.undoState.itemType}
+        count={undoManager.undoState.deletedItems.length}
       />
 
     </div>

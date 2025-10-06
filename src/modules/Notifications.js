@@ -1,11 +1,6 @@
 import React from "react";
-import { Navbar } from "./Navbar";
-import Sidebar from "./Sidebar";
+import NotificationsPage from "../pages/NotificationsPage";
+
 export default function Notifications() {
-  return (
-    <>
-      <div>One</div>
-      <div>Two</div>
-    </>
-  );
+  return <NotificationsPage />;
 } 

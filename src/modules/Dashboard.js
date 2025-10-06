@@ -22,6 +22,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 
 function PieChart({ colors = ["#a78bfa", "#fbbf24", "#f87171"], size = 80 }) {
@@ -316,7 +317,8 @@ export default function Dashboard() {
             {/* Main content */}
             <div className="flex-1 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0 items-stretch justify-start">
               {/* Summary cards: responsive grid with drag and drop */}
-              <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+              {/* Use rectSortingStrategy for smoother grid reordering animations */}
+              <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
                   {widgetOrder.map((widgetId) => {
                     switch (widgetId) {
