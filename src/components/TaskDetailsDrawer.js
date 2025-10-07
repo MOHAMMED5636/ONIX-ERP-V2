@@ -703,7 +703,7 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                 {/* Child Work Items */}
                 <div className="bg-white/80 backdrop-blur-sm shadow-lg rounded-2xl p-6 border border-white/20 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b-2 border-orange-400 pb-2">
                       <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full"></div>
                       Child Work Items
                     </h3>

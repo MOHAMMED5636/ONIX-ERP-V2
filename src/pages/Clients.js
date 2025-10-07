@@ -211,14 +211,21 @@ const Clients = () => {
     const fetchClients = async () => {
       setLoading(true);
       try {
-        // Try to fetch from API first
-        const response = await ClientsAPI.getClients({
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 3000)
+        );
+        
+        const apiPromise = ClientsAPI.getClients({
           page: currentPage,
           limit: itemsPerPage,
           search: searchQuery,
           corporate: filterCorporate !== 'all' ? filterCorporate : undefined,
           leadSource: filterLeadSource !== 'all' ? filterLeadSource : undefined,
         });
+        
+        // Race between API call and timeout
+        const response = await Promise.race([apiPromise, timeoutPromise]);
         
         setClients(response.data || response);
         setFilteredClients(response.data || response);
@@ -234,6 +241,14 @@ const Clients = () => {
 
     fetchClients();
   }, [currentPage, searchQuery, filterCorporate, filterLeadSource, itemsPerPage]);
+
+  // Initial load effect to ensure loading state is properly managed
+  useEffect(() => {
+    if (clients.length === 0 && !loading) {
+      setClients(mockClients);
+      setFilteredClients(mockClients);
+    }
+  }, [clients.length, loading]);
 
   useEffect(() => {
     let filtered = clients;

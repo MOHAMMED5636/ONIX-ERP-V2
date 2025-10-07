@@ -65,7 +65,7 @@ const ProjectRow = ({
       case "task":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
+            className="border rounded px-2 py-1 text-sm font-bold text-gray-900 border-b-4 border-blue-500"
             value={row.name}
             onChange={e => onEdit("name", e.target.value)}
           />

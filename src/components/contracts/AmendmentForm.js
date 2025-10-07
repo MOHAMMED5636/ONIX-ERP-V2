@@ -60,9 +60,44 @@ const AmendmentForm = ({ isOpen, onClose, originalContract, onCreateAmendment })
   const handleChangeUpdate = (index, field, value) => {
     setFormData(prev => ({
       ...prev,
-      changes: prev.changes.map((change, i) => 
-        i === index ? { ...change, [field]: value } : change
-      )
+      changes: prev.changes.map((change, i) => {
+        if (i === index) {
+          const updatedChange = { ...change, [field]: value };
+          
+          // Auto-populate original value when field is selected
+          if (field === 'field' && value && value !== 'Other') {
+            const contractField = fieldMapping[value];
+            console.log('Field selected:', value, 'Contract field:', contractField, 'Contract value:', originalContract[contractField]);
+            
+            // Try to get the value from the contract
+            let originalValue = null;
+            if (contractField && originalContract[contractField]) {
+              originalValue = originalContract[contractField];
+            } else {
+              // Fallback: try to match by field name or similar
+              const lowerValue = value.toLowerCase();
+              const contractKeys = Object.keys(originalContract);
+              const matchingKey = contractKeys.find(key => 
+                key.toLowerCase().includes(lowerValue) || 
+                lowerValue.includes(key.toLowerCase())
+              );
+              if (matchingKey) {
+                originalValue = originalContract[matchingKey];
+              }
+            }
+            
+            if (originalValue) {
+              updatedChange.originalValue = originalValue;
+              console.log('Auto-populated original value:', originalValue);
+            } else {
+              console.log('No original value found for field:', value);
+            }
+          }
+          
+          return updatedChange;
+        }
+        return change;
+      })
     }));
   };
 
@@ -109,22 +144,55 @@ const AmendmentForm = ({ isOpen, onClose, originalContract, onCreateAmendment })
     setIsSubmitting(true);
     
     try {
-      // Create new contract version
+      // Create amendment number
       const amendmentNumber = `AM-${Date.now()}`;
-      const newContract = {
+      
+      // Prepare changes to apply to original contract
+      const changesToApply = {};
+      formData.changes.forEach(change => {
+        if (change.field && change.field !== 'Other' && change.newValue) {
+          const contractField = fieldMapping[change.field];
+          if (contractField) {
+            changesToApply[contractField] = change.newValue;
+          }
+        }
+      });
+
+      // Create updated original contract with changes applied
+      const updatedOriginalContract = {
         ...originalContract,
-        id: Date.now(),
-        ref: `${originalContract.ref}-${amendmentNumber}`,
-        originalContractId: originalContract.id || originalContract.ref,
-        amendmentNumber,
-        amendmentData: formData,
-        status: formData.approvalRequired ? 'Pending Approval' : 'Active',
-        createdAt: new Date().toISOString(),
-        version: '2.0'
+        ...changesToApply,
+        lastAmended: new Date().toISOString(),
+        amendmentHistory: [
+          ...(originalContract.amendmentHistory || []),
+          {
+            amendmentNumber,
+            date: new Date().toISOString(),
+            reason: formData.amendmentReason,
+            type: formData.amendmentType,
+            changes: formData.changes,
+            effectiveDate: formData.effectiveDate,
+            approvedBy: formData.approvedBy,
+            approvalDate: formData.approvalDate
+          }
+        ]
       };
 
-      // Call the parent handler
-      await onCreateAmendment(newContract, formData);
+      // Create amendment record
+      const amendmentRecord = {
+        id: Date.now(),
+        amendmentNumber,
+        originalContractId: originalContract.id || originalContract.ref,
+        originalContractRef: originalContract.ref,
+        amendmentData: formData,
+        changesApplied: changesToApply,
+        status: formData.approvalRequired ? 'Pending Approval' : 'Applied',
+        createdAt: new Date().toISOString(),
+        effectiveDate: formData.effectiveDate
+      };
+
+      // Call the parent handler with both updated contract and amendment record
+      await onCreateAmendment(updatedOriginalContract, amendmentRecord);
       
       // Reset form
       setFormData({
@@ -169,8 +237,41 @@ const AmendmentForm = ({ isOpen, onClose, originalContract, onCreateAmendment })
     'Terms and Conditions',
     'Penalty Clauses',
     'Warranty Period',
+    'Building Cost',
+    'Built Up Area',
+    'Structural System',
+    'Building Height',
+    'Building Type',
+    'Region',
+    'Plot Number',
+    'Community',
+    'Number of Floors',
+    'Authority Approval',
     'Other'
   ];
+
+  // Field mapping to match contract properties
+  const fieldMapping = {
+    'Contract Value': 'contractValue',
+    'Start Date': 'startDate',
+    'End Date': 'endDate',
+    'Payment Terms': 'paymentTerms',
+    'Scope of Work': 'scopeOfWork',
+    'Deliverables': 'deliverables',
+    'Terms and Conditions': 'termsAndConditions',
+    'Penalty Clauses': 'penaltyClauses',
+    'Warranty Period': 'warrantyPeriod',
+    'Building Cost': 'buildingCost',
+    'Built Up Area': 'builtUpArea',
+    'Structural System': 'structuralSystem',
+    'Building Height': 'buildingHeight',
+    'Building Type': 'buildingType',
+    'Region': 'region',
+    'Plot Number': 'plotNumber',
+    'Community': 'community',
+    'Number of Floors': 'numberOfFloors',
+    'Authority Approval': 'authorityApproval'
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -377,12 +478,17 @@ const AmendmentForm = ({ isOpen, onClose, originalContract, onCreateAmendment })
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Original Value
+                          {change.originalValue && (
+                            <span className="ml-2 text-xs text-green-600 font-medium">✓ Auto-filled</span>
+                          )}
                         </label>
                         <input
                           type="text"
                           value={change.originalValue}
                           onChange={(e) => handleChangeUpdate(index, 'originalValue', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                            change.originalValue ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                          }`}
                           placeholder="Original value"
                         />
                       </div>

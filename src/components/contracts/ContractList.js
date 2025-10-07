@@ -14,16 +14,146 @@ import ContractViewModal from './ContractViewModal';
 import AmendmentForm from './AmendmentForm';
 
 const demoContracts = [
-  { ref: "C-CO-25279", start: "7/1/2023", end: "7/1/2025", category: "Residential Villa", status: "Active", value: 2500000 },
-  { ref: "C-CO-2542", start: "6/18/2025", end: "6/18/2026", category: "Residential Villa", status: "Active", value: 1800000 },
-  { ref: "C-CO-2547", start: "6/16/2025", end: "6/16/2026", category: "Residential Villa", status: "Active", value: 2200000 },
-  { ref: "C-ON-2208", start: "10/11/2022", end: "10/11/2023", category: "Residential Villa", status: "Completed", value: 1500000 },
-  { ref: "C-CO-2550", start: "1/15/2024", end: "1/15/2026", category: "Commercial Building", status: "Active", value: 5000000 },
-  { ref: "C-CO-2551", start: "3/20/2024", end: "3/20/2025", category: "Commercial Building", status: "Active", value: 3200000 },
-  { ref: "C-CO-2552", start: "5/10/2023", end: "5/10/2024", category: "Commercial Building", status: "Completed", value: 2800000 },
-  { ref: "C-CO-2553", start: "8/1/2024", end: "8/1/2026", category: "Industrial Complex", status: "Active", value: 7500000 },
-  { ref: "C-CO-2554", start: "2/14/2024", end: "2/14/2025", category: "Industrial Complex", status: "Active", value: 4200000 },
-  { ref: "C-CO-2555", start: "11/1/2023", end: "11/1/2024", category: "Industrial Complex", status: "Completed", value: 3800000 },
+  { 
+    id: 1,
+    ref: "C-CO-25279", 
+    start: "7/1/2023", 
+    end: "7/1/2025", 
+    category: "Residential Villa", 
+    status: "Active", 
+    value: 2500000,
+    contractValue: "2,500,000 AED",
+    startDate: "7/1/2023",
+    endDate: "7/1/2025",
+    paymentTerms: "Monthly payments",
+    scopeOfWork: "Complete villa construction",
+    deliverables: "3-bedroom villa with garden",
+    termsAndConditions: "Standard construction terms",
+    penaltyClauses: "AED 500/day for delays",
+    warrantyPeriod: "2 years",
+    buildingCost: "2,200,000 AED",
+    builtUpArea: "250 sq ft",
+    structuralSystem: "Reinforced Concrete",
+    buildingHeight: "15 meters",
+    buildingType: "Residential",
+    region: "Dubai Marina",
+    plotNumber: "PL-2023-001",
+    community: "Marina Walk",
+    numberOfFloors: "3",
+    authorityApproval: "DM Approved"
+  },
+  { 
+    id: 2,
+    ref: "C-CO-2542", 
+    start: "6/18/2025", 
+    end: "6/18/2026", 
+    category: "Residential Villa", 
+    status: "Active", 
+    value: 1800000,
+    contractValue: "1,800,000 AED",
+    startDate: "6/18/2025",
+    endDate: "6/18/2026",
+    paymentTerms: "Quarterly payments",
+    scopeOfWork: "Villa renovation",
+    deliverables: "Renovated 2-bedroom villa",
+    termsAndConditions: "Renovation terms",
+    penaltyClauses: "AED 300/day for delays",
+    warrantyPeriod: "1 year",
+    buildingCost: "1,600,000 AED",
+    builtUpArea: "180 sq ft",
+    structuralSystem: "Steel Frame",
+    buildingHeight: "12 meters",
+    buildingType: "Residential",
+    region: "Jumeirah",
+    plotNumber: "PL-2025-002",
+    community: "Jumeirah Beach",
+    numberOfFloors: "2",
+    authorityApproval: "DM Pending"
+  },
+  { 
+    id: 3,
+    ref: "C-CO-2547", 
+    start: "6/16/2025", 
+    end: "6/16/2026", 
+    category: "Residential Villa", 
+    status: "Active", 
+    value: 2200000,
+    contractValue: "2,200,000 AED",
+    startDate: "6/16/2025",
+    endDate: "6/16/2026",
+    paymentTerms: "Monthly payments",
+    scopeOfWork: "Luxury villa construction",
+    deliverables: "4-bedroom luxury villa",
+    termsAndConditions: "Premium construction terms",
+    penaltyClauses: "AED 800/day for delays",
+    warrantyPeriod: "3 years",
+    buildingCost: "2,000,000 AED",
+    builtUpArea: "300 sq ft",
+    structuralSystem: "Reinforced Concrete",
+    buildingHeight: "18 meters",
+    buildingType: "Residential",
+    region: "Palm Jumeirah",
+    plotNumber: "PL-2025-003",
+    community: "Palm Beach",
+    numberOfFloors: "3",
+    authorityApproval: "DM Approved"
+  },
+  { 
+    id: 4,
+    ref: "C-ON-2208", 
+    start: "10/11/2022", 
+    end: "10/11/2023", 
+    category: "Residential Villa", 
+    status: "Completed", 
+    value: 1500000,
+    contractValue: "1,500,000 AED",
+    startDate: "10/11/2022",
+    endDate: "10/11/2023",
+    paymentTerms: "Lump sum",
+    scopeOfWork: "Villa construction",
+    deliverables: "2-bedroom villa",
+    termsAndConditions: "Standard terms",
+    penaltyClauses: "AED 400/day for delays",
+    warrantyPeriod: "2 years",
+    buildingCost: "1,300,000 AED",
+    builtUpArea: "150 sq ft",
+    structuralSystem: "Concrete Block",
+    buildingHeight: "10 meters",
+    buildingType: "Residential",
+    region: "Sharjah",
+    plotNumber: "PL-2022-001",
+    community: "Al Majaz",
+    numberOfFloors: "2",
+    authorityApproval: "DM Approved"
+  },
+  { 
+    id: 5,
+    ref: "C-CO-2550", 
+    start: "1/15/2024", 
+    end: "1/15/2026", 
+    category: "Commercial Building", 
+    status: "Active", 
+    value: 5000000,
+    contractValue: "5,000,000 AED",
+    startDate: "1/15/2024",
+    endDate: "1/15/2026",
+    paymentTerms: "Monthly payments",
+    scopeOfWork: "Office building construction",
+    deliverables: "10-story office building",
+    termsAndConditions: "Commercial terms",
+    penaltyClauses: "AED 1,000/day for delays",
+    warrantyPeriod: "5 years",
+    buildingCost: "4,500,000 AED",
+    builtUpArea: "5000 sq ft",
+    structuralSystem: "Steel Frame",
+    buildingHeight: "45 meters",
+    buildingType: "Commercial",
+    region: "DIFC",
+    plotNumber: "PL-2024-001",
+    community: "Financial Center",
+    numberOfFloors: "10",
+    authorityApproval: "DM Approved"
+  }
 ];
 
 export default function ContractList() {
@@ -54,23 +184,35 @@ export default function ContractList() {
     setContractForAmendment(null);
   };
 
-  const handleCreateAmendmentSubmit = async (newContract, amendmentData) => {
+  const handleCreateAmendmentSubmit = async (updatedContract, amendmentRecord) => {
     try {
-      // Add the new contract to the list
-      setContracts(prevContracts => [...prevContracts, newContract]);
+      // Update the original contract in the list with the changes
+      setContracts(prevContracts => 
+        prevContracts.map(contract => 
+          contract.id === updatedContract.id || contract.ref === updatedContract.ref
+            ? updatedContract
+            : contract
+        )
+      );
       
-      // Show success message
-      alert(`Amendment created successfully! New contract reference: ${newContract.ref}`);
+      // Show success message with details
+      const changesSummary = amendmentRecord.amendmentData.changes
+        .filter(change => change.field && change.newValue)
+        .map(change => `${change.field}: ${change.originalValue} → ${change.newValue}`)
+        .join(', ');
+      
+      alert(`Amendment ${amendmentRecord.amendmentNumber} created successfully!\n\nChanges applied:\n${changesSummary}\n\nContract has been updated with the new values.`);
       
       // In a real application, you would:
-      // 1. Save to database/API
-      // 2. Send notifications to stakeholders
-      // 3. Update contract history
+      // 1. Save updated contract and amendment record to database/API
+      // 2. Send notifications to stakeholders about the changes
+      // 3. Update contract version history
       // 4. Generate audit trail
       
-      console.log('New Amendment Created:', {
-        newContract,
-        amendmentData,
+      console.log('Amendment Applied:', {
+        updatedContract,
+        amendmentRecord,
+        changesApplied: amendmentRecord.changesApplied,
         originalContract: contractForAmendment
       });
       
@@ -213,8 +355,17 @@ export default function ContractList() {
           </thead>
           <tbody>
             {contracts.map((c, idx) => (
-              <tr key={idx} className="even:bg-gray-50">
-                <td className="py-2 px-2 whitespace-nowrap">{c.ref}</td>
+              <tr key={idx} className={`even:bg-gray-50 ${c.amendmentHistory && c.amendmentHistory.length > 0 ? 'bg-green-50' : ''}`}>
+                <td className="py-2 px-2 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    {c.ref}
+                    {c.amendmentHistory && c.amendmentHistory.length > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Amended ({c.amendmentHistory.length})
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="py-2 px-2 whitespace-nowrap">{c.start}</td>
                 <td className="py-2 px-2 whitespace-nowrap">{c.end}</td>
                 <td className="py-2 px-2 whitespace-nowrap">{c.category}</td>

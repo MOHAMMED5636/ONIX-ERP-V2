@@ -9,7 +9,9 @@ import {
   BuildingOfficeIcon,
   HomeIcon,
   WrenchScrewdriverIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ClockIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 const ContractViewModal = ({ isOpen, onClose, contract }) => {
@@ -324,6 +326,87 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
             <h3 className="text-xl font-bold text-gray-900 mb-4">Project Description</h3>
             <p className="text-gray-700 leading-relaxed">{contractDetails.description}</p>
           </div>
+
+          {/* Amendment History */}
+          {contractDetails.amendmentHistory && contractDetails.amendmentHistory.length > 0 && (
+            <div className="mt-8 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6 border border-orange-100">
+              <div className="flex items-center gap-3 mb-6">
+                <ClockIcon className="h-6 w-6 text-orange-600" />
+                <h3 className="text-xl font-bold text-gray-900">Amendment History</h3>
+                <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  {contractDetails.amendmentHistory.length} Amendment{contractDetails.amendmentHistory.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              
+              <div className="space-y-4">
+                {contractDetails.amendmentHistory.map((amendment, index) => (
+                  <div key={index} className="bg-white rounded-lg p-4 border border-orange-200">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{amendment.amendmentNumber}</h4>
+                        <p className="text-sm text-gray-600">{amendment.type}</p>
+                      </div>
+                      <div className="text-right text-sm text-gray-500">
+                        <p>{new Date(amendment.date).toLocaleDateString()}</p>
+                        {amendment.effectiveDate && (
+                          <p>Effective: {new Date(amendment.effectiveDate).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Reason:</span> {amendment.reason}
+                      </p>
+                    </div>
+                    
+                    {amendment.changes && amendment.changes.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Changes Made:</p>
+                        <div className="space-y-2">
+                          {amendment.changes.map((change, changeIndex) => (
+                            <div key={changeIndex} className="bg-gray-50 rounded p-3">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                <div>
+                                  <span className="font-medium text-gray-600">Field:</span>
+                                  <p className="text-gray-900">{change.field}</p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">From:</span>
+                                  <p className="text-gray-900">{change.originalValue || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">To:</span>
+                                  <p className="text-gray-900">{change.newValue || 'N/A'}</p>
+                                </div>
+                              </div>
+                              {change.reason && (
+                                <div className="mt-2">
+                                  <span className="font-medium text-gray-600 text-sm">Reason:</span>
+                                  <p className="text-gray-700 text-sm">{change.reason}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {amendment.approvedBy && (
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Approved by:</span> {amendment.approvedBy}
+                        {amendment.approvalDate && (
+                          <span className="ml-2">
+                            on {new Date(amendment.approvalDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
