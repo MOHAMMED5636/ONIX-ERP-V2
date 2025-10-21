@@ -235,3 +235,4 @@ socket.on('reconciliation_complete', (data) => {
 **Built with ❤️ for ONIX Engineering Consultancy**
 
 *This module represents the future of bank reconciliation in the UAE market, combining cutting-edge AI technology with user-friendly design to deliver unmatched efficiency and accuracy.*
+

@@ -484,3 +484,4 @@ model SupportTicket {
   @@map("support_tickets")
 }
 
+

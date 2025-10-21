@@ -531,3 +531,4 @@ const InvoicePageUpdates = () => {
 };
 
 export default InvoicePageUpdates;
+
