@@ -19,6 +19,7 @@ import {
   FolderIcon,
   ComputerDesktopIcon,
   StarIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
@@ -80,6 +81,7 @@ const navItems = [
   { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/attendance" },
   { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
   { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },
+  { key: "bank-reconciliation", icon: BanknotesIcon, label: { en: "Bank Reconciliation", ar: "التوفيق المصرفي" }, path: "/bank-reconciliation" },
   { key: "it-support", icon: ComputerDesktopIcon, label: { en: "IT Support", ar: "دعم تكنولوجيا المعلومات" }, path: "/it-support" },
   { key: "ai-employee-evaluations", icon: StarIcon, label: { en: "AI Employee Evaluations", ar: "تقييم الموظفين بالذكاء الاصطناعي" }, path: "/ai-employee-evaluations" },
   { key: "settings", icon: Cog6ToothIcon, label: { en: "Settings", ar: "الإعدادات" }, path: "/settings" },

@@ -301,3 +301,4 @@ const NotificationDropdown = ({ isOpen, onClose, unreadCount = 0 }) => {
 };
 
 export default NotificationDropdown;
+

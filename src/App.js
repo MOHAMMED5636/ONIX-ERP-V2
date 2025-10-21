@@ -33,6 +33,7 @@ import ExcelTable from "./pages/ExcelTable";
 import JiraLikePage from "./pages/JiraLikePage";
 import ITSupport from "./pages/ITSupport";
 import AIEmployeeEvaluations from "./components/AIEmployeeEvaluations";
+import BankReconciliationDashboard from "./components/BankReconciliation";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 import { AIAssistantProvider, AIAssistantEnhanced } from "./components/AIAssistant";
@@ -89,6 +90,7 @@ function MainLayout() {
             <Route path="/employees/rule-demo" element={<EmployeeRuleDemo />} />
             <Route path="/team-project-tracker" element={<TeamProjectTracker />} />
             <Route path="/project-lifecycle" element={<ProjectLifeCycle />} />
+            <Route path="/bank-reconciliation" element={<BankReconciliationDashboard />} />
             <Route path="/it-support" element={<ITSupport />} />
             <Route path="/ai-employee-evaluations" element={<AIEmployeeEvaluations />} />
                             <Route path="/excel-table/*" element={<ExcelTable />} />

@@ -156,3 +156,4 @@ export const getTimeSinceDeletion = (item) => {
 export const isDeletionOlderThan = (item, durationSeconds) => {
   return getTimeSinceDeletion(item) > durationSeconds;
 };
+
