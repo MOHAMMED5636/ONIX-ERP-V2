@@ -56,6 +56,8 @@ const navItems = [
     dropdown: true,
     submenus: [
       { key: "tasks", label: { en: "Project List", ar: "قائمة المهام" }, path: "/tasks" },
+      { key: "tender", label: { en: "Tender", ar: "المناقصات" }, path: "/tender" },
+      { key: "supervision", label: { en: "Supervision", ar: "الإشراف" }, path: "/tasks?view=supervision" },
       { key: "contracts", label: { en: "Contracts", ar: "العقود" }, path: "/contracts" },
       { key: "clients", label: { en: "Clients", ar: "العملاء" }, path: "/clients" },
       { key: "task-categories", label: { en: "Task Category List", ar: "قائمة فئات المهام" }, path: "/task-categories" },
@@ -96,6 +98,8 @@ const submenuIcons = {
   'task-categories': ClipboardDocumentListIcon,
   'team-project-tracker': ClipboardDocumentListIcon,
   'project-lifecycle': ClipboardDocumentListIcon,
+  tender: ClipboardDocumentListIcon,
+  supervision: ClipboardDocumentListIcon,
   companies: BuildingOfficeIcon,
   'company-policy': DocumentTextIcon,
   'my-attendance': CalendarDaysIcon,

@@ -11,6 +11,9 @@ class ClientsAPI {
       if (params.corporate) queryParams.append('corporate', params.corporate);
       if (params.leadSource) queryParams.append('leadSource', params.leadSource);
       if (params.page) queryParams.append('page', params.page);
+
+
+      
       if (params.limit) queryParams.append('limit', params.limit);
       
       const response = await fetch(`${API_BASE_URL}/clients?${queryParams}`, {

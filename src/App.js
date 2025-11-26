@@ -13,6 +13,7 @@ import Clients from "./pages/Clients";
 import Departments from "./modules/Departments";
 import WorkingLocations from "./modules/WorkingLocations";
 import Task from "./pages/Task";
+import TenderPage from "./pages/Tender";
 import Contracts from "./pages/Contracts";
 import TaskCategoryList from "./components/tasks/TaskCategoryList";
 import CompaniesPage from "./components/companies/CompaniesPage";
@@ -77,6 +78,7 @@ function MainLayout() {
             <Route path="/company-resources/departments/:departmentId/sub-departments/:subDepartmentId/positions" element={<PositionsPage />} />
             <Route path="/working-locations" element={<WorkingLocations />} />
             <Route path="/tasks/*" element={<Task />} />
+            <Route path="/tender" element={<TenderPage />} />
             <Route path="/contracts/*" element={<Contracts />} />
             <Route path="/task-categories" element={<TaskCategoryList />} />
             <Route path="/companies" element={<CompaniesPage />} />
