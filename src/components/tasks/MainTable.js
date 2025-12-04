@@ -2346,6 +2346,8 @@ export default function MainTable() {
             filteredColumnOptions={filteredColumnOptions}
             handleAddColumn={handleAddColumn}
             handleShowAddColumnMenu={handleShowAddColumnMenu}
+            selectedTaskIds={selectedTaskIds}
+            tasks={tasks}
           />
           
           {/* Search Results Counter */}

@@ -14,7 +14,10 @@ import Departments from "./modules/Departments";
 import WorkingLocations from "./modules/WorkingLocations";
 import Task from "./pages/Task";
 import TenderPage from "./pages/Tender";
+import TenderContractorSelection from "./pages/TenderContractorSelection";
+import TenderConfirmation from "./pages/TenderConfirmation";
 import Contracts from "./pages/Contracts";
+import ContractorsPage from "./pages/Contractors";
 import TaskCategoryList from "./components/tasks/TaskCategoryList";
 import CompaniesPage from "./components/companies/CompaniesPage";
 import CreateCompanyPage from "./components/companies/CreateCompanyPage";
@@ -79,10 +82,13 @@ function MainLayout() {
             <Route path="/working-locations" element={<WorkingLocations />} />
             <Route path="/tasks/*" element={<Task />} />
             <Route path="/tender" element={<TenderPage />} />
+            <Route path="/tender/contractors" element={<TenderContractorSelection />} />
+            <Route path="/tender/confirmation" element={<TenderConfirmation />} />
             <Route path="/contracts/*" element={<Contracts />} />
             <Route path="/task-categories" element={<TaskCategoryList />} />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/companies/create" element={<CreateCompanyPage />} />
+            <Route path="/contractors" element={<ContractorsPage />} />
             {/* Workplace Hub routes */}
             <Route path="/workplace/company-policy" element={<CompanyPolicy />} />
             <Route path="/workplace/my-attendance" element={<MyAttendance />} />

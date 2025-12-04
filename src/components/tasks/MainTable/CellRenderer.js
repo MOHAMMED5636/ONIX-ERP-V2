@@ -80,6 +80,16 @@ const CellRenderer = {
             <option value="AL">AL</option>
           </select>
         );
+      case "client":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.client || ""}
+            onChange={e => onEdit("client", e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Enter client name"
+          />
+        );
       case "timeline":
         const timelineHasPredecessors = row.predecessors && row.predecessors.toString().trim() !== '';
         // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array

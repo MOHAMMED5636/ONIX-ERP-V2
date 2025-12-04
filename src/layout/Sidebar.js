@@ -80,6 +80,7 @@ const navItems = [
     ],
   },
   { key: "companies", icon: BriefcaseIcon, label: { en: "Companies", ar: "الشركات" }, path: "/companies" },
+  { key: "contractors", icon: UsersIcon, label: { en: "Contractors & Suppliers", ar: "المقاولون والموردون" }, path: "/contractors" },
   { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/attendance" },
   { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
   { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },

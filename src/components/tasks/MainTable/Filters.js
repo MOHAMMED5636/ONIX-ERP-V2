@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   PlusIcon,
   ArrowDownTrayIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  Bars3Icon
+  Bars3Icon,
+  ClipboardDocumentListIcon
 } from "@heroicons/react/24/outline";
 import { Info } from 'lucide-react';
 
@@ -28,9 +30,33 @@ const Filters = ({
   setAddColumnSearch,
   filteredColumnOptions,
   handleAddColumn,
-  handleShowAddColumnMenu
+  handleShowAddColumnMenu,
+  selectedTaskIds,
+  tasks
 }) => {
+  const navigate = useNavigate();
   const [showInfoModal, setShowInfoModal] = useState(false);
+
+  // Handle Tender Invitation button click
+  const handleTenderInvitation = () => {
+    if (selectedTaskIds && selectedTaskIds.size > 0) {
+      // Get the first selected project
+      const selectedProject = tasks.find(task => selectedTaskIds.has(task.id));
+      if (selectedProject) {
+        // Navigate to tender page with project info in state
+        navigate('/tender', { 
+          state: { 
+            projectId: selectedProject.id,
+            projectName: selectedProject.name,
+            projectRef: selectedProject.referenceNumber,
+            openTenderInvitation: true
+          } 
+        });
+      }
+    } else {
+      alert('Please select a project first');
+    }
+  };
   // Demo data for dropdowns
   const demoPlans = ["All Plans", "Ref#1234", "Ref#5678", "Ref#9012", "Ref#3456", "Ref#7890"];
   const demoUsers = ["All Users", "MN", "SA", "AH", "MA"];
@@ -102,6 +128,19 @@ const Filters = ({
               title="Export Table Data"
             >
               <ArrowDownTrayIcon className="w-5 h-5" /> Export
+            </button>
+
+            <button
+              className={`px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 ${
+                selectedTaskIds && selectedTaskIds.size > 0
+                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white cursor-pointer"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+              }`}
+              onClick={handleTenderInvitation}
+              disabled={!selectedTaskIds || selectedTaskIds.size === 0}
+              title={selectedTaskIds && selectedTaskIds.size > 0 ? "Create Tender Invitation for selected project" : "Please select a project first"}
+            >
+              <ClipboardDocumentListIcon className="w-5 h-5" /> Tender Invitation
             </button>
             
             {/* Search Box */}
