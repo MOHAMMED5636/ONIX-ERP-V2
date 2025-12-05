@@ -25,11 +25,13 @@ export default function TenderConfirmation() {
 
   const handleConfirm = () => {
     // Here you would typically make an API call to save the assignment
-    alert(
-      `Successfully assigned ${contractors.length} contractor(s) to ${tender?.name}. This is a demo action.`
-    );
-    // Navigate back to tender page
-    navigate("/tender");
+    // Navigate to Technical Submission page
+    navigate("/tender/technical-submission", {
+      state: {
+        tender,
+        contractors,
+      },
+    });
   };
 
   const handleCancel = () => {
@@ -60,34 +62,6 @@ export default function TenderConfirmation() {
 
   return (
     <div className="p-6 lg:p-10 space-y-8 bg-slate-50/40 min-h-screen">
-      {/* Progress Indicator */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold">
-                <CheckCircleIcon className="h-6 w-6" />
-              </div>
-              <span className="text-sm font-medium text-slate-700">Select Tender</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-indigo-600"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold">
-                <CheckCircleIcon className="h-6 w-6" />
-              </div>
-              <span className="text-sm font-medium text-slate-700">Select Contractors</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-indigo-600"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold">
-                3
-              </div>
-              <span className="text-sm font-medium text-indigo-600">Review & Confirm</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Header */}
       <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
         <div className="flex items-center gap-4">
@@ -99,9 +73,6 @@ export default function TenderConfirmation() {
             <ArrowLeftIcon className="h-6 w-6 text-slate-600" />
           </button>
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-              Step 3 of 3
-            </p>
             <h1 className="text-3xl lg:text-4xl font-semibold text-slate-900 mt-2">
               Review & Confirm Assignment
             </h1>
@@ -267,8 +238,7 @@ export default function TenderConfirmation() {
               onClick={handleConfirm}
               className="px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 shadow-lg hover:shadow-xl transition flex items-center gap-2 font-semibold"
             >
-              <CheckCircleIcon className="h-5 w-5" />
-              Confirm Assignment
+              Next
             </button>
           </div>
         </div>

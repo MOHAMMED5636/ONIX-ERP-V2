@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Bars3Icon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, ChevronDownIcon, ChevronRightIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 import ColumnSettingsDropdown from './ColumnSettingsDropdown';
 import CellRenderer from './CellRenderer';
@@ -37,6 +37,7 @@ const SortableProjectRow = ({
   handleSubtaskKeyDown,
   onOpenAttachmentsModal,
   onOpenChat,
+  onTenderClick,
   visibleColumns,
   onToggleColumn,
   onResetColumns
@@ -468,6 +469,19 @@ const SortableProjectRow = ({
                         >
                           💬
                         </button>
+                        {onTenderClick && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onTenderClick(task);
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center gap-1 shadow-sm hover:shadow-md"
+                            title="Go to Tender Section"
+                          >
+                            <ClipboardDocumentListIcon className="w-3 h-3" />
+                            Tender
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

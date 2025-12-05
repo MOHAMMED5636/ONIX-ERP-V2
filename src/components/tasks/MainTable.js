@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   PlusIcon,
   MapPinIcon,
@@ -8,7 +9,8 @@ import {
   FunnelIcon,
   XMarkIcon,
   StarIcon,
-  PaperClipIcon
+  PaperClipIcon,
+  ClipboardDocumentListIcon
 } from "@heroicons/react/24/outline";
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -44,6 +46,7 @@ import ChatDrawer from "./ChatDrawer";
 import useSocket from "../../hooks/useSocket";
 import { MessageCircle } from 'lucide-react';
 import EngineerInviteModal from "./MainTable/EngineerInviteModal";
+import { sendTenderInvitations } from "../../services/tenderAPI";
 
 
 // Import utilities
@@ -83,6 +86,7 @@ const initialTasks = [
     id: 2,
     name: "Website Development",
     referenceNumber: "REF-002",
+    client: "KVIEM REAL ESTATE LLC",
     category: "Development",
     status: "working",
     owner: "SA",
@@ -122,6 +126,7 @@ const initialTasks = [
     id: 3,
     name: "Mobile App Design",
     referenceNumber: "REF-003",
+    client: "JAGGIM SALMAN",
     category: "Design",
     status: "pending",
     owner: "AH",
@@ -158,6 +163,8 @@ const isAdmin = true; // TODO: Replace with real authentication logic
 
 
 export default function MainTable() {
+  const navigate = useNavigate();
+  
   // Inline edit state and handlers for Project Name (move to top)
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
@@ -170,6 +177,45 @@ export default function MainTable() {
   const [chatProject, setChatProject] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatType, setChatType] = useState('project');
+  
+  // Tender confirmation modal state
+  const [showTenderConfirmation, setShowTenderConfirmation] = useState(false);
+  const [tenderProject, setTenderProject] = useState(null);
+  const [selectedEngineerIds, setSelectedEngineerIds] = useState(new Set());
+  
+  // Available engineers (only whitelisted should be selectable)
+  const availableEngineers = [
+    {
+      id: "sujhb",
+      name: "Sujhb",
+      specialty: "Civil Engineering",
+      rating: "A",
+      status: "Available",
+      engineerListing: "Whitelisted",
+      email: "sujhb@example.com",
+      phone: "+971 50 123 4567",
+    },
+    {
+      id: "anas",
+      name: "Anas",
+      specialty: "Structural Engineering",
+      rating: "A+",
+      status: "Available",
+      engineerListing: "Whitelisted",
+      email: "anas@example.com",
+      phone: "+971 50 234 5678",
+    },
+    {
+      id: "ali",
+      name: "Ali",
+      specialty: "MEP Engineering",
+      rating: "B+",
+      status: "Available",
+      engineerListing: "Whitelisted",
+      email: "ali@example.com",
+      phone: "+971 50 345 6789",
+    },
+  ];
   
   // Copy/Paste state
   const [copiedTask, setCopiedTask] = useState(null);
@@ -272,6 +318,121 @@ export default function MainTable() {
   const closeProjectSummary = () => setSelectedProjectForSummary(null);
   
   // Chat handlers
+  // Handle Tender button click - show confirmation modal
+  const handleTenderClick = (task) => {
+    setTenderProject(task);
+    setSelectedEngineerIds(new Set()); // Reset selection
+    setShowTenderConfirmation(true);
+  };
+  
+  // Toggle engineer selection (only whitelisted)
+  const toggleEngineerSelection = (engineerId) => {
+    const engineer = availableEngineers.find(e => e.id === engineerId);
+    if (!engineer || engineer.engineerListing !== "Whitelisted") {
+      return; // Only allow selection of whitelisted engineers
+    }
+    
+    setSelectedEngineerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(engineerId)) {
+        next.delete(engineerId);
+      } else {
+        next.add(engineerId);
+      }
+      return next;
+    });
+  };
+
+  // Handle Tender confirmation - send tender (no navigation)
+  const handleTenderConfirm = async () => {
+    if (tenderProject) {
+      if (selectedEngineerIds.size === 0) {
+        alert("Please select at least one engineer.");
+        return;
+      }
+      
+      const selectedEngineers = availableEngineers.filter(
+        (e) => selectedEngineerIds.has(e.id) && e.engineerListing === "Whitelisted"
+      );
+      
+      // Show loading state
+      const loadingMessage = `Sending tender invitations to ${selectedEngineers.length} engineer(s)...`;
+      console.log(loadingMessage);
+      
+      try {
+        // Send tender invitations via email
+        const result = await sendTenderInvitations(tenderProject, selectedEngineers);
+        
+        if (result.success) {
+          // Success: Emails sent via API
+          alert(
+            `✓ Tender invitations sent successfully!\n\n` +
+            `Project: ${tenderProject.name}\n` +
+            `Reference: ${tenderProject.referenceNumber || 'N/A'}\n` +
+            `Sent to: ${result.sentCount} engineer(s)\n\n` +
+            `Tender Link: ${result.tenderLink}\n\n` +
+            `All selected engineers have been notified via email with the tender invitation link.`
+          );
+        } else if (result.fallback) {
+          // Fallback: Show mailto links if API fails
+          const engineerList = selectedEngineers.map(e => `  • ${e.name} (${e.email})`).join('\n');
+          const mailtoInfo = result.mailtoLinks.map(link => 
+            `  ${link.name}: ${link.mailto}`
+          ).join('\n');
+          
+          const userChoice = window.confirm(
+            `⚠ Email API is not available. Would you like to send invitations manually?\n\n` +
+            `Selected Engineers:\n${engineerList}\n\n` +
+            `Tender Link: ${result.tenderLink}\n\n` +
+            `Click OK to open email clients, or Cancel to copy the link.`
+          );
+          
+          if (userChoice) {
+            // Open mailto links for each engineer
+            result.mailtoLinks.forEach((link, index) => {
+              setTimeout(() => {
+                window.location.href = link.mailto;
+              }, index * 500); // Stagger the opens
+            });
+          } else {
+            // Copy link to clipboard
+            navigator.clipboard.writeText(result.tenderLink).then(() => {
+              alert(
+                `Tender link copied to clipboard!\n\n` +
+                `Link: ${result.tenderLink}\n\n` +
+                `You can share this link with the selected engineers manually.`
+              );
+            }).catch(() => {
+              alert(
+                `Tender Link:\n${result.tenderLink}\n\n` +
+                `Please share this link with the selected engineers:\n${engineerList}`
+              );
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error sending tender invitations:', error);
+        alert(
+          `Error sending tender invitations: ${error.message}\n\n` +
+          `Please try again or contact support.`
+        );
+        return; // Don't close modal on error
+      }
+      
+      // Close modal and reset state on success
+      setShowTenderConfirmation(false);
+      setTenderProject(null);
+      setSelectedEngineerIds(new Set());
+    }
+  };
+
+  // Handle Tender confirmation cancel
+  const handleTenderCancel = () => {
+    setShowTenderConfirmation(false);
+    setTenderProject(null);
+    setSelectedEngineerIds(new Set());
+  };
+
   const handleOpenChat = (item, type = 'project') => {
     setChatProject(item);
     setChatType(type);
@@ -2512,6 +2673,14 @@ export default function MainTable() {
                                 onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
                                 onKeyDown={handleNewTaskKeyDown}
                               />
+                            ) : col.key === "client" ? (
+                              <input
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
+                                value={newTask.client || ""}
+                                onChange={e => setNewTask({ ...newTask, client: e.target.value })}
+                                onKeyDown={handleNewTaskKeyDown}
+                                placeholder="Enter client name"
+                              />
                             ) : col.key === "category" ? (
                               <select
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
@@ -2795,6 +2964,7 @@ export default function MainTable() {
                               setAttachmentsModalOpen(true);
                             }}
                             onOpenChat={handleOpenChat}
+                            onTenderClick={handleTenderClick}
                             visibleColumns={visibleColumns}
                             onToggleColumn={handleToggleColumn}
                             onResetColumns={handleResetColumns}
@@ -2883,7 +3053,7 @@ export default function MainTable() {
                                               } ${
                                                 col.key === 'owner' ? 'w-36 min-w-36' : ''
                                               }`}>
-                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat)}
+                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen)}
                                               </td>
                                             );
                                           })}
@@ -3275,6 +3445,137 @@ export default function MainTable() {
         itemType={undoManager.undoState.itemType}
         count={undoManager.undoState.deletedItems.length}
       />
+
+      {/* Tender Confirmation Modal */}
+      {showTenderConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                  <ClipboardDocumentListIcon className="w-6 h-6 text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-800">Send Tender</h2>
+              </div>
+              
+              {/* Project Info */}
+              {tenderProject && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-semibold">Project:</span> {tenderProject.name}
+                  </p>
+                  {tenderProject.referenceNumber && (
+                    <p className="text-sm text-gray-700 mt-1">
+                      <span className="font-semibold">Reference:</span> {tenderProject.referenceNumber}
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              {/* Engineer Selection */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Select Engineers
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Select whitelisted engineers to send the tender. Blacklisted engineers cannot be selected.
+                </p>
+                
+                <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {availableEngineers.map((engineer) => {
+                    const isWhitelisted = engineer.engineerListing === "Whitelisted";
+                    const isSelected = selectedEngineerIds.has(engineer.id);
+                    
+                    return (
+                      <div
+                        key={engineer.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition ${
+                          !isWhitelisted
+                            ? "bg-slate-100/50 opacity-60 cursor-not-allowed border-gray-200"
+                            : isSelected
+                            ? "bg-indigo-50 border-indigo-300"
+                            : "bg-white border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/30"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleEngineerSelection(engineer.id)}
+                          disabled={!isWhitelisted}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                          title={
+                            !isWhitelisted
+                              ? "Only whitelisted engineers can be selected"
+                              : `Select ${engineer.name}`
+                          }
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">{engineer.name}</span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                                engineer.engineerListing === "Whitelisted"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-rose-100 text-rose-700"
+                              }`}
+                            >
+                              {engineer.engineerListing === "Whitelisted" ? "✓ Whitelisted" : "✗ Blacklisted"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                            <span>
+                              <span className="font-semibold">Specialty:</span> {engineer.specialty}
+                            </span>
+                            <span>
+                              <span className="font-semibold">Rating:</span> {engineer.rating}
+                            </span>
+                            <span>
+                              <span className="font-semibold">Email:</span> {engineer.email}
+                            </span>
+                            <span>
+                              <span className="font-semibold">Phone:</span> {engineer.phone}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="mt-3 text-sm text-gray-600">
+                  <span className="font-semibold text-indigo-600">
+                    {selectedEngineerIds.size} engineer{selectedEngineerIds.size !== 1 ? "s" : ""} selected
+                  </span>
+                  <span className="ml-2 text-gray-500">
+                    ({availableEngineers.filter(e => e.engineerListing === "Whitelisted").length} whitelisted available)
+                  </span>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleTenderCancel}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTenderConfirm}
+                  disabled={selectedEngineerIds.size === 0}
+                  className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium shadow-lg ${
+                    selectedEngineerIds.size === 0
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl"
+                  }`}
+                >
+                  Send Tender
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

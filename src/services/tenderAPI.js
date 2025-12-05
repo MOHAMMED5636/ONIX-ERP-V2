@@ -1,0 +1,139 @@
+/**
+ * Tender API Service
+ * Handles tender-related API calls including sending email invitations
+ */
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+/**
+ * Send tender invitation emails to selected contractors/engineers
+ * @param {Object} tenderData - Tender information
+ * @param {Array} engineers - Array of selected engineers with email addresses
+ * @returns {Promise<Object>} Response from the API
+ */
+export async function sendTenderInvitations(tenderData, engineers) {
+  try {
+    // Generate tender link - this would typically include a unique token or ID
+    const tenderId = tenderData.id || tenderData.referenceNumber || Date.now().toString();
+    const tenderLink = `${window.location.origin}/tender/invitation/${tenderId}`;
+
+    // Prepare email data
+    const emailData = {
+      tender: {
+        id: tenderId,
+        name: tenderData.name,
+        referenceNumber: tenderData.referenceNumber,
+        client: tenderData.client,
+        link: tenderLink,
+      },
+      recipients: engineers.map(engineer => ({
+        id: engineer.id,
+        name: engineer.name,
+        email: engineer.email,
+        specialty: engineer.specialty,
+      })),
+    };
+
+    // Call backend API to send emails
+    const response = await fetch(`${API_BASE_URL}/tenders/send-invitations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(emailData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to send invitations' }));
+      throw new Error(errorData.message || 'Failed to send tender invitations');
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      message: result.message || 'Tender invitations sent successfully',
+      sentCount: result.sentCount || engineers.length,
+      tenderLink,
+    };
+  } catch (error) {
+    console.error('Error sending tender invitations:', error);
+    
+    // Fallback: Generate mailto links for manual sending (if API fails)
+    const tenderId = tenderData.id || tenderData.referenceNumber || Date.now().toString();
+    const tenderLink = `${window.location.origin}/tender/invitation/${tenderId}`;
+    
+    // Generate email content
+    const emailSubject = encodeURIComponent(`Tender Invitation: ${tenderData.name}`);
+    const emailBody = encodeURIComponent(
+      `Dear Engineer,\n\n` +
+      `You have been invited to participate in the following tender:\n\n` +
+      `Project Name: ${tenderData.name}\n` +
+      `Reference Number: ${tenderData.referenceNumber || 'N/A'}\n` +
+      `Client: ${tenderData.client || 'N/A'}\n\n` +
+      `Please click on the following link to view and respond to this tender invitation:\n` +
+      `${tenderLink}\n\n` +
+      `Best regards,\n` +
+      `ONIX Engineering Team`
+    );
+
+    // Return fallback data with mailto links
+    return {
+      success: false,
+      error: error.message,
+      fallback: true,
+      mailtoLinks: engineers.map(engineer => ({
+        email: engineer.email,
+        name: engineer.name,
+        mailto: `mailto:${engineer.email}?subject=${emailSubject}&body=${emailBody}`,
+      })),
+      tenderLink,
+    };
+  }
+}
+
+/**
+ * Generate tender invitation email content
+ * @param {Object} tenderData - Tender information
+ * @param {string} tenderLink - Link to the tender invitation page
+ * @returns {Object} Email subject and body
+ */
+export function generateTenderEmailContent(tenderData, tenderLink) {
+  const subject = `Tender Invitation: ${tenderData.name}`;
+  
+  const body = `
+Dear Engineer,
+
+You have been invited to participate in the following tender opportunity:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TENDER DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Project Name: ${tenderData.name}
+Reference Number: ${tenderData.referenceNumber || 'N/A'}
+Client: ${tenderData.client || 'N/A'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Please click on the link below to view the complete tender details and submit your technical submission:
+
+${tenderLink}
+
+You will be able to:
+• Review all tender requirements
+• Upload technical documentation
+• Submit your bid response
+• Track submission status
+
+If you have any questions or need assistance, please contact our tender management team.
+
+Best regards,
+ONIX Engineering Team
+
+---
+This is an automated message. Please do not reply to this email.
+  `.trim();
+
+  return { subject, body };
+}
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, ChartBarIcon } from "@heroicons/react/24/outline";
 
 const lifecycleSteps = [
   {
@@ -56,29 +56,6 @@ const lifecycleSteps = [
   },
 ];
 
-const supportServices = [
-  {
-    name: "Consultation & Clarifications",
-    description:
-      "Schedule clarification calls, submit RFIs, and review addendums released during tendering.",
-  },
-  {
-    name: "Document Authentication",
-    description:
-      "Track notarization, attestation, and municipality stamping requirements for each submission.",
-  },
-  {
-    name: "Cost Benchmark Library",
-    description:
-      "Benchmark your proposal against historical ONIX bids and market references.",
-  },
-  {
-    name: "Site Visit Coordination",
-    description:
-      "Request escorted visits, capture attendance, and upload photographic evidence.",
-  },
-];
-
 const tenders = [
   {
     name: "Metro Station Expansion",
@@ -104,6 +81,15 @@ const tenders = [
     status: "Final Review",
     id: "community-school",
   },
+];
+
+// Tender management data by year (2021-2025)
+const tenderYearlyData = [
+  { year: 2021, total: 45, awarded: 28, pending: 12, rejected: 5 },
+  { year: 2022, total: 52, awarded: 35, pending: 10, rejected: 7 },
+  { year: 2023, total: 68, awarded: 42, pending: 18, rejected: 8 },
+  { year: 2024, total: 75, awarded: 48, pending: 20, rejected: 7 },
+  { year: 2025, total: 82, awarded: 55, pending: 22, rejected: 5 },
 ];
 
 export default function TenderPage() {
@@ -168,34 +154,6 @@ export default function TenderPage() {
 
   return (
     <div className="p-6 lg:p-10 space-y-8 bg-slate-50/40 min-h-screen">
-      {/* Progress Indicator */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold">
-                1
-              </div>
-              <span className="text-sm font-medium text-indigo-600">Select Tender</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-slate-200"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-semibold">
-                2
-              </div>
-              <span className="text-sm font-medium text-slate-400">Select Contractors</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-slate-200"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-semibold">
-                3
-              </div>
-              <span className="text-sm font-medium text-slate-400">Review & Confirm</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
@@ -242,6 +200,171 @@ export default function TenderPage() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Tender Management Graphs */}
+      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <ChartBarIcon className="h-6 w-6 text-indigo-600" />
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
+              Analytics
+            </p>
+          </div>
+          <h2 className="text-2xl font-semibold text-slate-900">
+            Tender Management Overview (2021-2025)
+          </h2>
+          <p className="text-slate-600">
+            Annual tender statistics showing total tenders, awarded, pending, and rejected projects.
+          </p>
+        </div>
+
+        {/* Bar Graph */}
+        <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-100 p-6 lg:p-8">
+          <div className="space-y-6">
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 justify-center">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-indigo-600"></div>
+                <span className="text-sm font-medium text-slate-700">Total Tenders</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-600"></div>
+                <span className="text-sm font-medium text-slate-700">Awarded</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-amber-500"></div>
+                <span className="text-sm font-medium text-slate-700">Pending</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-red-600"></div>
+                <span className="text-sm font-medium text-slate-700">Rejected</span>
+              </div>
+            </div>
+
+            {/* Bar Chart */}
+            <div className="relative bg-white rounded-lg p-4">
+              {/* Y-axis labels */}
+              <div className="absolute left-0 top-4 bottom-16 flex flex-col justify-between text-xs text-slate-500 pr-2 w-8">
+                <span className="font-semibold">100</span>
+                <span>75</span>
+                <span>50</span>
+                <span>25</span>
+                <span className="font-semibold">0</span>
+              </div>
+              
+              {/* Chart Container */}
+              <div className="flex items-end justify-between gap-2 lg:gap-3 h-80 border-b-2 border-l-2 border-slate-300 pb-4 pl-10 pr-4 ml-10">
+                {tenderYearlyData.map((data, index) => {
+                  const maxValue = Math.max(...tenderYearlyData.map(d => d.total));
+                  const totalHeight = (data.total / maxValue) * 100;
+                  const awardedPercent = (data.awarded / data.total) * 100;
+                  const pendingPercent = (data.pending / data.total) * 100;
+                  const rejectedPercent = (data.rejected / data.total) * 100;
+
+                  return (
+                    <div key={data.year} className="flex-1 flex flex-col items-center gap-2 group relative h-full max-w-[120px]">
+                      {/* Bars Container - Stacked Bar */}
+                      <div className="w-full flex flex-col items-end justify-end h-full">
+                        <div
+                          className="w-full rounded-t-lg transition-all duration-500 ease-out hover:shadow-xl hover:scale-105 relative overflow-hidden border-2 border-slate-400 shadow-md"
+                          style={{ height: `${Math.max(totalHeight, 5)}%`, minHeight: '40px' }}
+                          title={`${data.year}: Total ${data.total} tenders`}
+                        >
+                          {/* Stacked segments from bottom to top */}
+                          {/* Awarded (Green) - Bottom */}
+                          <div
+                            className="absolute bottom-0 left-0 right-0 bg-green-600 transition-all duration-500 ease-out border-t border-green-700"
+                            style={{ height: `${awardedPercent}%` }}
+                            title={`Awarded: ${data.awarded}`}
+                          ></div>
+                          {/* Pending (Amber) - Middle */}
+                          <div
+                            className="absolute left-0 right-0 bg-amber-500 transition-all duration-500 ease-out border-t border-amber-600"
+                            style={{ 
+                              bottom: `${awardedPercent}%`,
+                              height: `${pendingPercent}%`
+                            }}
+                            title={`Pending: ${data.pending}`}
+                          ></div>
+                          {/* Rejected (Red) - Top */}
+                          <div
+                            className="absolute left-0 right-0 bg-red-600 transition-all duration-500 ease-out border-t border-red-700"
+                            style={{ 
+                              bottom: `${awardedPercent + pendingPercent}%`,
+                              height: `${rejectedPercent}%`
+                            }}
+                            title={`Rejected: ${data.rejected}`}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Year Label */}
+                      <div className="text-center mt-2 w-full">
+                        <div className="text-sm font-bold text-slate-900">{data.year}</div>
+                        <div className="text-xs text-slate-600 mt-1 font-medium">
+                          {data.total} total
+                        </div>
+                      </div>
+
+                      {/* Hover Tooltip */}
+                      <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-slate-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap z-20 shadow-xl">
+                        <div className="font-semibold mb-1.5 border-b border-slate-700 pb-1">{data.year} Statistics</div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                            <span>Total: <strong>{data.total}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span>Awarded: <strong>{data.awarded}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                            <span>Pending: <strong>{data.pending}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                            <span>Rejected: <strong>{data.rejected}</strong></span>
+                          </div>
+                        </div>
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-indigo-700">
+                  {tenderYearlyData.reduce((sum, d) => sum + d.total, 0)}
+                </div>
+                <div className="text-sm text-indigo-600 font-medium mt-1">Total Tenders</div>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-green-700">
+                  {tenderYearlyData.reduce((sum, d) => sum + d.awarded, 0)}
+                </div>
+                <div className="text-sm text-green-600 font-medium mt-1">Awarded</div>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-amber-700">
+                  {tenderYearlyData.reduce((sum, d) => sum + d.pending, 0)}
+                </div>
+                <div className="text-sm text-amber-600 font-medium mt-1">Pending</div>
+              </div>
+              <div className="bg-red-50 rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-red-700">
+                  {tenderYearlyData.reduce((sum, d) => sum + d.rejected, 0)}
+                </div>
+                <div className="text-sm text-red-600 font-medium mt-1">Rejected</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -424,32 +547,6 @@ export default function TenderPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
-        <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
-            Support Desk
-          </p>
-          <h2 className="text-2xl font-semibold text-slate-900">
-            Tender Support & Other Services
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {supportServices.map((service) => (
-            <div
-              key={service.name}
-              className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5"
-            >
-              <h3 className="text-lg font-semibold text-slate-900">
-                {service.name}
-              </h3>
-              <p className="text-slate-600 text-sm mt-2 leading-relaxed">
-                {service.description}
-              </p>
-            </div>
-          ))}
         </div>
       </section>
     </div>

@@ -9,7 +9,7 @@ export default function ChatRoom({ messages = [], onSendMessage }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
+HE 
   const handleSend = () => {
     if (input.trim() && onSendMessage) {
       onSendMessage(input);

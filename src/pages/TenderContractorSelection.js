@@ -113,6 +113,12 @@ export default function TenderContractorSelection() {
   });
 
   const toggleContractorSelection = (contractorId) => {
+    // Only allow selection of whitelisted contractors
+    const contractor = contractors.find((c) => c.id === contractorId);
+    if (!contractor || contractor.engineerListing !== "Whitelisted") {
+      return; // Do nothing if contractor is not whitelisted
+    }
+
     setSelectedContractorIds((prev) => {
       const next = new Set(prev);
       if (next.has(contractorId)) {
@@ -125,10 +131,30 @@ export default function TenderContractorSelection() {
   };
 
   const handleSelectAll = () => {
-    if (selectedContractorIds.size === filteredContractors.length) {
-      setSelectedContractorIds(new Set());
+    // Only select whitelisted contractors
+    const whitelistedContractors = filteredContractors.filter(
+      (c) => c.engineerListing === "Whitelisted"
+    );
+    const whitelistedIds = new Set(whitelistedContractors.map((c) => c.id));
+    
+    // Check if all whitelisted contractors are already selected
+    const allWhitelistedSelected = whitelistedIds.size > 0 && 
+      Array.from(whitelistedIds).every((id) => selectedContractorIds.has(id));
+    
+    if (allWhitelistedSelected) {
+      // Deselect all whitelisted contractors
+      setSelectedContractorIds((prev) => {
+        const next = new Set(prev);
+        whitelistedIds.forEach((id) => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedContractorIds(new Set(filteredContractors.map((c) => c.id)));
+      // Select all whitelisted contractors
+      setSelectedContractorIds((prev) => {
+        const next = new Set(prev);
+        whitelistedIds.forEach((id) => next.add(id));
+        return next;
+      });
     }
   };
 
@@ -138,11 +164,21 @@ export default function TenderContractorSelection() {
       return;
     }
 
+    // Filter to ensure only whitelisted contractors are passed
+    const selectedContractors = contractors.filter(
+      (c) => selectedContractorIds.has(c.id) && c.engineerListing === "Whitelisted"
+    );
+
+    if (selectedContractors.length === 0) {
+      alert("Please select at least one whitelisted contractor.");
+      return;
+    }
+
     // Navigate to confirmation/review page with selected data
     navigate("/tender/confirmation", {
       state: {
         tender: selectedTender,
-        contractors: contractors.filter((c) => selectedContractorIds.has(c.id)),
+        contractors: selectedContractors,
       },
     });
   };
@@ -157,34 +193,6 @@ export default function TenderContractorSelection() {
 
   return (
     <div className="p-6 lg:p-10 space-y-8 bg-slate-50/40 min-h-screen">
-      {/* Progress Indicator */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold">
-                1
-              </div>
-              <span className="text-sm font-medium text-slate-700">Select Tender</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-indigo-600"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold">
-                2
-              </div>
-              <span className="text-sm font-medium text-indigo-600">Select Contractors</span>
-            </div>
-            <div className="flex-1 h-0.5 bg-slate-200"></div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-semibold">
-                3
-              </div>
-              <span className="text-sm font-medium text-slate-400">Review & Confirm</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Header Section */}
       <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
         <div className="flex items-center justify-between">
@@ -197,9 +205,6 @@ export default function TenderContractorSelection() {
               <ArrowLeftIcon className="h-6 w-6 text-slate-600" />
             </button>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                Step 2 of 3
-              </p>
               <h1 className="text-3xl lg:text-4xl font-semibold text-slate-900 mt-2">
                 Select Preferred Contractors
               </h1>
@@ -365,9 +370,12 @@ export default function TenderContractorSelection() {
           Showing {filteredContractors.length} of {contractors.length} contractors
           {selectedContractorIds.size > 0 && (
             <span className="ml-2 font-semibold text-indigo-600">
-              ({selectedContractorIds.size} selected)
+              ({selectedContractorIds.size} whitelisted selected)
             </span>
           )}
+          <span className="ml-2 text-slate-500">
+            ({filteredContractors.filter((c) => c.engineerListing === "Whitelisted").length} whitelisted available)
+          </span>
         </div>
       </section>
 
@@ -379,9 +387,12 @@ export default function TenderContractorSelection() {
             onClick={handleSelectAll}
             className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
-            {selectedContractorIds.size === filteredContractors.length
-              ? "Deselect All"
-              : "Select All"}
+            {filteredContractors.filter((c) => c.engineerListing === "Whitelisted").length > 0 &&
+            filteredContractors
+              .filter((c) => c.engineerListing === "Whitelisted")
+              .every((c) => selectedContractorIds.has(c.id))
+              ? "Deselect All Whitelisted"
+              : "Select All Whitelisted"}
           </button>
         </div>
 
@@ -394,8 +405,10 @@ export default function TenderContractorSelection() {
                     type="checkbox"
                     className="accent-indigo-600 h-4 w-4"
                     checked={
-                      filteredContractors.length > 0 &&
-                      selectedContractorIds.size === filteredContractors.length
+                      filteredContractors.filter((c) => c.engineerListing === "Whitelisted").length > 0 &&
+                      filteredContractors
+                        .filter((c) => c.engineerListing === "Whitelisted")
+                        .every((c) => selectedContractorIds.has(c.id))
                     }
                     onChange={handleSelectAll}
                   />
@@ -438,13 +451,17 @@ export default function TenderContractorSelection() {
                   </td>
                 </tr>
               ) : (
-                filteredContractors.map((contractor) => (
+                filteredContractors.map((contractor) => {
+                  const isWhitelisted = contractor.engineerListing === "Whitelisted";
+                  return (
                   <tr
                     key={contractor.id}
-                    className={`hover:bg-slate-50 transition ${
-                      selectedContractorIds.has(contractor.id)
-                        ? "bg-indigo-50/50 border-l-4 border-l-indigo-500"
-                        : ""
+                    className={`transition ${
+                      !isWhitelisted
+                        ? "bg-slate-100/50 opacity-60 cursor-not-allowed"
+                        : selectedContractorIds.has(contractor.id)
+                        ? "bg-indigo-50/50 border-l-4 border-l-indigo-500 hover:bg-indigo-50"
+                        : "hover:bg-slate-50"
                     }`}
                   >
                     <td className="px-6 py-4">
@@ -454,6 +471,12 @@ export default function TenderContractorSelection() {
                         aria-label={`Select ${contractor.name}`}
                         checked={selectedContractorIds.has(contractor.id)}
                         onChange={() => toggleContractorSelection(contractor.id)}
+                        disabled={contractor.engineerListing !== "Whitelisted"}
+                        title={
+                          contractor.engineerListing !== "Whitelisted"
+                            ? "Only whitelisted contractors can be selected"
+                            : `Select ${contractor.name}`
+                        }
                       />
                     </td>
                     <td className="px-6 py-4">
@@ -522,7 +545,8 @@ export default function TenderContractorSelection() {
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
