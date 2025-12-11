@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRightIcon, ChartBarIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, ChartBarIcon, CloudArrowUpIcon, XMarkIcon, PaperClipIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 
 const lifecycleSteps = [
   {
@@ -16,29 +16,6 @@ const lifecycleSteps = [
       "Teams prepare drawings, BOQs, and certifications for formal review.",
     detail:
       "Dedicated reviewers validate completeness before forwarding to the committee.",
-    requirements: [
-      "Architectural drawings (plans, elevations, sections)",
-      "Structural engineering calculations and drawings",
-      "MEP (Mechanical, Electrical, Plumbing) design documents",
-      "Bill of Quantities (BOQ) with detailed pricing",
-      "Material specifications and certifications",
-      "Method statements and construction methodology",
-      "Project timeline and schedule (Gantt chart)",
-      "Quality assurance and control procedures",
-      "Health and safety management plan",
-      "Company profile and previous project portfolio",
-      "Team qualifications and CVs of key personnel",
-      "Financial statements and bank guarantees",
-    ],
-    checklist: [
-      "All drawings stamped and signed by licensed engineers",
-      "BOQ matches tender requirements and specifications",
-      "Certifications valid and not expired",
-      "Method statements align with Dubai Municipality standards",
-      "All documents properly indexed and organized",
-      "Digital copies uploaded to tender portal",
-      "Hard copies prepared for physical submission (if required)",
-    ],
   },
   {
     title: "Evaluation & Award",
@@ -100,6 +77,12 @@ export default function TenderPage() {
   const [assignmentMessage, setAssignmentMessage] = useState("");
   const [showTenderInvitationForm, setShowTenderInvitationForm] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  
+  // Upload state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedTenderForUpload, setSelectedTenderForUpload] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [tenderUploads, setTenderUploads] = useState({}); // Store uploaded files per tender
 
   // Restore selection from navigation state if coming back
   useEffect(() => {
@@ -384,10 +367,21 @@ export default function TenderPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {lifecycleSteps.map((step, index) => {
             const isActive = activeStep === index;
+            const handleStepClick = () => {
+              setActiveStep(index);
+              // Navigate to evaluation page when clicking on step 3 (Evaluation & Award)
+              if (index === 2) {
+                navigate("/tender/evaluation", {
+                  state: {
+                    tender: selectedTenderId ? tenders.find((t) => t.id === selectedTenderId) : null,
+                  },
+                });
+              }
+            };
             return (
               <button
                 key={step.title}
-                onClick={() => setActiveStep(index)}
+                onClick={handleStepClick}
                 className={`text-left rounded-2xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 p-5 flex flex-col gap-3 shadow-sm ${
                   isActive
                     ? "border-indigo-300 bg-white shadow-md"
@@ -407,7 +401,7 @@ export default function TenderPage() {
                       {step.description}
                     </p>
                     <span className="text-xs font-semibold text-indigo-600 mt-auto">
-                      View requirements →
+                      {index === 2 ? "View evaluation results →" : "View requirements →"}
                     </span>
                   </>
                 ) : (
@@ -421,31 +415,6 @@ export default function TenderPage() {
         </div>
         <div className="rounded-2xl bg-white border border-indigo-50 p-5 text-sm text-slate-600 leading-relaxed shadow-sm space-y-4">
           <p>{lifecycleSteps[activeStep].detail}</p>
-          
-          {lifecycleSteps[activeStep].requirements && (
-            <div className="mt-4 pt-4 border-t border-indigo-100">
-              <h4 className="font-semibold text-slate-900 mb-3">Required Documents:</h4>
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 list-disc list-inside text-slate-700">
-                {lifecycleSteps[activeStep].requirements.map((req, idx) => (
-                  <li key={idx} className="text-sm">{req}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {lifecycleSteps[activeStep].checklist && (
-            <div className="mt-4 pt-4 border-t border-indigo-100">
-              <h4 className="font-semibold text-slate-900 mb-3">Submission Checklist:</h4>
-              <ul className="space-y-2">
-                {lifecycleSteps[activeStep].checklist.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <span className="text-indigo-600 mt-0.5">✓</span>
-                    <span className="text-slate-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       </section>
 
@@ -506,6 +475,7 @@ export default function TenderPage() {
                   "Project Manager",
                   "Status",
                   "Actions",
+                  "Upload",
                 ].map((heading) => (
                   <th key={heading} className="px-6 py-3 text-left">
                     {heading}
@@ -543,12 +513,226 @@ export default function TenderPage() {
                       View
                     </Link>
                   </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => {
+                        setSelectedTenderForUpload(row);
+                        setUploadFiles([]);
+                        setShowUploadModal(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition"
+                    >
+                      <CloudArrowUpIcon className="h-4 w-4" />
+                      Upload
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+
+      {/* Upload Modal */}
+      {showUploadModal && selectedTenderForUpload && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">
+                    Upload Documents
+                  </h2>
+                  <p className="text-slate-600 mt-1">
+                    Upload documents for{" "}
+                    <span className="font-semibold">{selectedTenderForUpload.name}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setSelectedTenderForUpload(null);
+                    setUploadFiles([]);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition"
+                >
+                  <XMarkIcon className="h-6 w-6 text-slate-600" />
+                </button>
+              </div>
+
+              {/* Tender Info */}
+              <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold text-indigo-900">Tender:</span>
+                    <p className="text-indigo-700">{selectedTenderForUpload.name}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-900">Client:</span>
+                    <p className="text-indigo-700">{selectedTenderForUpload.client}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-900">Project Manager:</span>
+                    <p className="text-indigo-700">{selectedTenderForUpload.owner}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-900">Status:</span>
+                    <p className="text-indigo-700">{selectedTenderForUpload.status}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload Area */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Select Documents *
+                </label>
+                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 hover:border-indigo-400 transition">
+                  <input
+                    type="file"
+                    id="tender-docs-upload"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.dwg,.dxf,.zip,.rar"
+                    multiple
+                    onChange={(e) => {
+                      const fileArray = Array.from(e.target.files);
+                      const maxSize = 10 * 1024 * 1024; // 10 MB per file
+                      const oversizedFiles = fileArray.filter(file => file.size > maxSize);
+                      
+                      if (oversizedFiles.length > 0) {
+                        alert(`The following file(s) exceed the 10 MB limit:\n${oversizedFiles.map(f => f.name).join('\n')}\n\nPlease select files smaller than 10 MB.`);
+                        return;
+                      }
+                      
+                      setUploadFiles((prev) => [...prev, ...fileArray]);
+                    }}
+                  />
+                  <label
+                    htmlFor="tender-docs-upload"
+                    className="flex flex-col items-center justify-center cursor-pointer"
+                  >
+                    <ArrowUpTrayIcon className="h-12 w-12 text-slate-400 mb-3" />
+                    <p className="text-sm text-slate-600 mb-1">
+                      Click to upload or drag and drop documents
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, DWG, DXF, ZIP, RAR (Max 10MB per file)
+                    </p>
+                  </label>
+                </div>
+              </div>
+
+              {/* Uploaded Files List */}
+              {uploadFiles.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Files to Upload ({uploadFiles.length})
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {uploadFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <PaperClipIcon className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm text-slate-700 truncate">{file.name}</span>
+                          <span className="text-xs text-slate-500 flex-shrink-0">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setUploadFiles((prev) => prev.filter((_, i) => i !== index));
+                          }}
+                          className="text-red-600 hover:text-red-700 flex-shrink-0 ml-2"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Existing Documents */}
+              {tenderUploads[selectedTenderForUpload.id] && tenderUploads[selectedTenderForUpload.id].length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Previously Uploaded Documents ({tenderUploads[selectedTenderForUpload.id].length})
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {tenderUploads[selectedTenderForUpload.id].map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <PaperClipIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
+                          <span className="text-sm text-slate-700 truncate">
+                            {file.name || `Document ${index + 1}`}
+                          </span>
+                          {file.size && (
+                            <span className="text-xs text-slate-500 flex-shrink-0">
+                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setSelectedTenderForUpload(null);
+                    setUploadFiles([]);
+                  }}
+                  className="px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-indigo-200 hover:text-indigo-600 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (uploadFiles.length === 0) {
+                      alert("Please select at least one file to upload.");
+                      return;
+                    }
+
+                    // Save uploaded files to state
+                    setTenderUploads((prev) => ({
+                      ...prev,
+                      [selectedTenderForUpload.id]: [
+                        ...(prev[selectedTenderForUpload.id] || []),
+                        ...uploadFiles,
+                      ],
+                    }));
+
+                    alert(`Successfully uploaded ${uploadFiles.length} document(s) for ${selectedTenderForUpload.name}.`);
+                    setShowUploadModal(false);
+                    setSelectedTenderForUpload(null);
+                    setUploadFiles([]);
+                  }}
+                  disabled={uploadFiles.length === 0}
+                  className={`px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 shadow-lg hover:shadow-xl transition flex items-center gap-2 font-semibold ${
+                    uploadFiles.length === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                >
+                  <CloudArrowUpIcon className="h-5 w-5" />
+                  Upload Documents
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
