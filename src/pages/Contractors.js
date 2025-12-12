@@ -79,6 +79,8 @@ export default function ContractorsPage() {
     status: "All",
     rating: "All",
     specialty: "",
+    classification: "All",
+    scopeOfWork: "",
   });
   const [contractorForm, setContractorForm] = useState({
     name: "",
@@ -86,11 +88,16 @@ export default function ContractorsPage() {
     rating: "",
     status: "",
     contact: "",
-    landline: "",
     email: "",
     engineerListing: "Whitelisted",
     licenseNumber: "",
     manager: "",
+    scopeOfWork: "",
+    classification: "",
+    linkedin: "",
+    facebook: "",
+    twitter: "",
+    instagram: "",
   });
   const [error, setError] = useState("");
 
@@ -101,7 +108,8 @@ export default function ContractorsPage() {
       contractor.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contractor.contact.includes(searchTerm) ||
       contractor.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contractor.manager && contractor.manager.toLowerCase().includes(searchTerm.toLowerCase()));
+      (contractor.manager && contractor.manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (contractor.scopeOfWork && contractor.scopeOfWork.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // Engineer listing filter
     const matchesEngineerListing =
@@ -121,18 +129,30 @@ export default function ContractorsPage() {
       !filters.specialty ||
       contractor.specialty.toLowerCase().includes(filters.specialty.toLowerCase());
 
+    // Classification filter
+    const matchesClassification =
+      filters.classification === "All" ||
+      (contractor.classification && contractor.classification === filters.classification);
+
+    // Scope of Work filter
+    const matchesScopeOfWork =
+      !filters.scopeOfWork ||
+      (contractor.scopeOfWork && contractor.scopeOfWork.toLowerCase().includes(filters.scopeOfWork.toLowerCase()));
+
     return (
       matchesSearch &&
       matchesEngineerListing &&
       matchesStatus &&
       matchesRating &&
-      matchesSpecialty
+      matchesSpecialty &&
+      matchesClassification &&
+      matchesScopeOfWork
     );
   });
 
   const handleAddContractor = (e) => {
     e.preventDefault();
-    const requiredFields = ["name", "specialty", "rating", "status", "licenseNumber", "contact"];
+    const requiredFields = ["name", "specialty", "rating", "status", "licenseNumber", "contact", "classification"];
     const missing = requiredFields.filter((field) => !contractorForm[field].trim());
     
     if (missing.length) {
@@ -153,11 +173,16 @@ export default function ContractorsPage() {
       rating: "",
       status: "",
       contact: "",
-      landline: "",
       email: "",
       engineerListing: "Whitelisted",
       licenseNumber: "",
       manager: "",
+      scopeOfWork: "",
+      classification: "",
+      linkedin: "",
+      facebook: "",
+      twitter: "",
+      instagram: "",
     });
     setError("");
     setShowAddForm(false);
@@ -182,11 +207,16 @@ export default function ContractorsPage() {
       rating: contractor.rating,
       status: contractor.status,
       contact: contractor.contact,
-      landline: contractor.landline || "",
       email: contractor.email || "",
       engineerListing: contractor.engineerListing,
       licenseNumber: contractor.licenseNumber,
       manager: contractor.manager || "",
+      scopeOfWork: contractor.scopeOfWork || "",
+      classification: contractor.classification || "",
+      linkedin: contractor.linkedin || "",
+      facebook: contractor.facebook || "",
+      twitter: contractor.twitter || "",
+      instagram: contractor.instagram || "",
     });
     setError("");
     setShowEditModal(true);
@@ -194,7 +224,7 @@ export default function ContractorsPage() {
 
   const handleUpdateContractor = (e) => {
     e.preventDefault();
-    const requiredFields = ["name", "specialty", "rating", "status", "licenseNumber", "contact"];
+    const requiredFields = ["name", "specialty", "rating", "status", "licenseNumber", "contact", "classification"];
     const missing = requiredFields.filter((field) => !contractorForm[field].trim());
     
     if (missing.length) {
@@ -210,7 +240,6 @@ export default function ContractorsPage() {
               id: c.id,
               email: contractorForm.email || null,
               manager: contractorForm.manager || null,
-              landline: contractorForm.landline || null,
             }
           : c
       )
@@ -224,11 +253,16 @@ export default function ContractorsPage() {
       rating: "",
       status: "",
       contact: "",
-      landline: "",
       email: "",
       engineerListing: "Whitelisted",
       licenseNumber: "",
       manager: "",
+      scopeOfWork: "",
+      classification: "",
+      linkedin: "",
+      facebook: "",
+      twitter: "",
+      instagram: "",
     });
   };
 
@@ -300,6 +334,15 @@ export default function ContractorsPage() {
                   status: "",
                   contact: "",
                   email: "",
+                  engineerListing: "Whitelisted",
+                  licenseNumber: "",
+                  manager: "",
+                  scopeOfWork: "",
+                  classification: "",
+                  linkedin: "",
+                  facebook: "",
+                  twitter: "",
+                  instagram: "",
                 });
               }}
               className="text-slate-400 hover:text-slate-600"
@@ -320,15 +363,20 @@ export default function ContractorsPage() {
               { key: "name", label: "Contractor Name *", placeholder: "e.g. Horizon Builders" },
               { key: "specialty", label: "Licensed Activities *", placeholder: "e.g. Structural Works, MEP" },
               { key: "rating", label: "Rating *", placeholder: "e.g. A, B+" },
-              { key: "status", label: "Status *", placeholder: "Open or Not Open", type: "select", options: ["Open", "Not Open"] },
-              { key: "engineerListing", label: "Engineer Listing *", placeholder: "Whitelisted or Blacklisted", type: "select", options: ["Whitelisted", "Blacklisted"] },
+            { key: "status", label: "Status *", placeholder: "Open or Not Open", type: "select", options: ["Open", "Not Open"] },
+            { key: "engineerListing", label: "Engineer Listing *", placeholder: "Whitelisted or Blacklisted", type: "select", options: ["Whitelisted", "Blacklisted"] },
+            { key: "classification", label: "Classification *", placeholder: "Select classification...", type: "select", options: ["Supplier", "Sub Contractor", "Main Contractor"] },
             { key: "licenseNumber", label: "License Number *", placeholder: "e.g. CN-2024-001234" },
             { key: "manager", label: "Manager", placeholder: "e.g. John Smith" },
             { key: "contact", label: "Primary Contact *", placeholder: "+971 ..." },
-            { key: "landline", label: "Landline Number", placeholder: "+971 4 ..." },
             { key: "email", label: "Email (optional)", placeholder: "contact@company.com" },
+            { key: "linkedin", label: "LinkedIn (optional)", placeholder: "https://linkedin.com/company/..." },
+            { key: "facebook", label: "Facebook (optional)", placeholder: "https://facebook.com/..." },
+            { key: "twitter", label: "Twitter/X (optional)", placeholder: "https://twitter.com/..." },
+            { key: "instagram", label: "Instagram (optional)", placeholder: "https://instagram.com/..." },
+            { key: "scopeOfWork", label: "Scope of Work", placeholder: "Describe the scope of work...", type: "textarea", fullWidth: true },
             ].map((field) => (
-              <div key={field.key} className="flex flex-col">
+              <div key={field.key} className={`flex flex-col ${field.fullWidth ? 'md:col-span-2 lg:col-span-3' : ''}`}>
                 <label className="text-sm font-semibold text-slate-700 mb-1">
                   {field.label}
                 </label>
@@ -340,13 +388,23 @@ export default function ContractorsPage() {
                     }
                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
                   >
-                    <option value="">Select status...</option>
+                    <option value="">{field.placeholder || "Select..."}</option>
                     {field.options.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
                     ))}
                   </select>
+                ) : field.type === "textarea" ? (
+                  <textarea
+                    value={contractorForm[field.key]}
+                    placeholder={field.placeholder}
+                    onChange={(e) =>
+                      setContractorForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    rows={3}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 resize-none"
+                  />
                 ) : (
                   <input
                     type={field.key === "email" ? "email" : "text"}
@@ -377,6 +435,15 @@ export default function ContractorsPage() {
                     status: "",
                     contact: "",
                     email: "",
+                    engineerListing: "Whitelisted",
+                    licenseNumber: "",
+                    manager: "",
+                    scopeOfWork: "",
+                    classification: "",
+                    linkedin: "",
+                    facebook: "",
+                    twitter: "",
+                    instagram: "",
                   });
                   setError("");
                 }}
@@ -431,6 +498,8 @@ export default function ContractorsPage() {
                     status: "All",
                     rating: "All",
                     specialty: "",
+                    classification: "All",
+                    scopeOfWork: "",
                   });
                 }}
                 className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
@@ -438,7 +507,7 @@ export default function ContractorsPage() {
                 Clear All
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col">
                 <label className="text-xs font-semibold text-slate-700 mb-1">
                   Engineer Listing
@@ -504,11 +573,44 @@ export default function ContractorsPage() {
                   className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 bg-white"
                 />
               </div>
+              <div className="flex flex-col">
+                <label className="text-xs font-semibold text-slate-700 mb-1">
+                  Classification
+                </label>
+                <select
+                  value={filters.classification}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, classification: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 bg-white"
+                >
+                  <option value="All">All</option>
+                  <option value="Supplier">Supplier</option>
+                  <option value="Sub Contractor">Sub Contractor</option>
+                  <option value="Main Contractor">Main Contractor</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs font-semibold text-slate-700 mb-1">
+                  Scope of Work
+                </label>
+                <input
+                  type="text"
+                  placeholder="Filter by scope of work..."
+                  value={filters.scopeOfWork}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, scopeOfWork: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 bg-white"
+                />
+              </div>
             </div>
             {(filters.engineerListing !== "All" ||
               filters.status !== "All" ||
               filters.rating !== "All" ||
-              filters.specialty) && (
+              filters.specialty ||
+              filters.classification !== "All" ||
+              filters.scopeOfWork) && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-indigo-200">
                 <span className="text-xs text-slate-600">Active filters:</span>
                 {filters.engineerListing !== "All" && (
@@ -563,6 +665,32 @@ export default function ContractorsPage() {
                     </button>
                   </span>
                 )}
+                {filters.classification !== "All" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700">
+                    Classification: {filters.classification}
+                    <button
+                      onClick={() =>
+                        setFilters((prev) => ({ ...prev, classification: "All" }))
+                      }
+                      className="hover:text-indigo-900"
+                    >
+                      <XMarkIcon className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+                {filters.scopeOfWork && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700">
+                    Scope: {filters.scopeOfWork}
+                    <button
+                      onClick={() =>
+                        setFilters((prev) => ({ ...prev, scopeOfWork: "" }))
+                      }
+                      className="hover:text-indigo-900"
+                    >
+                      <XMarkIcon className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -576,7 +704,7 @@ export default function ContractorsPage() {
           <table className="min-w-full divide-y divide-slate-100">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                {["Contractor", "Licensed Activities", "Rating", "Status", "Engineer Listing", "License Number", "Manager", "Contact", "Landline", "Email", "Actions"].map(
+                {["Contractor", "Licensed Activities", "Rating", "Status", "Engineer Listing", "Classification", "License Number", "Manager", "Contact", "Email", "Social Media", "Actions"].map(
                   (heading) => (
                     <th key={heading} className="px-6 py-3 text-left">
                       {heading}
@@ -616,6 +744,9 @@ export default function ContractorsPage() {
                       {contractor.engineerListing === "Whitelisted" ? "✓ Whitelisted" : "✗ Blacklisted"}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-slate-700">
+                    {contractor.classification || <span className="text-slate-400 italic">Not provided</span>}
+                  </td>
                   <td className="px-6 py-4 text-slate-700 font-mono text-sm">
                     {contractor.licenseNumber}
                   </td>
@@ -623,9 +754,6 @@ export default function ContractorsPage() {
                     {contractor.manager || <span className="text-slate-400 italic">Not assigned</span>}
                   </td>
                   <td className="px-6 py-4 text-slate-700">{contractor.contact}</td>
-                  <td className="px-6 py-4 text-slate-700">
-                    {contractor.landline || <span className="text-slate-400 italic">Not provided</span>}
-                  </td>
                   <td className="px-6 py-4 text-slate-700">
                     {contractor.email ? (
                       <a
@@ -637,6 +765,65 @@ export default function ContractorsPage() {
                     ) : (
                       <span className="text-slate-400 italic">Not provided</span>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {contractor.linkedin ? (
+                        <a
+                          href={contractor.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          title="LinkedIn"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                          </svg>
+                        </a>
+                      ) : null}
+                      {contractor.facebook ? (
+                        <a
+                          href={contractor.facebook}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          title="Facebook"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385h-3.047v-3.47h3.047v-2.69c0-3.006 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953h-1.513c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385c5.737-.9 10.125-5.864 10.125-11.854z"/>
+                          </svg>
+                        </a>
+                      ) : null}
+                      {contractor.twitter ? (
+                        <a
+                          href={contractor.twitter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-black text-white hover:bg-gray-800 transition-colors"
+                          title="Twitter/X"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.96 6.817h-3.308l7.73-8.835-8.141-11.24h6.653l4.72 6.231zm-1.161 17.52h1.833l-11.55-15.24h-1.833z"/>
+                          </svg>
+                        </a>
+                      ) : null}
+                      {contractor.instagram ? (
+                        <a
+                          href={contractor.instagram}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transition-colors"
+                          title="Instagram"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                          </svg>
+                        </a>
+                      ) : null}
+                      {!contractor.linkedin && !contractor.facebook && !contractor.twitter && !contractor.instagram && (
+                        <span className="text-xs text-slate-400 italic">Not provided</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
@@ -734,6 +921,12 @@ export default function ContractorsPage() {
                   </div>
                 </div>
                 <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Classification</label>
+                  <p className="mt-1 text-base text-slate-900">
+                    {selectedContractor.classification || <span className="text-slate-400 italic">Not provided</span>}
+                  </p>
+                </div>
+                <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Manager</label>
                   <p className="mt-1 text-base text-slate-900">
                     {selectedContractor.manager || <span className="text-slate-400 italic">Not assigned</span>}
@@ -744,17 +937,65 @@ export default function ContractorsPage() {
                   <p className="mt-1 text-base text-slate-900">{selectedContractor.contact}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Landline Number</label>
-                  <p className="mt-1 text-base text-slate-900">
-                    {selectedContractor.landline || <span className="text-slate-400 italic">Not provided</span>}
-                  </p>
-                </div>
-                <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</label>
                   <p className="mt-1 text-base text-slate-900">
                     {selectedContractor.email ? (
                       <a href={`mailto:${selectedContractor.email}`} className="text-indigo-600 hover:text-indigo-700 hover:underline">
                         {selectedContractor.email}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">Not provided</span>
+                    )}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Scope of Work</label>
+                  <p className="mt-1 text-base text-slate-900 whitespace-pre-wrap">
+                    {selectedContractor.scopeOfWork || <span className="text-slate-400 italic">Not provided</span>}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">LinkedIn</label>
+                  <p className="mt-1 text-base text-slate-900">
+                    {selectedContractor.linkedin ? (
+                      <a href={selectedContractor.linkedin} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 hover:underline">
+                        {selectedContractor.linkedin}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">Not provided</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Facebook</label>
+                  <p className="mt-1 text-base text-slate-900">
+                    {selectedContractor.facebook ? (
+                      <a href={selectedContractor.facebook} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 hover:underline">
+                        {selectedContractor.facebook}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">Not provided</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Twitter/X</label>
+                  <p className="mt-1 text-base text-slate-900">
+                    {selectedContractor.twitter ? (
+                      <a href={selectedContractor.twitter} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 hover:underline">
+                        {selectedContractor.twitter}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">Not provided</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Instagram</label>
+                  <p className="mt-1 text-base text-slate-900">
+                    {selectedContractor.instagram ? (
+                      <a href={selectedContractor.instagram} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700 hover:underline">
+                        {selectedContractor.instagram}
                       </a>
                     ) : (
                       <span className="text-slate-400 italic">Not provided</span>
@@ -818,13 +1059,18 @@ export default function ContractorsPage() {
                   { key: "rating", label: "Rating *", placeholder: "e.g. A, B+" },
                   { key: "status", label: "Status *", type: "select", options: ["Open", "Not Open"] },
                   { key: "engineerListing", label: "Engineer Listing *", type: "select", options: ["Whitelisted", "Blacklisted"] },
+                  { key: "classification", label: "Classification *", placeholder: "Select classification...", type: "select", options: ["Supplier", "Sub Contractor", "Main Contractor"] },
                   { key: "licenseNumber", label: "License Number *", placeholder: "e.g. CN-2024-001234" },
                   { key: "manager", label: "Manager", placeholder: "e.g. John Smith" },
                   { key: "contact", label: "Primary Contact *", placeholder: "+971 ..." },
-                  { key: "landline", label: "Landline Number", placeholder: "+971 4 ..." },
                   { key: "email", label: "Email (optional)", placeholder: "contact@company.com" },
+                  { key: "linkedin", label: "LinkedIn (optional)", placeholder: "https://linkedin.com/company/..." },
+                  { key: "facebook", label: "Facebook (optional)", placeholder: "https://facebook.com/..." },
+                  { key: "twitter", label: "Twitter/X (optional)", placeholder: "https://twitter.com/..." },
+                  { key: "instagram", label: "Instagram (optional)", placeholder: "https://instagram.com/..." },
+                  { key: "scopeOfWork", label: "Scope of Work", placeholder: "Describe the scope of work...", type: "textarea", fullWidth: true },
                 ].map((field) => (
-                  <div key={field.key} className="flex flex-col">
+                  <div key={field.key} className={`flex flex-col ${field.fullWidth ? 'md:col-span-2 lg:col-span-3' : ''}`}>
                     <label className="text-sm font-semibold text-slate-700 mb-1">
                       {field.label}
                     </label>
@@ -836,12 +1082,23 @@ export default function ContractorsPage() {
                         }
                         className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
                       >
+                        <option value="">{field.placeholder || "Select..."}</option>
                         {field.options.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
                         ))}
                       </select>
+                    ) : field.type === "textarea" ? (
+                      <textarea
+                        value={contractorForm[field.key]}
+                        placeholder={field.placeholder}
+                        onChange={(e) =>
+                          setContractorForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                        }
+                        rows={3}
+                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 resize-none"
+                      />
                     ) : (
                       <input
                         type={field.key === "email" ? "email" : "text"}

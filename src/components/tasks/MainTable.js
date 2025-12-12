@@ -81,78 +81,7 @@ import UndoToast from '../common/UndoToast';
 import useUndoManager from '../../hooks/useUndoManager';
 import { filterActiveItems, applySoftDelete, applyRestore } from '../../utils/softDeleteUtils';
 
-const initialTasks = [
-  {
-    id: 2,
-    name: "Website Development",
-    referenceNumber: "REF-002",
-    client: "KVIEM REAL ESTATE LLC",
-    category: "Development",
-    status: "working",
-    owner: "SA",
-    timeline: [new Date('2025-09-15'), new Date('2025-09-30')],
-    planDays: 15,
-    remarks: "High priority project",
-    assigneeNotes: "Need to complete by end of month",
-    attachments: [],
-    priority: "High",
-    location: "Remote",
-    plotNumber: "PLOT-002",
-    community: "Tech District",
-    projectType: "Commercial",
-    projectFloor: "3",
-    developerProject: "Tech Solutions Inc",
-    checklist: true,
-    checklistItems: [
-      {
-        id: Date.now(),
-        primaryNotes: "Project requirements review",
-        employeeConfirmation: true,
-        projectManagerYes: true,
-        projectManagerNo: false,
-        noteCategory: "Planning",
-        remarks: "Requirements approved"
-      }
-    ],
-    rating: 4,
-    progress: 75,
-    color: "#10d081",
-    pinned: true, // Add pinned property - this one is pinned
-    subtasks: [],
-    is_deleted: false, // Add soft delete flag
-    deleted_at: null
-  },
-  {
-    id: 3,
-    name: "Mobile App Design",
-    referenceNumber: "REF-003",
-    client: "JAGGIM SALMAN",
-    category: "Design",
-    status: "pending",
-    owner: "AH",
-    timeline: [new Date('2025-10-01'), new Date('2025-10-08')],
-    planDays: 8,
-    remarks: "",
-    assigneeNotes: "",
-    attachments: [],
-    priority: "Medium",
-    location: "Design Studio",
-    plotNumber: "PLOT-003",
-    community: "Creative Hub",
-    projectType: "Mixed Use",
-    projectFloor: "2",
-    developerProject: "Creative Agency",
-    checklist: false,
-    checklistItems: [],
-    rating: 3,
-    progress: 25,
-    color: "#f59e42",
-    pinned: false, // Add pinned property
-    subtasks: [],
-    is_deleted: false, // Add soft delete flag
-    deleted_at: null
-  }
-];
+const initialTasks = [];
 
 
 
@@ -186,16 +115,6 @@ export default function MainTable() {
   // Available engineers (only whitelisted should be selectable)
   const availableEngineers = [
     {
-      id: "sujhb",
-      name: "Sujhb",
-      specialty: "Civil Engineering",
-      rating: "A",
-      status: "Available",
-      engineerListing: "Whitelisted",
-      email: "sujhb@example.com",
-      phone: "+971 50 123 4567",
-    },
-    {
       id: "anas",
       name: "Anas",
       specialty: "Structural Engineering",
@@ -204,16 +123,6 @@ export default function MainTable() {
       engineerListing: "Whitelisted",
       email: "anas@example.com",
       phone: "+971 50 234 5678",
-    },
-    {
-      id: "ali",
-      name: "Ali",
-      specialty: "MEP Engineering",
-      rating: "B+",
-      status: "Available",
-      engineerListing: "Whitelisted",
-      email: "ali@example.com",
-      phone: "+971 50 345 6789",
     },
   ];
   
@@ -862,7 +771,38 @@ export default function MainTable() {
 
 
 
-  const [tasks, setTasks] = useState(initialTasks);
+  // Load tasks from localStorage or use initialTasks
+  const loadTasksFromStorage = () => {
+    try {
+      const savedTasks = localStorage.getItem('projectTasks');
+      if (savedTasks) {
+        const parsed = JSON.parse(savedTasks);
+        // Convert date strings back to Date objects for timeline
+        return parsed.map(task => ({
+          ...task,
+          timeline: task.timeline ? task.timeline.map(date => new Date(date)) : null,
+          subtasks: task.subtasks ? task.subtasks.map(subtask => ({
+            ...subtask,
+            timeline: subtask.timeline ? subtask.timeline.map(date => new Date(date)) : null
+          })) : []
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading tasks from localStorage:', error);
+    }
+    return initialTasks;
+  };
+
+  const [tasks, setTasks] = useState(loadTasksFromStorage);
+  
+  // Save tasks to localStorage whenever tasks change
+  useEffect(() => {
+    try {
+      localStorage.setItem('projectTasks', JSON.stringify(tasks));
+    } catch (error) {
+      console.error('Error saving tasks to localStorage:', error);
+    }
+  }, [tasks]);
   
   // Sync drawerTask with updated task from main table
   useEffect(() => {
