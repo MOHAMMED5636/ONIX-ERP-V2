@@ -147,6 +147,29 @@ export default function TenderDocumentUpload() {
         additionalNotes,
       };
 
+      // Save form data to localStorage for retrieval on invitation page
+      const formDataToSave = {
+        attachmentFile: attachmentFile ? {
+          name: attachmentFile.name,
+          size: attachmentFile.size,
+          type: attachmentFile.type,
+        } : null,
+        technicalDrawingsLink,
+        hasInvitationFees,
+        invitationFeeAmount,
+        tenderAcceptanceDeadline,
+        bidSubmissionDeadline,
+        scopeOfWork,
+        additionalNotes,
+      };
+      
+      // Save to localStorage with tender ID as key
+      const tenderId = tender.id || tender.referenceNumber || Date.now().toString();
+      localStorage.setItem(`tenderFormData_${tenderId}`, JSON.stringify(formDataToSave));
+      
+      // Also save tender data with form info
+      localStorage.setItem(`tenderData_${tenderId}`, JSON.stringify(tenderDataWithFormInfo));
+
       // Show loading state
       const loadingMessage = `Sending tender invitations to ${contractors.length} contractor(s)...`;
       console.log(loadingMessage);

@@ -18,29 +18,75 @@ export default function TenderInvitation() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // In a real application, you would fetch tender data from the API using tenderId
-    // For now, we'll simulate loading and use sample data
     const loadTenderData = async () => {
       try {
         setLoading(true);
         
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Load tender data from localStorage (projectTasks)
+        const savedProjects = localStorage.getItem('projectTasks');
+        let foundTender = null;
         
-        // In production, this would be: const response = await fetch(`/api/tenders/${tenderId}`);
-        // For demo, we'll use sample data
-        const sampleTender = {
-          id: tenderId,
-          name: "Sample Tender Project",
-          referenceNumber: `REF-${tenderId}`,
-          client: "Sample Client",
-          description: "This is a tender invitation for a construction project. Please review all details and submit your technical documentation.",
-          deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-          status: "Open",
-        };
+        if (savedProjects) {
+          const projects = JSON.parse(savedProjects);
+          // Find tender by ID or reference number
+          foundTender = projects.find(project => 
+            project.id?.toString() === tenderId || 
+            project.referenceNumber === tenderId ||
+            project.id?.toString() === tenderId?.toString()
+          );
+        }
         
-        setTender(sampleTender);
-        setError(null);
+        // Also check for tender data in tender invitations storage
+        if (!foundTender) {
+          const savedInvitations = localStorage.getItem('tenderInvitations');
+          if (savedInvitations) {
+            const invitations = JSON.parse(savedInvitations);
+            foundTender = invitations.find(inv => 
+              inv.tenderId === tenderId || 
+              inv.id === tenderId
+            );
+            if (foundTender && foundTender.tender) {
+              foundTender = foundTender.tender;
+            }
+          }
+        }
+        
+        // Check for saved tender data with form info (saved when invitation was sent)
+        const savedTenderData = localStorage.getItem(`tenderData_${tenderId}`);
+        if (savedTenderData) {
+          const tenderData = JSON.parse(savedTenderData);
+          setTender(tenderData);
+          setError(null);
+        } else if (foundTender) {
+          // Also check for form data that might have been stored separately
+          const savedFormData = localStorage.getItem(`tenderFormData_${tenderId}`);
+          const formData = savedFormData ? JSON.parse(savedFormData) : null;
+          
+          // Map project data to tender format
+          const tenderData = {
+            id: foundTender.id || tenderId,
+            name: foundTender.name || foundTender.projectName || 'Tender Project',
+            referenceNumber: foundTender.referenceNumber || `REF-${tenderId}`,
+            client: foundTender.client || 'Client',
+            owner: foundTender.owner || foundTender.projectManager || '',
+            description: foundTender.description || formData?.scopeOfWork || 'Please review all details and submit your technical documentation.',
+            deadline: foundTender.deadline || foundTender.timeline?.[1] || formData?.bidSubmissionDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            status: foundTender.status === 'done' ? 'Completed' : foundTender.status === 'working' ? 'In Progress' : foundTender.status === 'pending' ? 'Open' : 'Open',
+            // Include form data
+            scopeOfWork: formData?.scopeOfWork || '',
+            additionalNotes: formData?.additionalNotes || '',
+            technicalDrawingsLink: formData?.technicalDrawingsLink || '',
+            hasInvitationFees: formData?.hasInvitationFees || false,
+            invitationFeeAmount: formData?.invitationFeeAmount || '',
+            tenderAcceptanceDeadline: formData?.tenderAcceptanceDeadline || '',
+            bidSubmissionDeadline: formData?.bidSubmissionDeadline || '',
+          };
+          
+          setTender(tenderData);
+          setError(null);
+        } else {
+          setError("Tender invitation not found. Please check the invitation link.");
+        }
       } catch (err) {
         setError("Failed to load tender details. Please check the invitation link.");
         console.error("Error loading tender:", err);
@@ -148,21 +194,74 @@ export default function TenderInvitation() {
                   <p className="text-lg font-semibold text-slate-900">{tender.referenceNumber}</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <CalendarIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
-                    Submission Deadline
-                  </p>
-                  <p className="text-lg font-semibold text-slate-900">
-                    {new Date(tender.deadline).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
+              {tender.bidSubmissionDeadline && (
+                <div className="flex items-start gap-3">
+                  <CalendarIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
+                      Bid Submission Deadline
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      {new Date(tender.bidSubmissionDeadline).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
+              {!tender.bidSubmissionDeadline && tender.deadline && (
+                <div className="flex items-start gap-3">
+                  <CalendarIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
+                      Submission Deadline
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      {new Date(tender.deadline).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {tender.tenderAcceptanceDeadline && (
+                <div className="flex items-start gap-3">
+                  <CalendarIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
+                      Tender Acceptance Deadline
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      {new Date(tender.tenderAcceptanceDeadline).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {tender.tenderAcceptanceDeadline && (
+                <div className="flex items-start gap-3">
+                  <CalendarIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
+                      Tender Acceptance Deadline
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      {new Date(tender.tenderAcceptanceDeadline).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-start gap-3">
                 <CheckCircleIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
                 <div>
