@@ -265,9 +265,9 @@ export default function TenderDocumentUpload() {
   }
 
   return (
-    <div className="p-6 lg:p-10 space-y-8 bg-slate-50/40 min-h-screen">
+    <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 bg-slate-50/40 min-h-screen overflow-x-hidden">
       {/* Header */}
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
+      <section className="bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6 lg:p-8 space-y-4 lg:space-y-6">
         <div className="flex items-center gap-4">
           <button
             onClick={handleBack}
@@ -289,7 +289,7 @@ export default function TenderDocumentUpload() {
       </section>
 
       {/* Tender Info Card */}
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8">
+      <section className="bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6 lg:p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
             <DocumentArrowUpIcon className="h-6 w-6 text-indigo-600" />
@@ -328,7 +328,7 @@ export default function TenderDocumentUpload() {
       </section>
 
       {/* Additional Information Section */}
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-8">
+      <section className="bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
         <div className="flex items-start gap-4 mb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600" />
@@ -342,7 +342,7 @@ export default function TenderDocumentUpload() {
         </div>
 
         {/* File Upload & Technical Drawings */}
-        <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-6 border border-slate-200">
+        <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl lg:rounded-2xl p-4 sm:p-6 border border-slate-200">
           <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <DocumentArrowUpIcon className="h-5 w-5 text-indigo-600" />
             Documents & Links
@@ -428,7 +428,7 @@ export default function TenderDocumentUpload() {
         </div>
 
         {/* Invitation Fees */}
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl lg:rounded-2xl p-4 sm:p-6 border border-amber-200">
           <div className="flex items-start gap-3 mb-4">
             <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <CurrencyDollarIcon className="h-5 w-5 text-amber-700" />
@@ -500,7 +500,7 @@ export default function TenderDocumentUpload() {
         </div>
 
         {/* Deadlines */}
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl lg:rounded-2xl p-4 sm:p-6 border border-purple-200">
           <div className="flex items-start gap-3 mb-4">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <CalendarIcon className="h-5 w-5 text-purple-700" />
@@ -549,9 +549,9 @@ export default function TenderDocumentUpload() {
         </div>
 
         {/* Scope of Work & Additional Notes */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Scope of Work */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200">
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl lg:rounded-2xl p-4 sm:p-6 border border-emerald-200">
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <DocumentTextIcon className="h-5 w-5 text-emerald-700" />
@@ -576,7 +576,7 @@ export default function TenderDocumentUpload() {
           </div>
 
           {/* Additional Notes */}
-          <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-6 border border-rose-200">
+          <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl lg:rounded-2xl p-4 sm:p-6 border border-rose-200">
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <ClipboardDocumentListIcon className="h-5 w-5 text-rose-700" />
@@ -603,26 +603,26 @@ export default function TenderDocumentUpload() {
       </section>
 
       {/* Action Buttons */}
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between">
+      <section className="bg-white rounded-2xl lg:rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <button
             onClick={handleBack}
-            className="px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-indigo-200 hover:text-indigo-600 transition flex items-center gap-2"
+            className="px-4 sm:px-6 py-2.5 sm:py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-indigo-200 hover:text-indigo-600 transition flex items-center justify-center gap-2"
           >
             <ArrowLeftIcon className="h-5 w-5" />
             Back
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               onClick={() => navigate("/tender")}
-              className="px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-red-200 hover:text-red-600 transition"
+              className="px-4 sm:px-6 py-2.5 sm:py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-red-200 hover:text-red-600 transition"
             >
               Cancel
             </button>
             <button
               onClick={handleSendInvitation}
               disabled={isSending}
-              className={`px-8 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-lg hover:shadow-xl transition flex items-center gap-2 font-semibold ${
+              className={`px-6 sm:px-8 py-2.5 sm:py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 shadow-lg hover:shadow-xl transition flex items-center justify-center gap-2 font-semibold text-sm sm:text-base ${
                 isSending ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
