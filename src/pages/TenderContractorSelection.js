@@ -75,7 +75,42 @@ export default function TenderContractorSelection() {
     rating: "All",
     specialty: "",
   });
-  const [contractors] = useState(initialContractors);
+  // Load contractors from localStorage
+  const loadContractorsFromStorage = () => {
+    try {
+      const savedContractors = localStorage.getItem('contractors');
+      if (savedContractors) {
+        return JSON.parse(savedContractors);
+      }
+    } catch (error) {
+      console.error('Error loading contractors from localStorage:', error);
+    }
+    return initialContractors;
+  };
+
+  const [contractors, setContractors] = useState(loadContractorsFromStorage);
+  
+  // Update contractors when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'contractors') {
+        setContractors(loadContractorsFromStorage());
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Check periodically for changes
+    const interval = setInterval(() => {
+      const updated = loadContractorsFromStorage();
+      setContractors(updated);
+    }, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
   
   // Get tender information from navigation state
   const selectedTender = location.state?.selectedTender || null;

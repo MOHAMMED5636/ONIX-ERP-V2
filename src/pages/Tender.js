@@ -33,40 +33,13 @@ const lifecycleSteps = [
   },
 ];
 
-const tenders = [
-  {
-    name: "Metro Station Expansion",
-    client: "RTA Dubai",
-    date: "Nov 22, 2025",
-    owner: "Kaddour",
-    status: "Preparing Submission",
-    id: "metro-station",
-  },
-  {
-    name: "Residential Tower – Marina",
-    client: "Emerald Properties",
-    date: "Nov 24, 2025",
-    owner: "Noura",
-    status: "Client Clarification",
-    id: "residential-tower",
-  },
-  {
-    name: "Community School Campus",
-    client: "Knowledge Fund",
-    date: "Dec 1, 2025",
-    owner: "Samir",
-    status: "Final Review",
-    id: "community-school",
-  },
-];
-
-// Tender management data by year (2021-2025)
+// Tender management data - Only ONE tender in the system
 const tenderYearlyData = [
-  { year: 2021, total: 45, awarded: 28, pending: 12, rejected: 5 },
-  { year: 2022, total: 52, awarded: 35, pending: 10, rejected: 7 },
-  { year: 2023, total: 68, awarded: 42, pending: 18, rejected: 8 },
-  { year: 2024, total: 75, awarded: 48, pending: 20, rejected: 7 },
-  { year: 2025, total: 82, awarded: 55, pending: 22, rejected: 5 },
+  { year: 2021, total: 0, awarded: 0, pending: 0, rejected: 0 },
+  { year: 2022, total: 0, awarded: 0, pending: 0, rejected: 0 },
+  { year: 2023, total: 0, awarded: 0, pending: 0, rejected: 0 },
+  { year: 2024, total: 0, awarded: 0, pending: 0, rejected: 0 },
+  { year: 2025, total: 1, awarded: 0, pending: 0, rejected: 0 },
 ];
 
 export default function TenderPage() {
@@ -77,6 +50,57 @@ export default function TenderPage() {
   const [assignmentMessage, setAssignmentMessage] = useState("");
   const [showTenderInvitationForm, setShowTenderInvitationForm] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  
+  // Load tenders from project list (localStorage)
+  const [tenders, setTenders] = useState([]);
+  
+  useEffect(() => {
+    const loadTenders = () => {
+      try {
+        const savedProjects = localStorage.getItem('projectTasks');
+        if (savedProjects) {
+          const projects = JSON.parse(savedProjects);
+          // Filter projects that are not deleted and convert to tenders
+          const tenderList = projects
+            .filter(project => !project.is_deleted)
+            .map(project => ({
+              name: project.name || project.projectName || '',
+              client: project.client || '',
+              date: project.timeline && project.timeline[0] 
+                ? new Date(project.timeline[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '')
+                : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', ''),
+              owner: project.owner || '',
+              status: project.status === 'done' ? 'Completed' : project.status === 'working' ? 'In Progress' : project.status === 'pending' ? 'Open' : 'Open',
+              id: project.id?.toString() || project.referenceNumber || '',
+              referenceNumber: project.referenceNumber || '',
+            }));
+          setTenders(tenderList);
+        }
+      } catch (error) {
+        console.error('Error loading tenders from projects:', error);
+        setTenders([]);
+      }
+    };
+    
+    loadTenders();
+    
+    // Listen for storage changes to update tenders when projects change
+    const handleStorageChange = (e) => {
+      if (e.key === 'projectTasks') {
+        loadTenders();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for changes (in case of same-tab updates)
+    const interval = setInterval(loadTenders, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
   
   // Upload state
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -240,19 +264,19 @@ export default function TenderPage() {
               {/* Chart Container */}
               <div className="flex items-end justify-between gap-2 lg:gap-3 h-80 border-b-2 border-l-2 border-slate-300 pb-4 pl-10 pr-4 ml-10">
                 {tenderYearlyData.map((data, index) => {
-                  const maxValue = Math.max(...tenderYearlyData.map(d => d.total));
-                  const totalHeight = (data.total / maxValue) * 100;
-                  const awardedPercent = (data.awarded / data.total) * 100;
-                  const pendingPercent = (data.pending / data.total) * 100;
-                  const rejectedPercent = (data.rejected / data.total) * 100;
+                  const maxValue = Math.max(...tenderYearlyData.map(d => d.total), 1);
+                  const totalHeight = maxValue > 0 ? (data.total / maxValue) * 100 : 0;
+                  const awardedPercent = data.total > 0 ? (data.awarded / data.total) * 100 : 0;
+                  const pendingPercent = data.total > 0 ? (data.pending / data.total) * 100 : 0;
+                  const rejectedPercent = data.total > 0 ? (data.rejected / data.total) * 100 : 0;
 
                   return (
                     <div key={data.year} className="flex-1 flex flex-col items-center gap-2 group relative h-full max-w-[120px]">
                       {/* Bars Container - Stacked Bar */}
                       <div className="w-full flex flex-col items-end justify-end h-full">
                         <div
-                          className="w-full rounded-t-lg transition-all duration-500 ease-out hover:shadow-xl hover:scale-105 relative overflow-hidden border-2 border-slate-400 shadow-md"
-                          style={{ height: `${Math.max(totalHeight, 5)}%`, minHeight: '40px' }}
+                          className={`w-full rounded-t-lg transition-all duration-500 ease-out hover:shadow-xl hover:scale-105 relative overflow-hidden border-2 ${data.total > 0 ? 'border-slate-400 shadow-md' : 'border-slate-200 border-dashed'} ${data.total === 0 ? 'opacity-30' : ''}`}
+                          style={{ height: `${data.total > 0 ? Math.max(totalHeight, 5) : 5}%`, minHeight: data.total > 0 ? '40px' : '20px' }}
                           title={`${data.year}: Total ${data.total} tenders`}
                         >
                           {/* Stacked segments from bottom to top */}

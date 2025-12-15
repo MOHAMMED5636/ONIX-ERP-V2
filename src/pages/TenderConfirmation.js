@@ -24,9 +24,8 @@ export default function TenderConfirmation() {
   };
 
   const handleConfirm = () => {
-    // Here you would typically make an API call to save the assignment
-    // Navigate to Technical Submission page
-    navigate("/tender/technical-submission", {
+    // Navigate to Document Upload page first
+    navigate("/tender/document-upload", {
       state: {
         tender,
         contractors,

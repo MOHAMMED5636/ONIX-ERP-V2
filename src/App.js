@@ -16,6 +16,7 @@ import Task from "./pages/Task";
 import TenderPage from "./pages/Tender";
 import TenderContractorSelection from "./pages/TenderContractorSelection";
 import TenderConfirmation from "./pages/TenderConfirmation";
+import TenderDocumentUpload from "./pages/TenderDocumentUpload";
 import TenderTechnicalSubmission from "./pages/TenderTechnicalSubmission";
 import TenderFees from "./pages/TenderFees";
 import TenderInvitation from "./pages/TenderInvitation";
@@ -88,6 +89,7 @@ function MainLayout() {
             <Route path="/tender" element={<TenderPage />} />
             <Route path="/tender/contractors" element={<TenderContractorSelection />} />
             <Route path="/tender/confirmation" element={<TenderConfirmation />} />
+            <Route path="/tender/document-upload" element={<TenderDocumentUpload />} />
             <Route path="/tender/technical-submission" element={<TenderTechnicalSubmission />} />
             <Route path="/tender/fees" element={<TenderFees />} />
             <Route path="/tender/invitation/:tenderId" element={<TenderInvitation />} />

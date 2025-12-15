@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   PlusIcon,
@@ -67,7 +67,29 @@ const initialContractors = [
 ];
 
 export default function ContractorsPage() {
-  const [contractors, setContractors] = useState(initialContractors);
+  // Load contractors from localStorage or use initial
+  const loadContractorsFromStorage = () => {
+    try {
+      const savedContractors = localStorage.getItem('contractors');
+      if (savedContractors) {
+        return JSON.parse(savedContractors);
+      }
+    } catch (error) {
+      console.error('Error loading contractors from localStorage:', error);
+    }
+    return initialContractors;
+  };
+
+  const [contractors, setContractors] = useState(loadContractorsFromStorage);
+  
+  // Save contractors to localStorage whenever contractors change
+  useEffect(() => {
+    try {
+      localStorage.setItem('contractors', JSON.stringify(contractors));
+    } catch (error) {
+      console.error('Error saving contractors to localStorage:', error);
+    }
+  }, [contractors]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);

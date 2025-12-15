@@ -8,6 +8,7 @@ import {
   ArrowUpTrayIcon,
   EyeIcon,
   CloudArrowUpIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import jsPDF from "jspdf";
 import { sendTenderInvitations } from "../services/tenderAPI";
@@ -17,68 +18,201 @@ export default function TenderTechnicalSubmission() {
   const location = useLocation();
   
   const tender = location.state?.tender || null;
-  const contractors = location.state?.contractors || [];
   
-  // Tender Operations Board state
-  const [tenderOperationsBoard, setTenderOperationsBoard] = useState([
-    {
-      id: "metro-station",
-      name: "Metro Station Expansion",
-      client: "RTA Dubai",
-      date: "Nov 22, 2025",
-      owner: "Kaddour",
-      status: "Preparing Submission",
-      revisedDocuments: [], // Array of files uploaded by contractors
-    },
-    {
-      id: "residential-tower",
-      name: "Residential Tower – Marina",
-      client: "Emerald Properties",
-      date: "Nov 24, 2025",
-      owner: "Noura",
-      status: "Client Clarification",
-      revisedDocuments: [],
-    },
-    {
-      id: "community-school",
-      name: "Community School Campus",
-      client: "Knowledge Fund",
-      date: "Dec 1, 2025",
-      owner: "Samir",
-      status: "Final Review",
-      revisedDocuments: [],
-    },
-  ]);
+  // Load contractors from localStorage or from location state
+  const loadContractorsFromStorage = () => {
+    try {
+      const savedContractors = localStorage.getItem('contractors');
+      if (savedContractors) {
+        return JSON.parse(savedContractors);
+      }
+    } catch (error) {
+      console.error('Error loading contractors from localStorage:', error);
+    }
+    return [];
+  };
+
+  const [contractors, setContractors] = useState(location.state?.contractors || loadContractorsFromStorage());
+  
+  // Update contractors when localStorage changes or location state changes
+  useEffect(() => {
+    if (location.state?.contractors) {
+      setContractors(location.state.contractors);
+    } else {
+      const handleStorageChange = (e) => {
+        if (e.key === 'contractors') {
+          setContractors(loadContractorsFromStorage());
+        }
+      };
+      
+      window.addEventListener('storage', handleStorageChange);
+      
+      // Check periodically for changes
+      const interval = setInterval(() => {
+        const updated = loadContractorsFromStorage();
+        setContractors(updated);
+      }, 1000);
+      
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        clearInterval(interval);
+      };
+    }
+  }, [location.state]);
+  
+  // Tender Operations Board state - load from project list
+  const [tenderOperationsBoard, setTenderOperationsBoard] = useState([]);
+  
+  useEffect(() => {
+    const loadTendersFromProjects = () => {
+      try {
+        const savedProjects = localStorage.getItem('projectTasks');
+        if (savedProjects) {
+          const projects = JSON.parse(savedProjects);
+          // Load revised documents from localStorage
+          const savedDocs = localStorage.getItem('revisedDocuments');
+          const allDocs = savedDocs ? JSON.parse(savedDocs) : {};
+          
+          // Filter projects that are not deleted and convert to tenders
+          const tenderList = projects
+            .filter(project => !project.is_deleted)
+            .map(project => {
+              const tenderId = project.id?.toString() || project.referenceNumber || '';
+              // Get documents from localStorage for this tender
+              const storedDocs = allDocs[tenderId] || [];
+              return {
+                id: tenderId,
+                name: project.name || project.projectName || '',
+                client: project.client || '',
+                date: project.timeline && project.timeline[0] 
+                  ? new Date(project.timeline[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '')
+                  : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', ''),
+                owner: project.owner || '',
+                status: project.status === 'done' ? 'Completed' : project.status === 'working' ? 'In Progress' : project.status === 'pending' ? 'Open' : 'Open',
+                revisedDocuments: storedDocs.length > 0 ? storedDocs : [],
+              };
+            });
+          setTenderOperationsBoard(tenderList);
+        }
+      } catch (error) {
+        console.error('Error loading tenders from projects:', error);
+        setTenderOperationsBoard([]);
+      }
+    };
+    
+    loadTendersFromProjects();
+    
+    // Listen for storage changes
+    const handleStorageChange = (e) => {
+      if (e.key === 'projectTasks') {
+        loadTendersFromProjects();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Check periodically for changes
+    const interval = setInterval(loadTendersFromProjects, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
   
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedTenderForUpload, setSelectedTenderForUpload] = useState(null);
   const [uploadFiles, setUploadFiles] = useState([]);
+  const [showViewDocumentsModal, setShowViewDocumentsModal] = useState(false);
+  const [selectedTenderForView, setSelectedTenderForView] = useState(null);
+
+  // Load contractor pricing from localStorage
+  const loadContractorPricingFromStorage = () => {
+    try {
+      const savedPricing = localStorage.getItem('contractorPricing');
+      if (savedPricing) {
+        return JSON.parse(savedPricing);
+      }
+    } catch (error) {
+      console.error('Error loading contractor pricing from localStorage:', error);
+    }
+    return {};
+  };
 
   // Contractor pricing data - prices for each contractor per tender
-  const [contractorPricing, setContractorPricing] = useState({});
+  const [contractorPricing, setContractorPricing] = useState(loadContractorPricingFromStorage());
+
+  // Invitation letters - stored per tender-contractor combination
+  const [invitationLetters, setInvitationLetters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('invitationLetters');
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error('Error loading invitation letters from localStorage:', error);
+      return {};
+    }
+  });
+
+  // Save contractor pricing to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('contractorPricing', JSON.stringify(contractorPricing));
+    } catch (error) {
+      console.error('Error saving contractor pricing to localStorage:', error);
+    }
+  }, [contractorPricing]);
+
+  // Save invitation letters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      // Convert File objects to serializable format
+      const serialized = {};
+      Object.keys(invitationLetters).forEach(key => {
+        const file = invitationLetters[key];
+        if (file instanceof File) {
+          // Store file metadata, will convert to base64 when needed
+          serialized[key] = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            lastModified: file.lastModified,
+            isFile: true,
+          };
+        } else {
+          serialized[key] = file;
+        }
+      });
+      localStorage.setItem('invitationLetters', JSON.stringify(serialized));
+    } catch (error) {
+      console.error('Error saving invitation letters to localStorage:', error);
+    }
+  }, [invitationLetters]);
 
   // Initialize contractor pricing when component mounts or data changes
   useEffect(() => {
     if (tenderOperationsBoard.length > 0 && contractors.length > 0) {
-      const pricing = {};
-      tenderOperationsBoard.forEach(tender => {
-        if (!pricing[tender.id]) {
-          pricing[tender.id] = {};
-        }
-        contractors.forEach(contractor => {
-          if (!pricing[tender.id][contractor.id]) {
-            pricing[tender.id][contractor.id] = {
-              price: "",
-              currency: "AED",
-              status: "pending",
-              submittedDate: null,
-            };
+      setContractorPricing(prev => {
+        const updated = { ...prev };
+        tenderOperationsBoard.forEach(tender => {
+          if (!updated[tender.id]) {
+            updated[tender.id] = {};
           }
+          contractors.forEach(contractor => {
+            if (!updated[tender.id][contractor.id]) {
+              // Initialize only if doesn't exist
+              updated[tender.id][contractor.id] = {
+                price: "",
+                currency: "AED",
+                status: "pending",
+                submittedDate: null,
+              };
+            }
+          });
         });
+        return updated;
       });
-      setContractorPricing(prev => ({ ...prev, ...pricing }));
     }
-  }, [tenderOperationsBoard, contractors]);
+  }, [tenderOperationsBoard.length, contractors.length]);
 
 
 
@@ -100,7 +234,67 @@ export default function TenderTechnicalSubmission() {
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSaveRevisedDocuments = () => {
+  // Save revised documents to localStorage (async conversion to base64)
+  const saveRevisedDocumentsToStorage = async (tenderId, documents) => {
+    try {
+      const savedDocs = localStorage.getItem('revisedDocuments');
+      const allDocs = savedDocs ? JSON.parse(savedDocs) : {};
+      
+      // Convert File objects to base64
+      const serializedDocs = await Promise.all(
+        documents.map(async (doc) => {
+          if (doc instanceof File) {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                resolve({
+                  name: doc.name,
+                  size: doc.size,
+                  type: doc.type,
+                  lastModified: doc.lastModified,
+                  data: e.target.result, // base64 data URL
+                });
+              };
+              reader.onerror = () => {
+                resolve({
+                  name: doc.name,
+                  size: doc.size,
+                  type: doc.type,
+                  lastModified: doc.lastModified,
+                  data: null,
+                });
+              };
+              reader.readAsDataURL(doc);
+            });
+          } else {
+            // Already serialized
+            return doc;
+          }
+        })
+      );
+      
+      allDocs[tenderId] = serializedDocs;
+      localStorage.setItem('revisedDocuments', JSON.stringify(allDocs));
+    } catch (error) {
+      console.error('Error saving revised documents to localStorage:', error);
+    }
+  };
+
+  // Load revised documents from localStorage
+  const loadRevisedDocumentsFromStorage = (tenderId) => {
+    try {
+      const savedDocs = localStorage.getItem('revisedDocuments');
+      if (savedDocs) {
+        const allDocs = JSON.parse(savedDocs);
+        return allDocs[tenderId] || [];
+      }
+    } catch (error) {
+      console.error('Error loading revised documents from localStorage:', error);
+    }
+    return [];
+  };
+
+  const handleSaveRevisedDocuments = async () => {
     if (uploadFiles.length === 0) {
       alert("Please select at least one file to upload.");
       return;
@@ -109,16 +303,20 @@ export default function TenderTechnicalSubmission() {
     if (!selectedTenderForUpload) return;
 
     // Update the tender operations board with new documents
+    const updatedDocuments = [...selectedTenderForUpload.revisedDocuments, ...uploadFiles];
     setTenderOperationsBoard((prev) =>
       prev.map((tender) =>
         tender.id === selectedTenderForUpload.id
           ? {
               ...tender,
-              revisedDocuments: [...tender.revisedDocuments, ...uploadFiles],
+              revisedDocuments: updatedDocuments,
             }
           : tender
       )
     );
+
+    // Save to localStorage (async)
+    await saveRevisedDocumentsToStorage(selectedTenderForUpload.id, updatedDocuments);
 
     alert(`Successfully uploaded ${uploadFiles.length} revised document(s) for ${selectedTenderForUpload.name}.`);
     setShowUploadModal(false);
@@ -126,11 +324,53 @@ export default function TenderTechnicalSubmission() {
     setUploadFiles([]);
   };
 
+  // Handle viewing documents
+  const handleViewDocuments = (tender) => {
+    setSelectedTenderForView(tender);
+    setShowViewDocumentsModal(true);
+  };
+
+  // Handle downloading a document
+  const handleDownloadDocument = (file, index) => {
+    if (file instanceof File) {
+      // If it's a File object, create download link
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else if (file.data) {
+      // If it's stored data, download from base64
+      const link = document.createElement('a');
+      link.href = file.data;
+      link.download = file.name || `document-${index + 1}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Handle viewing a document in new tab
+  const handleViewDocument = (file, index) => {
+    if (file instanceof File) {
+      const url = URL.createObjectURL(file);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } else if (file.data) {
+      window.open(file.data, '_blank');
+    }
+  };
+
   const handleBack = () => {
-    navigate("/tender/confirmation", {
+    // Navigate back to Document Upload page
+    navigate("/tender/document-upload", {
       state: {
         tender,
         contractors,
+        uploadedDocuments: location.state?.uploadedDocuments || [],
       },
     });
   };
@@ -242,6 +482,51 @@ export default function TenderTechnicalSubmission() {
         },
       },
     }));
+  };
+
+  // Handle invitation letter upload
+  const handleInvitationLetterUpload = (tenderId, contractorId, file) => {
+    if (!file) return;
+
+    // Validate file type (PDF or DOCX only)
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowedExtensions = ['.pdf', '.docx'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+      alert('Please upload only PDF or DOCX files for the invitation letter.');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10 MB
+    if (file.size > maxSize) {
+      alert(`File size exceeds 10 MB limit. Please select a smaller file.`);
+      return;
+    }
+
+    const key = `${tenderId}-${contractorId}`;
+    setInvitationLetters(prev => ({
+      ...prev,
+      [key]: file,
+    }));
+
+    alert(`Invitation letter "${file.name}" uploaded successfully for ${contractors.find(c => c.id === contractorId)?.name || 'contractor'}.`);
+  };
+
+  // Get invitation letter for a tender-contractor combination
+  const getInvitationLetter = (tenderId, contractorId) => {
+    const key = `${tenderId}-${contractorId}`;
+    const letter = invitationLetters[key];
+    
+    // If letter exists but is stored metadata without file object, return null
+    // (File objects can't be serialized to localStorage, so we store metadata)
+    if (letter && letter.isFile && !(letter instanceof File) && !letter.data) {
+      console.warn(`Invitation letter metadata found for ${key} but file object not available. Please re-upload.`);
+      return null;
+    }
+    
+    return letter || null;
   };
 
 
@@ -373,15 +658,15 @@ export default function TenderTechnicalSubmission() {
                         <span className="text-sm text-slate-700 font-medium">
                           {row.revisedDocuments.length} file(s)
                         </span>
-                        <button
-                          onClick={() => {
-                            setSelectedTenderForUpload(row);
-                            setShowUploadModal(true);
-                          }}
-                          className="text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
-                        >
-                          View Documents
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewDocuments(row)}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
+                          >
+                            <EyeIcon className="h-3 w-3" />
+                            View Documents
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <span className="text-sm text-slate-400 italic">No documents</span>
@@ -432,6 +717,7 @@ export default function TenderTechnicalSubmission() {
                 <th className="px-6 py-3 text-left">Contractor</th>
                 <th className="px-6 py-3 text-left">Price (AED)</th>
                 <th className="px-6 py-3 text-left">Status</th>
+                <th className="px-6 py-3 text-left">Invitation Letter Upload</th>
                 <th className="px-6 py-3 text-left">Submitted Date</th>
                 <th className="px-6 py-3 text-left">Actions</th>
               </tr>
@@ -458,15 +744,18 @@ export default function TenderTechnicalSubmission() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={pricing.price}
-                          onChange={(e) => handlePriceChange(tender.id, contractor.id, "price", e.target.value)}
-                          className="w-32 px-3 py-2 border border-slate-200 rounded-lg focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 text-sm"
-                          placeholder="0.00"
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={pricing.price || ""}
+                            onChange={(e) => handlePriceChange(tender.id, contractor.id, "price", e.target.value)}
+                            className="w-40 px-3 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 bg-white"
+                            placeholder="Enter price"
+                          />
+                          <span className="text-sm text-slate-600 font-medium">AED</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <select
@@ -479,6 +768,52 @@ export default function TenderTechnicalSubmission() {
                           <option value="approved">Approved</option>
                           <option value="rejected">Rejected</option>
                         </select>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="relative cursor-pointer">
+                            <input
+                              type="file"
+                              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleInvitationLetterUpload(tender.id, contractor.id, file);
+                                }
+                                // Reset input to allow re-uploading the same file
+                                e.target.value = '';
+                              }}
+                              className="hidden"
+                              id={`invitation-letter-${tender.id}-${contractor.id}`}
+                            />
+                            <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition border border-indigo-200">
+                              <ArrowUpTrayIcon className="h-4 w-4" />
+                              {getInvitationLetter(tender.id, contractor.id) ? 'Change File' : 'Upload Letter'}
+                            </span>
+                          </label>
+                          {getInvitationLetter(tender.id, contractor.id) && (
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <DocumentTextIcon className="h-3 w-3 text-green-600" />
+                              <span className="truncate max-w-[150px]" title={getInvitationLetter(tender.id, contractor.id).name}>
+                                {getInvitationLetter(tender.id, contractor.id).name}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  const key = `${tender.id}-${contractor.id}`;
+                                  setInvitationLetters(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[key];
+                                    return updated;
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700"
+                                title="Remove file"
+                              >
+                                <XMarkIcon className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {pricing.submittedDate ? (
@@ -523,6 +858,138 @@ export default function TenderTechnicalSubmission() {
             Back
           </button>
           <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                if (!tender || contractors.length === 0) {
+                  alert("Please ensure tender and contractor information is available.");
+                  return;
+                }
+
+                try {
+                  // Prepare contractor data with invitation letters
+                  const contractorData = await Promise.all(
+                    contractors.map(async (contractor) => {
+                      const invitationLetter = getInvitationLetter(tender.id, contractor.id);
+                      let letterData = null;
+
+                      try {
+                        // Handle File object
+                        if (invitationLetter instanceof File) {
+                          letterData = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                              console.log(`✓ Converted invitation letter for ${contractor.name}: ${invitationLetter.name}`);
+                              resolve({
+                                name: invitationLetter.name,
+                                type: invitationLetter.type,
+                                size: invitationLetter.size,
+                                data: e.target.result, // base64 data URL
+                              });
+                            };
+                            reader.onerror = (error) => {
+                              console.error(`✗ Error reading file for ${contractor.name}:`, error);
+                              reject(error);
+                            };
+                            reader.readAsDataURL(invitationLetter);
+                          });
+                        } 
+                        // Handle stored data from localStorage (if it has data property)
+                        else if (invitationLetter && invitationLetter.data) {
+                          console.log(`✓ Using stored invitation letter for ${contractor.name}: ${invitationLetter.name}`);
+                          letterData = invitationLetter;
+                        }
+                        // Handle stored metadata (need to reload from storage)
+                        else if (invitationLetter && invitationLetter.name && !invitationLetter.data) {
+                          console.warn(`⚠ Invitation letter metadata found for ${contractor.name} but file data missing. File may need to be re-uploaded.`);
+                        }
+                      } catch (error) {
+                        console.error(`✗ Error processing invitation letter for ${contractor.name}:`, error);
+                        // Continue without attachment if there's an error
+                      }
+
+                      return {
+                        id: contractor.id,
+                        name: contractor.name,
+                        email: contractor.email || contractor.contactEmail || '',
+                        specialty: contractor.specialty || '',
+                        invitationLetter: letterData,
+                      };
+                    })
+                  );
+
+                  // Check if any invitation letters were uploaded
+                  const hasInvitationLetters = contractorData.some(c => c.invitationLetter !== null);
+                  const lettersCount = contractorData.filter(c => c.invitationLetter !== null).length;
+                  
+                  if (hasInvitationLetters) {
+                    console.log(`✓ Preparing ${lettersCount} invitation letter(s) as email attachments`);
+                    contractorData.forEach(c => {
+                      if (c.invitationLetter) {
+                        console.log(`  - ${c.name}: ${c.invitationLetter.name} (${(c.invitationLetter.size / 1024).toFixed(2)} KB)`);
+                      }
+                    });
+                  } else {
+                    console.log('⚠ No invitation letters uploaded - emails will be sent without attachments');
+                  }
+
+                  // Show loading state
+                  const loadingMessage = `Sending tender invitations to ${contractors.length} contractor(s)${hasInvitationLetters ? ` with ${lettersCount} attachment(s)` : ''}...`;
+                  console.log(loadingMessage);
+
+                  // Send tender invitations with attachments
+                  const result = await sendTenderInvitations(tender, contractorData);
+                  
+                  if (result.success) {
+                    const letterInfo = result.attachmentsIncluded 
+                      ? `\n✓ Invitation letters attached: ${result.attachmentCount} file(s)`
+                      : '\n⚠ No invitation letters were attached';
+                    
+                    alert(
+                      `✓ Tender invitations sent successfully!\n\n` +
+                      `Tender: ${tender.name}\n` +
+                      `Client: ${tender.client}\n` +
+                      `Sent to: ${result.sentCount} contractor(s)${letterInfo}\n\n` +
+                      `Tender Link: ${result.tenderLink}\n\n` +
+                      `All selected contractors have been notified via email${result.attachmentsIncluded ? ' with invitation letter attachments' : ''}.`
+                    );
+                  } else if (result.fallback) {
+                    const contractorList = contractors.map(c => `  • ${c.name} (${c.email || 'No email'})`).join('\n');
+                    const userChoice = window.confirm(
+                      `⚠ Email API is not available. Would you like to send invitations manually?\n\n` +
+                      `Selected Contractors:\n${contractorList}\n\n` +
+                      `Tender Link: ${result.tenderLink}\n\n` +
+                      `Click OK to open email clients, or Cancel to copy the link.`
+                    );
+                    
+                    if (userChoice) {
+                      result.mailtoLinks.forEach((link, index) => {
+                        setTimeout(() => {
+                          window.location.href = link.mailto;
+                        }, index * 500);
+                      });
+                    } else {
+                      navigator.clipboard.writeText(result.tenderLink).then(() => {
+                        alert(
+                          `Tender link copied to clipboard!\n\n` +
+                          `Link: ${result.tenderLink}\n\n` +
+                          `You can share this link with the selected contractors manually.`
+                        );
+                      });
+                    }
+                  } else {
+                    alert(`Error sending invitations: ${result.error || 'Unknown error'}`);
+                  }
+                } catch (error) {
+                  console.error("Error sending invitations:", error);
+                  alert(`Error sending invitations: ${error.message}`);
+                }
+              }}
+              className="px-6 py-3 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition flex items-center gap-2 shadow-lg hover:shadow-xl"
+              title="Send tender invitations to contractors"
+            >
+              <CloudArrowUpIcon className="h-5 w-5" />
+              Send Invitation
+            </button>
             <button
               onClick={() => {
                 try {
@@ -676,12 +1143,22 @@ export default function TenderTechnicalSubmission() {
                             </span>
                           )}
                         </div>
-                        <button
-                          className="text-indigo-600 hover:text-indigo-700 flex-shrink-0 ml-2"
-                          title="View document"
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </button>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                          <button
+                            onClick={() => handleViewDocument(file, index)}
+                            className="text-indigo-600 hover:text-indigo-700 p-1 rounded hover:bg-indigo-50"
+                            title="View document"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadDocument(file, index)}
+                            className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+                            title="Download document"
+                          >
+                            <ArrowDownTrayIcon className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -711,6 +1188,143 @@ export default function TenderTechnicalSubmission() {
                 >
                   <CloudArrowUpIcon className="h-5 w-5" />
                   Upload Documents
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Documents Modal */}
+      {showViewDocumentsModal && selectedTenderForView && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">
+                    Revised Documents
+                  </h2>
+                  <p className="text-slate-600 mt-1">
+                    View and download revised documents for{" "}
+                    <span className="font-semibold">{selectedTenderForView.name}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowViewDocumentsModal(false);
+                    setSelectedTenderForView(null);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition"
+                >
+                  <XMarkIcon className="h-6 w-6 text-slate-600" />
+                </button>
+              </div>
+
+              {/* Tender Info */}
+              <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold text-indigo-900">Tender:</span>
+                    <p className="text-indigo-700">{selectedTenderForView.name}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-900">Client:</span>
+                    <p className="text-indigo-700">{selectedTenderForView.client}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-900">Project Manager:</span>
+                    <p className="text-indigo-700">{selectedTenderForView.owner}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-900">Status:</span>
+                    <p className="text-indigo-700">{selectedTenderForView.status}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Documents List */}
+              {selectedTenderForView.revisedDocuments && selectedTenderForView.revisedDocuments.length > 0 ? (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-slate-700 mb-4">
+                    Documents ({selectedTenderForView.revisedDocuments.length})
+                  </label>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {selectedTenderForView.revisedDocuments.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate">
+                              {file.name || `Document ${index + 1}`}
+                            </p>
+                            {file.size && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                                {file.type && ` • ${file.type}`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                          <button
+                            onClick={() => handleViewDocument(file, index)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition"
+                            title="View document"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleDownloadDocument(file, index)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-green-600 hover:text-green-700 hover:bg-green-100 rounded-lg transition"
+                            title="Download document"
+                          >
+                            <ArrowDownTrayIcon className="h-5 w-5" />
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <DocumentTextIcon className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 text-lg font-medium">No documents uploaded yet</p>
+                  <p className="text-slate-400 text-sm mt-2">Upload revised documents to view them here</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    setShowViewDocumentsModal(false);
+                    setSelectedTenderForView(null);
+                  }}
+                  className="px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-indigo-200 hover:text-indigo-600 transition"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowViewDocumentsModal(false);
+                    setSelectedTenderForView(null);
+                    setSelectedTenderForUpload(selectedTenderForView);
+                    setUploadFiles([]);
+                    setShowUploadModal(true);
+                  }}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 shadow-lg hover:shadow-xl transition flex items-center gap-2 font-semibold"
+                >
+                  <CloudArrowUpIcon className="h-5 w-5" />
+                  Upload More Documents
                 </button>
               </div>
             </div>

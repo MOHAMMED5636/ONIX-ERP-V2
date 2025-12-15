@@ -65,6 +65,30 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
   // Client details modal state
   const [showClientDetails, setShowClientDetails] = useState(false);
   
+  // Project Details editing states
+  const [editingProjectNameDetails, setEditingProjectNameDetails] = useState(false);
+  const [editingReferenceNumber, setEditingReferenceNumber] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [editingTimeline, setEditingTimeline] = useState(false);
+  const [editingPlanDays, setEditingPlanDays] = useState(false);
+  const [editingProjectPriority, setEditingProjectPriority] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [editingProjectType, setEditingProjectType] = useState(false);
+  
+  // Temporary values for editing
+  const [tempProjectNameDetails, setTempProjectNameDetails] = useState('');
+  const [tempReferenceNumber, setTempReferenceNumber] = useState('');
+  const [tempClient, setTempClient] = useState('');
+  const [tempStatus, setTempStatus] = useState('');
+  const [tempStartDate, setTempStartDate] = useState('');
+  const [tempEndDate, setTempEndDate] = useState('');
+  const [tempPlanDays, setTempPlanDays] = useState('');
+  const [tempPriority, setTempPriority] = useState('');
+  const [tempCategory, setTempCategory] = useState('');
+  const [tempLocation, setTempLocation] = useState('');
+  const [tempProjectType, setTempProjectType] = useState('');
   
   // Editable values
   const [description, setDescription] = useState('');
@@ -99,6 +123,20 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
       setStartDate(currentTask.startDate || '');
       setPriority(currentTask.priority || '');
       setReporter(currentTask.reporter || '');
+      
+      // Initialize temp values for project details
+      setTempProjectNameDetails(currentTask.name || currentTask.title || '');
+      setTempReferenceNumber(currentTask.referenceNumber || '');
+      setTempClient(currentTask.client || currentTask.owner || '');
+      setTempStatus(currentTask.status || '');
+      setTempStartDate(currentTask.timeline && currentTask.timeline[0] ? new Date(currentTask.timeline[0]).toISOString().split('T')[0] : '');
+      setTempEndDate(currentTask.timeline && currentTask.timeline[1] ? new Date(currentTask.timeline[1]).toISOString().split('T')[0] : '');
+      setTempPlanDays(currentTask.planDays?.toString() || '');
+      setTempPriority(currentTask.priority || '');
+      setTempCategory(currentTask.category || '');
+      setTempLocation(currentTask.location || '');
+      setTempProjectType(currentTask.projectType || '');
+      
       // Initialize subtasks from the main table task data
       setLocalSubtasks(currentTask.subtasks || []);
       console.log('Initializing drawer with task:', currentTask);
@@ -349,6 +387,110 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
     } else if (e.key === 'Escape') {
       handleCancelProjectNameEdit();
     }
+  };
+
+  // Save handlers for project details fields
+  const handleSaveProjectNameDetails = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        name: tempProjectNameDetails.trim(),
+        title: tempProjectNameDetails.trim()
+      });
+    }
+    setEditingProjectNameDetails(false);
+  };
+
+  const handleSaveReferenceNumber = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        referenceNumber: tempReferenceNumber
+      });
+    }
+    setEditingReferenceNumber(false);
+  };
+
+  const handleSaveClient = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        client: tempClient,
+        owner: tempClient
+      });
+    }
+    setEditingClient(false);
+  };
+
+  const handleSaveStatus = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        status: tempStatus
+      });
+    }
+    setEditingStatus(false);
+  };
+
+  const handleSaveTimeline = () => {
+    if (onTaskUpdate && currentTask && tempStartDate && tempEndDate) {
+      onTaskUpdate({
+        ...currentTask,
+        timeline: [new Date(tempStartDate), new Date(tempEndDate)]
+      });
+    }
+    setEditingTimeline(false);
+  };
+
+  const handleSavePlanDays = () => {
+    if (onTaskUpdate && currentTask) {
+      const days = parseInt(tempPlanDays) || 0;
+      onTaskUpdate({
+        ...currentTask,
+        planDays: days
+      });
+    }
+    setEditingPlanDays(false);
+  };
+
+  const handleSavePriority = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        priority: tempPriority
+      });
+    }
+    setEditingProjectPriority(false);
+  };
+
+  const handleSaveCategory = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        category: tempCategory
+      });
+    }
+    setEditingCategory(false);
+  };
+
+  const handleSaveLocation = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        location: tempLocation
+      });
+    }
+    setEditingLocation(false);
+  };
+
+  const handleSaveProjectType = () => {
+    if (onTaskUpdate && currentTask) {
+      onTaskUpdate({
+        ...currentTask,
+        projectType: tempProjectType
+      });
+    }
+    setEditingProjectType(false);
   };
 
   // Handle adding new subtask
@@ -990,130 +1132,303 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
                   {/* Project Name */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Project Name</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Project Name clicked')}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.name || currentTask.title || 'N/A'}</span>
-                    </div>
+                    {editingProjectNameDetails ? (
+                      <input
+                        type="text"
+                        value={tempProjectNameDetails}
+                        onChange={(e) => setTempProjectNameDetails(e.target.value)}
+                        onBlur={handleSaveProjectNameDetails}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveProjectNameDetails();
+                          if (e.key === 'Escape') setEditingProjectNameDetails(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingProjectNameDetails(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.name || currentTask.title || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Reference Number */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Reference Number</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Reference Number clicked')}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.referenceNumber || 'N/A'}</span>
-                    </div>
+                    {editingReferenceNumber ? (
+                      <input
+                        type="text"
+                        value={tempReferenceNumber}
+                        onChange={(e) => setTempReferenceNumber(e.target.value)}
+                        onBlur={handleSaveReferenceNumber}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveReferenceNumber();
+                          if (e.key === 'Escape') setEditingReferenceNumber(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingReferenceNumber(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.referenceNumber || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Client Details */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Client Details</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => setShowClientDetails(true)}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.owner || 'N/A'}</span>
-                    </div>
+                    {editingClient ? (
+                      <input
+                        type="text"
+                        value={tempClient}
+                        onChange={(e) => setTempClient(e.target.value)}
+                        onBlur={handleSaveClient}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveClient();
+                          if (e.key === 'Escape') setEditingClient(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingClient(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.client || currentTask.owner || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Status */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Status</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Status clicked')}
-                    >
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        currentTask.status === 'done' ? 'bg-green-100 text-green-800' :
-                        currentTask.status === 'working' ? 'bg-yellow-100 text-yellow-800' :
-                        currentTask.status === 'stuck' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {currentTask.status || 'N/A'}
-                      </span>
-                    </div>
+                    {editingStatus ? (
+                      <select
+                        value={tempStatus}
+                        onChange={(e) => setTempStatus(e.target.value)}
+                        onBlur={handleSaveStatus}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveStatus();
+                          if (e.key === 'Escape') setEditingStatus(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="working">Working</option>
+                        <option value="done">Done</option>
+                        <option value="stuck">Stuck</option>
+                      </select>
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingStatus(true)}
+                      >
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          currentTask.status === 'done' ? 'bg-green-100 text-green-800' :
+                          currentTask.status === 'working' ? 'bg-yellow-100 text-yellow-800' :
+                          currentTask.status === 'stuck' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {currentTask.status || 'N/A'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Timeline */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Timeline</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Timeline clicked')}
-                    >
-                      <span className="font-medium text-gray-900">
-                        {currentTask.timeline && currentTask.timeline[0] && currentTask.timeline[1] 
-                          ? `${new Date(currentTask.timeline[0]).toLocaleDateString()} - ${new Date(currentTask.timeline[1]).toLocaleDateString()}`
-                          : 'N/A'
-                        }
-                      </span>
-                    </div>
+                    {editingTimeline ? (
+                      <div className="space-y-2">
+                        <input
+                          type="date"
+                          value={tempStartDate}
+                          onChange={(e) => setTempStartDate(e.target.value)}
+                          className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          placeholder="Start Date"
+                        />
+                        <input
+                          type="date"
+                          value={tempEndDate}
+                          onChange={(e) => setTempEndDate(e.target.value)}
+                          onBlur={handleSaveTimeline}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveTimeline();
+                            if (e.key === 'Escape') setEditingTimeline(false);
+                          }}
+                          className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          placeholder="End Date"
+                        />
+                      </div>
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingTimeline(true)}
+                      >
+                        <span className="font-medium text-gray-900">
+                          {currentTask.timeline && currentTask.timeline[0] && currentTask.timeline[1] 
+                            ? `${new Date(currentTask.timeline[0]).toLocaleDateString()} - ${new Date(currentTask.timeline[1]).toLocaleDateString()}`
+                            : 'N/A'
+                          }
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Plan Days */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Plan Days</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Plan Days clicked')}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.planDays || 'N/A'}</span>
-                    </div>
+                    {editingPlanDays ? (
+                      <input
+                        type="number"
+                        value={tempPlanDays}
+                        onChange={(e) => setTempPlanDays(e.target.value)}
+                        onBlur={handleSavePlanDays}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSavePlanDays();
+                          if (e.key === 'Escape') setEditingPlanDays(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                        min="0"
+                      />
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingPlanDays(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.planDays || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Priority */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Priority</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Priority clicked')}
-                    >
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        currentTask.priority === 'High' ? 'bg-red-100 text-red-800' :
-                        currentTask.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                        currentTask.priority === 'Low' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {currentTask.priority || 'N/A'}
-                      </span>
-                    </div>
+                    {editingProjectPriority ? (
+                      <select
+                        value={tempPriority}
+                        onChange={(e) => setTempPriority(e.target.value)}
+                        onBlur={handleSavePriority}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSavePriority();
+                          if (e.key === 'Escape') setEditingProjectPriority(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      >
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                      </select>
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingProjectPriority(true)}
+                      >
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          currentTask.priority === 'High' ? 'bg-red-100 text-red-800' :
+                          currentTask.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                          currentTask.priority === 'Low' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {currentTask.priority || 'N/A'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Category */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Category</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Category clicked')}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.category || 'N/A'}</span>
-                    </div>
+                    {editingCategory ? (
+                      <input
+                        type="text"
+                        value={tempCategory}
+                        onChange={(e) => setTempCategory(e.target.value)}
+                        onBlur={handleSaveCategory}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveCategory();
+                          if (e.key === 'Escape') setEditingCategory(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingCategory(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.category || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Location */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Location</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Location clicked')}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.location || 'N/A'}</span>
-                    </div>
+                    {editingLocation ? (
+                      <input
+                        type="text"
+                        value={tempLocation}
+                        onChange={(e) => setTempLocation(e.target.value)}
+                        onBlur={handleSaveLocation}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveLocation();
+                          if (e.key === 'Escape') setEditingLocation(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingLocation(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.location || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Project Type */}
                   <div>
                     <label className="text-sm text-gray-600 block mb-2">Project Type</label>
-                    <div 
-                      className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                      onClick={() => console.log('Project Type clicked')}
-                    >
-                      <span className="font-medium text-gray-900">{currentTask.projectType || 'N/A'}</span>
-                    </div>
+                    {editingProjectType ? (
+                      <select
+                        value={tempProjectType}
+                        onChange={(e) => setTempProjectType(e.target.value)}
+                        onBlur={handleSaveProjectType}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveProjectType();
+                          if (e.key === 'Escape') setEditingProjectType(false);
+                        }}
+                        className="w-full p-2 border-2 border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      >
+                        <option value="">Select Type</option>
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Industrial">Industrial</option>
+                        <option value="Mixed Use">Mixed Use</option>
+                        <option value="Infrastructure">Infrastructure</option>
+                      </select>
+                    ) : (
+                      <div 
+                        className="p-2 bg-gray-50 rounded-md cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
+                        onClick={() => setEditingProjectType(true)}
+                      >
+                        <span className="font-medium text-gray-900">{currentTask.projectType || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Remarks */}

@@ -17,12 +17,12 @@ export default function TenderContractorEvaluation() {
   const location = useLocation();
   
   const tender = location.state?.tender || {
-    id: "metro-station",
-    name: "Metro Station Expansion",
-    client: "RTA Dubai",
-    date: "Nov 22, 2025",
-    owner: "Kaddour",
-    status: "Under Evaluation",
+    id: "",
+    name: "",
+    client: "",
+    date: "",
+    owner: "",
+    status: "",
   };
 
   // Questionnaire criteria
