@@ -641,8 +641,28 @@ export default function TenderTechnicalSubmission() {
               {tenderOperationsBoard.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50 transition">
                   <td className="px-6 py-4">
-                    <p className="font-medium text-slate-900">{row.name}</p>
-                    <p className="text-xs text-slate-500">Tender Ref TBD</p>
+                    <button
+                      onClick={() => {
+                        navigate("/tender/technical-submission", {
+                          state: {
+                            tender: {
+                              id: row.id,
+                              name: row.name,
+                              client: row.client,
+                              owner: row.owner,
+                              date: row.date,
+                              status: row.status,
+                            },
+                            contractors: contractors,
+                            selectedTenderId: row.id,
+                          },
+                        });
+                      }}
+                      className="text-left hover:text-indigo-600 transition-colors"
+                    >
+                      <p className="font-medium text-slate-900 hover:text-indigo-600">{row.name}</p>
+                      <p className="text-xs text-slate-500">Tender Ref {row.id}</p>
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-slate-700">{row.client}</td>
                   <td className="px-6 py-4 text-slate-700">{row.date}</td>
@@ -734,8 +754,28 @@ export default function TenderTechnicalSubmission() {
                   return (
                     <tr key={`${tender.id}-${contractor.id}`} className="hover:bg-slate-50 transition">
                       <td className="px-6 py-4">
-                        <p className="font-medium text-slate-900">{tender.name}</p>
-                        <p className="text-xs text-slate-500">{tender.client}</p>
+                        <button
+                          onClick={() => {
+                            navigate("/tender/technical-submission", {
+                              state: {
+                                tender: {
+                                  id: tender.id,
+                                  name: tender.name,
+                                  client: tender.client,
+                                  owner: tender.owner,
+                                  date: tender.date,
+                                  status: tender.status,
+                                },
+                                contractors: contractors,
+                                selectedTenderId: tender.id,
+                              },
+                            });
+                          }}
+                          className="text-left hover:text-indigo-600 transition-colors w-full"
+                        >
+                          <p className="font-medium text-slate-900 hover:text-indigo-600">{tender.name}</p>
+                          <p className="text-xs text-slate-500">{tender.client}</p>
+                        </button>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-medium text-slate-700">{contractor.name}</p>
