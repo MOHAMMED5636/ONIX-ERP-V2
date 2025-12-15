@@ -328,24 +328,39 @@ export default function TenderDocumentUpload() {
       </section>
 
       {/* Additional Information Section */}
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8 space-y-8">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600" />
           </div>
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Additional Information</h2>
-            <p className="text-slate-600 mt-1">Provide additional details for this tender</p>
+          <div className="flex-1">
+            <h2 className="text-2xl font-semibold text-slate-900 mb-2">Additional Information</h2>
+            <p className="text-slate-600 leading-relaxed">
+              Complete the following details to finalize your tender invitation. All information will be included in the email sent to contractors.
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Upload Attachment (5MB max) */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-700">
-              Upload Attachment <span className="text-red-500">*</span>
-              <span className="text-xs font-normal text-slate-500 ml-2">(maximum file size: 5 MB)</span>
-            </label>
+        {/* File Upload & Technical Drawings */}
+        <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-6 border border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <DocumentArrowUpIcon className="h-5 w-5 text-indigo-600" />
+            Documents & Links
+          </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Upload Attachment (5MB max) */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-1">
+                  Upload Attachment <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Upload the tender invitation letter or related documents (PDF, DOC, DOCX, XLS, XLSX, JPG, PNG)
+                </p>
+                <p className="text-xs text-amber-600 font-medium">
+                  ⚠ Maximum file size: 5 MB
+                </p>
+              </div>
             {attachmentFile ? (
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -364,7 +379,7 @@ export default function TenderDocumentUpload() {
                 </button>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-blue-400 transition">
+              <div className="border-2 border-dashed border-indigo-300 rounded-xl p-6 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all cursor-pointer group">
                 <input
                   type="file"
                   id="attachment-upload"
@@ -376,79 +391,97 @@ export default function TenderDocumentUpload() {
                   htmlFor="attachment-upload"
                   className="flex flex-col items-center justify-center cursor-pointer"
                 >
-                  <DocumentArrowUpIcon className="h-8 w-8 text-slate-400 mb-2" />
-                  <p className="text-sm text-slate-600 mb-1">Click to upload attachment</p>
-                  <p className="text-xs text-slate-500">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (Max 5MB)</p>
+                  <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-indigo-200 transition">
+                    <DocumentArrowUpIcon className="h-8 w-8 text-indigo-600" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700 mb-1">Click to upload or drag & drop</p>
+                  <p className="text-xs text-slate-500 text-center">Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG</p>
                 </label>
               </div>
             )}
-          </div>
+            </div>
 
-          {/* Technical Drawings Link */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-700">
-              Technical Drawings Link
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <LinkIcon className="h-5 w-5 text-slate-400" />
+            {/* Technical Drawings Link */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-1">
+                  Technical Drawings Link
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Share a link to technical drawings, CAD files, or other online resources (optional)
+                </p>
               </div>
-              <input
-                type="url"
-                value={technicalDrawingsLink}
-                onChange={(e) => setTechnicalDrawingsLink(e.target.value)}
-                placeholder="https://example.com/drawings"
-                className="w-full pl-10 pr-4 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LinkIcon className="h-5 w-5 text-indigo-500" />
+                </div>
+                <input
+                  type="url"
+                  value={technicalDrawingsLink}
+                  onChange={(e) => setTechnicalDrawingsLink(e.target.value)}
+                  placeholder="https://drive.google.com/drawings or https://example.com/technical-drawings"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm transition"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Invitation Fees */}
-        <div className="space-y-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center gap-3">
-            <CurrencyDollarIcon className="h-5 w-5 text-slate-600" />
-            <h3 className="text-lg font-semibold text-slate-900">Invitation Fees</h3>
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <CurrencyDollarIcon className="h-5 w-5 text-amber-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-slate-900 mb-1">Invitation Fees</h3>
+              <p className="text-xs text-slate-600">Specify if contractors need to pay any fees to participate</p>
+            </div>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-3">
                 Is this invitation subject to any applicable fees?
               </label>
               <div className="flex items-center gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="hasFees"
-                    checked={hasInvitationFees === true}
-                    onChange={() => setHasInvitationFees(true)}
-                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-slate-700">Yes</span>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative">
+                    <input
+                      type="radio"
+                      name="hasFees"
+                      checked={hasInvitationFees === true}
+                      onChange={() => setHasInvitationFees(true)}
+                      className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-600 transition">Yes, fees apply</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="hasFees"
-                    checked={hasInvitationFees === false}
-                    onChange={() => {
-                      setHasInvitationFees(false);
-                      setInvitationFeeAmount("");
-                    }}
-                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-slate-700">No</span>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative">
+                    <input
+                      type="radio"
+                      name="hasFees"
+                      checked={hasInvitationFees === false}
+                      onChange={() => {
+                        setHasInvitationFees(false);
+                        setInvitationFeeAmount("");
+                      }}
+                      className="w-5 h-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-600 transition">No fees</span>
                 </label>
               </div>
             </div>
             {hasInvitationFees && (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Please specify the amount <span className="text-red-500">*</span>
+              <div className="mt-4 p-4 bg-white rounded-lg border-2 border-amber-300">
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  Fee Amount <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <CurrencyDollarIcon className="h-5 w-5 text-slate-400" />
+                <p className="text-xs text-slate-500 mb-3">Enter the amount contractors need to pay to participate</p>
+                <div className="relative max-w-xs">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <CurrencyDollarIcon className="h-5 w-5 text-indigo-600" />
                   </div>
                   <input
                     type="number"
@@ -457,8 +490,9 @@ export default function TenderDocumentUpload() {
                     placeholder="0.00"
                     min="0"
                     step="0.01"
-                    className="w-full pl-10 pr-4 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
+                    className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium"
                   />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">AED</span>
                 </div>
               </div>
             )}
@@ -466,67 +500,105 @@ export default function TenderDocumentUpload() {
         </div>
 
         {/* Deadlines */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-700">
-              Deadline for Tender Acceptance Date
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <CalendarIcon className="h-5 w-5 text-slate-400" />
-              </div>
-              <input
-                type="date"
-                value={tenderAcceptanceDeadline}
-                onChange={(e) => setTenderAcceptanceDeadline(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
-              />
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <CalendarIcon className="h-5 w-5 text-purple-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-slate-900 mb-1">Important Deadlines</h3>
+              <p className="text-xs text-slate-600">Set key dates for contractors to respond and submit bids</p>
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-700">
-              Deadline for Submission of Bid Date
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <CalendarIcon className="h-5 w-5 text-slate-400" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-1">
+                Tender Acceptance Deadline
+              </label>
+              <p className="text-xs text-slate-500 mb-2">Last date for contractors to accept the invitation</p>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <CalendarIcon className="h-5 w-5 text-purple-600" />
+                </div>
+                <input
+                  type="date"
+                  value={tenderAcceptanceDeadline}
+                  onChange={(e) => setTenderAcceptanceDeadline(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-sm font-medium"
+                />
               </div>
-              <input
-                type="date"
-                value={bidSubmissionDeadline}
-                onChange={(e) => setBidSubmissionDeadline(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm"
-              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-1">
+                Bid Submission Deadline
+              </label>
+              <p className="text-xs text-slate-500 mb-2">Last date for contractors to submit their technical bids</p>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <CalendarIcon className="h-5 w-5 text-purple-600" />
+                </div>
+                <input
+                  type="date"
+                  value={bidSubmissionDeadline}
+                  onChange={(e) => setBidSubmissionDeadline(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border-2 border-slate-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-sm font-medium"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Scope of Work */}
-        <div className="space-y-2 pt-4 border-t border-slate-200">
-          <label className="block text-sm font-semibold text-slate-700">
-            Scope of Work
-          </label>
-          <textarea
-            value={scopeOfWork}
-            onChange={(e) => setScopeOfWork(e.target.value)}
-            placeholder="Describe the scope of work for this tender..."
-            rows={4}
-            className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm resize-none"
-          />
-        </div>
+        {/* Scope of Work & Additional Notes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Scope of Work */}
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <DocumentTextIcon className="h-5 w-5 text-emerald-700" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-semibold text-slate-900 mb-1">
+                  Scope of Work
+                </label>
+                <p className="text-xs text-slate-600">Describe what needs to be done in this project</p>
+              </div>
+            </div>
+            <textarea
+              value={scopeOfWork}
+              onChange={(e) => setScopeOfWork(e.target.value)}
+              placeholder="Example: Construction of residential villa including foundation, structure, MEP works, finishing, and landscaping..."
+              rows={6}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 text-sm resize-none bg-white"
+            />
+            <p className="text-xs text-slate-500 mt-2">
+              💡 Tip: Be specific about deliverables, timelines, and requirements
+            </p>
+          </div>
 
-        {/* Additional Notes */}
-        <div className="space-y-2 pt-4 border-t border-slate-200">
-          <label className="block text-sm font-semibold text-slate-700">
-            Additional Notes
-          </label>
-          <textarea
-            value={additionalNotes}
-            onChange={(e) => setAdditionalNotes(e.target.value)}
-            placeholder="Add any additional notes or comments..."
-            rows={4}
-            className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm resize-none"
-          />
+          {/* Additional Notes */}
+          <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-6 border border-rose-200">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <ClipboardDocumentListIcon className="h-5 w-5 text-rose-700" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-semibold text-slate-900 mb-1">
+                  Additional Notes
+                </label>
+                <p className="text-xs text-slate-600">Any other important information for contractors</p>
+              </div>
+            </div>
+            <textarea
+              value={additionalNotes}
+              onChange={(e) => setAdditionalNotes(e.target.value)}
+              placeholder="Example: Site visit required before submission. Contact project manager for access. Special requirements: Environmental compliance certificate needed..."
+              rows={6}
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:border-rose-500 focus:ring-2 focus:ring-rose-200 text-sm resize-none bg-white"
+            />
+            <p className="text-xs text-slate-500 mt-2">
+              💡 Tip: Include contact information, special requirements, or instructions
+            </p>
+          </div>
         </div>
       </section>
 
