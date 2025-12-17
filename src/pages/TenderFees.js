@@ -38,11 +38,9 @@ export default function TenderFees() {
   };
 
   const handleBack = () => {
-    navigate("/tender/technical-submission", {
+    navigate("/tender", {
       state: {
         tender,
-        contractors,
-        technicalSubmission,
       },
     });
   };

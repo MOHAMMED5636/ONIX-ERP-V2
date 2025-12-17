@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRightIcon, ChartBarIcon, CloudArrowUpIcon, XMarkIcon, PaperClipIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, ChartBarIcon, CloudArrowUpIcon, XMarkIcon, PaperClipIcon, ArrowUpTrayIcon, DocumentTextIcon, UserPlusIcon } from "@heroicons/react/24/outline";
+import TenderEngineerAssignment from "../components/TenderEngineerAssignment";
+import { isAdmin } from "../utils/auth";
 
 const lifecycleSteps = [
   {
@@ -54,6 +56,9 @@ export default function TenderPage() {
   // Load tenders from project list (localStorage)
   const [tenders, setTenders] = useState([]);
   
+  // Load technical submissions
+  const [technicalSubmissions, setTechnicalSubmissions] = useState({});
+  
   useEffect(() => {
     const loadTenders = () => {
       try {
@@ -101,12 +106,49 @@ export default function TenderPage() {
       clearInterval(interval);
     };
   }, []);
+
+  // Load technical submissions from localStorage
+  useEffect(() => {
+    const loadTechnicalSubmissions = () => {
+      try {
+        const saved = localStorage.getItem('technicalSubmissions');
+        if (saved) {
+          setTechnicalSubmissions(JSON.parse(saved));
+        }
+      } catch (error) {
+        console.error('Error loading technical submissions:', error);
+      }
+    };
+    
+    loadTechnicalSubmissions();
+    
+    // Listen for storage changes
+    const handleStorageChange = (e) => {
+      if (e.key === 'technicalSubmissions') {
+        loadTechnicalSubmissions();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Check periodically for changes
+    const interval = setInterval(loadTechnicalSubmissions, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
   
   // Upload state
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedTenderForUpload, setSelectedTenderForUpload] = useState(null);
   const [uploadFiles, setUploadFiles] = useState([]);
   const [tenderUploads, setTenderUploads] = useState({}); // Store uploaded files per tender
+  
+  // Engineer assignment state
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState(null);
 
   // Restore selection from navigation state if coming back
   useEffect(() => {
@@ -393,7 +435,16 @@ export default function TenderPage() {
             const isActive = activeStep === index;
             const handleStepClick = () => {
               setActiveStep(index);
-              // Navigate to evaluation page when clicking on step 3 (Evaluation & Award)
+              // Navigate to technical submission page when clicking on step 2 (Technical Submission) - index 1
+              if (index === 1) {
+                const selectedTender = selectedTenderId ? tenders.find((t) => t.id === selectedTenderId) : null;
+                navigate("/tender/technical-submission", {
+                  state: {
+                    tender: selectedTender || (tenders.length > 0 ? tenders[0] : null),
+                  },
+                });
+              }
+              // Navigate to evaluation page when clicking on step 3 (Evaluation & Award) - index 2
               if (index === 2) {
                 navigate("/tender/evaluation", {
                   state: {
@@ -425,7 +476,7 @@ export default function TenderPage() {
                       {step.description}
                     </p>
                     <span className="text-xs font-semibold text-indigo-600 mt-auto">
-                      {index === 2 ? "View evaluation results →" : "View requirements →"}
+                      {index === 1 ? "Upload documents →" : index === 2 ? "View evaluation results →" : "View requirements →"}
                     </span>
                   </>
                 ) : (
@@ -439,6 +490,85 @@ export default function TenderPage() {
         </div>
         <div className="rounded-2xl bg-white border border-indigo-50 p-5 text-sm text-slate-600 leading-relaxed shadow-sm space-y-4">
           <p>{lifecycleSteps[activeStep].detail}</p>
+          
+          {/* Show Technical Submissions when Step 2 is active */}
+          {activeStep === 1 && Object.keys(technicalSubmissions).length > 0 && (
+            <div className="mt-6 pt-6 border-t border-indigo-100">
+              <h4 className="text-lg font-semibold text-slate-900 mb-4">
+                Submitted Technical Submissions
+              </h4>
+              <div className="space-y-3">
+                {Object.entries(technicalSubmissions).map(([key, submission]) => {
+                  const matchingTender = tenders.find(t => t.id === submission.tenderId);
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {submission.tenderName || matchingTender?.name || 'Tender'}
+                          </p>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-slate-600">
+                            <span>
+                              {submission.files?.length || 0} document(s) submitted
+                            </span>
+                            {submission.submittedAt && (
+                              <span>
+                                Submitted: {new Date(submission.submittedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const tenderToView = matchingTender || tenders.find(t => t.id === submission.tenderId);
+                          if (tenderToView) {
+                            navigate("/tender/technical-submission", {
+                              state: {
+                                tender: {
+                                  id: tenderToView.id,
+                                  name: tenderToView.name,
+                                  client: tenderToView.client,
+                                  owner: tenderToView.owner,
+                                  date: tenderToView.date,
+                                  status: tenderToView.status,
+                                  referenceNumber: tenderToView.referenceNumber,
+                                },
+                                contractorId: submission.contractorId,
+                              },
+                            });
+                          }
+                        }}
+                        className="px-4 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition flex items-center gap-2"
+                      >
+                        View Details
+                        <ArrowRightIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Show empty state when Step 2 is active but no submissions */}
+          {activeStep === 1 && Object.keys(technicalSubmissions).length === 0 && (
+            <div className="mt-6 pt-6 border-t border-indigo-100">
+              <div className="text-center py-8">
+                <DocumentTextIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">No technical submissions yet</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  Contractors can upload their technical documents by clicking "Upload documents →"
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -533,9 +663,41 @@ export default function TenderPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <Link to="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline">
-                      View
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link to="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:underline">
+                        View
+                      </Link>
+                      {/* Show Assign button - check if admin or if no role is set (for testing) */}
+                      {(isAdmin() || !localStorage.getItem('userRole')) && (
+                        <button
+                          onClick={() => {
+                            // Find the full project data
+                            const savedProjects = localStorage.getItem('projectTasks');
+                            let projectData = null;
+                            if (savedProjects) {
+                              const projects = JSON.parse(savedProjects);
+                              projectData = projects.find(p => 
+                                p.id?.toString() === row.id?.toString() ||
+                                p.referenceNumber === row.referenceNumber
+                              );
+                            }
+                            
+                            setSelectedProjectForAssignment(projectData || {
+                              id: row.id,
+                              name: row.name,
+                              referenceNumber: row.referenceNumber,
+                              client: row.client,
+                            });
+                            setShowAssignmentModal(true);
+                          }}
+                          className="text-sm font-semibold text-purple-600 hover:text-purple-700 hover:underline flex items-center gap-1"
+                          title="Assign to Tender Engineer"
+                        >
+                          <UserPlusIcon className="h-4 w-4" />
+                          Assign
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <button
@@ -756,6 +918,21 @@ export default function TenderPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Engineer Assignment Modal */}
+      {showAssignmentModal && selectedProjectForAssignment && (
+        <TenderEngineerAssignment
+          project={selectedProjectForAssignment}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setSelectedProjectForAssignment(null);
+          }}
+          onAssign={(invitation) => {
+            // Refresh tenders list if needed
+            console.log('Tender assigned:', invitation);
+          }}
+        />
       )}
     </div>
   );

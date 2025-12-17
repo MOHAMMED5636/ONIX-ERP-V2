@@ -143,22 +143,22 @@ export async function sendTenderInvitations(tenderData, engineers) {
       mailtoLinks: engineers.map(engineer => {
         // Generate personalized email body for each contractor
         const contractorName = engineer.name || 'Contractor';
-        const emailBody = encodeURIComponent(
+    const emailBody = encodeURIComponent(
           `Dear ${contractorName},\n\n` +
-          `You have been invited to participate in the following tender:\n\n` +
-          `Project Name: ${tenderData.name}\n` +
-          `Reference Number: ${tenderData.referenceNumber || 'N/A'}\n` +
-          `Client: ${tenderData.client || 'N/A'}\n\n` +
-          `Please click on the following link to view and respond to this tender invitation:\n` +
-          `${tenderLink}\n\n` +
-          `Best regards,\n` +
-          `ONIX Engineering Team`
-        );
-        
-        return {
-          email: engineer.email,
-          name: engineer.name,
-          mailto: `mailto:${engineer.email}?subject=${emailSubject}&body=${emailBody}`,
+      `You have been invited to participate in the following tender:\n\n` +
+      `Project Name: ${tenderData.name}\n` +
+      `Reference Number: ${tenderData.referenceNumber || 'N/A'}\n` +
+      `Client: ${tenderData.client || 'N/A'}\n\n` +
+      `Please click on the following link to view and respond to this tender invitation:\n` +
+      `${tenderLink}\n\n` +
+      `Best regards,\n` +
+      `ONIX Engineering Team`
+    );
+
+    return {
+        email: engineer.email,
+        name: engineer.name,
+        mailto: `mailto:${engineer.email}?subject=${emailSubject}&body=${emailBody}`,
         };
       }),
       tenderLink,

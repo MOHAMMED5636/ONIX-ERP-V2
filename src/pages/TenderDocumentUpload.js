@@ -191,22 +191,10 @@ export default function TenderDocumentUpload() {
           `All selected contractors have been notified via email.`
         );
 
-        // Navigate to Technical Submission after successful send
-        navigate("/tender/technical-submission", {
+        // Navigate back to tender page after successful send
+        navigate("/tender", {
           state: {
             tender: tenderDataWithFormInfo,
-            contractors,
-            uploadedDocuments: documents,
-            formData: {
-              attachmentFile,
-              technicalDrawingsLink,
-              hasInvitationFees,
-              invitationFeeAmount,
-              tenderAcceptanceDeadline,
-              bidSubmissionDeadline,
-              scopeOfWork,
-              additionalNotes,
-            },
             invitationsSent: true,
           },
         });
@@ -235,22 +223,10 @@ export default function TenderDocumentUpload() {
           });
         }
 
-        // Still navigate to Technical Submission even with fallback
-        navigate("/tender/technical-submission", {
+        // Navigate back to tender page even with fallback
+        navigate("/tender", {
           state: {
             tender: tenderDataWithFormInfo,
-            contractors,
-            uploadedDocuments: documents,
-            formData: {
-              attachmentFile,
-              technicalDrawingsLink,
-              hasInvitationFees,
-              invitationFeeAmount,
-              tenderAcceptanceDeadline,
-              bidSubmissionDeadline,
-              scopeOfWork,
-              additionalNotes,
-            },
             invitationsSent: false,
           },
         });

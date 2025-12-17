@@ -7,6 +7,8 @@ import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
 import Navbar from "./layout/Navbar";
 import Login from "./modules/Login";
+import TenderEngineerLogin from "./modules/TenderEngineerLogin";
+import TenderEngineerDashboard from "./pages/TenderEngineerDashboard";
 import ProjectChatApp from "./modules/ProjectChatApp";
 import Employees from "./modules/Employees";
 import Clients from "./pages/Clients";
@@ -125,13 +127,39 @@ function MainLayout() {
 }
 
 // PrivateRoute component for protecting routes
-function PrivateRoute({ children }) {
+function PrivateRoute({ children, requiredRole = null }) {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   const location = useLocation();
+  const userRole = localStorage.getItem('userRole');
+  
   if (!isAuthenticated) {
+    // Redirect to appropriate login based on route
+    if (location.pathname.startsWith('/tender-engineer')) {
+      return <Navigate to="/login/tender-engineer" state={{ from: location }} replace />;
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+  
+  // Check role if required
+  if (requiredRole && userRole !== requiredRole) {
+    // Redirect based on current role
+    if (userRole === 'TENDER_ENGINEER') {
+      return <Navigate to="/tender-engineer/dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
+  
   return children;
+}
+
+// Tender Engineer Layout (without sidebar)
+function TenderEngineerLayout() {
+  return (
+    <Routes>
+      <Route path="/dashboard" element={<TenderEngineerDashboard />} />
+      <Route path="*" element={<Navigate to="/tender-engineer/dashboard" replace />} />
+    </Routes>
+  );
 }
 
 export default function App() {
@@ -142,8 +170,16 @@ export default function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/login/tender-engineer" element={<TenderEngineerLogin />} />
               {/* Special route for Jira table demo - bypasses main layout */}
               <Route path="/jira-table-demo" element={<JiraTableDemo />} />
+              {/* Tender Engineer Routes */}
+              <Route path="/tender-engineer/*" element={
+                <PrivateRoute requiredRole="TENDER_ENGINEER">
+                  <TenderEngineerLayout />
+                </PrivateRoute>
+              } />
+              {/* Admin/General Routes */}
               <Route path="/*" element={
                 <PrivateRoute>
                   <MainLayout />

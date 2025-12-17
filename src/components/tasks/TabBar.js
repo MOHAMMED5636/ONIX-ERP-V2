@@ -9,8 +9,7 @@ import {
   DocumentTextIcon, 
   Cog6ToothIcon, 
   DocumentPlusIcon,
-  ArrowPathIcon,
-  ClipboardDocumentListIcon
+  ArrowPathIcon
 } from "@heroicons/react/24/outline";
 
 const tabs = [
@@ -66,18 +65,6 @@ export default function TabBar({ activeTab, setActiveTab }) {
             </li>
           );
         })}
-        {/* Tender Navigation Button */}
-        <li>
-          <button
-            onClick={() => navigate("/tender")}
-            className="group flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 relative overflow-hidden text-gray-600 hover:text-indigo-600 hover:bg-white/80 hover:shadow-md hover:scale-105 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200"
-            title="Go to Tender Management"
-          >
-            <ClipboardDocumentListIcon className="h-5 w-5 text-gray-500 group-hover:text-indigo-500 transition-all duration-300 group-hover:rotate-12" />
-            <span className="relative z-10">Tender</span>
-            <div className="absolute inset-0 rounded-xl transition-all duration-300 bg-gradient-to-r from-indigo-500/0 to-purple-500/0 group-hover:from-indigo-500/10 group-hover:to-purple-500/10"></div>
-          </button>
-        </li>
       </ul>
     </nav>
   );

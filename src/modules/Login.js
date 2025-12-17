@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./ForgotPassword";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import { setAuth, ROLES } from "../utils/auth";
 
 const translations = {
   en: {
@@ -121,7 +122,14 @@ export default function Login() {
         password === "admin123"
       ) {
         setLoading(false);
-        localStorage.setItem('isAuthenticated', 'true');
+        // Set admin role
+        setAuth({
+          id: 'admin-1',
+          email: 'admin@onixgroup.ae',
+          name: 'Admin',
+          firstName: 'Admin',
+          lastName: '',
+        }, ROLES.ADMIN);
         navigate("/dashboard", { state: { lang, dir } });
       } else {
         setLoading(false);

@@ -9,57 +9,106 @@ import {
   CalendarIcon,
   BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
+import { validateInvitationToken, getCurrentUser, isTenderEngineer, updateInvitationStatus, ROLES } from "../utils/auth";
 
 export default function TenderInvitation() {
   const { tenderId } = useParams();
   const navigate = useNavigate();
   const [tender, setTender] = useState(null);
+  const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [requiresLogin, setRequiresLogin] = useState(false);
 
   useEffect(() => {
     const loadTenderData = async () => {
       try {
         setLoading(true);
         
-        // Load tender data from localStorage (projectTasks)
-        const savedProjects = localStorage.getItem('projectTasks');
-        let foundTender = null;
+        // Check if tenderId is a token (starts with 'inv_')
+        const isToken = tenderId && tenderId.startsWith('inv_');
+        let foundInvitation = null;
         
-        if (savedProjects) {
-          const projects = JSON.parse(savedProjects);
-          // Find tender by ID or reference number
-          foundTender = projects.find(project => 
-            project.id?.toString() === tenderId || 
-            project.referenceNumber === tenderId ||
-            project.id?.toString() === tenderId?.toString()
-          );
-        }
-        
-        // Also check for tender data in tender invitations storage
-        if (!foundTender) {
-          const savedInvitations = localStorage.getItem('tenderInvitations');
-          if (savedInvitations) {
-            const invitations = JSON.parse(savedInvitations);
-            foundTender = invitations.find(inv => 
-              inv.tenderId === tenderId || 
-              inv.id === tenderId
-            );
-            if (foundTender && foundTender.tender) {
-              foundTender = foundTender.tender;
-            }
+        if (isToken) {
+          // Validate token
+          foundInvitation = validateInvitationToken(tenderId);
+          
+          if (!foundInvitation) {
+            setError("Invalid or expired invitation token.");
+            setLoading(false);
+            return;
+          }
+          
+          setInvitation(foundInvitation);
+          
+          // Check if user is logged in
+          const currentUser = getCurrentUser();
+          const isEngineer = isTenderEngineer();
+          
+          if (!currentUser || !isEngineer) {
+            // Redirect to login with return path
+            setRequiresLogin(true);
+            navigate("/login/tender-engineer", {
+              state: { from: { pathname: `/tender/invitation/${tenderId}` } },
+              replace: true
+            });
+            return;
+          }
+          
+          // Verify engineer matches invitation
+          const userEmail = currentUser.email?.toLowerCase();
+          const invEmail = foundInvitation.engineerEmail?.toLowerCase();
+          const invEngineerId = foundInvitation.engineerId;
+          const userId = currentUser.id;
+          
+          if (invEmail && userEmail !== invEmail && invEngineerId !== userId) {
+            setError("This invitation is not assigned to your account.");
+            setLoading(false);
+            return;
           }
         }
         
-        // Check for saved tender data with form info (saved when invitation was sent)
+        // Load tender data from invitation or projectTasks
+        let foundTender = null;
+        
+        if (foundInvitation) {
+          // Get project from invitation
+          const projectId = foundInvitation.projectId || foundInvitation.tenderId;
+          const savedProjects = localStorage.getItem('projectTasks');
+          
+          if (savedProjects) {
+            const projects = JSON.parse(savedProjects);
+            foundTender = projects.find(project => 
+              project.id?.toString() === projectId?.toString() ||
+              project.referenceNumber === foundInvitation.projectReference
+            );
+          }
+          
+          // Use invitation tender data if available
+          if (foundInvitation.tender) {
+            foundTender = foundInvitation.tender;
+          }
+        } else {
+          // Legacy: Load by ID
+          const savedProjects = localStorage.getItem('projectTasks');
+          if (savedProjects) {
+            const projects = JSON.parse(savedProjects);
+            foundTender = projects.find(project => 
+              project.id?.toString() === tenderId || 
+              project.referenceNumber === tenderId
+            );
+          }
+        }
+        
+        // Check for saved tender data with form info
         const savedTenderData = localStorage.getItem(`tenderData_${tenderId}`);
         if (savedTenderData) {
           const tenderData = JSON.parse(savedTenderData);
           setTender(tenderData);
           setError(null);
         } else if (foundTender) {
-          // Also check for form data that might have been stored separately
-          const savedFormData = localStorage.getItem(`tenderFormData_${tenderId}`);
+          // Also check for form data
+          const savedFormData = localStorage.getItem(`tenderFormData_${foundTender.id || tenderId}`);
           const formData = savedFormData ? JSON.parse(savedFormData) : null;
           
           // Map project data to tender format
@@ -101,15 +150,29 @@ export default function TenderInvitation() {
       setError("Invalid tender invitation link.");
       setLoading(false);
     }
-  }, [tenderId]);
+  }, [tenderId, navigate]);
 
   const handleAcceptInvitation = () => {
-    // Navigate to technical submission page
+    const currentUser = getCurrentUser();
+    
+    if (!currentUser || !isTenderEngineer()) {
+      navigate("/login/tender-engineer", {
+        state: { from: { pathname: `/tender/invitation/${tenderId}` } }
+      });
+      return;
+    }
+    
+    // Update invitation status if token-based
+    if (invitation && invitation.token) {
+      updateInvitationStatus(invitation.token, 'accepted', currentUser.id);
+    }
+    
+    // Navigate to technical submission
     navigate("/tender/technical-submission", {
       state: {
         tender,
-        contractors: [], // This would be populated from the API
         invitationId: tenderId,
+        invitation: invitation,
       },
     });
   };
@@ -245,23 +308,6 @@ export default function TenderInvitation() {
                   </div>
                 </div>
               )}
-              {tender.tenderAcceptanceDeadline && (
-                <div className="flex items-start gap-3">
-                  <CalendarIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
-                      Tender Acceptance Deadline
-                    </p>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {new Date(tender.tenderAcceptanceDeadline).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              )}
               <div className="flex items-start gap-3">
                 <CheckCircleIcon className="h-5 w-5 text-indigo-600 mt-1 flex-shrink-0" />
                 <div>
@@ -329,11 +375,17 @@ export default function TenderInvitation() {
         <section className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <button
-              onClick={() => navigate("/tender")}
+              onClick={() => {
+                if (isTenderEngineer()) {
+                  navigate("/tender-engineer/dashboard");
+                } else {
+                  navigate("/tender");
+                }
+              }}
               className="px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-indigo-200 hover:text-indigo-600 transition flex items-center gap-2"
             >
               <ArrowLeftIcon className="h-5 w-5" />
-              Back to Tender Page
+              {isTenderEngineer() ? 'Back to Dashboard' : 'Back to Tender Page'}
             </button>
             <button
               onClick={handleAcceptInvitation}
