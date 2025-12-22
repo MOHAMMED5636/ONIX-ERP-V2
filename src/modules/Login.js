@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./ForgotPassword";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 import { setAuth, ROLES } from "../utils/auth";
+import { login as apiLogin } from "../services/authAPI";
 
 const translations = {
   en: {
@@ -66,8 +67,17 @@ function validate({ userInput, password, lang }) {
         errors.userInput = t.invalidMobile;
       }
     } else if (detect.type === "username") {
-      if (!/[a-zA-Z]/.test(detect.value)) {
-        errors.userInput = t.invalidUsername;
+      // If it contains @, validate as email format
+      if (detect.value.includes('@')) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(detect.value)) {
+          errors.userInput = lang === "en" ? "Invalid email format" : "تنسيق البريد الإلكتروني غير صحيح";
+        }
+      } else {
+        // Regular username - just check it has letters
+        if (!/[a-zA-Z]/.test(detect.value)) {
+          errors.userInput = t.invalidUsername;
+        }
       }
     } else {
       errors.userInput = t.required;
@@ -110,32 +120,90 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError("");
+    setErrors({}); // Clear previous errors
+    
+    // First validate input
     const errs = validate({ userInput, password, lang });
-    setErrors(errs);
-    if (Object.keys(errs).length === 0) {
-      setLoading(true);
-      await new Promise((res) => setTimeout(res, 800)); // Simulate loading
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Determine email from userInput
       const detect = smartDetect(userInput);
-      if (
-        detect.type === "username" &&
-        detect.value.toLowerCase() === "admin" &&
-        password === "admin123"
-      ) {
+      let email = '';
+      let role = ROLES.ADMIN; // Default role
+      
+      // Determine email from userInput
+      if (detect.type === "username") {
+        // If it's a username, try as email or construct email
+        if (detect.value.includes('@')) {
+          // It's already an email
+          email = detect.value.trim();
+        } else {
+          // Regular username - convert to email
+          email = detect.value.toLowerCase() === "admin" 
+            ? "admin@onixgroup.ae" 
+            : `${detect.value}@onixgroup.ae`;
+        }
+      } else if (detect.type === "mobile") {
+        // Mobile number - can't use for email login
         setLoading(false);
-        // Set admin role
-        setAuth({
-          id: 'admin-1',
-          email: 'admin@onixgroup.ae',
-          name: 'Admin',
-          firstName: 'Admin',
-          lastName: '',
-        }, ROLES.ADMIN);
-        navigate("/dashboard", { state: { lang, dir } });
+        setLoginError(lang === "en" ? "Please use email or username for login." : "الرجاء استخدام البريد الإلكتروني أو اسم المستخدم لتسجيل الدخول.");
+        return;
       } else {
         setLoading(false);
-        setLoginError(lang === "en" ? "Invalid username or password." : "اسم المستخدم أو كلمة المرور غير صحيحة.");
-      } 
-    }
+        setLoginError(lang === "en" ? "Invalid input format." : "تنسيق الإدخال غير صحيح.");
+        return;
+      }
+      
+      // Final email format check before sending
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setLoading(false);
+        setLoginError(lang === "en" ? "Invalid email format." : "تنسيق البريد الإلكتروني غير صحيح.");
+        return;
+      }
+      
+      // Call backend login API
+      const response = await apiLogin(email, password, role);
+        
+        if (response.success && response.data) {
+          // Set auth using existing auth utility
+          setAuth(response.data.user, response.data.user.role);
+          setLoading(false);
+          navigate("/dashboard", { state: { lang, dir } });
+        } else {
+          setLoading(false);
+          setLoginError(lang === "en" ? "Invalid credentials." : "بيانات الاعتماد غير صحيحة.");
+        }
+      } catch (error) {
+        setLoading(false);
+        console.error('Login error:', error);
+        // If backend is not available, fallback to mock login for development
+        const detect = smartDetect(userInput);
+        if (
+          detect.type === "username" &&
+          detect.value.toLowerCase() === "admin" &&
+          password === "admin123"
+        ) {
+          // Fallback mock login
+          setAuth({
+            id: 'admin-1',
+            email: 'admin@onixgroup.ae',
+            name: 'Admin',
+            firstName: 'Admin',
+            lastName: '',
+          }, ROLES.ADMIN);
+          navigate("/dashboard", { state: { lang, dir } });
+        } else {
+          setLoginError(lang === "en" 
+            ? error.message || "Invalid username or password." 
+            : error.message || "اسم المستخدم أو كلمة المرور غير صحيحة.");
+        }
+      }
   };
 
   return (

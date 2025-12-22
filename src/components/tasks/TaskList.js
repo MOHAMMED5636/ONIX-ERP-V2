@@ -18,7 +18,8 @@ import {
   UsersIcon,
   DocumentTextIcon,
   CalendarIcon,
-  BoltIcon
+  BoltIcon,
+  ClipboardDocumentListIcon
 } from "@heroicons/react/24/outline";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../../LanguageContext";
@@ -671,6 +672,16 @@ export default function TaskList() {
 
           {/* Right section: Enhanced Controls */}
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+            {/* Tender Navigation Button */}
+            <button
+              onClick={() => navigate("/tender")}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative group flex-shrink-0"
+              title="Go to Tender Management"
+            >
+              <ClipboardDocumentListIcon className="h-4 w-4 group-hover:rotate-12 transition-transform duration-300" />
+              <span className="hidden sm:inline text-sm">Tender</span>
+            </button>
+
             {/* Notifications Bell */}
             <div className="relative" ref={notificationsRef}>
               <button

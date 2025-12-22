@@ -48,18 +48,8 @@ function GoogleMapPickerDemo({ onPick, onClose }) {
             Pick Dubai
           </button>
           <button
-            className="w-full bg-green-500 text-white p-2 rounded"
-            onClick={() => onPick(40.7128, -74.0060)} // New York coordinates
-          >
-            Pick New York
-          </button>
-          <button
-            className="w-full bg-red-500 text-white p-2 rounded"
-            onClick={() => onPick(51.5074, -0.1278)} // London coordinates
-          >
-            Pick London
-          </button>
-        </div>
+            className="w-full bg-green-500 text-white p-2 rration sdboard
+            
         <button
           className="mt-4 w-full bg-gray-500 text-white p-2 rounded"
           onClick={onClose}
