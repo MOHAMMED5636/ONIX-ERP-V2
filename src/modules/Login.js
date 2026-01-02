@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./ForgotPassword";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
-import { setAuth, ROLES } from "../utils/auth";
+import { ROLES } from "../utils/auth";
 import { login as apiLogin } from "../services/authAPI";
+import { useAuth } from "../contexts/AuthContext";
 
 const translations = {
   en: {
@@ -69,8 +70,10 @@ function validate({ userInput, password, lang }) {
     } else if (detect.type === "username") {
       // If it contains @, validate as email format
       if (detect.value.includes('@')) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(detect.value)) {
+        // Trim and normalize email before validation
+        const trimmedEmail = detect.value.trim().toLowerCase();
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(trimmedEmail)) {
           errors.userInput = lang === "en" ? "Invalid email format" : "تنسيق البريد الإلكتروني غير صحيح";
         }
       } else {
@@ -98,6 +101,14 @@ export default function Login() {
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { login: setAuthUser, isAuthenticated, user } = useAuth();
+  
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate("/dashboard", { state: { lang, dir } });
+    }
+  }, [isAuthenticated, user, navigate, lang, dir]);
 
   const t = translations[lang];
 
@@ -136,18 +147,32 @@ export default function Login() {
       let email = '';
       let role = ROLES.ADMIN; // Default role
       
-      // Determine email from userInput
+      // Determine email and role from userInput
       if (detect.type === "username") {
         // If it's a username, try as email or construct email
         if (detect.value.includes('@')) {
           // It's already an email
-          email = detect.value.trim();
+          email = detect.value.trim().toLowerCase();
         } else {
           // Regular username - convert to email
-          email = detect.value.toLowerCase() === "admin" 
-            ? "admin@onixgroup.ae" 
-            : `${detect.value}@onixgroup.ae`;
+          const username = detect.value.toLowerCase();
+          if (username === "admin") {
+            email = "admin@onixgroup.ae";
+          } else if (username === "engineer" || username.includes("engineer")) {
+            email = "engineer@onixgroup.ae";
+          } else {
+            email = `${detect.value}@onixgroup.ae`;
+          }
         }
+        
+        // Auto-detect role based on email pattern
+        const emailLower = email.toLowerCase();
+        if (emailLower.includes('admin') || emailLower === 'admin@onixgroup.ae') {
+          role = ROLES.ADMIN;
+        } else if (emailLower.includes('engineer') || emailLower === 'engineer@onixgroup.ae') {
+          role = ROLES.TENDER_ENGINEER;
+        }
+        // Otherwise defaults to ADMIN (already set above)
       } else if (detect.type === "mobile") {
         // Mobile number - can't use for email login
         setLoading(false);
@@ -159,8 +184,8 @@ export default function Login() {
         return;
       }
       
-      // Final email format check before sending
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // Final email format check before sending (using same regex as backend)
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(email)) {
         setLoading(false);
         setLoginError(lang === "en" ? "Invalid email format." : "تنسيق البريد الإلكتروني غير صحيح.");
@@ -169,16 +194,44 @@ export default function Login() {
       
       // Call backend login API
       const response = await apiLogin(email, password, role);
-        
-        if (response.success && response.data) {
-          // Set auth using existing auth utility
-          setAuth(response.data.user, response.data.user.role);
+      
+      if (response.success && response.data) {
+        // Check if password change is required
+        if (response.requiresPasswordChange) {
+          // Store token for password change endpoint
+          if (response.data.token) {
+            localStorage.setItem('token', response.data.token);
+          }
           setLoading(false);
-          navigate("/dashboard", { state: { lang, dir } });
+          // Redirect to password change page
+          navigate('/change-password', { 
+            state: { 
+              message: response.message || 'Password change required',
+              lang,
+              dir 
+            } 
+          });
+          return;
+        }
+        
+        // Normal login flow
+        if (response.data.token) {
+          try {
+            await setAuthUser(response.data.token);
+            setLoading(false);
+            // Navigation will happen via useEffect when user is loaded
+          } catch (err) {
+            setLoading(false);
+            setLoginError(lang === "en" ? "Failed to load user profile." : "فشل تحميل ملف المستخدم.");
+          }
         } else {
           setLoading(false);
           setLoginError(lang === "en" ? "Invalid credentials." : "بيانات الاعتماد غير صحيحة.");
         }
+      } else {
+        setLoading(false);
+        setLoginError(lang === "en" ? "Invalid credentials." : "بيانات الاعتماد غير صحيحة.");
+      }
       } catch (error) {
         setLoading(false);
         console.error('Login error:', error);
@@ -189,15 +242,11 @@ export default function Login() {
           detect.value.toLowerCase() === "admin" &&
           password === "admin123"
         ) {
-          // Fallback mock login
-          setAuth({
-            id: 'admin-1',
-            email: 'admin@onixgroup.ae',
-            name: 'Admin',
-            firstName: 'Admin',
-            lastName: '',
-          }, ROLES.ADMIN);
-          navigate("/dashboard", { state: { lang, dir } });
+          // Fallback mock login - not recommended, but kept for development
+          // Note: This won't work with dynamic auth, backend should be running
+          setLoginError(lang === "en" 
+            ? "Backend server is not available. Please start the backend server." 
+            : "الخادم غير متاح. يرجى تشغيل الخادم.");
         } else {
           setLoginError(lang === "en" 
             ? error.message || "Invalid username or password." 

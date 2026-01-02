@@ -8,6 +8,7 @@ import { useLanguage } from "../LanguageContext";
 import onixLogo from '../assets/onix-logo.png';
 import AIChatbot from "../components/tasks/AIChatbot";
 import { SparklesIcon } from "@heroicons/react/24/outline";
+import { getDashboardSummary, getDashboardStats } from "../services/dashboardAPI";
 import DraggableDashboard, { DraggableDashboardCard, DraggableWidgetBox } from "../components/DraggableDashboard";
 import {
   DndContext,
@@ -175,6 +176,19 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAIChatbot, setShowAIChatbot] = useState(false);
   
+  // Dashboard data state
+  const [dashboardData, setDashboardData] = useState({
+    activeProjects: 0,
+    activeTasks: 0,
+    teamMembers: 0,
+    inProgressTenders: 0,
+    totalClients: 0,
+    totalTenders: 0,
+    pendingInvitations: 0,
+    loading: true,
+    error: null
+  });
+  
   // State for widget order
   const [widgetOrder, setWidgetOrder] = useState([
     'active-employees',
@@ -200,6 +214,37 @@ export default function Dashboard() {
     if (savedSidebarOrder) {
       setSidebarWidgetOrder(JSON.parse(savedSidebarOrder));
     }
+  }, []);
+
+  // Fetch dashboard data from backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setDashboardData(prev => ({ ...prev, loading: true, error: null }));
+        
+        // Fetch summary data
+        const summaryResponse = await getDashboardSummary();
+        
+        if (summaryResponse.success) {
+          setDashboardData(prev => ({
+            ...prev,
+            ...summaryResponse.data,
+            loading: false
+          }));
+        } else {
+          throw new Error('Failed to fetch dashboard data');
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setDashboardData(prev => ({
+          ...prev,
+          loading: false,
+          error: error.message || 'Failed to load dashboard data'
+        }));
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   // Save widget order to localStorage
@@ -280,6 +325,14 @@ export default function Dashboard() {
         </div>
         <DashboardLayout>
         <div className="relative z-20 p-2 sm:p-4 lg:p-6 xl:p-8 w-full flex flex-col items-stretch justify-start">
+          {/* Error Message */}
+          {dashboardData.error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">
+                ⚠️ {dashboardData.error}. Using default values.
+              </p>
+            </div>
+          )}
           {/* Hero Banner */}
           {/* 2. Hero Banner: add user avatar and personalized greeting */}
           <div className="w-full mb-6 sm:mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 px-2 sm:px-6 py-4 rounded-2xl bg-gradient-to-r from-indigo-400 via-cyan-400 to-blue-300 shadow-lg animate-fade-in relative overflow-hidden">
@@ -327,10 +380,10 @@ export default function Dashboard() {
                           <DraggableDashboardCard
                             key={widgetId}
                             id={widgetId}
-                            title={t('Active Employees')}
-                            value={<AnimatedNumber n={61} />}
+                            title={t('Active Projects')}
+                            value={dashboardData.loading ? '...' : <AnimatedNumber n={dashboardData.activeProjects} />}
                             icon={<svg className="h-9 w-9 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m9-4a4 4 0 1 0-8 0 4 4 0 0 0 8 0z" /></svg>}
-                            accent={'+5 today'}
+                            accent={dashboardData.loading ? '' : 'Active'}
                             gradient="bg-white"
                             shadow="shadow-lg"
                             className="w-full"
@@ -341,10 +394,10 @@ export default function Dashboard() {
                           <DraggableDashboardCard
                             key={widgetId}
                             id={widgetId}
-                            title={t('Active Contracts')}
-                            value={<AnimatedNumber n={424} />}
+                            title={t('Active Tasks')}
+                            value={dashboardData.loading ? '...' : <AnimatedNumber n={dashboardData.activeTasks} />}
                             icon={<svg className="h-9 w-9 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6m-6 0h6" /></svg>}
-                            accent={'100% valid'}
+                            accent={dashboardData.loading ? '' : 'Open'}
                             gradient="bg-white"
                             shadow="shadow-lg"
                             className="w-full"
@@ -383,10 +436,10 @@ export default function Dashboard() {
                           <DraggableDashboardCard
                             key={widgetId}
                             id={widgetId}
-                            title={t('Active Tasks')}
-                            value={<AnimatedNumber n={0} />}
+                            title={t('In Progress')}
+                            value={dashboardData.loading ? '...' : <AnimatedNumber n={dashboardData.inProgressTenders} />}
                             icon={<svg className="h-9 w-9 text-pink-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-6-8h6" /></svg>}
-                            accent={'!'}
+                            accent={dashboardData.loading ? '' : 'Open'}
                             gradient="bg-white"
                             shadow="shadow-lg"
                             className="w-full"
@@ -397,22 +450,24 @@ export default function Dashboard() {
                           <DraggableDashboardCard
                             key={widgetId}
                             id={widgetId}
-                            title={t('Team Active Tasks')}
+                            title={t('Team Members')}
                             value={
                               <div className="flex flex-col items-center w-full">
                                 <div className="relative flex items-center justify-center">
                                   <svg className="w-14 h-14" viewBox="0 0 48 48">
                                     <circle cx="24" cy="24" r="20" fill="#f1f5f9" />
                                     <circle cx="24" cy="24" r="20" fill="none" stroke="#a5b4fc" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset="0" />
-                                    <circle cx="24" cy="24" r="20" fill="none" stroke="#38bdf8" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset="40" strokeLinecap="round" className="progress-ring" />
+                                    <circle cx="24" cy="24" r="20" fill="none" stroke="#38bdf8" strokeWidth="4" strokeDasharray="125.6" strokeDashoffset={dashboardData.loading ? 125.6 : Math.max(0, 125.6 - (Math.min(dashboardData.teamMembers, 100) * 1.256))} strokeLinecap="round" className="progress-ring" />
                                   </svg>
-                                  <span className="absolute text-lg font-bold text-blue-700 animate-countup">211</span>
+                                  <span className="absolute text-lg font-bold text-blue-700 animate-countup">
+                                    {dashboardData.loading ? '...' : dashboardData.teamMembers}
+                                  </span>
                                 </div>
-                                <span className="text-xs text-gray-600 font-medium mt-1">In Progress</span>
+                                <span className="text-xs text-gray-600 font-medium mt-1">Active</span>
                               </div>
                             }
                             icon={<svg className="h-9 w-9 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" /></svg>}
-                            accent={'+12'}
+                            accent={dashboardData.loading ? '' : `Total: ${dashboardData.teamMembers}`}
                             gradient="bg-white"
                             shadow="shadow-lg"
                             className="sm:col-span-2 lg:col-span-1 w-full"

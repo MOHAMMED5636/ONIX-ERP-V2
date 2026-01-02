@@ -10,6 +10,7 @@ import {
   UserIcon,
 } from "@heroicons/react/24/outline";
 import { getCurrentUser, isTenderEngineer } from "../utils/auth";
+import { logout as apiLogout } from "../services/authAPI";
 
 export default function TenderEngineerDashboard() {
   const navigate = useNavigate();
@@ -159,11 +160,20 @@ export default function TenderEngineerDashboard() {
               </p>
             </div>
             <button
-              onClick={() => {
-                localStorage.removeItem('isAuthenticated');
-                localStorage.removeItem('currentUser');
-                localStorage.removeItem('userRole');
-                navigate("/login/tender-engineer");
+              onClick={async () => {
+                try {
+                  // Call backend logout endpoint and clear localStorage
+                  await apiLogout();
+                  // apiLogout already handles redirect, but navigate as fallback
+                  navigate("/login/tender-engineer");
+                } catch (error) {
+                  console.error('Logout error:', error);
+                  // Still clear storage and navigate even if logout API fails
+                  localStorage.removeItem('isAuthenticated');
+                  localStorage.removeItem('currentUser');
+                  localStorage.removeItem('userRole');
+                  navigate("/login/tender-engineer");
+                }
               }}
               className="px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
             >

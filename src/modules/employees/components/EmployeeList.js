@@ -26,7 +26,8 @@ const EmployeeList = ({
   setFilters,
   onRuleButton,
   onHistoryButton,
-  onPayrollButton
+  onPayrollButton,
+  canCreateEmployee = true  // Show button by default, can be controlled by parent
 }) => {
   const [showFilters, setShowFilters] = useState(false);
 
@@ -66,13 +67,15 @@ const EmployeeList = ({
               <ArrowDownTrayIcon className="h-4 w-4" />
               Import/Export
             </button>
-            <button
-              onClick={onAddEmployee}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <PlusIcon className="h-5 w-5" />
-              Add Employee
-            </button>
+            {canCreateEmployee && (
+              <button
+                onClick={onAddEmployee}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Add Employee
+              </button>
+            )}
           </div>
         </div>
 

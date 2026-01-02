@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 import { setAuth, ROLES, getRoleRedirectPath } from "../utils/auth";
+import { login } from "../services/authAPI";
 
 const translations = {
   en: {
@@ -85,57 +86,40 @@ export default function TenderEngineerLogin() {
     if (Object.keys(errs).length === 0) {
       setLoading(true);
       
-      // Simulate API call
-      await new Promise((res) => setTimeout(res, 800));
-      
-      // Get tender engineers from localStorage
-      const engineersStr = localStorage.getItem('tenderEngineers');
-      let engineers = [];
-      
-      if (engineersStr) {
-        try {
-          engineers = JSON.parse(engineersStr);
-        } catch (error) {
-          console.error('Error parsing engineers:', error);
+      try {
+        // Call backend API for authentication
+        const response = await login(
+          email.trim().toLowerCase(),
+          password,
+          ROLES.TENDER_ENGINEER
+        );
+        
+        if (response.success && response.data) {
+          // Store token (already stored by login function)
+          // Set auth data
+          const user = response.data.user || response.data;
+          setAuth({
+            id: user.id,
+            email: user.email,
+            name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            role: user.role,
+          }, ROLES.TENDER_ENGINEER);
+          
+          setLoading(false);
+          navigate(returnTo, { replace: true });
+        } else {
+          setLoading(false);
+          setLoginError(lang === "en" 
+            ? response.message || "Invalid email or password." 
+            : "البريد الإلكتروني أو كلمة المرور غير صحيحة.");
         }
-      }
-      
-      // Find engineer by email
-      const engineer = engineers.find(eng => 
-        eng.email.toLowerCase() === email.toLowerCase()
-      );
-      
-      // Default demo credentials
-      const isDemoEngineer = email.toLowerCase() === 'engineer@onixgroup.ae' && password === 'engineer@123';
-      
-      if (engineer && engineer.password === password) {
-        // Authenticate engineer
-        setAuth({
-          id: engineer.id,
-          email: engineer.email,
-          name: engineer.name,
-          firstName: engineer.firstName || engineer.name.split(' ')[0],
-          lastName: engineer.lastName || engineer.name.split(' ').slice(1).join(' ') || '',
-        }, ROLES.TENDER_ENGINEER);
-        
-        setLoading(false);
-        navigate(returnTo, { replace: true });
-      } else if (isDemoEngineer) {
-        // Demo engineer login
-        setAuth({
-          id: 'demo-engineer-1',
-          email: 'engineer@onixgroup.ae',
-          name: 'Demo Engineer',
-          firstName: 'Demo',
-          lastName: 'Engineer',
-        }, ROLES.TENDER_ENGINEER);
-        
-        setLoading(false);
-        navigate(returnTo, { replace: true });
-      } else {
+      } catch (error) {
+        console.error('Login error:', error);
         setLoading(false);
         setLoginError(lang === "en" 
-          ? "Invalid email or password." 
+          ? error.message || "Invalid email or password." 
           : "البريد الإلكتروني أو كلمة المرور غير صحيحة.");
       }
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   UserIcon, 
   EnvelopeIcon, 
@@ -44,6 +45,10 @@ import EmployeeList from './components/EmployeeList';
 const Employees = () => {
   const navigate = useNavigate();
   const { selectedCompany, selectedDepartment } = useCompanySelection();
+  const { user } = useAuth();
+  
+  // Check if user can create employees
+  const canCreateEmployee = user?.role === 'ADMIN' || user?.role === 'HR';
   
   // State management
   const [employees, setEmployees] = useState(demoEmployees);
@@ -80,7 +85,13 @@ const Employees = () => {
 
   // Event handlers
   const handleAddEmployee = () => {
-    setShowForm(true);
+    // Navigate to new employee creation page (uses backend API)
+    if (canCreateEmployee) {
+      navigate('/employees/create');
+    } else {
+      // Fallback to old form if not admin/hr (for backward compatibility)
+      setShowForm(true);
+    }
   };
 
   const handleSaveEmployee = (employeeData) => {
@@ -182,6 +193,7 @@ const Employees = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {!showForm ? (
           <EmployeeList
+            canCreateEmployee={canCreateEmployee}
             employees={employees}
             onViewEmployee={handleViewEmployee}
             onEditEmployee={handleEditEmployee}

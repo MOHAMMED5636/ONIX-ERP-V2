@@ -5,12 +5,19 @@ export const ROLES = {
   TENDER_ENGINEER: 'TENDER_ENGINEER',
 };
 
-// Get current user from localStorage
+// Get current user from localStorage (DEPRECATED - Use AuthContext instead)
+// This is kept for backward compatibility with existing code
 export const getCurrentUser = () => {
   try {
     const userStr = localStorage.getItem('currentUser');
     if (userStr) {
       return JSON.parse(userStr);
+    }
+    // Fallback: try to get from token via API if available
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Return null - AuthContext will handle fetching
+      return null;
     }
   } catch (error) {
     console.error('Error parsing user data:', error);
@@ -24,9 +31,11 @@ export const getCurrentUserRole = () => {
   return user?.role || null;
 };
 
-// Check if user is authenticated
+// Check if user is authenticated (DEPRECATED - Use AuthContext instead)
+// This checks for token existence as fallback
 export const isAuthenticated = () => {
-  return localStorage.getItem('isAuthenticated') === 'true' && getCurrentUser() !== null;
+  const token = localStorage.getItem('token');
+  return !!token; // If token exists, consider authenticated (AuthContext will validate)
 };
 
 // Check if user has specific role
@@ -45,7 +54,8 @@ export const isTenderEngineer = () => {
   return hasRole(ROLES.TENDER_ENGINEER);
 };
 
-// Set user authentication
+// Set user authentication (DEPRECATED - Use AuthContext instead)
+// This is kept for backward compatibility but should not be used
 export const setAuth = (user, role) => {
   const userData = {
     ...user,
@@ -55,6 +65,7 @@ export const setAuth = (user, role) => {
   localStorage.setItem('currentUser', JSON.stringify(userData));
   localStorage.setItem('isAuthenticated', 'true');
   localStorage.setItem('userRole', role);
+  // Note: Token should already be set by authAPI.login()
 };
 
 // Clear authentication

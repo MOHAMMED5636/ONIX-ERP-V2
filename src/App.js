@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Dashboard from "./modules/Dashboard";
 import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
 import Navbar from "./layout/Navbar";
 import Login from "./modules/Login";
+import ChangePassword from "./components/auth/ChangePassword";
+import CreateEmployeeForm from "./components/employees/CreateEmployeeForm";
 import TenderEngineerLogin from "./modules/TenderEngineerLogin";
 import TenderEngineerDashboard from "./pages/TenderEngineerDashboard";
 import ProjectChatApp from "./modules/ProjectChatApp";
@@ -45,6 +48,7 @@ import JiraLikePage from "./pages/JiraLikePage";
 import ITSupport from "./pages/ITSupport";
 import AIEmployeeEvaluations from "./components/AIEmployeeEvaluations";
 import BankReconciliationDashboard from "./components/BankReconciliation";
+import Settings from "./pages/Settings";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
 import { RuleProvider } from "./context/RuleContext";
 import { AIAssistantProvider, AIAssistantEnhanced } from "./components/AIAssistant";
@@ -82,6 +86,13 @@ function MainLayout() {
             <Route path="/chat" element={<ChatRoom />} />
             <Route path="/project-chat" element={<ProjectChatApp />} />
             <Route path="/employees" element={<Employees />} />
+            <Route path="/employees/create" element={
+              <PrivateRoute requiredRole={['ADMIN', 'HR']}>
+                <div className="p-6">
+                  <CreateEmployeeForm />
+                </div>
+              </PrivateRoute>
+            } />
             <Route path="/clients" element={<Clients />} />
             <Route path="/departments" element={<Departments />} />
             <Route path="/company-resources/departments/:departmentId/sub-departments" element={<SubDepartmentsPage />} />
@@ -113,8 +124,9 @@ function MainLayout() {
             <Route path="/bank-reconciliation" element={<BankReconciliationDashboard />} />
             <Route path="/it-support" element={<ITSupport />} />
             <Route path="/ai-employee-evaluations" element={<AIEmployeeEvaluations />} />
-                            <Route path="/excel-table/*" element={<ExcelTable />} />
-                <Route path="/jira-like/*" element={<JiraLikePage />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/excel-table/*" element={<ExcelTable />} />
+            <Route path="/jira-like/*" element={<JiraLikePage />} />
             {/* Add other authenticated routes here */}
           </Routes>
         </main>
@@ -128,11 +140,23 @@ function MainLayout() {
 
 // PrivateRoute component for protecting routes
 function PrivateRoute({ children, requiredRole = null }) {
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const { user, loading, isAuthenticated } = useAuth();
   const location = useLocation();
-  const userRole = localStorage.getItem('userRole');
   
-  if (!isAuthenticated) {
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Redirect to login if not authenticated
+  if (!isAuthenticated || !user) {
     // Redirect to appropriate login based on route
     if (location.pathname.startsWith('/tender-engineer')) {
       return <Navigate to="/login/tender-engineer" state={{ from: location }} replace />;
@@ -140,13 +164,16 @@ function PrivateRoute({ children, requiredRole = null }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
-  // Check role if required
-  if (requiredRole && userRole !== requiredRole) {
-    // Redirect based on current role
-    if (userRole === 'TENDER_ENGINEER') {
-      return <Navigate to="/tender-engineer/dashboard" replace />;
+  // Check role if required (supports array of roles)
+  if (requiredRole) {
+    const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    if (!allowedRoles.includes(user.role)) {
+      // Redirect based on current role
+      if (user.role === 'TENDER_ENGINEER') {
+        return <Navigate to="/tender-engineer/dashboard" replace />;
+      }
+      return <Navigate to="/dashboard" replace />;
     }
-    return <Navigate to="/dashboard" replace />;
   }
   
   return children;
@@ -164,31 +191,34 @@ function TenderEngineerLayout() {
 
 export default function App() {
   return (
-    <CompanySelectionProvider>
-      <RuleProvider>
-        <AIAssistantProvider>
-          <Router>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/login/tender-engineer" element={<TenderEngineerLogin />} />
-              {/* Special route for Jira table demo - bypasses main layout */}
-              <Route path="/jira-table-demo" element={<JiraTableDemo />} />
-              {/* Tender Engineer Routes */}
-              <Route path="/tender-engineer/*" element={
-                <PrivateRoute requiredRole="TENDER_ENGINEER">
-                  <TenderEngineerLayout />
-                </PrivateRoute>
-              } />
-              {/* Admin/General Routes */}
-              <Route path="/*" element={
-                <PrivateRoute>
-                  <MainLayout />
-                </PrivateRoute>
-              } />
-            </Routes>
-          </Router>
-        </AIAssistantProvider>
-      </RuleProvider>
-    </CompanySelectionProvider>
+    <AuthProvider>
+      <CompanySelectionProvider>
+        <RuleProvider>
+          <AIAssistantProvider>
+            <Router>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/login/tender-engineer" element={<TenderEngineerLogin />} />
+                <Route path="/change-password" element={<ChangePassword />} />
+                {/* Special route for Jira table demo - bypasses main layout */}
+                <Route path="/jira-table-demo" element={<JiraTableDemo />} />
+                {/* Tender Engineer Routes */}
+                <Route path="/tender-engineer/*" element={
+                  <PrivateRoute requiredRole="TENDER_ENGINEER">
+                    <TenderEngineerLayout />
+                  </PrivateRoute>
+                } />
+                {/* Admin/General Routes */}
+                <Route path="/*" element={
+                  <PrivateRoute>
+                    <MainLayout />
+                  </PrivateRoute>
+                } />
+              </Routes>
+            </Router>
+          </AIAssistantProvider>
+        </RuleProvider>
+      </CompanySelectionProvider>
+    </AuthProvider>
   );
 }

@@ -68,13 +68,13 @@ function DraggableDashboardCard({
 
       <div className="flex items-center gap-3 mb-2 w-full">
         {icon && (
-          <span className="flex items-center justify-center rounded-full p-2 bg-white/40 shadow-md mr-2">
+          <span className="flex items-center justify-center rounded-full p-2 bg-white/40 shadow-md mr-2 flex-shrink-0">
             {icon}
           </span>
         )}
-        <span className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 truncate drop-shadow">{title}</span>
+        <span className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 drop-shadow flex-1 min-w-0 whitespace-normal">{title}</span>
         {accent && (
-          <span className="ml-auto text-xs font-bold px-2 py-1 rounded-full bg-white/70 text-indigo-600 shadow badge-pop">{accent}</span>
+          <span className="ml-auto text-xs font-bold px-2 py-1 rounded-full bg-white/70 text-indigo-600 shadow badge-pop flex-shrink-0">{accent}</span>
         )}
       </div>
       <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 w-full animate-bounce-in flex items-center gap-2">{value}</div>

@@ -165,7 +165,7 @@ export default function TenderFees() {
             <button
               onClick={() => setHasApplicableFees(true)}
               className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                hasApplicableFees === true
+                hasApplicableFees === true``
                   ? "bg-green-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}

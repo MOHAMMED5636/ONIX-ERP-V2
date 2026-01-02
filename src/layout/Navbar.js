@@ -3,10 +3,12 @@ import { UserCircleIcon, GlobeAltIcon, MagnifyingGlassIcon, ArrowRightOnRectangl
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
 import NotificationDropdown from "../components/NotificationDropdown";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Navbar({ onMenuToggle }) {
   const { lang, toggleLanguage, t } = useLanguage();
   const navigate = useNavigate();
+  const { user, logout: handleLogout } = useAuth();
   const [showSearch, setShowSearch] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -81,18 +83,79 @@ export default function Navbar({ onMenuToggle }) {
 
   const [openSection, setOpenSection] = useState({});
   
-  const handleLogout = () => {
-    navigate("/login");
+  const handleLogoutClick = async () => {
+    try {
+      await handleLogout();
+      navigate("/login");
+    } catch (error) {
+      console.error('Logout error:', error);
+      navigate("/login");
+    }
   };
 
-  // Mock admin profile data
-  const admin = {
-    name: "Kaddour Alksadour",
-    jobTitle: "Building Architect",
-    middleName: "Ahmed",
+  // Get user display name dynamically
+  const getUserDisplayName = () => {
+    if (!user) return 'User';
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) {
+      return user.firstName;
+    }
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  };
+
+  // Get role display name
+  const getRoleDisplayName = () => {
+    if (!user || !user.role) return '';
+    const roleMap = {
+      ADMIN: 'Administrator',
+      TENDER_ENGINEER: 'Tender Engineer',
+      PROJECT_MANAGER: 'Project Manager',
+      CONTRACTOR: 'Contractor',
+    };
+    return roleMap[user.role] || user.role;
+  };
+
+  // Helper function to get photo URL
+  const getPhotoUrl = (photo) => {
+    if (!photo) {
+      console.log('[Navbar] No photo provided');
+      return null;
+    }
+    console.log('[Navbar] Original photo value:', photo);
+    // If it's already a full URL, return as is
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      console.log('[Navbar] Photo is full URL:', photo);
+      return photo;
+    }
+    // If it's a relative path, construct full URL
+    if (photo.startsWith('/uploads/')) {
+      const fullUrl = `http://localhost:3001${photo}`;
+      console.log('[Navbar] Constructed URL from relative path:', fullUrl);
+      return fullUrl;
+    }
+    // If it's just a filename, construct full URL
+    const fullUrl = `http://localhost:3001/uploads/photos/${photo}`;
+    console.log('[Navbar] Constructed URL from filename:', fullUrl);
+    return fullUrl;
+  };
+
+  // Dynamic user profile data (fallback to defaults if user not loaded)
+  console.log('[Navbar] user object:', user);
+  console.log('[Navbar] user?.photo:', user?.photo);
+  const userPhotoUrl = user?.photo ? getPhotoUrl(user.photo) : null;
+  console.log('[Navbar] Final userPhotoUrl:', userPhotoUrl);
+  const admin = user ? {
+    name: getUserDisplayName(),
+    jobTitle: user.jobTitle || getRoleDisplayName(),
+    middleName: user.lastName || '',
     status: "Active",
-    id: "021002",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    id: user.id || '',
+    avatar: userPhotoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=6366f1&color=fff`,
     contacts: {
       mobile: "+971-5034-859",
       email: "archkadd@hotmail.com"
@@ -145,6 +208,20 @@ export default function Navbar({ onMenuToggle }) {
     policyAcknowledgements: [
       { name: "DRESS CODE", acknowledged: false }
     ]
+  } : {
+    name: "Loading...",
+    jobTitle: "",
+    middleName: "",
+    status: "Active",
+    id: "",
+    avatar: "https://ui-avatars.com/api/?name=User&background=6366f1&color=fff",
+    contacts: { mobile: "", email: "" },
+    company: { department: "", manager: "", joiningDate: "", exitDate: "", yearsOfService: "", attendance: "" },
+    personal: { gender: "", nationality: "", birthDay: "", maritalStatus: "", children: 0, currentAddress: "", permanentAddress: "" },
+    passport: { number: "", issueDate: "", expiryDate: "" },
+    residency: { sponsorCompany: "", issueDate: "", expiryDate: "", visaNumber: "", employmentSponsor: "", nationalId: "", nationalIdExpiry: "", insuranceCompany: "", insuranceCard: "", insuranceExpiry: "", drivingLicenceNumber: "", drivingLicenceIssue: "", drivingLicenceExpiry: "", labourId: "", labourIdExpiry: "" },
+    documents: [],
+    policyAcknowledgements: []
   };
   
   const toggleSection = (section) => {
@@ -287,19 +364,47 @@ export default function Navbar({ onMenuToggle }) {
           <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-900">Admin Profile</h2>
-              <button
-                className="text-gray-400 hover:text-red-500 text-2xl font-bold"
-                onClick={() => setShowAdminModal(false)}
-                aria-label="Close"
-              >
-                &times;
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setShowAdminModal(false);
+                    navigate('/settings');
+                  }}
+                  className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+                  title="Edit Profile"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  className="text-gray-400 hover:text-red-500 text-2xl font-bold"
+                  onClick={() => setShowAdminModal(false)}
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+              </div>
             </div>
             
             <div className="p-6 space-y-6">
               {/* Profile Header */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                <img src={admin.avatar} alt={admin.name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-200 shadow" />
+                {userPhotoUrl ? (
+                  <img 
+                    src={userPhotoUrl} 
+                    alt={admin.name} 
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-200 shadow object-cover"
+                    onLoad={() => console.log('[Navbar Admin Modal] Photo loaded successfully:', userPhotoUrl)}
+                    onError={(e) => {
+                      console.error('[Navbar Admin Modal] Photo failed to load:', userPhotoUrl);
+                      // Fallback to avatar generator if image fails
+                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=6366f1&color=fff`;
+                    }}
+                  />
+                ) : (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-200 shadow bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                    {getUserDisplayName().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 w-full">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="flex justify-between sm:justify-start sm:gap-2">

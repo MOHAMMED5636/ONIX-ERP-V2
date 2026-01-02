@@ -226,6 +226,13 @@ export default function TenderPage() {
             <button className="px-5 py-3 border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl hover:border-indigo-200 hover:text-indigo-600 transition">
               Download Guidelines
             </button>
+            <Link 
+              to="/login/tender-engineer"
+              className="px-5 py-3 bg-purple-600 text-white text-sm font-semibold rounded-2xl shadow hover:bg-purple-500 transition flex items-center gap-2"
+            >
+              <UserPlusIcon className="h-4 w-4" />
+              Tender Engineer Login
+            </Link>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

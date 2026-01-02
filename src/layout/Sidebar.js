@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
+import { useAuth } from "../contexts/AuthContext";
 import {
   HomeIcon,
   UsersIcon,
@@ -140,6 +141,8 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const navigate = useNavigate();
+  // Get user from AuthContext - MUST be called before any conditional returns
+  const { user: authUser, logout: handleLogout } = useAuth();
 
   React.useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -161,80 +164,150 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [openDropdown, isMobile, showProfileMenu]);
 
-  // Hide sidebar on mobile if collapsed
-  if (isMobile && collapsed) return null;
+  // Get user display name dynamically
+  const getUserDisplayName = () => {
+    if (!authUser) return 'User';
+    if (authUser.firstName && authUser.lastName) {
+      return `${authUser.firstName} ${authUser.lastName}`;
+    }
+    if (authUser.firstName) {
+      return authUser.firstName;
+    }
+    if (authUser.email) {
+      return authUser.email.split('@')[0];
+    }
+    return 'User';
+  };
 
-  // Mock user data
+  // Get role display name
+  const getRoleDisplayName = () => {
+    if (!authUser || !authUser.role) return '';
+    const roleMap = {
+      ADMIN: 'Administrator',
+      TENDER_ENGINEER: 'Tender Engineer',
+      PROJECT_MANAGER: 'Project Manager',
+      CONTRACTOR: 'Contractor',
+    };
+    return roleMap[authUser.role] || authUser.role;
+  };
+
+  // Helper function to get photo URL
+  const getPhotoUrl = (photo) => {
+    if (!photo) {
+      console.log('[Sidebar] No photo provided');
+      return null;
+    }
+    console.log('[Sidebar] Original photo value:', photo);
+    // If it's already a full URL, return as is
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      console.log('[Sidebar] Photo is full URL:', photo);
+      return photo;
+    }
+    // If it's a relative path, construct full URL
+    if (photo.startsWith('/uploads/')) {
+      const fullUrl = `http://localhost:3001${photo}`;
+      console.log('[Sidebar] Constructed URL from relative path:', fullUrl);
+      return fullUrl;
+    }
+    // If it's just a filename, construct full URL
+    const fullUrl = `http://localhost:3001/uploads/photos/${photo}`;
+    console.log('[Sidebar] Constructed URL from filename:', fullUrl);
+    return fullUrl;
+  };
+
+  // Dynamic user data for sidebar
+  console.log('[Sidebar] authUser:', authUser);
+  console.log('[Sidebar] authUser?.photo:', authUser?.photo);
+  const photoUrl = authUser?.photo ? getPhotoUrl(authUser.photo) : null;
+  console.log('[Sidebar] Final photoUrl:', photoUrl);
   const user = {
-    name: "Kaddour",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    name: getUserDisplayName().split(' ')[0], // First name only for sidebar
+    avatar: photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=6366f1&color=fff`,
     status: "Online"
   };
 
-  // Mock admin profile data (copied from Navbar)
-  const admin = {
-    name: "Kaddour Alksadour",
-    jobTitle: "Building Architect",
-    middleName: "Ahmed",
+  // Dynamic admin profile data
+  const adminPhotoUrl = authUser?.photo ? getPhotoUrl(authUser.photo) : null;
+  const admin = authUser ? {
+    name: getUserDisplayName(),
+    jobTitle: authUser.jobTitle || getRoleDisplayName(),
+    middleName: authUser.lastName || '',
     status: "Active",
-    id: "021002",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    id: authUser.id || '',
+    avatar: adminPhotoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=6366f1&color=fff`,
     contacts: {
-      mobile: "+971-5034-859",
-      email: "archkadd@hotmail.com"
+      mobile: "",
+      email: authUser.email || ""
     },
     company: {
-      department: "Architecture Department",
-      manager: "John Doe",
-      joiningDate: "2/8/2021",
+      department: "",
+      manager: "",
+      joiningDate: "",
       exitDate: "",
-      yearsOfService: "4.45",
-      attendance: "ONIX TIMING"
+      yearsOfService: "",
+      attendance: ""
     },
     personal: {
-      gender: "M",
-      nationality: "Syrian Arab Republic",
-      birthDay: "1/21/1991",
-      maritalStatus: "Married",
-      children: 2,
-      currentAddress: "Dubai",
-      permanentAddress: "Dubai"
+      gender: "",
+      nationality: "",
+      birthDay: "",
+      maritalStatus: "",
+      children: 0,
+      currentAddress: "",
+      permanentAddress: ""
     },
     passport: {
-      number: "N015340713",
-      issueDate: "4/16/2022",
-      expiryDate: "10/15/2024"
+      number: "",
+      issueDate: "",
+      expiryDate: ""
     },
     residency: {
-      sponsorCompany: "ONIX",
-      issueDate: "3/9/2023",
-      expiryDate: "3/8/2025",
-      visaNumber: "784-1991-183517-2",
-      employmentSponsor: "ONIX",
-      nationalId: "784-1991-183517-2",
-      nationalIdExpiry: "3/8/2025",
-      insuranceCompany: "MED NET",
-      insuranceCard: "097110119351793801",
-      insuranceExpiry: "8/14/2025",
+      sponsorCompany: "",
+      issueDate: "",
+      expiryDate: "",
+      visaNumber: "",
+      employmentSponsor: "",
+      nationalId: "",
+      nationalIdExpiry: "",
+      insuranceCompany: "",
+      insuranceCard: "",
+      insuranceExpiry: "",
       drivingLicenceNumber: "",
       drivingLicenceIssue: "",
       drivingLicenceExpiry: "",
       labourId: "",
       labourIdExpiry: ""
     },
-    documents: [
-      { name: "PID 2025.pdf", type: "PDF", date: "01/01/2025" },
-      { name: "VISA 2023.pdf", type: "PDF", date: "01/01/2023" },
-      { name: "PASSPORT 2027.pdf", type: "PDF", date: "01/01/2027" },
-      { name: "GRADUATION CERT.pdf", type: "PDF", date: "01/01/2020" }
-    ],
-    policyAcknowledgements: [
-      { name: "DRESS CODE", acknowledged: false }
-    ]
+    documents: [],
+    policyAcknowledgements: []
+  } : {
+    name: "Loading...",
+    jobTitle: "",
+    middleName: "",
+    status: "Active",
+    id: "",
+    avatar: "https://ui-avatars.com/api/?name=User&background=6366f1&color=fff",
+    contacts: { mobile: "", email: "" },
+    company: { department: "", manager: "", joiningDate: "", exitDate: "", yearsOfService: "", attendance: "" },
+    personal: { gender: "", nationality: "", birthDay: "", maritalStatus: "", children: 0, currentAddress: "", permanentAddress: "" },
+    passport: { number: "", issueDate: "", expiryDate: "" },
+    residency: { sponsorCompany: "", issueDate: "", expiryDate: "", visaNumber: "", employmentSponsor: "", nationalId: "", nationalIdExpiry: "", insuranceCompany: "", insuranceCard: "", insuranceExpiry: "", drivingLicenceNumber: "", drivingLicenceIssue: "", drivingLicenceExpiry: "", labourId: "", labourIdExpiry: "" },
+    documents: [],
+    policyAcknowledgements: []
   };
-  const handleLogout = () => {
-    navigate("/login");
+
+  const handleLogoutClick = async () => {
+    try {
+      await handleLogout();
+      navigate("/login");
+    } catch (error) {
+      console.error('Logout error:', error);
+      navigate("/login");
+    }
   };
+
+  // Hide sidebar on mobile if collapsed (after all hooks are called)
+  if (isMobile && collapsed) return null;
 
   return (
     <>
@@ -267,7 +340,23 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
           {/* User Mini-Profile Card */}
           <div className="sidebar-profile w-full flex flex-col items-center mb-2 relative" onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowProfileMenu((v) => !v)} className="flex flex-col items-center gap-1 w-full px-1 py-1 rounded-xl bg-white/80 shadow border border-indigo-100 hover:bg-indigo-50 transition relative">
-              <img src={user.avatar} alt={user.name} className="h-7 w-7 rounded-full border-2 border-indigo-200 shadow" />
+              {photoUrl ? (
+                <img 
+                  src={photoUrl} 
+                  alt={user.name} 
+                  className="h-7 w-7 rounded-full border-2 border-indigo-200 shadow object-cover"
+                  onError={(e) => {
+                    // Fallback to avatar if image fails to load
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              {!photoUrl && (
+                <div className="h-7 w-7 rounded-full border-2 border-indigo-200 shadow bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
+                  {getUserDisplayName().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </div>
+              )}
               <span className="font-bold text-indigo-700 text-xs mt-1">{user.name}</span>
               <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold"><span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> {user.status}</span>
               <svg className="h-3 w-3 text-indigo-400 absolute right-1 top-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
@@ -277,7 +366,10 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                 <button className="px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => setShowAdminModal(true)}>
                   <UserCircleIcon className="inline-block w-5 h-5 mr-2 text-indigo-400" /> Admin
                 </button>
-                <button className="px-4 py-2 hover:bg-red-50 text-left text-red-600" onClick={handleLogout}>
+                <Link to="/settings" className="px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => setShowProfileMenu(false)}>
+                  <Cog6ToothIcon className="inline-block w-5 h-5 mr-2 text-indigo-400" /> Settings
+                </Link>
+                <button className="px-4 py-2 hover:bg-red-50 text-left text-red-600" onClick={handleLogoutClick}>
                   <ArrowRightOnRectangleIcon className="inline-block w-5 h-5 mr-2 text-red-400" /> Logout
                 </button>
               </div>
