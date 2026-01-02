@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { changePassword } from '../../services/authAPI';
 import { useAuth } from '../../contexts/AuthContext';
+import { getRoleRedirectPath } from '../../utils/auth';
 
 function ChangePassword() {
   const [formData, setFormData] = useState({
@@ -13,7 +14,7 @@ function ChangePassword() {
   const [error, setError] = useState('');
   const [passwordStrength, setPasswordStrength] = useState('');
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
 
   const checkPasswordStrength = (password) => {
     if (password.length === 0) {
@@ -77,8 +78,12 @@ function ChangePassword() {
         // Show success message
         alert('Password changed successfully! Redirecting to dashboard...');
 
-        // Redirect to dashboard
-        navigate('/dashboard');
+        // Get user role from context or localStorage as fallback
+        // After refreshUser(), the user should be updated in context
+        const currentUser = user || JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const userRole = currentUser?.role || localStorage.getItem('userRole') || 'ADMIN';
+        const redirectPath = getRoleRedirectPath(userRole);
+        navigate(redirectPath);
       } else {
         setError(response.message || 'Failed to change password');
       }

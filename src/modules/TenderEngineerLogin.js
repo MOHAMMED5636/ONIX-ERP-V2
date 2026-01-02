@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
-import { setAuth, ROLES, getRoleRedirectPath } from "../utils/auth";
+import { ROLES, getRoleRedirectPath } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
 import { login } from "../services/authAPI";
 
 const translations = {
@@ -68,9 +69,11 @@ export default function TenderEngineerLogin() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { login: setAuthUser } = useAuth();
 
   const t = translations[lang];
-  const returnTo = location.state?.from?.pathname || '/tender-engineer/dashboard';
+  // Always redirect to Tender Engineer dashboard - ignore any returnTo to prevent main ERP access
+  // Never use location.state?.from?.pathname as it might point to main ERP routes
 
   const handleLangToggle = () => {
     setLang((prev) => (prev === "en" ? "ar" : "en"));
@@ -95,20 +98,19 @@ export default function TenderEngineerLogin() {
         );
         
         if (response.success && response.data) {
-          // Store token (already stored by login function)
-          // Set auth data
+          // Store token and set auth user via AuthContext
           const user = response.data.user || response.data;
-          setAuth({
-            id: user.id,
-            email: user.email,
-            name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-            firstName: user.firstName || '',
-            lastName: user.lastName || '',
-            role: user.role,
-          }, ROLES.TENDER_ENGINEER);
+          
+          if (response.data.token) {
+            // Use AuthContext login method to store token and fetch user profile
+            await setAuthUser(response.data.token);
+          }
           
           setLoading(false);
-          navigate(returnTo, { replace: true });
+          
+          // Always redirect to Tender Engineer dashboard, never to main ERP
+          const redirectPath = getRoleRedirectPath(user.role || ROLES.TENDER_ENGINEER);
+          navigate(redirectPath, { replace: true });
         } else {
           setLoading(false);
           setLoginError(lang === "en" 

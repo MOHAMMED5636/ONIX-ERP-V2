@@ -377,7 +377,7 @@ export default function TenderInvitation() {
             <button
               onClick={() => {
                 if (isTenderEngineer()) {
-                  navigate("/tender-engineer/dashboard");
+                  navigate("/erp/tender/dashboard");
                 } else {
                   navigate("/tender");
                 }

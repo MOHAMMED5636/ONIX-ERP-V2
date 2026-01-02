@@ -10,7 +10,6 @@ import {
   UserIcon,
 } from "@heroicons/react/24/outline";
 import { getCurrentUser, isTenderEngineer } from "../utils/auth";
-import { logout as apiLogout } from "../services/authAPI";
 
 export default function TenderEngineerDashboard() {
   const navigate = useNavigate();
@@ -123,10 +122,11 @@ export default function TenderEngineerDashboard() {
   };
 
   const handleViewTender = (tender) => {
-    if (tender.invitationToken) {
-      navigate(`/tender/invitation/${tender.invitationToken}`);
-    } else {
-      navigate(`/tender/invitation/${tender.id}`);
+    // Navigate to tender engineer's own submission page, NOT main ERP invitation page
+    // Tender Engineers should NOT access /tender/invitation/* routes
+    const tenderId = tender.invitationToken || tender.id;
+    if (tenderId) {
+      navigate(`/erp/tender/submit/${tenderId}`);
     }
   };
 
@@ -150,35 +150,13 @@ export default function TenderEngineerDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl lg:text-4xl font-semibold text-slate-900 mb-2">
-                Tender Engineer Dashboard
-              </h1>
-              <p className="text-slate-600">
-                Welcome back, <span className="font-semibold text-indigo-600">{user?.name || user?.email}</span>
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  // Call backend logout endpoint and clear localStorage
-                  await apiLogout();
-                  // apiLogout already handles redirect, but navigate as fallback
-                  navigate("/login/tender-engineer");
-                } catch (error) {
-                  console.error('Logout error:', error);
-                  // Still clear storage and navigate even if logout API fails
-                  localStorage.removeItem('isAuthenticated');
-                  localStorage.removeItem('currentUser');
-                  localStorage.removeItem('userRole');
-                  navigate("/login/tender-engineer");
-                }
-              }}
-              className="px-4 py-2 text-sm font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition"
-            >
-              Logout
-            </button>
+          <div>
+            <h1 className="text-3xl lg:text-4xl font-semibold text-slate-900 mb-2">
+              Tender Engineer Dashboard
+            </h1>
+            <p className="text-slate-600">
+              Welcome back, <span className="font-semibold text-indigo-600">{user?.name || user?.email}</span>
+            </p>
           </div>
         </div>
 

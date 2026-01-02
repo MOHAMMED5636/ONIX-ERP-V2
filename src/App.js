@@ -7,11 +7,13 @@ import Dashboard from "./modules/Dashboard";
 import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
 import Navbar from "./layout/Navbar";
+import TenderEngineerSidebar from "./layout/TenderEngineerSidebar";
 import Login from "./modules/Login";
 import ChangePassword from "./components/auth/ChangePassword";
 import CreateEmployeeForm from "./components/employees/CreateEmployeeForm";
 import TenderEngineerLogin from "./modules/TenderEngineerLogin";
 import TenderEngineerDashboard from "./pages/TenderEngineerDashboard";
+import TenderEngineerSubmission from "./pages/TenderEngineerSubmission";
 import ProjectChatApp from "./modules/ProjectChatApp";
 import Employees from "./modules/Employees";
 import Clients from "./pages/Clients";
@@ -158,7 +160,7 @@ function PrivateRoute({ children, requiredRole = null }) {
   // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {
     // Redirect to appropriate login based on route
-    if (location.pathname.startsWith('/tender-engineer')) {
+    if (location.pathname.startsWith('/erp/tender') || location.pathname.startsWith('/tender-engineer')) {
       return <Navigate to="/login/tender-engineer" state={{ from: location }} replace />;
     }
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -170,22 +172,78 @@ function PrivateRoute({ children, requiredRole = null }) {
     if (!allowedRoles.includes(user.role)) {
       // Redirect based on current role
       if (user.role === 'TENDER_ENGINEER') {
-        return <Navigate to="/tender-engineer/dashboard" replace />;
+        return <Navigate to="/erp/tender/dashboard" replace />;
       }
       return <Navigate to="/dashboard" replace />;
+    }
+  }
+  
+  // Block TENDER_ENGINEER from accessing main ERP routes
+  // Main ERP routes should only be accessible to ADMIN and other non-TENDER_ENGINEER roles
+  // Block TENDER_ENGINEER from accessing ANY main ERP routes including /tender/* routes
+  if (user.role === 'TENDER_ENGINEER') {
+    // Only allow access to /erp/tender/* routes
+    if (!location.pathname.startsWith('/erp/tender') && 
+        !location.pathname.startsWith('/tender-engineer') &&
+        !location.pathname.startsWith('/login') &&
+        !location.pathname.startsWith('/change-password')) {
+      return <Navigate to="/erp/tender/dashboard" replace />;
+    }
+    // Block access to main ERP /tender/* routes (invitation acceptance, etc.)
+    if (location.pathname.startsWith('/tender/') && !location.pathname.startsWith('/erp/tender/')) {
+      return <Navigate to="/erp/tender/dashboard" replace />;
     }
   }
   
   return children;
 }
 
-// Tender Engineer Layout (without sidebar)
+// Component to block TENDER_ENGINEER from accessing main ERP routes
+function TenderEngineerBlock({ children }) {
+  const { user } = useAuth();
+  const location = useLocation();
+  
+  // If TENDER_ENGINEER tries to access main ERP routes, redirect to their dashboard
+  if (user && user.role === 'TENDER_ENGINEER') {
+    return <Navigate to="/erp/tender/dashboard" replace />;
+  }
+  
+  return children;
+}
+
+// Tender Engineer Layout (with sidebar and navbar like main ERP)
 function TenderEngineerLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
+  const location = useLocation();
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setSidebarCollapsed(window.innerWidth < 1024);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
-    <Routes>
-      <Route path="/dashboard" element={<TenderEngineerDashboard />} />
-      <Route path="*" element={<Navigate to="/tender-engineer/dashboard" replace />} />
-    </Routes>
+    <div className="flex min-h-screen bg-gray-50">
+      <TenderEngineerSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
+      <div className={`flex-1 flex flex-col transition-all duration-300 w-full
+        ${
+        sidebarCollapsed 
+          ? 'lg:ml-8 xl:ml-8' 
+          : 'lg:ml-28 xl:ml-28'
+        }
+      `}>
+        <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />
+        <main className="flex-1 w-full">
+          <Routes>
+            <Route path="/dashboard" element={<TenderEngineerDashboard />} />
+            <Route path="/submit/:tenderId" element={<TenderEngineerSubmission />} />
+            <Route path="*" element={<Navigate to="/erp/tender/dashboard" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
   );
 }
 
@@ -203,15 +261,23 @@ export default function App() {
                 {/* Special route for Jira table demo - bypasses main layout */}
                 <Route path="/jira-table-demo" element={<JiraTableDemo />} />
                 {/* Tender Engineer Routes */}
-                <Route path="/tender-engineer/*" element={
+                <Route path="/erp/tender/*" element={
                   <PrivateRoute requiredRole="TENDER_ENGINEER">
                     <TenderEngineerLayout />
                   </PrivateRoute>
                 } />
-                {/* Admin/General Routes */}
+                {/* Legacy Tender Engineer Routes - redirect to new path */}
+                <Route path="/tender-engineer/*" element={
+                  <PrivateRoute requiredRole="TENDER_ENGINEER">
+                    <Navigate to="/erp/tender/dashboard" replace />
+                  </PrivateRoute>
+                } />
+                {/* Admin/General Routes - Block TENDER_ENGINEER */}
                 <Route path="/*" element={
                   <PrivateRoute>
-                    <MainLayout />
+                    <TenderEngineerBlock>
+                      <MainLayout />
+                    </TenderEngineerBlock>
                   </PrivateRoute>
                 } />
               </Routes>

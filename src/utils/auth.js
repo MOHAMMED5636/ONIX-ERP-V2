@@ -81,7 +81,7 @@ export const getRoleRedirectPath = (role) => {
     case ROLES.ADMIN:
       return '/dashboard';
     case ROLES.TENDER_ENGINEER:
-      return '/tender-engineer/dashboard';
+      return '/erp/tender/dashboard';
     default:
       return '/login';
   }

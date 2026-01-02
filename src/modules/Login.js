@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./ForgotPassword";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
-import { ROLES } from "../utils/auth";
+import { ROLES, getRoleRedirectPath } from "../utils/auth";
 import { login as apiLogin } from "../services/authAPI";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -103,10 +103,18 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login: setAuthUser, isAuthenticated, user } = useAuth();
   
-  // Redirect if already authenticated
+  // Redirect if already authenticated - based on role
   React.useEffect(() => {
     if (isAuthenticated && user) {
-      navigate("/dashboard", { state: { lang, dir } });
+      // Check if password change is required first
+      if (user.forcePasswordChange) {
+        navigate('/change-password', { state: { lang, dir } });
+        return;
+      }
+      
+      // Redirect based on user role - TENDER_ENGINEER goes to tender dashboard
+      const redirectPath = getRoleRedirectPath(user.role);
+      navigate(redirectPath, { state: { lang, dir } });
     }
   }, [isAuthenticated, user, navigate, lang, dir]);
 
@@ -219,7 +227,12 @@ export default function Login() {
           try {
             await setAuthUser(response.data.token);
             setLoading(false);
-            // Navigation will happen via useEffect when user is loaded
+            
+            // Get user role from response to redirect immediately
+            // TENDER_ENGINEER must go to /erp/tender/dashboard, not /dashboard
+            const userRole = response.data.user?.role || role;
+            const redirectPath = getRoleRedirectPath(userRole);
+            navigate(redirectPath, { state: { lang, dir } });
           } catch (err) {
             setLoading(false);
             setLoginError(lang === "en" ? "Failed to load user profile." : "فشل تحميل ملف المستخدم.");
