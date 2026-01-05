@@ -1,5 +1,5 @@
 // Authentication API service for backend connection
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://onix-erp-v2-backend-2.onrender.com/api';
 
 // Helper function to add timeout to fetch requests
 const fetchWithTimeout = (url, options, timeout = 10000) => {
