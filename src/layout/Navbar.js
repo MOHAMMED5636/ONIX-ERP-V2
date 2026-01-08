@@ -134,12 +134,12 @@ export default function Navbar({ onMenuToggle }) {
     }
     // If it's a relative path, construct full URL
     if (photo.startsWith('/uploads/')) {
-      const fullUrl = `http://localhost:3001${photo}`;
+      const fullUrl = `http://192.168.1.151:3001${photo}`;
       console.log('[Navbar] Constructed URL from relative path:', fullUrl);
       return fullUrl;
     }
     // If it's just a filename, construct full URL
-    const fullUrl = `http://localhost:3001/uploads/photos/${photo}`;
+    const fullUrl = `http://192.168.1.151:3001/uploads/photos/${photo}`;
     console.log('[Navbar] Constructed URL from filename:', fullUrl);
     return fullUrl;
   };

@@ -108,9 +108,9 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
       return photo;
     }
     if (photo.startsWith('/uploads/')) {
-      return `http://localhost:3001${photo}`;
+      return `http://192.168.1.151:3001${photo}`;
     }
-    return `http://localhost:3001/uploads/photos/${photo}`;
+    return `http://192.168.1.151:3001/uploads/photos/${photo}`;
   };
 
   const photoUrl = authUser?.photo ? getPhotoUrl(authUser.photo) : null;

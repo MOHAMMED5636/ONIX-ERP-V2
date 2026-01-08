@@ -1,11 +1,54 @@
 import { useState, useEffect } from 'react';
 
 const PhotoUpload = ({ currentPhoto, onPhotoChange, size = 'md' }) => {
-  const [preview, setPreview] = useState(currentPhoto || null);
+  const [preview, setPreview] = useState(null);
   const [file, setFile] = useState(null);
+  const [imageError, setImageError] = useState(false);
+
+  // Helper function to get photo URL (similar to Navbar/Sidebar)
+  const getPhotoUrl = (photo) => {
+    if (!photo) {
+      return null;
+    }
+    // If it's already a full URL or data URL, return as is
+    if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:')) {
+      return photo;
+    }
+    // Get backend URL from environment or use default
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.151:3001/api';
+    // Extract base URL (remove /api suffix if present)
+    let BACKEND_URL = API_BASE_URL;
+    if (BACKEND_URL.endsWith('/api')) {
+      BACKEND_URL = BACKEND_URL.slice(0, -4); // Remove '/api'
+    } else if (BACKEND_URL.endsWith('/api/')) {
+      BACKEND_URL = BACKEND_URL.slice(0, -5); // Remove '/api/'
+    }
+    
+    // If it's a relative path, construct full URL
+    if (photo.startsWith('/uploads/')) {
+      return `${BACKEND_URL}${photo}`;
+    }
+    // If it's just a filename, construct full URL
+    return `${BACKEND_URL}/uploads/photos/${photo}`;
+  };
 
   useEffect(() => {
-    setPreview(currentPhoto || null);
+    setImageError(false); // Reset error state when photo changes
+    if (currentPhoto) {
+      // If currentPhoto is a File object (from file input), use FileReader
+      if (currentPhoto instanceof File) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result);
+        };
+        reader.readAsDataURL(currentPhoto);
+      } else {
+        // Otherwise, construct URL from filename or use as-is if already a URL
+        setPreview(getPhotoUrl(currentPhoto));
+      }
+    } else {
+      setPreview(null);
+    }
   }, [currentPhoto]);
 
   const handleFileChange = (e) => {
@@ -48,14 +91,19 @@ const PhotoUpload = ({ currentPhoto, onPhotoChange, size = 'md' }) => {
   return (
     <div className="photo-upload">
       <div className={`photo-preview ${sizeClasses[size]} mx-auto mb-4`}>
-        {preview ? (
+        {preview && !imageError ? (
           <img 
             src={preview} 
             alt="Profile preview" 
             className={`${sizeClasses[size]} rounded-full object-cover border-2 border-gray-300`}
             onError={(e) => {
               // Fallback to placeholder if image fails to load
-              e.target.style.display = 'none';
+              console.error('[PhotoUpload] Failed to load image:', preview);
+              setImageError(true);
+            }}
+            onLoad={() => {
+              // Reset error state on successful load
+              setImageError(false);
             }}
           />
         ) : (

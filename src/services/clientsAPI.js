@@ -1,5 +1,5 @@
 // API service for clients management
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.151:3001/api';
 
 class ClientsAPI {
   // Get all clients with optional search and pagination
