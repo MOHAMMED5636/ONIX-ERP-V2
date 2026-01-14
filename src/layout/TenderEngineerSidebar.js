@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -65,6 +66,8 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 280 });
+  const profileButtonRef = useRef(null);
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const { user: authUser, logout: handleLogout } = useAuth();
@@ -75,10 +78,22 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Calculate dropdown position when profile menu is shown
+  React.useEffect(() => {
+    if (showProfileMenu && profileButtonRef.current) {
+      const rect = profileButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: Math.max(rect.width, 280)
+      });
+    }
+  }, [showProfileMenu]);
+
   // Close dropdown when clicking outside on mobile
   React.useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showProfileMenu && !event.target.closest('.sidebar-profile')) {
+      if (showProfileMenu && !event.target.closest('.sidebar-profile') && !event.target.closest('.profile-dropdown-menu')) {
         setShowProfileMenu(false);
       }
     };
@@ -104,13 +119,17 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
   // Helper function to get photo URL
   const getPhotoUrl = (photo) => {
     if (!photo) return null;
+    let fullUrl;
     if (photo.startsWith('http://') || photo.startsWith('https://')) {
-      return photo;
+      fullUrl = photo;
+    } else if (photo.startsWith('/uploads/')) {
+      fullUrl = `http://192.168.1.54:3001${photo}`;
+    } else {
+      fullUrl = `http://192.168.1.54:3001/uploads/photos/${photo}`;
     }
-    if (photo.startsWith('/uploads/')) {
-      return `http://192.168.1.151:3001${photo}`;
-    }
-    return `http://192.168.1.151:3001/uploads/photos/${photo}`;
+    // Add cache busting timestamp
+    const separator = fullUrl.includes('?') ? '&' : '?';
+    return `${fullUrl}${separator}t=${Date.now()}`;
   };
 
   const photoUrl = authUser?.photo ? getPhotoUrl(authUser.photo) : null;
@@ -153,17 +172,25 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
       <aside
         className={`fixed top-0 ${dir === "rtl" ? "right-0" : "left-0"} h-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl border-r border-indigo-100 z-50 transition-all duration-300
           ${isMobile ? 'w-[90vw] max-w-full transform ' + (collapsed ? '-translate-x-full' : 'translate-x-0') + ' lg:hidden' : (collapsed ? 'w-16 lg:w-16 xl:w-16' : 'w-28 lg:w-28 xl:w-28')}
-          flex flex-col justify-between`}
+          flex flex-col justify-between overflow-visible`}
         style={isMobile ? { transition: 'transform 0.3s' } : {}}
       >
-        {/* Top: Logo and User Profile */}
+        {/* Top: ONIX GROUP Logo and User Profile */}
         <div className="flex flex-col items-center gap-2 pt-4 pb-2">
-          <div className="w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center animate-logo-glow mb-1">
-            <img src="/onix-bg.png" alt="Logo" className="h-7 w-7 rounded-full" />
+          <div className="flex flex-col items-center justify-center mb-1 px-2 bg-black/90 rounded-lg py-2 px-3">
+            <div className="text-xs font-bold uppercase tracking-tight">
+              <span className="text-red-600">ONIX</span>
+              <span className="text-white"> GROUP</span>
+            </div>
+            <div className="w-full h-0.5 mt-1 bg-gradient-to-r from-white via-white to-red-600"></div>
           </div>
           {/* User Mini-Profile Card */}
           <div className="sidebar-profile w-full flex flex-col items-center mb-2 relative" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowProfileMenu((v) => !v)} className="flex flex-col items-center gap-1 w-full px-1 py-1 rounded-xl bg-white/80 shadow border border-indigo-100 hover:bg-indigo-50 transition relative">
+            <button 
+              ref={profileButtonRef}
+              onClick={() => setShowProfileMenu((v) => !v)} 
+              className="flex flex-col items-center gap-1 w-full px-1 py-1 rounded-xl bg-white/80 shadow border border-indigo-100 hover:bg-indigo-50 transition relative"
+            >
               {photoUrl ? (
                 <img 
                   src={photoUrl} 
@@ -188,19 +215,78 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            {showProfileMenu && (
-              <div className="absolute left-0 right-0 mt-14 bg-white rounded-xl shadow-lg border border-indigo-100 z-50 flex flex-col text-sm animate-fade-in" onClick={e => e.stopPropagation()}>
-                <button className="px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => setShowAdminModal(true)}>
-                  <UserCircleIcon className="inline-block w-5 h-5 mr-2 text-indigo-400" /> Profile
-                </button>
-                <Link to="/erp/tender/settings" className="px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => setShowProfileMenu(false)}>
-                  <Cog6ToothIcon className="inline-block w-5 h-5 mr-2 text-indigo-400" /> Settings
-                </Link>
-                <button className="px-4 py-2 hover:bg-red-50 text-left text-red-600" onClick={handleLogoutClick}>
-                  <ArrowRightOnRectangleIcon className="inline-block w-5 h-5 mr-2 text-red-400" /> Logout
-                </button>
+            {showProfileMenu && createPortal(
+              <div 
+                className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 z-[9999] flex flex-col overflow-hidden animate-fade-in profile-dropdown-menu"
+                style={{
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${dropdownPosition.width}px`,
+                  minWidth: '280px'
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header Section */}
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    {photoUrl ? (
+                      <img src={photoUrl} alt={getUserDisplayName()} className="h-8 w-8 rounded-full border-2 border-indigo-200 object-cover" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        {getUserDisplayName().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{getUserDisplayName()}</p>
+                      <p className="text-xs text-gray-500 truncate">Tender Engineer</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="py-2">
+                  <button 
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 text-left group"
+                    onClick={() => {
+                      setShowAdminModal(true);
+                      setShowProfileMenu(false);
+                    }}
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                      <UserCircleIcon className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <span className="font-medium text-gray-700 group-hover:text-indigo-700">Profile</span>
+                  </button>
+
+                  <Link 
+                    to="/erp/tender/settings" 
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 text-left group block"
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                      <Cog6ToothIcon className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <span className="font-medium text-gray-700 group-hover:text-gray-900">Settings</span>
+                  </Link>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-gray-200 my-1"></div>
+
+                {/* Logout Button */}
+                <div className="p-2">
+                  <button 
+                    className="w-full px-4 py-3 flex items-center gap-3 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 rounded-xl transition-all duration-200 text-left group border border-red-200 hover:border-red-300"
+                    onClick={handleLogoutClick}
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors">
+                      <ArrowRightOnRectangleIcon className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span className="font-semibold text-red-600 group-hover:text-red-700">Logout</span>
+                  </button>
+                </div>
               </div>
-            )}
+            , document.body)}
           </div>
         </div>
         

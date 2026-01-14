@@ -1,7 +1,12 @@
 import React from 'react';
 import ProfileForm from '../components/ProfileForm';
+import DocumentManagement from '../components/DocumentManagement';
+import { useAuth } from '../contexts/AuthContext';
 
 function Settings() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -19,6 +24,13 @@ function Settings() {
           </p>
           <ProfileForm />
         </div>
+
+        {/* Admin Documents Section */}
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <DocumentManagement />
+          </div>
+        )}
 
         {/* Additional Settings Sections (Optional) */}
         <div className="bg-white rounded-lg shadow-lg p-6">

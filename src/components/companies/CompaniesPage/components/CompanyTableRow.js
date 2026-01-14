@@ -4,7 +4,9 @@ import {
   EyeIcon, 
   PencilIcon, 
   TrashIcon,
-  CheckIcon
+  CheckIcon,
+  ArrowRightIcon,
+  BuildingOfficeIcon
 } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -77,24 +79,38 @@ const CompanyTableRow = ({
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center space-x-2">
+          {/* Open Company Button - Prominent and Clear */}
+          <button
+            onClick={() => navigate('/departments', { state: { selectedCompany: company } })}
+            className="group relative px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 flex items-center gap-1.5 font-medium text-xs cursor-pointer"
+            title="Open Company Dashboard"
+            aria-label="Open Company Dashboard"
+          >
+            <BuildingOfficeIcon className="h-3.5 w-3.5" />
+            <span>Open</span>
+            <ArrowRightIcon className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </button>
           <button
             onClick={() => onView(company)}
-            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
             title="View Details"
+            aria-label="View Company Details"
           >
             <EyeIcon className="h-4 w-4" />
           </button>
           <button
             onClick={() => onEdit(company)}
-            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
             title="Edit Company"
+            aria-label="Edit Company"
           >
             <PencilIcon className="h-4 w-4" />
           </button>
           <button
             onClick={() => onDelete(company.id)}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
             title="Delete Company"
+            aria-label="Delete Company"
           >
             <TrashIcon className="h-4 w-4" />
           </button>

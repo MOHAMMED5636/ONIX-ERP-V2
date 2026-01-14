@@ -12,81 +12,23 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   EllipsisVerticalIcon,
-  CheckIcon
+  CheckIcon,
+  ArrowRightIcon
 } from "@heroicons/react/24/outline";
 import { useCompanySelection } from "../../context/CompanySelectionContext";
-
-const initialCompanies = [
-  { 
-    id: 1, 
-    name: "ONIX Construction", 
-    tag: "ONIX", 
-    address: "Dubai, UAE", 
-    contact: "John Doe",
-    contactDetails: {
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+971-50-123-4567",
-      extension: "101"
-    },
-    logo: null, 
-    header: null, 
-    footer: null,
-    employees: 45,
-    status: "active",
-    industry: "Construction",
-    founded: "2018",
-    licenseExpiry: "2025-12-31",
-    licenseStatus: "active"
-  },
-  { 
-    id: 2, 
-    name: "Tech Solutions Ltd", 
-    tag: "TECH", 
-    address: "Abu Dhabi, UAE", 
-    contact: "Jane Smith",
-    contactDetails: {
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "+971-50-987-6543",
-      extension: "102"
-    },
-    logo: null, 
-    header: null, 
-    footer: null,
-    employees: 32,
-    status: "active",
-    industry: "Technology",
-    founded: "2020",
-    licenseExpiry: "2024-06-15",
-    licenseStatus: "expired"
-  },
-  { 
-    id: 3, 
-    name: "Global Engineering", 
-    tag: "GLOB", 
-    address: "Sharjah, UAE", 
-    contact: "Mike Johnson",
-    contactDetails: {
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      phone: "+971-50-555-1234",
-      extension: "103"
-    },
-    logo: null, 
-    header: null, 
-    footer: null,
-    employees: 28,
-    status: "active",
-    industry: "Engineering",
-    founded: "2019",
-    licenseExpiry: "2025-03-20",
-    licenseStatus: "active"
-  },
-];
+import { getCompanies, deleteCompany as deleteCompanyAPI, getCompanyStats } from "../../services/companiesAPI";
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    totalCompanies: 0,
+    activeCompanies: 0,
+    totalEmployees: 0,
+    industries: 0,
+    activeLicenses: 0
+  });
   const [viewCompany, setViewCompany] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,24 +38,85 @@ export default function CompaniesPage() {
   const navigate = useNavigate();
   const { selectedCompany, selectCompany } = useCompanySelection();
 
-  // Load companies from localStorage on component mount
+  // Load companies from backend API
   useEffect(() => {
-    const savedCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    // Merge saved companies with initial companies, avoiding duplicates
-    const allCompanies = [...initialCompanies];
-    savedCompanies.forEach(savedCompany => {
-      if (!allCompanies.find(company => company.id === savedCompany.id)) {
-        allCompanies.push(savedCompany);
-      }
-    });
-    setCompanies(allCompanies);
-  }, []);
+    loadCompanies();
+    loadStats();
+  }, [filterStatus, filterLicenseStatus, searchTerm]);
 
-  const handleDelete = (id) => {
+  const loadCompanies = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const filters = {
+        status: filterStatus !== 'all' ? filterStatus : undefined,
+        licenseStatus: filterLicenseStatus !== 'all' ? filterLicenseStatus : undefined,
+        search: searchTerm || undefined,
+      };
+      
+      const response = await getCompanies(filters);
+      
+      if (response.success && response.data) {
+        // Map backend data to frontend format
+        const mappedCompanies = response.data.map(company => ({
+          id: company.id,
+          name: company.name,
+          tag: company.tag || '',
+          address: company.address || '',
+          contact: company.contactName || '',
+          contactDetails: {
+            name: company.contactName || '',
+            email: company.contactEmail || '',
+            phone: company.contactPhone || '',
+            extension: company.contactExtension || ''
+          },
+          logo: company.logo,
+          header: company.header,
+          footer: company.footer,
+          employees: company.employees || 0,
+          status: company.status?.toLowerCase() || 'active',
+          industry: company.industry || '',
+          founded: company.founded || '',
+          licenseExpiry: company.licenseExpiry || '',
+          licenseStatus: company.licenseStatus?.toLowerCase() || 'active'
+        }));
+        
+        setCompanies(mappedCompanies);
+      } else {
+        setCompanies([]);
+      }
+    } catch (err) {
+      console.error('Error loading companies:', err);
+      setError(err.message || 'Failed to load companies');
+      setCompanies([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const response = await getCompanyStats();
+      if (response.success && response.data) {
+        setStats(response.data);
+      }
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    }
+  };
+
+  const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this company?")) {
-      const updatedCompanies = companies.filter(company => company.id !== id);
-      setCompanies(updatedCompanies);
-      localStorage.setItem('companies', JSON.stringify(updatedCompanies));
+      try {
+        await deleteCompanyAPI(id);
+        // Reload companies after deletion
+        await loadCompanies();
+        await loadStats();
+      } catch (err) {
+        console.error('Error deleting company:', err);
+        alert('Failed to delete company: ' + (err.message || 'Unknown error'));
+      }
     }
   };
 
@@ -214,66 +217,71 @@ export default function CompaniesPage() {
           )}
           
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Companies</p>
-                  <p className="text-2xl font-bold text-gray-900">{companies.length}</p>
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-600">Error: {error}</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Companies</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalCompanies || companies.length}</p>
+                  </div>
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <BuildingOfficeIcon className="h-6 w-6 text-indigo-600" />
+                  </div>
                 </div>
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <BuildingOfficeIcon className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Active</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.activeCompanies || companies.filter(c => c.status === 'active').length}</p>
+                  </div>
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <div className="h-6 w-6 bg-green-500 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Employees</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats.totalEmployees || companies.reduce((sum, c) => sum + (c.employees || 0), 0)}</p>
+                  </div>
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <div className="h-6 w-6 bg-purple-500 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Industries</p>
+                    <p className="text-2xl font-bold text-orange-600">{stats.industries || new Set(companies.map(c => c.industry)).size}</p>
+                  </div>
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <div className="h-6 w-6 bg-orange-500 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Active Licenses</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.activeLicenses || companies.filter(c => c.licenseStatus === 'active').length}</p>
+                  </div>
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active</p>
-                  <p className="text-2xl font-bold text-green-600">{companies.filter(c => c.status === 'active').length}</p>
-                </div>
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <div className="h-6 w-6 bg-green-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                  <p className="text-2xl font-bold text-gray-900">{companies.reduce((sum, c) => sum + (c.employees || 0), 0)}</p>
-                </div>
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <div className="h-6 w-6 bg-purple-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Industries</p>
-                  <p className="text-2xl font-bold text-gray-900">{new Set(companies.map(c => c.industry)).size}</p>
-                </div>
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <div className="h-6 w-6 bg-orange-500 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active Licenses</p>
-                  <p className="text-2xl font-bold text-green-600">{companies.filter(c => c.licenseStatus === 'active').length}</p>
-                </div>
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          )}
 
         {/* Enhanced Action Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -443,24 +451,38 @@ export default function CompaniesPage() {
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center gap-2">
+                      {/* Open Company Button - Prominent and Clear */}
+                      <button 
+                        onClick={() => navigate('/departments', { state: { selectedCompany: company } })}
+                        className="group relative px-3 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center gap-2 font-medium text-sm cursor-pointer"
+                        title="Open Company Dashboard"
+                        aria-label="Open Company Dashboard"
+                      >
+                        <BuildingOfficeIcon className="h-4 w-4" />
+                        <span className="hidden sm:inline">Open</span>
+                        <ArrowRightIcon className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      </button>
                       <button 
                         onClick={() => handleView(company)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                         title="View Details"
+                        aria-label="View Company Details"
                       >
                         <EyeIcon className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => handleEdit(company)}
-                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                         title="Edit Company"
+                        aria-label="Edit Company"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => handleDelete(company.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                         title="Delete Company"
+                        aria-label="Delete Company"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>
@@ -574,24 +596,38 @@ export default function CompaniesPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
+                          {/* Open Company Button - Prominent and Clear */}
+                          <button
+                            onClick={() => navigate('/departments', { state: { selectedCompany: company } })}
+                            className="group relative px-2.5 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-md transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 flex items-center gap-1.5 font-medium text-xs cursor-pointer"
+                            title="Open Company Dashboard"
+                            aria-label="Open Company Dashboard"
+                          >
+                            <BuildingOfficeIcon className="h-3.5 w-3.5" />
+                            <span>Open</span>
+                            <ArrowRightIcon className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                          </button>
                           <button
                             onClick={() => handleView(company)}
-                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
                             title="View Details"
+                            aria-label="View Company Details"
                           >
                             <EyeIcon className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleEdit(company)}
-                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
                             title="Edit Company"
+                            aria-label="Edit Company"
                           >
                             <PencilIcon className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(company.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                             title="Delete Company"
+                            aria-label="Delete Company"
                           >
                             <TrashIcon className="h-4 w-4" />
                           </button>
@@ -857,6 +893,7 @@ export default function CompaniesPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 } 

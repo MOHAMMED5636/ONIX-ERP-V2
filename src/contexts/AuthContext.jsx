@@ -92,7 +92,42 @@ export const AuthProvider = ({ children }) => {
   // Refresh user profile
   const refreshUser = async () => {
     setLoading(true);
-    await fetchUserProfile();
+    try {
+      await fetchUserProfile();
+      // Add small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      setLoading(false);
+    }
+  };
+  
+  // Update user data directly (for immediate updates)
+  const updateUserData = (userData) => {
+    if (userData) {
+      console.log('[AuthContext] Updating user data:', userData);
+      console.log('[AuthContext] Old photo:', user?.photo);
+      console.log('[AuthContext] New photo path:', userData.photo);
+      
+      // Update state immediately
+      setUser(prevUser => {
+        const updatedUser = { ...prevUser, ...userData };
+        console.log('[AuthContext] Updated user object:', updatedUser);
+        return updatedUser;
+      });
+      
+      // Update localStorage
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+      localStorage.setItem('isAuthenticated', 'true');
+      if (userData.role) {
+        localStorage.setItem('userRole', userData.role);
+      }
+      
+      // Force a small delay to ensure state updates propagate
+      setTimeout(() => {
+        console.log('[AuthContext] User state updated, verifying photo:', userData.photo);
+      }, 100);
+    }
   };
 
   const value = {
@@ -102,6 +137,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     refreshUser,
+    updateUserData,
     isAuthenticated: !!user && !!getToken(),
   };
 

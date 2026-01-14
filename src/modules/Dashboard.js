@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
 import 'react-calendar/dist/Calendar.css';
 import './calendar-custom.css'; // Custom styles for react-calendar
@@ -173,8 +174,11 @@ function AnimatedNumber({ n }) {
 
 export default function Dashboard() {
   const { t } = useLanguage();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAIChatbot, setShowAIChatbot] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   
   // Dashboard data state
   const [dashboardData, setDashboardData] = useState({
@@ -216,36 +220,95 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Fetch dashboard data from backend
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setDashboardData(prev => ({ ...prev, loading: true, error: null }));
+  /**
+   * Fetch dashboard data from backend
+   * This function is called on mount and when refresh is needed
+   */
+  const fetchDashboardData = async (detailed = false) => {
+    try {
+      setDashboardData(prev => ({ ...prev, loading: true, error: null }));
+      
+      // Fetch summary data (or detailed stats if needed)
+      // IMPORTANT: This fetches from backend API - no hardcoded values
+      const summaryResponse = detailed 
+        ? await getDashboardStats() 
+        : await getDashboardSummary();
+      
+      // Log response for debugging
+      console.log('📊 Dashboard - API Response:', summaryResponse);
+      
+      if (summaryResponse.success && summaryResponse.data) {
+        // Map API response to state - ensure activeProjects is a number
+        const activeProjects = Number(summaryResponse.data.activeProjects) || 0;
+        const activeTasks = Number(summaryResponse.data.activeTasks) || 0;
         
-        // Fetch summary data
-        const summaryResponse = await getDashboardSummary();
+        console.log(`📊 Dashboard - Setting state: activeProjects=${activeProjects}, activeTasks=${activeTasks}`);
         
-        if (summaryResponse.success) {
-          setDashboardData(prev => ({
-            ...prev,
-            ...summaryResponse.data,
-            loading: false
-          }));
-        } else {
-          throw new Error('Failed to fetch dashboard data');
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
         setDashboardData(prev => ({
           ...prev,
+          activeProjects,  // Use mapped value, not from spread (ensures correct type)
+          activeTasks,
+          teamMembers: Number(summaryResponse.data.teamMembers) || 0,
+          inProgressTenders: Number(summaryResponse.data.inProgressTenders) || 0,
+          totalClients: Number(summaryResponse.data.totalClients) || 0,
+          totalTenders: Number(summaryResponse.data.totalTenders) || 0,
+          pendingInvitations: Number(summaryResponse.data.pendingInvitations) || 0,
           loading: false,
-          error: error.message || 'Failed to load dashboard data'
+          error: null
         }));
+        setLastUpdated(new Date());
+      } else {
+        throw new Error(summaryResponse.message || 'Failed to fetch dashboard data');
       }
-    };
+    } catch (error) {
+      console.error('❌ Error fetching dashboard data:', error);
+      // On error, set all counts to 0 (not hardcoded 3)
+      setDashboardData(prev => ({
+        ...prev,
+        activeProjects: 0,  // Always 0 on error
+        activeTasks: 0,
+        teamMembers: 0,
+        inProgressTenders: 0,
+        totalClients: 0,
+        totalTenders: 0,
+        pendingInvitations: 0,
+        loading: false,
+        error: error.message || 'Failed to load dashboard data'
+      }));
+    }
+  };
 
+  // Initial fetch on mount
+  useEffect(() => {
     fetchDashboardData();
+    
+    // Check for localStorage refresh flag (set when tasks/projects are created in MainTable)
+    const shouldRefresh = localStorage.getItem('dashboardNeedsRefresh');
+    if (shouldRefresh === 'true') {
+      fetchDashboardData(true);
+      localStorage.removeItem('dashboardNeedsRefresh');
+    }
   }, []);
+
+  /**
+   * Auto-refresh when navigating back from projects/tasks pages
+   * This ensures counts are updated after creating/editing projects or tasks
+   */
+  useEffect(() => {
+    // Check if we're coming back from a project or task page with refresh flag
+    if (location.state?.refreshDashboard) {
+      fetchDashboardData(true); // Fetch detailed stats on refresh
+      // Clear the refresh flag
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Also check localStorage flag on location change
+    const shouldRefresh = localStorage.getItem('dashboardNeedsRefresh');
+    if (shouldRefresh === 'true') {
+      fetchDashboardData(true);
+      localStorage.removeItem('dashboardNeedsRefresh');
+    }
+  }, [location]);
 
   // Save widget order to localStorage
   useEffect(() => {
@@ -340,10 +403,34 @@ export default function Dashboard() {
               <img src={onixLogo} alt="Onix Logo" className="h-14 w-14 rounded-full shadow-lg border-2 border-white bg-white object-cover" />
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">Welcome back to <span className="font-extrabold">Onix Engineering Consultancy</span>!</h1>
-                <p className="text-white text-sm sm:text-base opacity-90">Here’s your company snapshot and quick actions.</p>
+                <p className="text-white text-sm sm:text-base opacity-90">
+                  Here's your company snapshot and quick actions.
+                  {lastUpdated && (
+                    <span className="ml-2 text-xs opacity-75">
+                      Last updated: {lastUpdated.toLocaleTimeString()}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
+              <button 
+                onClick={() => fetchDashboardData(true)}
+                disabled={dashboardData.loading}
+                className="bg-white bg-opacity-80 hover:bg-opacity-100 text-indigo-700 font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 ripple disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh Dashboard"
+              >
+                <svg 
+                  className={`h-5 w-5 text-indigo-500 ${dashboardData.loading ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {dashboardData.loading ? 'Refreshing...' : 'Refresh'}
+              </button>
               <button className="bg-white bg-opacity-80 hover:bg-opacity-100 text-indigo-700 font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 ripple">
                 <svg className="h-5 w-5 text-indigo-500 bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                 Add Task

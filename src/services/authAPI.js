@@ -1,5 +1,5 @@
 // Authentication API service for backend connection
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.151:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
 
 // Helper function to add timeout to fetch requests
 const fetchWithTimeout = (url, options, timeout = 10000) => {
@@ -61,7 +61,7 @@ export const login = async (email, password, role) => {
     if (error.message.includes('timeout')) {
       throw new Error('Connection timeout - please check if backend is running on port 3001');
     } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      throw new Error('Cannot connect to server - make sure backend is running on http://192.168.1.151:3001');
+      throw new Error('Cannot connect to server - make sure backend is running on http://192.168.1.54:3001');
     }
     throw error;
   }
@@ -356,6 +356,14 @@ export const updateProfile = async (formData) => {
       throw new Error('No token found');
     }
 
+    // Log FormData contents for debugging (in development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Uploading profile with FormData:');
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ', pair[1] instanceof File ? `${pair[1].name} (${pair[1].size} bytes)` : pair[1]);
+      }
+    }
+
     const response = await fetch(`${API_BASE_URL}/auth/profile`, {
       method: 'PUT',
       headers: {
@@ -366,15 +374,69 @@ export const updateProfile = async (formData) => {
       body: formData, // FormData object
     });
 
-    const data = await response.json();
-
+    // Check if response is ok before parsing
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to update profile');
+      // Try to get error message from response
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } else {
+          // If response is HTML (like an error page), get text instead
+          const text = await response.text();
+          console.error('Non-JSON error response:', text.substring(0, 200));
+          errorMessage = `Server error (${response.status}). Check backend logs.`;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse error response:', parseError);
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Parse response
+    let data;
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // If response is not JSON, something is wrong
+        const text = await response.text();
+        console.error('Non-JSON response received:', text.substring(0, 200));
+        throw new Error('Server returned non-JSON response. Check backend implementation.');
+      }
+    } catch (parseError) {
+      console.error('Failed to parse response:', parseError);
+      throw new Error('Failed to parse server response. Check backend implementation.');
+    }
+
+    // Log response for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Profile update response:', data);
+      if (data.data && data.data.photo) {
+        console.log('Updated photo path:', data.data.photo);
+      } else {
+        console.warn('Warning: Response does not include photo path');
+        console.warn('Response structure:', JSON.stringify(data, null, 2));
+      }
+    }
+
+    // Ensure response has the expected structure
+    if (!data.success) {
+      throw new Error(data.message || 'Profile update failed');
     }
 
     return data;
   } catch (error) {
     console.error('Update profile error:', error);
+    
+    // Provide more helpful error messages
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error('Cannot connect to server. Please check:\n1. Backend server is running on http://192.168.1.54:3001\n2. CORS is configured correctly\n3. Network connection is working');
+    }
+    
     throw error;
   }
 };

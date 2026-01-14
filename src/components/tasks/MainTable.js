@@ -47,6 +47,7 @@ import useSocket from "../../hooks/useSocket";
 import { MessageCircle } from 'lucide-react';
 import EngineerInviteModal from "./MainTable/EngineerInviteModal";
 import { sendTenderInvitations } from "../../services/tenderAPI";
+import { createProject } from "../../services/projectsAPI";
 
 
 // Import utilities
@@ -969,7 +970,7 @@ export default function MainTable() {
       })
     );
   }
-  function handleCreateTask() {
+  async function handleCreateTask() {
     if (!newTask) {
       return;
     }
@@ -981,21 +982,97 @@ export default function MainTable() {
       return;
     }
     
-    // Create the task with auto-generated reference number
-    const taskToAdd = {
-      ...newTask,
-      id: generateTaskId(),
-      expanded: false
-    };
-    
-    setTasks(tasks => {
-      const updatedTasks = [...tasks, taskToAdd];
-      return calculateTaskTimelines(updatedTasks, projectStartDate);
-    });
-    
-    // Clear the new task form
-    setNewTask(null);
-    setShowNewTask(false);
+    try {
+      // IMPORTANT: Save project to database via API
+      // Map frontend status to backend enum values
+      const statusMap = {
+        'Pending': 'OPEN',
+        'pending': 'OPEN',
+        'not started': 'OPEN',
+        'In Progress': 'IN_PROGRESS',
+        'in progress': 'IN_PROGRESS',
+        'Done': 'COMPLETED',
+        'done': 'COMPLETED',
+        'Completed': 'COMPLETED',
+        'Cancelled': 'CANCELLED',
+        'cancelled': 'CANCELLED',
+        'Suspended': 'ON_HOLD',
+        'suspended': 'ON_HOLD',
+        'On Hold': 'ON_HOLD',
+        'on hold': 'ON_HOLD',
+      };
+      
+      const backendStatus = statusMap[newTask.status] || 'OPEN'; // Default to OPEN
+      
+      // Map newTask to API format
+      const projectData = {
+        name: newTask.name || 'Untitled Project',
+        referenceNumber: newTask.referenceNumber || `REF-${Date.now()}`,
+        pin: newTask.pin || null,
+        clientId: newTask.clientId || null,
+        owner: newTask.owner || null,
+        description: newTask.description || newTask.notes || null,
+        status: backendStatus, // Use mapped enum value (OPEN, IN_PROGRESS, etc.)
+        projectManagerId: newTask.projectManagerId || null,
+        startDate: newTask.startDate || (newTask.timeline && newTask.timeline[0] ? new Date(newTask.timeline[0]) : null),
+        endDate: newTask.endDate || (newTask.timeline && newTask.timeline[1] ? new Date(newTask.timeline[1]) : null),
+        deadline: newTask.deadline || null,
+        planDays: newTask.planDays ? parseInt(newTask.planDays, 10) : null,
+        remarks: newTask.remarks || null,
+        assigneeNotes: newTask.assigneeNotes || null,
+      };
+      
+      console.log('📝 Creating project via API:', projectData);
+      
+      // Call backend API to create project
+      const response = await createProject(projectData);
+      
+      if (response.success && response.data) {
+        console.log('✅ Project created successfully in database:', response.data);
+        
+        // Create the task with data from API response
+        const taskToAdd = {
+          ...newTask,
+          id: response.data.id || generateTaskId(), // Use ID from database
+          referenceNumber: response.data.referenceNumber,
+          status: response.data.status,
+          expanded: false
+        };
+        
+        // Update local state with the created project
+        setTasks(tasks => {
+          const updatedTasks = [...tasks, taskToAdd];
+          return calculateTaskTimelines(updatedTasks, projectStartDate);
+        });
+        
+        // Set flag to refresh dashboard when user navigates to it
+        // This ensures Active Projects/Tasks counts are updated
+        localStorage.setItem('dashboardNeedsRefresh', 'true');
+        
+        // Show success message
+        setToast({
+          message: 'Project created successfully!',
+          type: 'success'
+        });
+        
+        // Clear the new task form
+        setNewTask(null);
+        setShowNewTask(false);
+      } else {
+        throw new Error(response.message || 'Failed to create project');
+      }
+    } catch (error) {
+      console.error('❌ Error creating project:', error);
+      
+      // Show error message
+      setToast({
+        message: error.message || 'Failed to create project. Please try again.',
+        type: 'error'
+      });
+      
+      // Don't update local state if API call failed
+      // This ensures UI and database stay in sync
+    }
   }
 
   // Keyboard handlers for input fields
@@ -1273,6 +1350,10 @@ export default function MainTable() {
     });
     setShowSubtaskForm(null);
     
+    // Set flag to refresh dashboard when user navigates to it
+    // This ensures Active Tasks count is updated if subtask affects parent status
+    localStorage.setItem('dashboardNeedsRefresh', 'true');
+    
     // Reset newSubtask to default values
     setNewSubtask(createNewSubtask());
   }
@@ -1463,6 +1544,11 @@ export default function MainTable() {
       return;
     }
 
+    // Check if status is being updated (affects Active Tasks count)
+    const isStatusUpdate = col === 'status';
+    const statusValues = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'ON_HOLD', 'pending', 'In Progress', 'Done', 'Cancelled', 'Suspended'];
+    const isStatusChange = isStatusUpdate && statusValues.includes(value);
+
     setTasks(tasks => {
       const idx = tasks.findIndex(t => t.id === task.id);
       let updatedTasks = tasks.map(t => ({ ...t }));
@@ -1496,6 +1582,11 @@ export default function MainTable() {
       
       return updatedTasks;
     });
+    
+    // Set flag to refresh dashboard when status changes (affects Active Tasks count)
+    if (isStatusChange) {
+      localStorage.setItem('dashboardNeedsRefresh', 'true');
+    }
   }
 
   function handleOpenMapPicker(type, taskId, subId, latLngStr) {

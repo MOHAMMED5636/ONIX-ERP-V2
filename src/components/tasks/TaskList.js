@@ -33,7 +33,6 @@ import FormView from "./FormView";
 import FileGallery from "./FileGallery";
 import DocView from "./DocView";
 import CustomizableView from "./CustomizableView";
-import TaskSidebar from "./TaskSidebar";
 import AIChatbot from "./AIChatbot";
 import ProjectLifeCycle from "../ProjectLifeCycle";
 
@@ -43,63 +42,7 @@ export default function TaskList() {
   const { lang, toggleLanguage } = useLanguage();
 
   // Enhanced notifications data with more details
-  const notifications = [
-    {
-      id: 1,
-      title: "New Task Assigned",
-      message: "You have been assigned to 'Website Development' project with high priority",
-      time: "2 minutes ago",
-      type: "task",
-      read: false,
-      priority: "high",
-      avatar: "👨‍💻",
-      action: "View Task"
-    },
-    {
-      id: 2,
-      title: "Project Deadline Reminder",
-      message: "Mobile App Design project deadline is approaching in 3 days",
-      time: "15 minutes ago",
-      type: "deadline",
-      read: false,
-      priority: "urgent",
-      avatar: "⏰",
-      action: "View Project"
-    },
-    {
-      id: 3,
-      title: "System Maintenance",
-      message: "ERP system will be updated tonight at 2:00 AM for 30 minutes",
-      time: "1 hour ago",
-      type: "system",
-      read: true,
-      priority: "medium",
-      avatar: "🔧",
-      action: "Learn More"
-    },
-    {
-      id: 4,
-      title: "Team Update",
-      message: "Sarah Johnson joined the Architecture Department as Senior Architect",
-      time: "2 hours ago",
-      type: "team",
-      read: true,
-      priority: "low",
-      avatar: "👋",
-      action: "View Team"
-    },
-    {
-      id: 5,
-      title: "Document Approved",
-      message: "Your project proposal has been approved by the management team",
-      time: "3 hours ago",
-      type: "approval",
-      read: false,
-      priority: "medium",
-      avatar: "✅",
-      action: "View Document"
-    }
-  ];
+  const notifications = [];
 
   const unreadCount = notifications.filter(n => !n.read).length;
   
@@ -234,12 +177,9 @@ export default function TaskList() {
   }, []);
 
   return (
-    <div className="tasks-full-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden">
-      {/* Sidebar */}
-      <TaskSidebar />
-      
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden h-full w-full">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
       {/* Enhanced Header Bar */}
       <header className="flex-shrink-0 w-full bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 flex items-center px-3 sm:px-6 py-4 z-40 relative min-h-0">
         {/* Animated background elements */}
@@ -248,18 +188,10 @@ export default function TaskList() {
         <div className="absolute top-0 right-1/4 w-24 h-24 bg-purple-400/10 rounded-full blur-2xl animate-pulse delay-1000"></div>
         
         <div className="relative z-10 flex items-center w-full gap-4">
-          {/* Left section: Enhanced Logo */}
+          {/* Left section: Title */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="flex items-center gap-2 group">
-              <div className="relative">
-                <img 
-                  src="/onix-bg.png" 
-                  alt="Logo" 
-                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl border-2 border-white/50 shadow-lg group-hover:scale-110 transition-all duration-300 group-hover:shadow-xl" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </div>
-              <div className="hidden sm:block">
+            <div className="flex items-center gap-2">
+              <div>
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Project Management
                 </h1>

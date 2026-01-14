@@ -268,7 +268,13 @@ export default function CreateTask() {
           </button>
           <button
             type="button"
-            onClick={() => navigate("/tasks")}
+            onClick={() => {
+              // After creating task, navigate to dashboard with refresh flag
+              // This will trigger dashboard to refresh and show updated counts
+              navigate("/dashboard", { 
+                state: { refreshDashboard: true } 
+              });
+            }}
             className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 text-sm w-full md:w-auto md:ml-auto"
           >
             Create Task

@@ -11,8 +11,8 @@ import {
 import enhancedNotificationsData from '../data/enhancedNotifications.json';
 
 const EnhancedNotifications = ({ isOpen, onClose, unreadCount = 0 }) => {
-  const [notifications, setNotifications] = useState(enhancedNotificationsData);
-  const [filteredNotifications, setFilteredNotifications] = useState(enhancedNotificationsData);
+  const [notifications, setNotifications] = useState([]);
+  const [filteredNotifications, setFilteredNotifications] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('date');

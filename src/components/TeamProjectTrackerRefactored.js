@@ -47,9 +47,7 @@ function GoogleMapPickerDemo({ onPick, onClose }) {
           >
             Pick Dubai
           </button>
-          <button
-            className="w-full bg-green-500 text-white p-2 rration sdboard
-            
+        </div>
         <button
           className="mt-4 w-full bg-gray-500 text-white p-2 rounded"
           onClick={onClose}

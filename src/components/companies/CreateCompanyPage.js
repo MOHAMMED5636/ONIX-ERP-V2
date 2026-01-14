@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { createCompany, updateCompany } from "../../services/companiesAPI";
 
 export default function CreateCompanyPage() {
   const navigate = useNavigate();
@@ -67,30 +68,46 @@ export default function CreateCompanyPage() {
     }
   }, [isEditMode]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Get existing companies from localStorage or use empty array
-    const existingCompanies = JSON.parse(localStorage.getItem('companies') || '[]');
-    
-    if (isEditMode) {
-      // Update existing company
-      const updatedCompanies = existingCompanies.map(company => 
-        company.id === isEditMode.id ? { ...company, ...form } : company
-      );
-      localStorage.setItem('companies', JSON.stringify(updatedCompanies));
-    } else {
-      // Add new company
-      const newCompany = {
-        ...form,
-        id: Date.now()
+    try {
+      // Map form data to API format
+      const companyData = {
+        name: form.name,
+        tag: form.tag || null,
+        address: form.address || null,
+        industry: form.licenseCategory || null,
+        founded: form.issueDate || null,
+        status: 'ACTIVE', // Default to active
+        contactName: form.contact || null,
+        contactEmail: contacts[0]?.email || null,
+        contactPhone: contacts[0]?.phone || null,
+        contactExtension: contacts[0]?.extension || null,
+        licenseExpiry: form.expiryDate || null,
+        licenseStatus: form.expiryDate && new Date(form.expiryDate) > new Date() ? 'ACTIVE' : 'EXPIRED',
+        logo: form.logo || null,
+        header: form.header || null,
+        footer: form.footer || null,
+        employees: 0, // Default, can be updated later
       };
-      const updatedCompanies = [...existingCompanies, newCompany];
-      localStorage.setItem('companies', JSON.stringify(updatedCompanies));
+      
+      if (isEditMode && isEditMode.id) {
+        // Update existing company via API
+        console.log('📝 Updating company:', isEditMode.id);
+        await updateCompany(isEditMode.id, companyData);
+      } else {
+        // Create new company via API
+        console.log('📝 Creating company via API');
+        await createCompany(companyData);
+      }
+      
+      // Redirect to companies page
+      navigate('/companies');
+    } catch (error) {
+      console.error('Error saving company:', error);
+      alert('Failed to save company: ' + (error.message || 'Unknown error'));
     }
-    
-    // Redirect to companies page
-    navigate('/companies');
   };
 
   const handleFileChange = (field, files) => {

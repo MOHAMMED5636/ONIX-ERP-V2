@@ -1,21 +1,31 @@
 import { useState, useEffect } from 'react';
 import { updateProfile } from '../services/authAPI';
-import PhotoUpload from './PhotoUpload';
+import PhotoUploadEnhanced from './PhotoUploadEnhanced';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProfileForm = ({ onUpdate }) => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, updateUserData } = useAuth();
   const [jobTitle, setJobTitle] = useState(user?.jobTitle || '');
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [photoUpdateKey, setPhotoUpdateKey] = useState(0); // Force photo component refresh
 
   useEffect(() => {
     if (user) {
       setJobTitle(user.jobTitle || '');
     }
   }, [user]);
+  
+  // Separate effect to watch for photo changes and force refresh
+  useEffect(() => {
+    if (user?.photo) {
+      console.log('[ProfileForm] User photo detected:', user.photo);
+      // Force PhotoUploadEnhanced to re-render with new photo
+      setPhotoUpdateKey(prev => prev + 1);
+    }
+  }, [user?.photo]); // Only watch photo changes
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,25 +44,93 @@ const ProfileForm = ({ onUpdate }) => {
 
       const response = await updateProfile(formData);
       
-      if (response.success) {
+      console.log('Profile update response:', response);
+      
+      if (response && response.success) {
         setSuccess(true);
-        // Refresh user data from context
-        if (refreshUser) {
-          await refreshUser();
+        
+        // Update user data immediately from response (before refresh)
+        // This ensures the photo shows up right away without waiting for API call
+        if (response.data) {
+          console.log('Profile update response data:', JSON.stringify(response.data, null, 2));
+          
+          // Check if photo is in response
+          if (response.data.photo) {
+            console.log('✅ New photo path received from backend:', response.data.photo);
+            console.log('✅ Old photo was:', user?.photo);
+            console.log('✅ Photo path changed:', user?.photo !== response.data.photo);
+          } else {
+            console.warn('⚠️ WARNING: Response does not include photo path!');
+            console.warn('Backend response structure:', Object.keys(response.data));
+            console.warn('This means the backend is NOT returning the updated photo path.');
+            console.warn('Please check backend implementation - it should return data.photo with the new photo path.');
+          }
+          
+          if (updateUserData) {
+            console.log('Calling updateUserData with:', response.data);
+            updateUserData(response.data);
+            console.log('User data updated in context');
+            
+            // Force PhotoUploadEnhanced to re-render with new photo
+            if (response.data.photo) {
+              setPhotoUpdateKey(prev => prev + 1);
+              console.log('Photo update key incremented to force re-render');
+            }
+            
+            // Force a re-render by updating a state that triggers useEffect
+            // The PhotoUploadEnhanced component should pick up the new user.photo
+            setTimeout(() => {
+              console.log('Verifying user photo after update:', user?.photo);
+              console.log('Expected photo:', response.data.photo);
+            }, 200);
+          } else {
+            console.error('updateUserData function not available!');
+          }
+        } else {
+          console.error('Response does not include data field!', response);
         }
-        if (onUpdate) {
-          onUpdate(response.data);
-        }
+        
         // Clear photo file after successful upload
         setPhoto(null);
         
-        // Force page refresh after 1 second to ensure photo displays everywhere
+        // Also refresh from server to ensure we have the latest data
+        if (refreshUser) {
+          // Wait a bit for the file to be fully saved on server
+          setTimeout(async () => {
+            console.log('Refreshing user data from server...');
+            await refreshUser();
+            console.log('User refreshed, new photo:', user?.photo);
+          }, 1000);
+        }
+        
+        if (onUpdate) {
+          onUpdate(response.data);
+        }
+        
+        // Force page refresh after 3 seconds to ensure photo displays everywhere
         setTimeout(() => {
+          console.log('Reloading page to show updated photo...');
           window.location.reload();
-        }, 1000);
+        }, 3000);
+      } else {
+        const errorMsg = response?.message || 'Failed to update profile';
+        console.error('Profile update failed:', errorMsg, response);
+        throw new Error(errorMsg);
       }
     } catch (err) {
-      setError(err.message || 'Failed to update profile');
+      console.error('Profile update error details:', err);
+      let errorMessage = err.message || 'Failed to update profile';
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to backend server. Please ensure:\n1. Backend is running on http://192.168.1.54:3001\n2. CORS is configured\n3. Network connection is working';
+      } else if (errorMessage.includes('404')) {
+        errorMessage = 'Profile update endpoint not found. Please check backend implementation.';
+      } else if (errorMessage.includes('500')) {
+        errorMessage = 'Server error occurred. Please check backend logs.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -64,10 +142,12 @@ const ProfileForm = ({ onUpdate }) => {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Profile Photo
         </label>
-        <PhotoUpload 
+        <PhotoUploadEnhanced 
+          key={photoUpdateKey} // Force re-render when photo updates
           currentPhoto={user?.photo} 
           onPhotoChange={setPhoto}
           size="lg"
+          shape="circle"
         />
         <p className="text-xs text-gray-500 mt-2">
           Accepted formats: JPEG, PNG, GIF, WebP (Max 5MB)

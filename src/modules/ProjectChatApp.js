@@ -1,28 +1,58 @@
-import React, { useState } from "react";
-import Sidebar from "../components/Sidebar";
-import ChatHeader from "../components/ChatHeader";
-import ChatRoom from "../components/ChatRoom";
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  ChatBubbleLeftRightIcon,
+  PaperClipIcon,
+  PaperAirplaneIcon,
+  MagnifyingGlassIcon,
+  EllipsisVerticalIcon,
+  VideoCameraIcon,
+  PhoneIcon,
+  XMarkIcon,
+  Bars3Icon,
+} from "@heroicons/react/24/outline";
 
 const chatGroups = [
-  { id: "contract", name: "Sign the Contract" },
-  { id: "architecture", name: "Architecture Concept Design" },
-  { id: "test-task-2", name: "Test Task 2" },
+  { 
+    id: "contract", 
+    name: "Sign the Contract",
+    lastMessage: "Hey team, are we ready for the meeting?",
+    time: "10:04 AM",
+    unread: 2,
+    avatar: "https://ui-avatars.com/api/?name=Contract&background=6366f1&color=fff"
+  },
+  { 
+    id: "architecture", 
+    name: "Architecture Concept Design",
+    lastMessage: "Let's finalize the architecture diagrams today.",
+    time: "09:05 AM",
+    unread: 0,
+    avatar: "https://ui-avatars.com/api/?name=Architecture&background=8b5cf6&color=fff"
+  },
+  { 
+    id: "test-task-2", 
+    name: "Test Task 2",
+    lastMessage: "Test Task 2 is almost done.",
+    time: "11:10 AM",
+    unread: 1,
+    avatar: "https://ui-avatars.com/api/?name=Test+Task&background=ec4899&color=fff"
+  },
 ];
 
 const initialMessages = {
   contract: [
-    { user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "10:01 AM", text: "Hey team, are we ready for the meeting?" },
-    { user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "10:02 AM", text: "Almost! Just finishing up my notes." },
-    { user: "Charlie", avatar: "https://ui-avatars.com/api/?name=Charlie&background=fbbf24&color=fff", time: "10:03 AM", text: "I'll join in 2 minutes." },
-    { user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "10:04 AM", text: "Great, see you all there!" },
+    { id: 1, user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "10:01 AM", text: "Hey team, are we ready for the meeting?" },
+    { id: 2, user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "10:02 AM", text: "Almost! Just finishing up my notes." },
+    { id: 3, user: "Charlie", avatar: "https://ui-avatars.com/api/?name=Charlie&background=fbbf24&color=fff", time: "10:03 AM", text: "I'll join in 2 minutes." },
+    { id: 4, user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "10:04 AM", text: "Great, see you all there!" },
   ],
   architecture: [
-    { user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "09:00 AM", text: "Let's finalize the architecture diagrams today." },
-    { user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "09:05 AM", text: "Agreed! I'll share my notes soon." },
+    { id: 1, user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "09:00 AM", text: "Let's finalize the architecture diagrams today." },
+    { id: 2, user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "09:05 AM", text: "Agreed! I'll share my notes soon." },
   ],
   "test-task-2": [
-    { user: "Charlie", avatar: "https://ui-avatars.com/api/?name=Charlie&background=fbbf24&color=fff", time: "11:00 AM", text: "Test Task 2 is almost done." },
-    { user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "11:10 AM", text: "Great work, Charlie!" },
+    { id: 1, user: "Charlie", avatar: "https://ui-avatars.com/api/?name=Charlie&background=fbbf24&color=fff", time: "11:00 AM", text: "Test Task 2 is almost done." },
+    { id: 2, user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "11:10 AM", text: "Great work, Charlie!" },
   ],
 };
 
@@ -32,15 +62,20 @@ function getCurrentTime() {
 }
 
 export default function ProjectChatApp() {
+  const { user } = useAuth();
   const [activeChat, setActiveChat] = useState(chatGroups[0].id);
   const [messages, setMessages] = useState(initialMessages);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [input, setInput] = useState("");
+  const messagesEndRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSendMessage = (text) => {
     if (!text.trim()) return;
     const newMsg = {
-      user: "Alice",
-      avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff",
+      id: Date.now(),
+      user: user?.name || "You",
+      avatar: user?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=6366f1&color=fff`,
       time: getCurrentTime(),
       text,
     };
@@ -49,114 +84,257 @@ export default function ProjectChatApp() {
       updated[activeChat] = [...(updated[activeChat] || []), newMsg];
       return updated;
     });
-    // Simulate AI bot response
-    setTimeout(() => {
-      const aiMsg = {
-        user: "AI Bot",
-        avatar: "https://ui-avatars.com/api/?name=AI+Bot&background=6366f1&color=fff",
-        time: getCurrentTime(),
-        text: `AI Bot: You said, "${text}". How can I assist you further?`,
-      };
-      setMessages((prev) => {
-        const updated = { ...prev };
-        updated[activeChat] = [...(updated[activeChat] || []), aiMsg];
-        return updated;
-      });
-    }, 1200);
+    setInput("");
   };
 
   const activeChatGroup = chatGroups.find(group => group.id === activeChat);
+  const currentMessages = messages[activeChat] || [];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [currentMessages]);
+
+  const filteredGroups = chatGroups.filter(group =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(input);
+    }
+  };
 
   return (
-    <div className="w-full h-full flex bg-gray-50 overflow-hidden">
-      {/* Main Sidebar - Hidden on mobile, visible on desktop */}
-      <div className="hidden lg:block">
-        <Sidebar />
-      </div>
-      
-      {/* Project Chat Groups Sidebar - Responsive */}
+    <div className="w-full h-full flex bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden" style={{ height: 'calc(100vh - 80px)' }}>
+      {/* Chat Groups Sidebar */}
       <div className={`
         ${showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        fixed lg:relative z-30 w-64 lg:w-64 bg-white border-r border-gray-100 flex flex-col 
-        transition-transform duration-300 ease-in-out h-full
+        fixed lg:relative z-30 w-80 lg:w-96 bg-white border-r border-gray-200 flex flex-col 
+        transition-transform duration-300 ease-in-out h-full shadow-lg lg:shadow-none
       `}>
-        <div className="flex items-center justify-between p-4 border-b lg:hidden">
-          <h2 className="text-lg font-semibold text-gray-800">Project Chats</h2>
-          <button
-            onClick={() => setShowSidebar(false)}
-            className="p-2 rounded-lg hover:bg-gray-100"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        {/* Sidebar Header */}
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="w-7 h-7" />
+              Project Chats
+            </h2>
+            <button
+              onClick={() => setShowSidebar(false)}
+              className="lg:hidden p-2 rounded-lg hover:bg-white/20 text-white transition-colors"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white/95 backdrop-blur-sm rounded-xl border-0 focus:ring-2 focus:ring-white/50 focus:outline-none text-gray-800 placeholder-gray-400"
+            />
+          </div>
         </div>
         
-        <div className="mb-2 text-xs font-bold text-gray-500 px-4 uppercase tracking-wide hidden lg:block">
-          Project Chats
+        {/* Chat Groups List */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-3 space-y-1">
+            {filteredGroups.map((group) => {
+              const isActive = activeChat === group.id;
+              return (
+                <button
+                  key={group.id}
+                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 group
+                    ${isActive 
+                      ? "bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 shadow-md" 
+                      : "hover:bg-gray-50 border-2 border-transparent"
+                    }
+                  `}
+                  onClick={() => {
+                    setActiveChat(group.id);
+                    setShowSidebar(false);
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl ${isActive ? 'ring-2 ring-indigo-300' : ''}`}>
+                      <img 
+                        src={group.avatar} 
+                        alt={group.name}
+                        className="w-full h-full rounded-xl object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className={`font-semibold text-sm truncate ${isActive ? 'text-indigo-900' : 'text-gray-900'}`}>
+                          {group.name}
+                        </h3>
+                        {group.unread > 0 && !isActive && (
+                          <span className="flex-shrink-0 bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {group.unread}
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-xs truncate ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
+                        {group.lastMessage}
+                      </p>
+                      <p className={`text-xs mt-1 ${isActive ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>
+                        {group.time}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        
-        <ul className="flex-1 space-y-1 overflow-y-auto p-2">
-          {chatGroups.map((group) => (
-            <li key={group.id}>
-              <button
-                className={`w-full text-left px-3 py-3 rounded-lg flex items-center gap-3 transition font-medium
-                  ${activeChat === group.id 
-                    ? "bg-blue-100 text-blue-900 font-semibold" 
-                    : "hover:bg-gray-100 text-gray-700"
-                  }
-                `}
-                onClick={() => {
-                  setActiveChat(group.id);
-                  setShowSidebar(false); // Close sidebar on mobile after selection
-                }}
-              >
-                <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
-                <span className="truncate">{group.name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
       </div>
 
       {/* Overlay for mobile sidebar */}
       {showSidebar && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden transition-opacity"
           onClick={() => setShowSidebar(false)}
         />
       )}
 
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 h-full min-w-0">
-        {/* Top Bar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full min-w-0 bg-white">
+        {/* Chat Header */}
+        <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
             <button
               onClick={() => setShowSidebar(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <Bars3Icon className="w-6 h-6 text-gray-600" />
             </button>
-            <div>
-              <h1 className="font-semibold text-gray-900 text-lg">
-                {activeChatGroup?.name || 'Project Chat'}
-              </h1>
-              <p className="text-sm text-gray-500">Active conversation</p>
+            
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden ring-2 ring-indigo-100">
+                <img 
+                  src={activeChatGroup?.avatar || "https://ui-avatars.com/api/?name=Project&background=6366f1&color=fff"} 
+                  alt={activeChatGroup?.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="font-bold text-gray-900 text-lg truncate">
+                  {activeChatGroup?.name || 'Project Chat'}
+                </h1>
+                <p className="text-sm text-gray-500">Active conversation • {currentMessages.length} messages</p>
+              </div>
             </div>
           </div>
+          
           <div className="flex items-center gap-2">
-            <ChatHeader />
+            <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="Voice Call">
+              <PhoneIcon className="w-5 h-5" />
+            </button>
+            <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="Video Call">
+              <VideoCameraIcon className="w-5 h-5" />
+            </button>
+            <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="More options">
+              <EllipsisVerticalIcon className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <ChatRoom messages={messages[activeChat] || []} onSendMessage={handleSendMessage} />
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white px-4 lg:px-8 py-6">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {currentMessages.map((msg) => {
+              const isMe = msg.user === (user?.name || "You");
+              const isBot = msg.user === "AI Bot";
+              
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex w-full ${isMe ? "justify-end" : "justify-start"} animate-in fade-in duration-300`}
+                >
+                  <div className={`flex items-end gap-3 max-w-[75%] lg:max-w-[60%] ${isMe ? "flex-row-reverse" : ""}`}>
+                    {/* Avatar */}
+                    {!isMe && (
+                      <img
+                        src={msg.avatar}
+                        alt={msg.user}
+                        className={`w-8 h-8 rounded-full shadow-md border-2 border-white flex-shrink-0 ${isBot ? "ring-2 ring-purple-400" : ""}`}
+                      />
+                    )}
+                    
+                    {/* Message bubble */}
+                    <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} min-w-0 flex-1`}>
+                      {!isMe && (
+                        <div className="text-xs font-semibold text-gray-600 mb-1 px-1">
+                          {msg.user}
+                        </div>
+                      )}
+                      <div
+                        className={`px-4 py-3 rounded-2xl shadow-sm break-words
+                          ${isMe 
+                            ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-md" 
+                            : isBot 
+                              ? "bg-purple-100 text-purple-900 rounded-bl-md border border-purple-200" 
+                              : "bg-white text-gray-800 rounded-bl-md border border-gray-200 shadow-md"
+                          }
+                        `}
+                      >
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.text}</div>
+                      </div>
+                      <span className="text-xs text-gray-400 mt-1.5 px-1">{msg.time}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+        
+        {/* Input Area */}
+        <div className="bg-white border-t border-gray-200 px-4 lg:px-8 py-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-end gap-3 bg-gray-50 rounded-2xl px-4 py-3 border-2 border-gray-200 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-100 transition-all">
+              {/* Attachment Button */}
+              <button 
+                className="flex-shrink-0 p-2 rounded-xl hover:bg-gray-200 text-gray-500 hover:text-indigo-600 transition-colors"
+                title="Attach file"
+              >
+                <PaperClipIcon className="w-5 h-5" />
+              </button>
+              
+              {/* Input */}
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a message..."
+                rows="1"
+                className="flex-1 bg-transparent border-0 focus:outline-none resize-none text-gray-800 placeholder-gray-400 text-sm"
+                style={{ maxHeight: '120px' }}
+              />
+              
+              {/* Send Button */}
+              <button
+                className={`flex-shrink-0 p-2.5 rounded-xl font-semibold transition-all transform hover:scale-105 active:scale-95 ${
+                  input.trim()
+                    ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg hover:shadow-xl"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
+                onClick={() => handleSendMessage(input)}
+                disabled={!input.trim()}
+              >
+                <PaperAirplaneIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2 text-center">Press Enter to send, Shift+Enter for new line</p>
+          </div>
         </div>
       </div>
     </div>
   );
-} 
+}

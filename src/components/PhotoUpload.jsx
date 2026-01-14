@@ -15,7 +15,7 @@ const PhotoUpload = ({ currentPhoto, onPhotoChange, size = 'md' }) => {
       return photo;
     }
     // Get backend URL from environment or use default
-    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.151:3001/api';
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
     // Extract base URL (remove /api suffix if present)
     let BACKEND_URL = API_BASE_URL;
     if (BACKEND_URL.endsWith('/api')) {

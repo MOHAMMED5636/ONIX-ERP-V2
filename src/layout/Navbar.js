@@ -14,52 +14,7 @@ export default function Navbar({ onMenuToggle }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Enhanced notifications data
-  const notifications = [
-    {
-      id: 1,
-      title: "New Task Assigned",
-      message: "You have been assigned to 'Website Development' project with high priority",
-      time: "2 minutes ago",
-      type: "task",
-      read: false,
-      priority: "high",
-      avatar: "👨‍💻",
-      action: "View Task"
-    },
-    {
-      id: 2,
-      title: "Project Deadline Reminder",
-      message: "Mobile App Design project deadline is approaching in 3 days",
-      time: "15 minutes ago",
-      type: "deadline",
-      read: false,
-      priority: "urgent",
-      avatar: "⏰",
-      action: "View Project"
-    },
-    {
-      id: 3,
-      title: "System Maintenance",
-      message: "ERP system will be updated tonight at 2:00 AM for 30 minutes",
-      time: "1 hour ago",
-      type: "system",
-      read: true,
-      priority: "medium",
-      avatar: "🔧",
-      action: "Learn More"
-    },
-    {
-      id: 4,
-      title: "Document Approved",
-      message: "Your project proposal has been approved by the management team",
-      time: "3 hours ago",
-      type: "approval",
-      read: false,
-      priority: "medium",
-      avatar: "✅",
-      action: "View Document"
-    }
-  ];
+  const notifications = [];
 
   const unreadCount = notifications.filter(n => !n.read).length;
   
@@ -120,28 +75,20 @@ export default function Navbar({ onMenuToggle }) {
     return roleMap[user.role] || user.role;
   };
 
-  // Helper function to get photo URL
+  // Helper function to get photo URL with cache busting
   const getPhotoUrl = (photo) => {
-    if (!photo) {
-      console.log('[Navbar] No photo provided');
-      return null;
-    }
-    console.log('[Navbar] Original photo value:', photo);
-    // If it's already a full URL, return as is
+    if (!photo) return null;
+    let fullUrl;
     if (photo.startsWith('http://') || photo.startsWith('https://')) {
-      console.log('[Navbar] Photo is full URL:', photo);
-      return photo;
+      fullUrl = photo;
+    } else if (photo.startsWith('/uploads/')) {
+      fullUrl = `http://192.168.1.54:3001${photo}`;
+    } else {
+      fullUrl = `http://192.168.1.54:3001/uploads/photos/${photo}`;
     }
-    // If it's a relative path, construct full URL
-    if (photo.startsWith('/uploads/')) {
-      const fullUrl = `http://192.168.1.151:3001${photo}`;
-      console.log('[Navbar] Constructed URL from relative path:', fullUrl);
-      return fullUrl;
-    }
-    // If it's just a filename, construct full URL
-    const fullUrl = `http://192.168.1.151:3001/uploads/photos/${photo}`;
-    console.log('[Navbar] Constructed URL from filename:', fullUrl);
-    return fullUrl;
+    // Add cache busting timestamp to force browser to reload image
+    const separator = fullUrl.includes('?') ? '&' : '?';
+    return `${fullUrl}${separator}t=${Date.now()}`;
   };
 
   // Dynamic user profile data (fallback to defaults if user not loaded)
@@ -240,11 +187,6 @@ export default function Navbar({ onMenuToggle }) {
         >
           <Bars3Icon className="h-6 w-6 text-indigo-500" />
         </button>
-        
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <img src="/onix-bg.png" alt="Logo" className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-gray-200" />
-        </div>
       </div>
 
       {/* Center section: Search bar */}
