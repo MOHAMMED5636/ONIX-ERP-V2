@@ -1,5 +1,5 @@
 // Authentication API service for backend connection
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 // Helper function to add timeout to fetch requests
 const fetchWithTimeout = (url, options, timeout = 10000) => {
@@ -61,7 +61,8 @@ export const login = async (email, password, role) => {
     if (error.message.includes('timeout')) {
       throw new Error('Connection timeout - please check if backend is running on port 3001');
     } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      throw new Error('Cannot connect to server - make sure backend is running on http://192.168.1.54:3001');
+      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
     }
     throw error;
   }
@@ -434,9 +435,63 @@ export const updateProfile = async (formData) => {
     
     // Provide more helpful error messages
     if (error.message.includes('Failed to fetch')) {
-      throw new Error('Cannot connect to server. Please check:\n1. Backend server is running on http://192.168.1.54:3001\n2. CORS is configured correctly\n3. Network connection is working');
+      throw new Error('Cannot connect to server. Please check:\n1. Backend server is running on http://localhost:3001\n2. CORS is configured correctly\n3. Network connection is working');
     }
     
+    throw error;
+  }
+};
+
+/**
+ * Get organization preferences (Admin Profile). Any authenticated user can read.
+ * @returns {Promise} { preferences, conversionFactors, options }
+ */
+export const getPreferences = async () => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found');
+    const response = await fetch(`${API_BASE_URL}/auth/preferences`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Get preferences error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update organization preferences (Admin Profile). Admin only.
+ * @param {Object} preferences - { defaultCurrency, lengthUnit, areaUnit, volumeUnit, heightUnit, weightUnit }
+ * @returns {Promise}
+ */
+export const updatePreferences = async (preferences) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found');
+    const response = await fetch(`${API_BASE_URL}/auth/preferences`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(preferences),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to update preferences');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Update preferences error:', error);
     throw error;
   }
 };
@@ -493,6 +548,8 @@ export default {
   updateEmployee,
   deleteEmployee,
   updateProfile,
+  getPreferences,
+  updatePreferences,
 };
 
 

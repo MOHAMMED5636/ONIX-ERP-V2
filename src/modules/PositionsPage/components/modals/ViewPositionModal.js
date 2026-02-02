@@ -36,10 +36,6 @@ const ViewPositionModal = ({
               <span className="text-gray-900">{selectedPosition?.employees}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-white rounded-lg border">
-              <span className="font-medium text-gray-700">Salary:</span>
-              <span className="text-gray-900">{selectedPosition?.salary}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-white rounded-lg border">
               <span className="font-medium text-gray-700">Requirements:</span>
               <span className="text-gray-900">{selectedPosition?.requirements}</span>
             </div>

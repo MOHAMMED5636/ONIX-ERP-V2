@@ -1,69 +1,208 @@
 import React, { useState, useEffect } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, BriefcaseIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, EyeIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useCompanySelection } from '../context/CompanySelectionContext';
-
-const initialDepartments = [
-  "Human Resources",
-  "Finance",
-  "Information Technology",
-  "Sales",
-  "Marketing",
-  "Operations",
-  "Customer Service",
-  "Research & Development"
-];
-
-// Demo departments data with your specific departments
-const demoDepartments = [
-  { id: 1, name: "Board of Directors", description: "Executive leadership and strategic decision making for the company", manager: "Rameez Alkadour", employees: 5, departmentId: "board-of-directors" },
-  { id: 2, name: "Project Management", description: "Oversees project planning, execution, and delivery across all departments", manager: "Abd Aljabar Alabd", employees: 12, departmentId: "project-management" },
-  { id: 3, name: "Design Management", description: "Manages design processes, creative direction, and design team coordination", manager: "Kaddour Alkaodir", employees: 8, departmentId: "design-management" }
-];
+import { getCompanyDepartments, createDepartment, updateDepartment, deleteDepartment } from '../services/departmentAPI';
+import { getEmployees } from '../services/employeeAPI';
 
 export default function Departments() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [departments, setDepartments] = useState(demoDepartments);
+  const params = useParams();
+  const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [newDepartment, setNewDepartment] = useState({ name: '', description: '', manager: '' });
-  const [editDepartment, setEditDepartment] = useState({ name: '', description: '', manager: '' });
+  const [newDepartment, setNewDepartment] = useState({ name: '', description: '', managerId: '' });
+  const [editDepartment, setEditDepartment] = useState({ name: '', description: '', managerId: '' });
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const { selectedDepartment: contextSelectedDepartment, selectDepartment } = useCompanySelection();
 
-  // Get selected company from navigation state
+  // Get selected company from navigation state or URL params
   useEffect(() => {
     if (location.state?.selectedCompany) {
       setSelectedCompany(location.state.selectedCompany);
+    } else if (params.companyId) {
+      // If companyId is in URL, we'll fetch company from departments response
+      // For now, set a minimal company object with just the ID
+      setSelectedCompany({ id: params.companyId });
     }
-  }, [location.state]);
+  }, [location.state, params.companyId]);
+
+  // Load employees for manager selection
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoadingEmployees(true);
+        const response = await getEmployees();
+        if (response.success && response.data) {
+          // Backend returns { data: { employees: [...], pagination: {...} } }
+          // Handle both formats: direct array or nested object
+          let employeesList = [];
+          if (Array.isArray(response.data)) {
+            employeesList = response.data;
+          } else if (response.data.employees && Array.isArray(response.data.employees)) {
+            employeesList = response.data.employees;
+          } else if (Array.isArray(response.data.data)) {
+            employeesList = response.data.data;
+          }
+          
+          setEmployees(employeesList);
+          console.log('✅ Loaded employees for manager selection:', employeesList.length);
+        } else {
+          setEmployees([]);
+        }
+      } catch (error) {
+        console.error('Error loading employees:', error);
+        setEmployees([]); // Set to empty array on error
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+
+    loadEmployees();
+  }, []);
+
+  // Load departments when company is selected
+  useEffect(() => {
+    if (selectedCompany?.id) {
+      loadDepartments();
+    }
+  }, [selectedCompany?.id]);
+
+  // Load departments from API
+  const loadDepartments = async () => {
+    if (!selectedCompany?.id) {
+      console.warn('No company selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('📡 Loading departments for company:', selectedCompany.id);
+      
+      const response = await getCompanyDepartments(selectedCompany.id);
+      
+      if (response.success && response.data) {
+        // Extract company information from the first department's response (all departments belong to same company)
+        // This ensures company data comes from the database, not localStorage
+        if (response.data.length > 0 && response.data[0].company) {
+          const companyFromResponse = response.data[0].company;
+          setSelectedCompany({
+            id: companyFromResponse.id,
+            name: companyFromResponse.name,
+            tag: companyFromResponse.tag,
+            address: selectedCompany?.address || '' // Preserve address if available
+          });
+        }
+        
+        // Transform API data to match component structure
+        const transformedDepartments = response.data.map(dept => {
+          // Debug: Log manager data
+          console.log('Department:', dept.name, 'Manager data:', dept.manager, 'ManagerId:', dept.managerId);
+          
+          // Determine manager display name
+          let managerName = 'No Manager';
+          if (dept.manager) {
+            // Manager object exists
+            if (dept.manager.firstName && dept.manager.lastName) {
+              managerName = `${dept.manager.firstName} ${dept.manager.lastName}`;
+            } else if (dept.manager.firstName) {
+              managerName = dept.manager.firstName;
+            } else if (dept.manager.email) {
+              managerName = dept.manager.email;
+            } else {
+              managerName = 'Manager (No name)';
+            }
+          } else if (dept.managerId) {
+            // Manager ID exists but manager object is null (user might be deleted or not found)
+            managerName = `Manager (ID: ${dept.managerId})`;
+          }
+          
+          return {
+            id: dept.id,
+            name: dept.name,
+            description: dept.description || '',
+            manager: managerName,
+            employees: dept.employees?.length || 0,
+            departmentId: dept.id, // Use department ID for navigation
+            status: dept.status,
+            managerId: dept.managerId,
+            managerData: dept.manager // Keep full manager object for reference
+          };
+        });
+        
+        setDepartments(transformedDepartments);
+        console.log('✅ Loaded departments:', transformedDepartments.length);
+        console.log('✅ Departments with managers:', transformedDepartments.filter(d => d.manager !== 'No Manager'));
+      } else {
+        setDepartments([]);
+      }
+    } catch (err) {
+      console.error('❌ Error loading departments:', err);
+      setError(err.message || 'Failed to load departments');
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter departments based on search term
   const filteredDepartments = departments.filter(dept =>
     dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dept.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dept.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (dept.description && dept.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (dept.manager && dept.manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
     dept.id.toString().includes(searchTerm)
   );
 
-  const handleCreateDepartment = () => {
-    if (newDepartment.name && newDepartment.description && newDepartment.manager) {
-      const newDept = {
-        id: departments.length + 1,
+  const handleCreateDepartment = async () => {
+    if (!selectedCompany?.id) {
+      alert('Please select a company first');
+      return;
+    }
+
+    if (!newDepartment.name) {
+      alert('Department name is required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('📝 Creating department:', newDepartment);
+      
+      const response = await createDepartment(selectedCompany.id, {
         name: newDepartment.name,
-        description: newDepartment.description,
-        manager: newDepartment.manager,
-        employees: 0
-      };
-      setDepartments([...departments, newDept]);
-      setNewDepartment({ name: '', description: '', manager: '' });
-      setShowCreateModal(false);
+        description: newDepartment.description || null,
+        status: 'ACTIVE',
+        managerId: newDepartment.managerId || null
+      });
+
+      if (response.success) {
+        // Reload departments to get the latest data
+        await loadDepartments();
+        setNewDepartment({ name: '', description: '', managerId: '' });
+        setShowCreateModal(false);
+        alert('Department created successfully!');
+      } else {
+        throw new Error(response.message || 'Failed to create department');
+      }
+    } catch (err) {
+      console.error('❌ Error creating department:', err);
+      setError(err.message || 'Failed to create department');
+      alert('Error: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,22 +215,52 @@ export default function Departments() {
     setSelectedDepartment(dept);
     setEditDepartment({
       name: dept.name,
-      description: dept.description,
-      manager: dept.manager
+      description: dept.description || '',
+      managerId: dept.managerId || ''
     });
     setShowEditModal(true);
   };
 
-  const handleUpdateDepartment = () => {
-    if (editDepartment.name && editDepartment.description && editDepartment.manager) {
-      setDepartments(departments.map(dept => 
-        dept.id === selectedDepartment.id 
-          ? { ...dept, ...editDepartment }
-          : dept
-      ));
-      setShowEditModal(false);
-      setSelectedDepartment(null);
-      setEditDepartment({ name: '', description: '', manager: '' });
+  const handleUpdateDepartment = async () => {
+    if (!selectedDepartment?.id) {
+      alert('No department selected');
+      return;
+    }
+
+    if (!editDepartment.name) {
+      alert('Department name is required');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('📝 Updating department:', selectedDepartment.id, editDepartment);
+      
+      const response = await updateDepartment(selectedDepartment.id, {
+        name: editDepartment.name,
+        description: editDepartment.description || null,
+        status: selectedDepartment.status || 'ACTIVE',
+        managerId: editDepartment.managerId || null
+      });
+
+      if (response.success) {
+        // Reload departments to get the latest data
+        await loadDepartments();
+        setShowEditModal(false);
+        setSelectedDepartment(null);
+        setEditDepartment({ name: '', description: '', managerId: '' });
+        alert('Department updated successfully!');
+      } else {
+        throw new Error(response.message || 'Failed to update department');
+      }
+    } catch (err) {
+      console.error('❌ Error updating department:', err);
+      setError(err.message || 'Failed to update department');
+      alert('Error: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -100,10 +269,36 @@ export default function Departments() {
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteDepartment = () => {
-    setDepartments(departments.filter(dept => dept.id !== selectedDepartment.id));
-    setShowDeleteModal(false);
-    setSelectedDepartment(null);
+  const confirmDeleteDepartment = async () => {
+    if (!selectedDepartment?.id) {
+      alert('No department selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🗑️ Deleting department:', selectedDepartment.id);
+      
+      const response = await deleteDepartment(selectedDepartment.id);
+
+      if (response.success) {
+        // Reload departments to get the latest data
+        await loadDepartments();
+        setShowDeleteModal(false);
+        setSelectedDepartment(null);
+        alert('Department deleted successfully!');
+      } else {
+        throw new Error(response.message || 'Failed to delete department');
+      }
+    } catch (err) {
+      console.error('❌ Error deleting department:', err);
+      setError(err.message || 'Failed to delete department');
+      alert('Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDepartmentClick = (dept) => {
@@ -114,7 +309,7 @@ export default function Departments() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <Breadcrumbs names={{}} />
+      <Breadcrumbs names={{ company: selectedCompany?.name }} company={selectedCompany} />
       {/* Top Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 px-4 sm:px-6 lg:px-10 border-b bg-white shadow-sm gap-4">
         <div className="flex items-center gap-4">
@@ -135,16 +330,28 @@ export default function Departments() {
                 {selectedCompany.name} • {selectedCompany.address}
               </p>
             )}
+            {!selectedCompany && (
+              <p className="text-sm text-red-600 mt-1">
+                ⚠️ No company selected. Please select a company first.
+              </p>
+            )}
           </div>
         </div>
         <button
-          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full sm:w-auto justify-center"
-          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => {
+            if (!selectedCompany?.id) {
+              alert('Please select a company first');
+              return;
+            }
+            setShowCreateModal(true);
+          }}
+          disabled={!selectedCompany?.id || loading}
         >
           <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          Create Department
+          {loading ? 'Loading...' : 'Create Department'}
         </button>
       </div>
       
@@ -165,7 +372,7 @@ export default function Departments() {
                   <ChartPieIcon className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <p className="text-blue-100 text-lg leading-relaxed">Manage departments for ONIX Construction. Click on any department to view its sub-departments and positions.</p>
+                  <p className="text-blue-100 text-lg leading-relaxed">Manage departments for {selectedCompany?.name || 'the company'}. Click on any department to view its sub-departments and positions.</p>
                 </div>
               </div>
               <div className="hidden lg:flex items-center space-x-4">
@@ -246,150 +453,53 @@ export default function Departments() {
         </div>
       </div>
       
-      {/* Main Content */}
-      <div className="flex-1 w-full px-4 sm:px-6 lg:px-10">
-        <div className="w-full">
-          {/* Enhanced Mobile Cards View */}
-          <div className="lg:hidden space-y-6">
-            {searchTerm && filteredDepartments.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No departments found</h3>
-                <p className="text-gray-500 mb-4">No departments match your search criteria.</p>
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                >
-                  Clear search
-                </button>
-              </div>
-            ) : (
-              filteredDepartments.map(dept => (
-              <div 
-                key={dept.id} 
-                className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-blue-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02]"
-                onClick={() => handleDepartmentClick(dept)}
-                title="Click to view sub-departments"
-              >
-                <div className="relative overflow-hidden">
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  
-                  <div className="relative p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                          <ChartPieIcon className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-blue-900 transition-colors">{dept.name}</h3>
-                          <p className="text-gray-500 text-sm">Department</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewDepartment(dept);
-                          }}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110"
-                          title="View Department"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditDepartment(dept);
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110"
-                          title="Edit Department"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDepartment(dept);
-                          }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
-                          title="Delete Department"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selectDepartment(dept.name);
-                          }}
-                          className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                            contextSelectedDepartment === dept.name
-                              ? "text-green-600 bg-green-50"
-                              : "text-gray-600 hover:text-green-600 hover:bg-green-50"
-                          }`}
-                          title={contextSelectedDepartment === dept.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
-                        >
-                          <CheckIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-4">
-                        <div className="p-2 bg-gray-50 rounded-lg">
-                          <DocumentTextIcon className="h-4 w-4 text-gray-500" />
-                        </div>
-                        <p className="text-gray-600 text-sm leading-relaxed flex-1">{dept.description}</p>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="p-1.5 bg-blue-100 rounded-lg">
-                            <UserIcon className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="text-gray-500 text-xs">Manager</p>
-                            <p className="font-semibold text-gray-900 text-sm">{dept.manager}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="p-1.5 bg-green-100 rounded-lg">
-                            <UsersIcon className="h-4 w-4 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-gray-500 text-xs">Employees</p>
-                            <p className="font-semibold text-gray-900 text-sm">{dept.employees}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-6 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Click to view sub-departments</span>
-                        <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold group-hover:gap-3 transition-all duration-300">
-                          <span>View Details</span>
-                          <span className="transform group-hover:translate-x-1 transition-transform duration-300">→</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-            )}
+      {/* Error Message */}
+      {error && (
+        <div className="mx-4 sm:mx-6 lg:mx-10 mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+          <strong>Error:</strong> {error}
+          <button 
+            onClick={() => setError(null)}
+            className="float-right text-red-700 hover:text-red-900 font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && !departments.length && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading departments...</p>
           </div>
-          
-          {/* Enhanced Desktop Table View */}
-          <div className="hidden lg:block">
-            {searchTerm && filteredDepartments.length === 0 ? (
-              <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-12">
-                <div className="text-center">
+        </div>
+      )}
+
+      {/* Main Content */}
+      {(!loading || departments.length > 0) ? (
+        <div className="flex-1 w-full px-4 sm:px-6 lg:px-10">
+          <div className="w-full">
+            {/* Enhanced Mobile Cards View */}
+            <div className="lg:hidden space-y-6">
+              {!selectedCompany?.id ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Company Selected</h3>
+                  <p className="text-gray-500 mb-4">Please select a company to view its departments.</p>
+                  <button
+                    onClick={() => navigate('/companies')}
+                    className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                  >
+                    Go to Companies
+                  </button>
+                </div>
+              ) : searchTerm && filteredDepartments.length === 0 ? (
+                <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
                     <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -404,125 +514,264 @@ export default function Departments() {
                     Clear search
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-100">
-                    <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-                      <tr>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Department</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Description</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Manager</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employees</th>
-                        <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-50">
-                      {filteredDepartments.map(dept => (
-                      <tr 
-                        key={dept.id} 
-                        className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 cursor-pointer group" 
-                        onClick={() => handleDepartmentClick(dept)}
-                        title="Click to view sub-departments"
-                      >
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-4">
-                            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                              <ChartPieIcon className="h-6 w-6 text-white" />
+              ) : (
+                <>
+                  {filteredDepartments.map(dept => (
+                    <div 
+                      key={dept.id} 
+                      className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-blue-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02]"
+                      onClick={() => handleDepartmentClick(dept)}
+                      title="Click to view sub-departments"
+                    >
+                      <div className="relative overflow-hidden">
+                        {/* Gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        <div className="relative p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                                <ChartPieIcon className="h-6 w-6 text-white" />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-gray-900 text-lg group-hover:text-blue-900 transition-colors">{dept.name}</h3>
+                                <p className="text-gray-500 text-sm">Department</p>
+                              </div>
                             </div>
-                            <div>
-                              <div className="font-bold text-gray-900 text-base group-hover:text-blue-900 transition-colors">{dept.name}</div>
-                              <div className="text-gray-500 text-sm">Department</div>
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewDepartment(dept);
+                                }}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110"
+                                title="View Department"
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditDepartment(dept);
+                                }}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110"
+                                title="Edit Department"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteDepartment(dept);
+                                }}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
+                                title="Delete Department"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectDepartment(dept.name);
+                                }}
+                                className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                                  contextSelectedDepartment === dept.name
+                                    ? "text-green-600 bg-green-50"
+                                    : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                                }`}
+                                title={contextSelectedDepartment === dept.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
+                              >
+                                <CheckIcon className="h-4 w-4" />
+                              </button>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="max-w-md">
-                            <p className="text-gray-700 text-sm leading-relaxed">{dept.description}</p>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center shadow-sm">
-                              <UserIcon className="h-5 w-5 text-blue-600" />
+                          
+                          <div className="space-y-4">
+                            <div className="flex items-start gap-4">
+                              <div className="p-2 bg-gray-50 rounded-lg">
+                                <DocumentTextIcon className="h-4 w-4 text-gray-500" />
+                              </div>
+                              <p className="text-gray-600 text-sm leading-relaxed flex-1">{dept.description}</p>
                             </div>
-                            <div>
-                              <span className="text-gray-900 text-sm font-semibold">{dept.manager}</span>
-                              <div className="text-gray-500 text-xs">Manager</div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                <div className="p-1.5 bg-blue-100 rounded-lg">
+                                  <UserIcon className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div>
+                                  <p className="text-gray-500 text-xs">Manager</p>
+                                  <p className="font-semibold text-gray-900 text-sm">{dept.manager}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                <div className="p-1.5 bg-green-100 rounded-lg">
+                                  <UsersIcon className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div>
+                                  <p className="text-gray-500 text-xs">Employees</p>
+                                  <p className="font-semibold text-gray-900 text-sm">{dept.employees}</p>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-sm">
-                              <UsersIcon className="h-5 w-5 text-green-600" />
-                            </div>
-                            <div>
-                              <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-green-100 text-green-700 shadow-sm">
-                                {dept.employees} employees
-                              </span>
+                          
+                          <div className="mt-6 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-500">Click to view sub-departments</span>
+                              <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold group-hover:gap-3 transition-all duration-300">
+                                <span>View Details</span>
+                                <span className="transform group-hover:translate-x-1 transition-transform duration-300">→</span>
+                              </div>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewDepartment(dept);
-                              }}
-                              className="p-3 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
-                              title="View Department"
-                            >
-                              <EyeIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditDepartment(dept);
-                              }}
-                              className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
-                              title="Edit Department"
-                            >
-                              <PencilIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteDepartment(dept);
-                              }}
-                              className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
-                              title="Delete Department"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectDepartment(dept.name);
-                              }}
-                              className={`p-3 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm ${
-                                contextSelectedDepartment === dept.name
-                                  ? "text-green-600 bg-green-50"
-                                  : "text-gray-600 hover:text-green-600 hover:bg-green-50"
-                              }`}
-                              title={contextSelectedDepartment === dept.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
-                            >
-                              <CheckIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
-            )}
+            {/* Enhanced Desktop Table View */}
+            <div className="hidden lg:block">
+              {searchTerm && filteredDepartments.length === 0 ? (
+                <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-12">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No departments found</h3>
+                    <p className="text-gray-500 mb-4">No departments match your search criteria.</p>
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                    >
+                      Clear search
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-100">
+                      <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+                        <tr>
+                          <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Department</th>
+                          <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Description</th>
+                          <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Manager</th>
+                          <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Employees</th>
+                          <th className="px-8 py-6 text-left text-sm font-bold text-white uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-50">
+                        {filteredDepartments.map(dept => (
+                          <tr 
+                            key={dept.id} 
+                            className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 cursor-pointer group" 
+                            onClick={() => handleDepartmentClick(dept)}
+                            title="Click to view sub-departments"
+                          >
+                            <td className="px-8 py-6 whitespace-nowrap">
+                              <div className="flex items-center gap-4">
+                                <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
+                                  <ChartPieIcon className="h-6 w-6 text-white" />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-gray-900 text-base group-hover:text-blue-900 transition-colors">{dept.name}</div>
+                                  <div className="text-gray-500 text-sm">Department</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6">
+                              <div className="max-w-md">
+                                <p className="text-gray-700 text-sm leading-relaxed">{dept.description}</p>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center shadow-sm">
+                                  <UserIcon className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div>
+                                  <span className="text-gray-900 text-sm font-semibold">{dept.manager}</span>
+                                  <div className="text-gray-500 text-xs">Manager</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center shadow-sm">
+                                  <UsersIcon className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div>
+                                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-green-100 text-green-700 shadow-sm">
+                                    {dept.employees} employees
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 whitespace-nowrap">
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewDepartment(dept);
+                                  }}
+                                  className="p-3 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                  title="View Department"
+                                >
+                                  <EyeIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditDepartment(dept);
+                                  }}
+                                  className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                  title="Edit Department"
+                                >
+                                  <PencilIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDepartment(dept);
+                                  }}
+                                  className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                  title="Delete Department"
+                                >
+                                  <TrashIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectDepartment(dept.name);
+                                  }}
+                                  className={`p-3 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm ${
+                                    contextSelectedDepartment === dept.name
+                                      ? "text-green-600 bg-green-50"
+                                      : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                                  }`}
+                                  title={contextSelectedDepartment === dept.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
+                                >
+                                  <CheckIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       {/* Create Department Modal */}
       {showCreateModal && (
@@ -570,7 +819,7 @@ export default function Departments() {
                 <div className="group">
                   <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
                     <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                    Description <span className="text-red-500">*</span>
+                    Description <span className="text-gray-500 text-xs">(Optional)</span>
                   </label>
                   <div className="relative">
                     <textarea 
@@ -586,21 +835,35 @@ export default function Departments() {
                   </div>
                 </div>
 
-                {/* Manager Field */}
+                {/* Manager Field - Optional */}
                 <div className="group">
                   <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    Manager <span className="text-red-500">*</span>
+                    Manager <span className="text-gray-500 text-xs">(Optional)</span>
                   </label>
                   <div className="relative">
-                    <input 
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 text-sm bg-white shadow-sm" 
-                      placeholder="e.g., John Smith" 
-                      value={newDepartment.manager} 
-                      onChange={e => setNewDepartment(f => ({ ...f, manager: e.target.value }))} 
-                    />
+                    <select 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 text-sm bg-white shadow-sm appearance-none" 
+                      value={newDepartment.managerId || ''} 
+                      onChange={e => setNewDepartment(f => ({ ...f, managerId: e.target.value }))} 
+                    >
+                      <option value="">Select a manager (optional)</option>
+                      {loadingEmployees ? (
+                        <option disabled>Loading employees...</option>
+                      ) : Array.isArray(employees) && employees.length > 0 ? (
+                        employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.firstName} {emp.lastName} {emp.email ? `(${emp.email})` : ''}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No employees available</option>
+                      )}
+                    </select>
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
                 </div>
@@ -617,12 +880,22 @@ export default function Departments() {
                 </button>
                 <button 
                   type="button" 
-                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0" 
+                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 disabled:opacity-50 disabled:cursor-not-allowed" 
                   onClick={handleCreateDepartment}
+                  disabled={loading || !newDepartment.name}
                 >
                   <span className="flex items-center gap-2">
-                    <PlusIcon className="h-4 w-4" />
-                    Create Department
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <PlusIcon className="h-4 w-4" />
+                        Create Department
+                      </>
+                    )}
                   </span>
                 </button>
               </div>
@@ -663,18 +936,32 @@ export default function Departments() {
                   />
                 </div>
                 <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Manager <span className="text-red-500">*</span></label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-green-300 text-sm" 
-                    placeholder="Enter manager name" 
-                    value={editDepartment.manager} 
-                    onChange={e => setEditDepartment(f => ({ ...f, manager: e.target.value }))} 
-                  />
+                  <label className="block font-medium mb-1 text-gray-700 text-sm">Manager</label>
+                  <select 
+                    className="input focus:ring-2 focus:ring-green-300 text-sm appearance-none" 
+                    value={editDepartment.managerId || ''} 
+                    onChange={e => setEditDepartment(f => ({ ...f, managerId: e.target.value }))} 
+                  >
+                    <option value="">No Manager</option>
+                    {loadingEmployees ? (
+                      <option disabled>Loading employees...</option>
+                    ) : Array.isArray(employees) && employees.length > 0 ? (
+                      employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName} {emp.email ? `(${emp.email})` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No employees available</option>
+                    )}
+                  </select>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto" onClick={() => setShowEditModal(false)}>Cancel</button>
-                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto" onClick={handleUpdateDepartment}>Update</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowEditModal(false)} disabled={loading}>Cancel</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed" onClick={handleUpdateDepartment} disabled={loading || !editDepartment.name}>
+                  {loading ? 'Updating...' : 'Update'}
+                </button>
               </div>
             </div>
           </div>
@@ -705,8 +992,10 @@ export default function Departments() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 sm:mt-8 w-full">
-                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto" onClick={confirmDeleteDepartment}>Delete</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setShowDeleteModal(false)} disabled={loading}>Cancel</button>
+                <button type="button" className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-0 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed" onClick={confirmDeleteDepartment} disabled={loading}>
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
               </div>
             </div>
           </div>

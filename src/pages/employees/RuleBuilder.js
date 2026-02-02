@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShieldCheckIcon, 
@@ -18,6 +18,7 @@ import {
   ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
 import { useRules } from '../../context/RuleContext';
+import { FIELD_CATEGORIES, AVAILABLE_FIELDS } from './RuleBuilder/constants';
 
 export default function RuleBuilder() {
   const navigate = useNavigate();
@@ -67,36 +68,17 @@ export default function RuleBuilder() {
     'department_head'
   ];
 
-  // Available actions
+  // Available actions - all actions available for admin and manager to select one by one
   const availableActions = [
     'view',
     'edit', 
     'delete',
-    'create'
+    'create',
+    'manage'
   ];
 
-  // Available fields
-  const availableFields = [
-    'name',
-    'email',
-    'phone',
-    'salary',
-    'department',
-    'position',
-    'hireDate',
-    'manager',
-    'location',
-    'status',
-    'employeeId',
-    'passportNumber',
-    'nationalId',
-    'insurance',
-    'bankDetails',
-    'emergencyContact',
-    'performanceRating',
-    'attendance',
-    'leaveBalance'
-  ];
+  // Available fields (flattened list from constants)
+  const availableFields = AVAILABLE_FIELDS;
 
   // Available conditions
   const availableConditions = [
@@ -129,6 +111,24 @@ export default function RuleBuilder() {
   const [filterRole, setFilterRole] = useState('');
   const [filterAction, setFilterAction] = useState('');
   
+  // Custom fields state
+  const [customFields, setCustomFields] = useState([]);
+  const [customRoles, setCustomRoles] = useState([]);
+  const [showAddFieldModal, setShowAddFieldModal] = useState(false);
+  const [newFieldName, setNewFieldName] = useState('');
+  const [addFieldToConditionIndex, setAddFieldToConditionIndex] = useState(null);
+  const [isAddingRole, setIsAddingRole] = useState(false);
+  
+  // Combined fields list (available conditions + custom fields) - memoized
+  const allAvailableFields = useMemo(() => {
+    return [...availableConditions, ...customFields];
+  }, [customFields]);
+  
+  // Combined roles list (available roles + custom roles) - memoized
+  const allAvailableRoles = useMemo(() => {
+    return [...availableRoles, ...customRoles];
+  }, [customRoles]);
+  
   // Copy Rules states
   const [employees, setEmployees] = useState([]);
   const [selectedSourceEmployee, setSelectedSourceEmployee] = useState(null);
@@ -140,7 +140,9 @@ export default function RuleBuilder() {
   // New rule form state
   const [newRule, setNewRule] = useState({
     role: '',
+    roles: [], // Array for multiple roles
     action: '',
+    actions: [], // Array for multiple actions
     field: '',
     conditions: [{ key: '', operator: 'equals', value: '' }],
     description: '',
@@ -150,7 +152,9 @@ export default function RuleBuilder() {
   // Edit rule form state
   const [editRule, setEditRule] = useState({
     role: '',
+    roles: [], // Array for multiple roles
     action: '',
+    actions: [], // Array for multiple actions
     field: '',
     conditions: [{ key: '', operator: 'equals', value: '' }],
     description: '',
@@ -184,12 +188,52 @@ export default function RuleBuilder() {
   const stats = getRulesStats();
 
   // Handle create rule
+  // Initialize selected roles and actions as arrays
+  const selectedRoles = Array.isArray(newRule.roles) ? newRule.roles : (newRule.role ? [newRule.role] : []);
+  const selectedActions = Array.isArray(newRule.actions) ? newRule.actions : (newRule.action ? newRule.action.split(',').map(a => a.trim()) : []);
+  
+  // Role toggle handler
+  const handleRoleToggle = (role) => {
+    const currentRoles = Array.isArray(newRule.roles) ? newRule.roles : (newRule.role ? [newRule.role] : []);
+    const updatedRoles = currentRoles.includes(role)
+      ? currentRoles.filter(r => r !== role)
+      : [...currentRoles, role];
+    setNewRule({ ...newRule, roles: updatedRoles, role: updatedRoles.join(',') });
+  };
+  
+  const handleSelectAllRoles = () => {
+    setNewRule({ ...newRule, roles: allAvailableRoles, role: allAvailableRoles.join(',') });
+  };
+  
+  const handleDeselectAllRoles = () => {
+    setNewRule({ ...newRule, roles: [], role: '' });
+  };
+  
+  // Action toggle handler (available for all roles now)
+  const handleActionToggle = (action) => {
+    const currentActions = Array.isArray(newRule.actions) ? newRule.actions : (newRule.action ? newRule.action.split(',').map(a => a.trim()) : []);
+    const updatedActions = currentActions.includes(action)
+      ? currentActions.filter(a => a !== action)
+      : [...currentActions, action];
+    setNewRule({ ...newRule, actions: updatedActions, action: updatedActions.join(',') });
+  };
+  
+  const handleSelectAllActions = () => {
+    setNewRule({ ...newRule, actions: availableActions, action: availableActions.join(',') });
+  };
+  
+  const handleDeselectAllActions = () => {
+    setNewRule({ ...newRule, actions: [], action: '' });
+  };
+
   const handleCreateRule = () => {
     addRule(newRule);
     setShowCreateModal(false);
     setNewRule({
       role: '',
+      roles: [],
       action: '',
+      actions: [],
       field: '',
       conditions: [{ key: '', operator: 'equals', value: '' }],
       description: '',
@@ -197,12 +241,60 @@ export default function RuleBuilder() {
     });
   };
 
+  // Edit handlers - initialize selected roles and actions as arrays
+  const editSelectedRoles = Array.isArray(editRule.roles) ? editRule.roles : (editRule.role ? editRule.role.split(',').map(r => r.trim()) : []);
+  const editSelectedActions = Array.isArray(editRule.actions) ? editRule.actions : (editRule.action ? editRule.action.split(',').map(a => a.trim()) : []);
+  
+  // Edit role toggle handler
+  const handleEditRoleToggle = (role) => {
+    const currentRoles = Array.isArray(editRule.roles) ? editRule.roles : (editRule.role ? editRule.role.split(',').map(r => r.trim()) : []);
+    const updatedRoles = currentRoles.includes(role)
+      ? currentRoles.filter(r => r !== role)
+      : [...currentRoles, role];
+    setEditRule({ ...editRule, roles: updatedRoles, role: updatedRoles.join(',') });
+  };
+  
+  const handleEditSelectAllRoles = () => {
+    setEditRule({ ...editRule, roles: allAvailableRoles, role: allAvailableRoles.join(',') });
+  };
+  
+  const handleEditDeselectAllRoles = () => {
+    setEditRule({ ...editRule, roles: [], role: '' });
+  };
+  
+  // Edit action toggle handler (available for all roles now)
+  const handleEditActionToggle = (action) => {
+    const currentActions = Array.isArray(editRule.actions) ? editRule.actions : (editRule.action ? editRule.action.split(',').map(a => a.trim()) : []);
+    const updatedActions = currentActions.includes(action)
+      ? currentActions.filter(a => a !== action)
+      : [...currentActions, action];
+    setEditRule({ ...editRule, actions: updatedActions, action: updatedActions.join(',') });
+  };
+  
+  const handleEditSelectAllActions = () => {
+    setEditRule({ ...editRule, actions: availableActions, action: availableActions.join(',') });
+  };
+  
+  const handleEditDeselectAllActions = () => {
+    setEditRule({ ...editRule, actions: [], action: '' });
+  };
+
   // Handle edit rule
   const handleEditRule = (rule) => {
     setSelectedRule(rule);
+    // Parse role string to array if it contains commas
+    const rolesArray = rule.role && rule.role.includes(',') 
+      ? rule.role.split(',').map(r => r.trim())
+      : (rule.role ? [rule.role] : []);
+    // Parse action string to array if it contains commas
+    const actionsArray = rule.action && rule.action.includes(',') 
+      ? rule.action.split(',').map(a => a.trim())
+      : (rule.action ? [rule.action] : []);
     setEditRule({
       role: rule.role,
+      roles: rolesArray,
       action: rule.action,
+      actions: actionsArray,
       field: rule.field,
       conditions: rule.conditions.length > 0 ? rule.conditions : [{ key: '', operator: 'equals', value: '' }],
       description: rule.description,
@@ -285,6 +377,77 @@ export default function RuleBuilder() {
       ...editRule,
       conditions: updatedConditions
     });
+  };
+
+  // Handle adding new custom field or role
+  const handleAddCustomField = () => {
+    const trimmedName = newFieldName.trim();
+    
+    if (isAddingRole) {
+      // Adding a custom role
+      if (trimmedName && !customRoles.includes(trimmedName) && !availableRoles.includes(trimmedName)) {
+        const newRole = trimmedName;
+        setCustomRoles([...customRoles, newRole]);
+        setNewFieldName('');
+        setShowAddFieldModal(false);
+        setIsAddingRole(false);
+        
+        // Update the main Role dropdown
+        if (showEditModal) {
+          setEditRule({...editRule, role: newRole});
+        } else {
+          setNewRule({...newRule, role: newRole});
+        }
+      }
+    } else {
+      // Adding a custom field
+      if (trimmedName && !customFields.includes(trimmedName) && !availableConditions.includes(trimmedName)) {
+        const newField = trimmedName;
+        setCustomFields([...customFields, newField]);
+        setNewFieldName('');
+        setShowAddFieldModal(false);
+        
+        // If adding field to a specific condition, update that condition
+        if (addFieldToConditionIndex !== null) {
+          // Check if we're in edit mode or create mode
+          if (showEditModal && editRule.conditions) {
+            updateEditCondition(addFieldToConditionIndex, 'key', newField);
+          } else {
+            updateCondition(addFieldToConditionIndex, 'key', newField);
+          }
+          setAddFieldToConditionIndex(null);
+        } else {
+          // If not adding to a condition, update the main Field dropdown
+          // Check if we're in edit mode or create mode
+          if (showEditModal) {
+            setEditRule({...editRule, field: newField});
+          } else {
+            setNewRule({...newRule, field: newField});
+          }
+        }
+      }
+    }
+  };
+  
+  // Handle opening add role modal
+  const handleOpenAddRoleModal = () => {
+    setIsAddingRole(true);
+    setAddFieldToConditionIndex(null);
+    setShowAddFieldModal(true);
+  };
+  
+  // Handle opening add field modal for a specific condition
+  const handleOpenAddFieldModal = (conditionIndex) => {
+    setIsAddingRole(false);
+    setAddFieldToConditionIndex(conditionIndex);
+    setShowAddFieldModal(true);
+  };
+  
+  // Handle opening add field modal for edit condition
+  const handleEditOpenAddFieldModal = (conditionIndex) => {
+    setIsAddingRole(false);
+    setAddFieldToConditionIndex(conditionIndex);
+    setShowAddFieldModal(true);
   };
 
   // Toggle rule active status
@@ -538,7 +701,9 @@ export default function RuleBuilder() {
                   >
                     <option value="">All Actions</option>
                     {availableActions.map(action => (
-                      <option key={action} value={action}>{action}</option>
+                      <option key={action} value={action}>
+                        {action.charAt(0).toUpperCase() + action.slice(1)}
+                      </option>
                     ))}
                   </select>
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -715,45 +880,149 @@ export default function RuleBuilder() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                      <select
-                        value={newRule.role}
-                        onChange={(e) => setNewRule({...newRule, role: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Role</option>
-                        {availableRoles.map(role => (
-                          <option key={role} value={role}>{role}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Roles (Select Multiple)</label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllRoles}
+                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeselectAllRoles}
+                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            Deselect All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleOpenAddRoleModal}
+                            className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                            title="Add new role"
+                          >
+                            <PlusIcon className="h-4 w-4 inline mr-1" />
+                            Add Role
+                          </button>
+                        </div>
+                        <div className="border border-gray-300 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                          {allAvailableRoles.map(role => (
+                            <label key={role} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedRoles.includes(role)}
+                                onChange={() => handleRoleToggle(role)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-700">
+                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {selectedRoles.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Selected: {selectedRoles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
-                      <select
-                        value={newRule.action}
-                        onChange={(e) => setNewRule({...newRule, action: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Action</option>
-                        {availableActions.map(action => (
-                          <option key={action} value={action}>{action}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Actions (Select Multiple)</label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllActions}
+                            className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeselectAllActions}
+                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            Deselect All
+                          </button>
+                        </div>
+                        <div className="border border-gray-300 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                          {availableActions.map(action => (
+                            <label key={action} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedActions.includes(action)}
+                                onChange={() => handleActionToggle(action)}
+                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-700">
+                                {action.charAt(0).toUpperCase() + action.slice(1)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {selectedActions.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Selected: {selectedActions.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Field</label>
-                      <select
-                        value={newRule.field}
-                        onChange={(e) => setNewRule({...newRule, field: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Field</option>
-                        {availableFields.map(field => (
-                          <option key={field} value={field}>{field}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Field <span className="text-xs text-gray-500">(Form Fields or Sidebar Menu Items)</span>
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={newRule.field}
+                          onChange={(e) => setNewRule({...newRule, field: e.target.value})}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Select Field</option>
+                          {/* Form Fields Category */}
+                          <optgroup label="📋 Form Fields (Employee Information)">
+                            {FIELD_CATEGORIES.formFields.fields.map(field => (
+                              <option key={field} value={field}>
+                                {field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {/* Sidebar Menu Items Category */}
+                          <optgroup label="📂 Sidebar Menu Items">
+                            {FIELD_CATEGORIES.sidebarMenu.fields.map(field => (
+                              <option key={field} value={field}>
+                                {field.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {/* Custom Fields */}
+                          {customFields.length > 0 && (
+                            <optgroup label="➕ Custom Fields">
+                              {customFields.map(field => (
+                                <option key={field} value={field}>
+                                  {field}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingRole(false);
+                            setAddFieldToConditionIndex(null); // Not for a condition, but for the main field
+                            setShowAddFieldModal(true);
+                          }}
+                          className="p-3 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors border border-blue-300 hover:border-blue-400"
+                          title="Add new custom field"
+                        >
+                          <PlusIcon className="h-5 w-5" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div>
@@ -787,16 +1056,47 @@ export default function RuleBuilder() {
                   <div className="space-y-4">
                     {newRule.conditions.map((condition, index) => (
                       <div key={index} className="flex items-center space-x-2 p-4 bg-white rounded-lg border border-green-200">
-                        <select
-                          value={condition.key}
-                          onChange={(e) => updateCondition(index, 'key', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        >
-                          <option value="">Select Field</option>
-                          {availableConditions.map(cond => (
-                            <option key={cond} value={cond}>{cond}</option>
-                          ))}
-                        </select>
+                        <div className="flex-1 flex items-center space-x-2">
+                          <select
+                            value={condition.key}
+                            onChange={(e) => updateCondition(index, 'key', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          >
+                            <option value="">Select Field</option>
+                            {/* Form Fields Category */}
+                            <optgroup label="📋 Form Fields">
+                              {FIELD_CATEGORIES.formFields.fields.map(cond => (
+                                <option key={cond} value={cond}>
+                                  {cond.charAt(0).toUpperCase() + cond.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                                </option>
+                              ))}
+                            </optgroup>
+                            {/* Sidebar Menu Items Category */}
+                            <optgroup label="📂 Sidebar Menu">
+                              {FIELD_CATEGORIES.sidebarMenu.fields.map(cond => (
+                                <option key={cond} value={cond}>
+                                  {cond.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                </option>
+                              ))}
+                            </optgroup>
+                            {/* Custom Fields */}
+                            {customFields.length > 0 && (
+                              <optgroup label="➕ Custom">
+                                {customFields.map(cond => (
+                                  <option key={cond} value={cond}>{cond}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAddFieldModal(index)}
+                            className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-300 hover:border-green-400"
+                            title="Add new field"
+                          >
+                            <PlusIcon className="h-5 w-5" />
+                          </button>
+                        </div>
                         
                         <select
                           value={condition.operator}
@@ -853,7 +1153,7 @@ export default function RuleBuilder() {
                 </button>
                 <button
                   onClick={handleCreateRule}
-                  disabled={!newRule.role || !newRule.action || !newRule.field || !newRule.description}
+                  disabled={selectedRoles.length === 0 || selectedActions.length === 0 || !newRule.field || !newRule.description}
                   className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create Rule
@@ -889,45 +1189,149 @@ export default function RuleBuilder() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                      <select
-                        value={editRule.role}
-                        onChange={(e) => setEditRule({...editRule, role: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Role</option>
-                        {availableRoles.map(role => (
-                          <option key={role} value={role}>{role}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Roles (Select Multiple)</label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={handleEditSelectAllRoles}
+                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleEditDeselectAllRoles}
+                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            Deselect All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleOpenAddRoleModal}
+                            className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                            title="Add new role"
+                          >
+                            <PlusIcon className="h-4 w-4 inline mr-1" />
+                            Add Role
+                          </button>
+                        </div>
+                        <div className="border border-gray-300 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                          {allAvailableRoles.map(role => (
+                            <label key={role} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={editSelectedRoles.includes(role)}
+                                onChange={() => handleEditRoleToggle(role)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-700">
+                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {editSelectedRoles.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Selected: {editSelectedRoles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
-                      <select
-                        value={editRule.action}
-                        onChange={(e) => setEditRule({...editRule, action: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Action</option>
-                        {availableActions.map(action => (
-                          <option key={action} value={action}>{action}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Actions (Select Multiple)</label>
+                      <div className="space-y-2">
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={handleEditSelectAllActions}
+                            className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleEditDeselectAllActions}
+                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            Deselect All
+                          </button>
+                        </div>
+                        <div className="border border-gray-300 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                          {availableActions.map(action => (
+                            <label key={action} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={editSelectedActions.includes(action)}
+                                onChange={() => handleEditActionToggle(action)}
+                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-700">
+                                {action.charAt(0).toUpperCase() + action.slice(1)}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {editSelectedActions.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Selected: {editSelectedActions.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Field</label>
-                      <select
-                        value={editRule.field}
-                        onChange={(e) => setEditRule({...editRule, field: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Field</option>
-                        {availableFields.map(field => (
-                          <option key={field} value={field}>{field}</option>
-                        ))}
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Field <span className="text-xs text-gray-500">(Form Fields or Sidebar Menu Items)</span>
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={editRule.field}
+                          onChange={(e) => setEditRule({...editRule, field: e.target.value})}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Select Field</option>
+                          {/* Form Fields Category */}
+                          <optgroup label="📋 Form Fields (Employee Information)">
+                            {FIELD_CATEGORIES.formFields.fields.map(field => (
+                              <option key={field} value={field}>
+                                {field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {/* Sidebar Menu Items Category */}
+                          <optgroup label="📂 Sidebar Menu Items">
+                            {FIELD_CATEGORIES.sidebarMenu.fields.map(field => (
+                              <option key={field} value={field}>
+                                {field.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {/* Custom Fields */}
+                          {customFields.length > 0 && (
+                            <optgroup label="➕ Custom Fields">
+                              {customFields.map(field => (
+                                <option key={field} value={field}>
+                                  {field}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingRole(false);
+                            setAddFieldToConditionIndex(null); // Not for a condition, but for the main field
+                            setShowAddFieldModal(true);
+                          }}
+                          className="p-3 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors border border-blue-300 hover:border-blue-400"
+                          title="Add new custom field"
+                        >
+                          <PlusIcon className="h-5 w-5" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div>
@@ -961,16 +1365,47 @@ export default function RuleBuilder() {
                   <div className="space-y-4">
                     {editRule.conditions.map((condition, index) => (
                       <div key={index} className="flex items-center space-x-2 p-4 bg-white rounded-lg border border-green-200">
-                        <select
-                          value={condition.key}
-                          onChange={(e) => updateEditCondition(index, 'key', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        >
-                          <option value="">Select Field</option>
-                          {availableConditions.map(cond => (
-                            <option key={cond} value={cond}>{cond}</option>
-                          ))}
-                        </select>
+                        <div className="flex-1 flex items-center space-x-2">
+                          <select
+                            value={condition.key}
+                            onChange={(e) => updateEditCondition(index, 'key', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          >
+                            <option value="">Select Field</option>
+                            {/* Form Fields Category */}
+                            <optgroup label="📋 Form Fields">
+                              {FIELD_CATEGORIES.formFields.fields.map(cond => (
+                                <option key={cond} value={cond}>
+                                  {cond.charAt(0).toUpperCase() + cond.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                                </option>
+                              ))}
+                            </optgroup>
+                            {/* Sidebar Menu Items Category */}
+                            <optgroup label="📂 Sidebar Menu">
+                              {FIELD_CATEGORIES.sidebarMenu.fields.map(cond => (
+                                <option key={cond} value={cond}>
+                                  {cond.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                </option>
+                              ))}
+                            </optgroup>
+                            {/* Custom Fields */}
+                            {customFields.length > 0 && (
+                              <optgroup label="➕ Custom">
+                                {customFields.map(cond => (
+                                  <option key={cond} value={cond}>{cond}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleEditOpenAddFieldModal(index)}
+                            className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-300 hover:border-green-400"
+                            title="Add new field"
+                          >
+                            <PlusIcon className="h-5 w-5" />
+                          </button>
+                        </div>
                         
                         <select
                           value={condition.operator}
@@ -1027,10 +1462,113 @@ export default function RuleBuilder() {
                 </button>
                 <button
                   onClick={handleUpdateRule}
-                  disabled={!editRule.role || !editRule.action || !editRule.field || !editRule.description}
+                  disabled={editSelectedRoles.length === 0 || editSelectedActions.length === 0 || !editRule.field || !editRule.description}
                   className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Update Rule
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Field/Role Modal */}
+        {showAddFieldModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <PlusIcon className={`h-6 w-6 ${isAddingRole ? 'text-blue-600' : 'text-green-600'}`} />
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {isAddingRole ? 'Add New Role' : 'Add New Field'}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAddFieldModal(false);
+                      setNewFieldName('');
+                      setAddFieldToConditionIndex(null);
+                      setIsAddingRole(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition"
+                  >
+                    <XCircleIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {isAddingRole ? 'Role Name' : 'Field Name'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newFieldName}
+                    onChange={(e) => setNewFieldName(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddCustomField();
+                      }
+                    }}
+                    placeholder={isAddingRole ? "Enter role name (e.g., customRole)" : "Enter field name (e.g., customField)"}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    {isAddingRole 
+                      ? 'This role will be added to the available roles list and can be used in rules.'
+                      : 'This field will be added to the available fields list and can be used in conditions.'}
+                  </p>
+                </div>
+                
+                {newFieldName.trim() && (
+                  isAddingRole 
+                    ? (customRoles.includes(newFieldName.trim()) || availableRoles.includes(newFieldName.trim())) && (
+                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            This role already exists. Please choose a different name.
+                          </p>
+                        </div>
+                      )
+                    : (customFields.includes(newFieldName.trim()) || availableConditions.includes(newFieldName.trim())) && (
+                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            This field already exists. Please choose a different name.
+                          </p>
+                        </div>
+                      )
+                )}
+              </div>
+              
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowAddFieldModal(false);
+                    setNewFieldName('');
+                    setAddFieldToConditionIndex(null);
+                    setIsAddingRole(false);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddCustomField}
+                  disabled={
+                    !newFieldName.trim() || 
+                    (isAddingRole 
+                      ? (customRoles.includes(newFieldName.trim()) || availableRoles.includes(newFieldName.trim()))
+                      : (customFields.includes(newFieldName.trim()) || availableConditions.includes(newFieldName.trim())))
+                  }
+                  className={`px-4 py-2 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isAddingRole 
+                      ? 'bg-blue-600 hover:bg-blue-700' 
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  {isAddingRole ? 'Add Role' : 'Add Field'}
                 </button>
               </div>
             </div>

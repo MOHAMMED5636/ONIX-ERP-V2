@@ -58,7 +58,6 @@ export const defaultNewPosition = {
   description: '',
   manager: '',
   status: 'Active',
-  salary: '',
   requirements: ''
 };
 
@@ -67,6 +66,5 @@ export const defaultEditPosition = {
   description: '',
   manager: '',
   status: 'Active',
-  salary: '',
   requirements: ''
 };

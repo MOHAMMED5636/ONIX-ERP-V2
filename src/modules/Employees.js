@@ -1,10 +1,13 @@
 import React, { useState, createContext, useContext, useEffect } from "react";
-import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon } from '@heroicons/react/24/outline';
-import { useNavigate } from 'react-router-dom';
+import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useCompanySelection } from '../context/CompanySelectionContext';
+import { getEmployees, getEmployeeStatistics, createEmployee, updateEmployee, deleteEmployee, restoreEmployee } from '../services/employeeAPI';
+import { getCompanies } from '../services/companiesAPI';
+import { getCompanyDepartments } from '../services/departmentAPI';
 
 // Custom styles for PhoneInput integration
 const phoneInputStyles = `
@@ -252,13 +255,7 @@ const nationalities = [
   { value: "zimbabwean", label: "Zimbabwean", flag: "🇿🇼" }
 ];
 
-// Demo employee data
-const demoEmployees = [
-  { id: 1, name: "Ahmed Ali", department: "HR", email: "ahmed.ali@email.com", jobTitle: "Manager" },
-  { id: 2, name: "Sara Youssef", department: "Finance", email: "sara.y@email.com", jobTitle: "Accountant" },
-  { id: 3, name: "John Smith", department: "IT", email: "john.smith@email.com", jobTitle: "Developer" },
-  { id: 4, name: "Fatima Noor", department: "Sales", email: "fatima.noor@email.com", jobTitle: "Sales Rep" },
-];
+// Demo employee data removed - now using real backend data
 
 // Form context for multi-step form state
 const EmployeeFormContext = createContext();
@@ -275,20 +272,29 @@ const steps = [
 
 function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, employeesList }) {
   const [step, setStep] = useState(0);
-  const { selectedCompany, selectedDepartment } = useCompanySelection();
+  const location = useLocation();
+  const { selectedCompany } = useCompanySelection();
+  
+  // Only use department from navigation state (when coming from positions/subdepartments), not from localStorage/context
+  const navigationState = location.state || {};
+  // Only prefill department if explicitly coming from a position/subdepartment navigation
+  const hasExplicitNavigation = navigationState.position || navigationState.subDepartment || navigationState.positionId;
+  
+  // Extract department name - handle both string and object formats
+  let departmentFromNavigation = null;
+  if (hasExplicitNavigation) {
+    const dept = navigationState.department || navigationState.departmentName;
+    if (dept) {
+      // If it's an object, extract the name property; otherwise use it as-is
+      departmentFromNavigation = typeof dept === 'object' && dept !== null ? (dept.name || dept.title || String(dept)) : dept;
+    }
+  }
   
   // Static company locations
   const companyLocations = [
-    "HQ - Main Office",
-    "Branch 1 - Downtown",
-    "Branch 2 - Industrial Area", 
-    "Branch 3 - Airport Road",
-    "Branch 4 - Shopping District",
-    "Branch 5 - Business Park",
-    "Remote - Work from Home",
-    "Site Office - Project Location",
-    "Client Office - On-site",
-    "Mobile - Field Work"
+    "Dubai HQ",
+    "Abu Dhabi Office",
+    "Syria Office"
   ];
   
   const [form, setForm] = useState({
@@ -307,7 +313,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     birthday: "",
     contacts: [{ type: "phone", value: "", countryCode: "ae" }],
     emails: [""],
-    department: selectedDepartment || "",
+    department: (typeof departmentFromNavigation === 'string' ? departmentFromNavigation : (departmentFromNavigation?.name || departmentFromNavigation?.title || '')) || "",
     jobTitle: "",
     location: "",
     manager: "",
@@ -350,6 +356,12 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
   const [userAccountFields, setUserAccountFields] = useState({ username: '', password: '', passwordConfirm: '' });
   const [openLegalSection, setOpenLegalSection] = useState('');
   const [nationalityDropdownOpen, setNationalityDropdownOpen] = useState(false);
+  const [nationalitySearchTerm, setNationalitySearchTerm] = useState('');
+  const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(null);
 
   // Context value
   const ctxValue = { form, setForm };
@@ -359,6 +371,10 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     const handleClickOutside = (event) => {
       if (nationalityDropdownOpen && !event.target.closest('.nationality-dropdown')) {
         setNationalityDropdownOpen(false);
+        // Reset search term if no selection was made
+        if (!form.nationality) {
+          setNationalitySearchTerm('');
+        }
       }
     };
 
@@ -366,17 +382,109 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [nationalityDropdownOpen]);
+  }, [nationalityDropdownOpen, form.nationality]);
 
-  // Update form when selected company or department changes
+  // Fetch companies on component mount
   useEffect(() => {
-    if (selectedCompany) {
-      setForm(prev => ({ ...prev, company: selectedCompany }));
+    const fetchCompanies = async () => {
+      setLoadingCompanies(true);
+      try {
+        const response = await getCompanies();
+        if (response.success && response.data) {
+          const companiesList = Array.isArray(response.data) ? response.data : (response.data.companies || []);
+          setCompanies(companiesList);
+          
+          // If there's a selected company from context, find and set it
+          if (selectedCompany) {
+            const foundCompany = companiesList.find(c => c.name === selectedCompany || c.id === selectedCompany);
+            if (foundCompany) {
+              setSelectedCompanyId(foundCompany.id);
+              setForm(prev => ({ ...prev, company: foundCompany.name }));
+              // Fetch departments for the selected company
+              fetchDepartmentsForCompany(foundCompany.id);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  // Fetch departments for a company
+  const fetchDepartmentsForCompany = async (companyId) => {
+    if (!companyId) {
+      setDepartments([]);
+      return;
     }
-    if (selectedDepartment) {
-      setForm(prev => ({ ...prev, department: selectedDepartment }));
+
+    setLoadingDepartments(true);
+    try {
+      const response = await getCompanyDepartments(companyId);
+      if (response.success && response.data) {
+        const departmentsList = Array.isArray(response.data) ? response.data : [];
+        setDepartments(departmentsList);
+        
+        // Only prefill department if explicitly coming from navigation (position/subdepartment), not from localStorage/context
+        // Check if we have explicit navigation state indicating we came from a specific position/subdepartment
+        const hasExplicitNavigation = navigationState.position || navigationState.subDepartment || navigationState.positionId;
+        if (hasExplicitNavigation && departmentFromNavigation) {
+          const foundDepartment = departmentsList.find(d => d.name === departmentFromNavigation);
+          if (foundDepartment) {
+            setForm(prev => ({ ...prev, department: foundDepartment.name }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      setDepartments([]);
+    } finally {
+      setLoadingDepartments(false);
     }
-  }, [selectedCompany, selectedDepartment]);
+  };
+
+  // Handle company selection change
+  const handleCompanyChange = async (e) => {
+    const companyName = e.target.value;
+    const selectedCompanyObj = companies.find(c => c.name === companyName);
+    
+    if (selectedCompanyObj) {
+      setSelectedCompanyId(selectedCompanyObj.id);
+      setForm(prev => ({ ...prev, company: companyName, department: '' })); // Clear department when company changes
+      await fetchDepartmentsForCompany(selectedCompanyObj.id);
+    } else {
+      setSelectedCompanyId(null);
+      setForm(prev => ({ ...prev, company: companyName, department: '' }));
+      setDepartments([]);
+    }
+  };
+
+  // Update form when selected company or department changes from context
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      const foundCompany = companies.find(c => c.name === selectedCompany || c.id === selectedCompany);
+      if (foundCompany && foundCompany.id !== selectedCompanyId) {
+        setSelectedCompanyId(foundCompany.id);
+        setForm(prev => ({ ...prev, company: foundCompany.name }));
+        fetchDepartmentsForCompany(foundCompany.id);
+      }
+    }
+  }, [selectedCompany, companies.length]);
+
+  // Only update department if explicitly coming from navigation (position/subdepartment), not from localStorage/context
+  useEffect(() => {
+    const hasExplicitNavigation = navigationState.position || navigationState.subDepartment || navigationState.positionId;
+    if (hasExplicitNavigation && departmentFromNavigation && departments.length > 0) {
+      const foundDepartment = departments.find(d => d.name === departmentFromNavigation);
+      if (foundDepartment && form.department !== foundDepartment.name) {
+        setForm(prev => ({ ...prev, department: foundDepartment.name }));
+      }
+    }
+  }, [departmentFromNavigation, departments.length]);
 
   // Helper function to format phone number for submission
   const formatPhoneForSubmission = (phoneNumber, countryCode) => {
@@ -386,8 +494,67 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
   };
 
+  // Helper function to calculate age from birthday
+  const calculateAge = (birthday) => {
+    if (!birthday) return null;
+    const birthDate = new Date(birthday);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Validate birthday for minimum age
+  const validateBirthday = (birthday) => {
+    if (!birthday) {
+      return "Required";
+    }
+    const age = calculateAge(birthday);
+    if (age === null) {
+      return "Invalid date";
+    }
+    if (age < 18) {
+      return "This employee cannot be added to the company unless they are at least 18 years old.";
+    }
+    return null;
+  };
+
+  // Validate passport expiry date - must be at least 6 months from today
+  const validatePassportExpiry = (expiryDate) => {
+    if (!expiryDate) {
+      return "Required";
+    }
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    
+    // Check if date is valid
+    if (isNaN(expiry.getTime())) {
+      return "Invalid date";
+    }
+    
+    // Calculate 6 months from today
+    const sixMonthsFromNow = new Date();
+    sixMonthsFromNow.setMonth(today.getMonth() + 6);
+    
+    // Check if expiry date is at least 6 months away
+    if (expiry < sixMonthsFromNow) {
+      return "Passport must be valid for at least 6 months from today. Please upload a passport with a later expiry date.";
+    }
+    
+    return null;
+  };
+
   // Handlers
-  const handleChange = (field, value) => setForm({ ...form, [field]: value });
+  const handleChange = (field, value) => {
+    // Ensure department is always stored as a string
+    if (field === 'department' && typeof value !== 'string') {
+      value = typeof value === 'object' && value !== null ? (value.name || value.title || String(value)) : String(value);
+    }
+    setForm({ ...form, [field]: value });
+  };
   const handleContactChange = (idx, value, countryCode = null) => {
     const contacts = [...form.contacts];
     contacts[idx].value = value;
@@ -437,9 +604,13 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       if (!form.gender) errs.gender = "Required";
       if (!form.maritalStatus) errs.maritalStatus = "Required";
       if (!form.nationality) errs.nationality = "Required";
-          if (!form.currentAddress) errs.currentAddress = "Required";
-    if (!form.childrenCount) errs.childrenCount = "Required";
-      if (!form.birthday) errs.birthday = "Required";
+      if (!form.currentAddress) errs.currentAddress = "Required";
+      if (!form.childrenCount) errs.childrenCount = "Required";
+      // Validate birthday with age check
+      const birthdayError = validateBirthday(form.birthday);
+      if (birthdayError) {
+        errs.birthday = birthdayError;
+      }
     }
     if (step === 2) {
       if (!form.contacts[0].value) errs.contacts = "At least one phone required";
@@ -453,28 +624,19 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       if (!form.attendanceProgram) errs.attendanceProgram = "Required";
       if (!form.joiningDate) errs.joiningDate = "Required";
       if (!form.companyLocation) errs.companyLocation = "Required";
-      if (!form.manager) errs.manager = "Required";
+      // Line Manager is optional - no validation required
     }
     if (step === 4) {
-      // Passport
+      // Passport - REQUIRED
       if (!form.passportNumber) errs.passportNumber = "Required";
       if (!form.passportIssue) errs.passportIssue = "Required";
-      if (!form.passportExpiry) errs.passportExpiry = "Required";
-      // National ID
-      if (!form.nationalIdNumber) errs.nationalIdNumber = "Required";
-      if (!form.nationalIdExpiry) errs.nationalIdExpiry = "Required";
-      // Residency
-      if (!form.residencyNumber) errs.residencyNumber = "Required";
-      if (!form.residencyExpiry) errs.residencyExpiry = "Required";
-      // Insurance
-      if (!form.insuranceNumber) errs.insuranceNumber = "Required";
-      if (!form.insuranceExpiry) errs.insuranceExpiry = "Required";
-      // Driving
-      if (!form.drivingNumber) errs.drivingNumber = "Required";
-      if (!form.drivingExpiry) errs.drivingExpiry = "Required";
-      // Labour
-      if (!form.labourNumber) errs.labourNumber = "Required";
-      if (!form.labourExpiry) errs.labourExpiry = "Required";
+      // Validate passport expiry - must be at least 6 months away
+      const passportExpiryError = validatePassportExpiry(form.passportExpiry);
+      if (passportExpiryError) {
+        errs.passportExpiry = passportExpiryError;
+      }
+      // All other legal documents (National ID, Residency, Insurance, Driving License, Labour ID) are OPTIONAL
+      // No validation required for these fields
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -487,18 +649,93 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Validate all steps before submission
+    let allErrors = {};
+    
+    // Validate step 0
+    if (!form.employeeType) allErrors.employeeType = "Required";
+    if (!form.firstName) allErrors.firstName = "Required";
+    if (!form.lastName) allErrors.lastName = "Required";
+    if (!form.employeeId) allErrors.employeeId = "Required";
+    if (!form.status) allErrors.status = "Required";
+    
+    // Validate step 1 (including birthday age check)
+    if (!form.gender) allErrors.gender = "Required";
+    if (!form.maritalStatus) allErrors.maritalStatus = "Required";
+    if (!form.nationality) allErrors.nationality = "Required";
+    if (!form.currentAddress) allErrors.currentAddress = "Required";
+    if (!form.childrenCount) allErrors.childrenCount = "Required";
+    const birthdayError = validateBirthday(form.birthday);
+    if (birthdayError) {
+      allErrors.birthday = birthdayError;
+    }
+    
+    // Validate step 2
+    if (!form.contacts[0]?.value) allErrors.contacts = "At least one phone required";
+    if (!form.emails[0]) allErrors.emails = "At least one email required";
+    
+    // Validate step 3
+    if (!form.company) allErrors.company = "Required";
+    if (!form.department) allErrors.department = "Required";
+    if (!form.jobTitle) allErrors.jobTitle = "Required";
+    if (!form.attendanceProgram) allErrors.attendanceProgram = "Required";
+    if (!form.joiningDate) allErrors.joiningDate = "Required";
+    if (!form.companyLocation) allErrors.companyLocation = "Required";
+    // Line Manager is optional - no validation required
+    
+    // If there are errors, set them and prevent submission
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors);
+      // Scroll to first error
+      const firstErrorField = Object.keys(allErrors)[0];
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) || 
+                          document.querySelector(`input[value*="${firstErrorField}"]`)?.closest('.w-full');
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    
     // Format phone numbers for submission
     const formattedContacts = form.contacts.map(contact => ({
       ...contact,
       value: formatPhoneForSubmission(contact.value, contact.countryCode)
     }));
     
+    // Extract passport fields and map to backend expected names
+    const { 
+      passportIssue, passportExpiry, nationalIdExpiry, residencyExpiry, 
+      insuranceExpiry, drivingExpiry, drivingNumber, labourExpiry,
+      ...restOfForm 
+    } = form;
+    
     const submissionData = {
-      ...form,
-      contacts: formattedContacts
+      ...restOfForm,
+      contacts: formattedContacts,
+      // Ensure passportNumber is included (it's in restOfForm but explicitly include it)
+      passportNumber: form.passportNumber || '',
+      // Map passport fields to backend expected names
+      passportIssueDate: passportIssue || '',
+      passportExpiryDate: passportExpiry || '',
+      // Map other legal document expiry fields
+      nationalIdExpiryDate: nationalIdExpiry || null,
+      residencyExpiryDate: residencyExpiry || null,
+      insuranceExpiryDate: insuranceExpiry || null,
+      drivingLicenseExpiryDate: drivingExpiry || null,
+      labourIdExpiryDate: labourExpiry || null,
+      // Map driving license field name
+      drivingLicenseNumber: drivingNumber || null
     };
     
     console.log('Submitting employee data:', submissionData);
+    console.log('Passport fields check:', {
+      passportNumber: submissionData.passportNumber,
+      passportIssueDate: submissionData.passportIssueDate,
+      passportExpiryDate: submissionData.passportExpiryDate,
+      formPassportNumber: form.passportNumber,
+      formPassportIssue: form.passportIssue,
+      formPassportExpiry: form.passportExpiry
+    });
     setSubmitted(true);
     
     // Save the employee to the list
@@ -638,37 +875,103 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                <div className="w-full">
                                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Nationality<span className="text-red-500 ml-1">*</span></label>
                     <div className="relative nationality-dropdown">
-                      <div className="w-full h-[42px] px-4 py-2 text-sm border rounded-md focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 bg-white flex items-center justify-between cursor-pointer" onClick={() => setNationalityDropdownOpen(!nationalityDropdownOpen)}>
-                        <div className="flex items-center">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          className="w-full h-[42px] px-4 py-2 pr-10 text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          placeholder="Type to search nationality..."
+                          value={form.nationality 
+                            ? nationalities.find(n => n.value === form.nationality)?.label || form.nationality 
+                            : nationalitySearchTerm}
+                          onChange={(e) => {
+                            const searchValue = e.target.value;
+                            setNationalitySearchTerm(searchValue);
+                            setNationalityDropdownOpen(true);
+                            // Clear selection if user starts typing something different
+                            if (form.nationality) {
+                              const currentLabel = nationalities.find(n => n.value === form.nationality)?.label || '';
+                              if (searchValue !== currentLabel) {
+                                handleChange('nationality', '');
+                              }
+                            }
+                          }}
+                          onFocus={() => {
+                            setNationalityDropdownOpen(true);
+                            // If there's a selected nationality, show it in search term for editing
+                            if (form.nationality) {
+                              const selectedLabel = nationalities.find(n => n.value === form.nationality)?.label || '';
+                              setNationalitySearchTerm(selectedLabel);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setNationalityDropdownOpen(false);
+                              // Restore selected value if exists
+                              if (form.nationality) {
+                                const selectedLabel = nationalities.find(n => n.value === form.nationality)?.label || '';
+                                setNationalitySearchTerm(selectedLabel);
+                              } else {
+                                setNationalitySearchTerm('');
+                              }
+                            }
+                            // Allow Enter key to select first filtered option
+                            if (e.key === 'Enter' && nationalityDropdownOpen) {
+                              e.preventDefault();
+                              const filteredNationalities = nationalities.filter((nationality) =>
+                                nationality.label.toLowerCase().includes(nationalitySearchTerm.toLowerCase()) ||
+                                nationality.value.toLowerCase().includes(nationalitySearchTerm.toLowerCase())
+                              );
+                              if (filteredNationalities.length > 0) {
+                                handleChange('nationality', filteredNationalities[0].value);
+                                setNationalitySearchTerm('');
+                                setNationalityDropdownOpen(false);
+                              }
+                            }
+                          }}
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                           {form.nationality ? (
-                            <span className="text-sm text-gray-900">
-                              <span className="mr-1 text-base" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols"' }}>{nationalities.find(n => n.value === form.nationality)?.flag}</span> {nationalities.find(n => n.value === form.nationality)?.label}
+                            <span className="text-lg" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols"' }}>
+                              {nationalities.find(n => n.value === form.nationality)?.flag}
                             </span>
                           ) : (
-                            <span className="text-sm text-gray-500">
-                              <span className="mr-1 text-base" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols"' }}>🏳️</span> Select Nationality
-                            </span>
+                            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
                           )}
                         </div>
-                        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
                       </div>
                       {nationalityDropdownOpen && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                          {nationalities.map((nationality) => (
-                            <div
-                              key={nationality.value}
-                              className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer flex items-center"
-                              onClick={() => {
-                                handleChange('nationality', nationality.value);
-                                setNationalityDropdownOpen(false);
-                              }}
-                            >
-                              <span className="mr-2 text-lg" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols"' }}>{nationality.flag}</span>
-                              <span>{nationality.label}</span>
-                            </div>
-                          ))}
+                          {(() => {
+                            const filteredNationalities = nationalities.filter((nationality) =>
+                              nationality.label.toLowerCase().includes(nationalitySearchTerm.toLowerCase()) ||
+                              nationality.value.toLowerCase().includes(nationalitySearchTerm.toLowerCase())
+                            );
+                            
+                            if (filteredNationalities.length === 0) {
+                              return (
+                                <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                                  No nationalities found
+                                </div>
+                              );
+                            }
+                            
+                            return filteredNationalities.map((nationality) => (
+                              <div
+                                key={nationality.value}
+                                className="px-4 py-2 text-sm hover:bg-indigo-50 cursor-pointer flex items-center transition-colors"
+                                onClick={() => {
+                                  handleChange('nationality', nationality.value);
+                                  setNationalitySearchTerm('');
+                                  setNationalityDropdownOpen(false);
+                                }}
+                              >
+                                <span className="mr-2 text-lg" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiSymbols"' }}>{nationality.flag}</span>
+                                <span className={form.nationality === nationality.value ? 'font-semibold text-indigo-600' : ''}>{nationality.label}</span>
+                              </div>
+                            ));
+                          })()}
                         </div>
                       )}
                     </div>
@@ -681,8 +984,48 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                </div>
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Birthday<span className="text-red-500 ml-1">*</span></label>
-                 <input type="date" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.birthday} onChange={e => handleChange('birthday', e.target.value)} />
-                 {errors.birthday && <div className="text-red-500 text-xs">{errors.birthday}</div>}
+                 <input 
+                   type="date" 
+                   className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
+                     errors.birthday ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                   }`}
+                   value={form.birthday} 
+                   onChange={e => {
+                     const birthdayValue = e.target.value;
+                     handleChange('birthday', birthdayValue);
+                     // Real-time validation
+                     const birthdayError = validateBirthday(birthdayValue);
+                     if (birthdayError) {
+                       setErrors(prev => ({ ...prev, birthday: birthdayError }));
+                     } else {
+                       setErrors(prev => {
+                         const newErrors = { ...prev };
+                         delete newErrors.birthday;
+                         return newErrors;
+                       });
+                     }
+                   }}
+                   max={(() => {
+                     // Set max date to 18 years ago from today
+                     const today = new Date();
+                     const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+                     return maxDate.toISOString().split('T')[0];
+                   })()}
+                 />
+                 {errors.birthday && (
+                   <div className={`text-xs mt-1 ${
+                     errors.birthday.includes('at least 18 years old') 
+                       ? 'text-red-600 font-medium' 
+                       : 'text-red-500'
+                   }`}>
+                     {errors.birthday}
+                   </div>
+                 )}
+                 {form.birthday && !errors.birthday && (
+                   <div className="text-xs text-gray-500 mt-1">
+                     Age: {calculateAge(form.birthday)} years old
+                   </div>
+                 )}
                </div>
                <div className="w-full col-span-1 md:col-span-2">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Current Address<span className="text-red-500 ml-1">*</span></label>
@@ -749,49 +1092,132 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     </span>
                   )}
                 </label>
-                <input 
+                <select
                   className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
                     selectedCompany && form.company === selectedCompany ? 'border-green-300 bg-green-50' : ''
-                  }`} 
-                  placeholder="Enter company name" 
-                  value={form.company} 
-                  onChange={e => handleChange('company', e.target.value)} 
-                />
+                  }`}
+                  value={form.company}
+                  onChange={handleCompanyChange}
+                  disabled={loadingCompanies}
+                >
+                  <option value="">{loadingCompanies ? 'Loading companies...' : 'Select company'}</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.name}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
                 {errors.company && <div className="text-red-500 text-xs">{errors.company}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                   Department<span className="text-red-500 ml-1">*</span>
-                  {selectedDepartment && form.department === selectedDepartment && (
+                  {departmentFromNavigation && form.department === departmentFromNavigation && (
                     <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full flex items-center gap-1">
                       <CheckIcon className="h-3 w-3" />
                       Pre-filled
                     </span>
                   )}
+                  {selectedCompanyId && departments.length > 0 && form.department && (
+                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full flex items-center gap-1">
+                      <CheckIcon className="h-3 w-3" />
+                      {departments.length} available
+                    </span>
+                  )}
                 </label>
-                <input 
-                  className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
-                    selectedDepartment && form.department === selectedDepartment ? 'border-green-300 bg-green-50' : ''
-                  }`} 
-                  placeholder="Enter department" 
-                  value={form.department} 
-                  onChange={e => handleChange('department', e.target.value)} 
-                />
+                <div className="relative">
+                  <input
+                    list={`department-list-${selectedCompanyId || 'none'}`}
+                    className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
+                      departmentFromNavigation && form.department === departmentFromNavigation ? 'border-green-300 bg-green-50' : ''
+                    }`}
+                    placeholder={loadingDepartments 
+                      ? 'Loading departments...' 
+                      : !selectedCompanyId 
+                        ? 'Select a company first' 
+                        : departments.length === 0
+                          ? 'Enter department name'
+                          : 'Select or type department name'}
+                    value={typeof form.department === 'string' ? form.department : (form.department?.name || form.department?.title || '')}
+                    onChange={e => handleChange('department', e.target.value)}
+                    disabled={loadingDepartments || !selectedCompanyId}
+                  />
+                  <datalist id={`department-list-${selectedCompanyId || 'none'}`}>
+                    {departments.map(department => (
+                      <option key={department.id} value={department.name}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+                {selectedCompanyId && departments.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {departments.length} department{departments.length !== 1 ? 's' : ''} available. Select from list or type a new name.
+                  </div>
+                )}
+                {selectedCompanyId && departments.length === 0 && !loadingDepartments && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    No departments found for this company. You can enter a department name manually.
+                  </div>
+                )}
                 {errors.department && <div className="text-red-500 text-xs">{errors.department}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Job Title<span className="text-red-500 ml-1">*</span></label>
                 <select 
+                  key={`job-title-select-${jobTitles?.length || 0}`}
                   className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" 
-                  value={form.jobTitle} 
-                  onChange={e => handleChange('jobTitle', e.target.value)}
+                  value={form.jobTitle || ""} 
+                  onChange={e => {
+                    const newJobTitle = e.target.value;
+                    console.log('Job Title selected:', newJobTitle);
+                    console.log('Available job titles:', jobTitles);
+                    console.log('Current form.jobTitle:', form.jobTitle);
+                    
+                    // Update job title using functional update to ensure latest state
+                    setForm(prev => {
+                      const updated = { ...prev, jobTitle: newJobTitle };
+                      // Clear manager field when job title is "Manager"
+                      if (newJobTitle === "Manager") {
+                        updated.manager = '';
+                      }
+                      return updated;
+                    });
+                    
+                    // Clear manager error if it exists when selecting Manager
+                    if (newJobTitle === "Manager") {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.manager;
+                        return newErrors;
+                      });
+                    }
+                  }}
                 >
                   <option value="">Select job title</option>
-                  {jobTitles && jobTitles.map(job => (
-                    <option key={job.id} value={job.title}>{job.title}</option>
-                  ))}
+                  {jobTitles && jobTitles.length > 0 ? (
+                    jobTitles.map((job, index) => {
+                      const jobTitleValue = job.title || job.name || '';
+                      const jobTitleDisplay = job.title || job.name || '';
+                      return (
+                        <option 
+                          key={job.id || `job-${index}`} 
+                          value={jobTitleValue}
+                        >
+                          {jobTitleDisplay}
+                        </option>
+                      );
+                    })
+                  ) : (
+                    <option value="Manager">Manager</option>
+                  )}
                 </select>
                 {errors.jobTitle && <div className="text-red-500 text-xs">{errors.jobTitle}</div>}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Current value: {form.jobTitle || '(empty)'} | Available: {jobTitles?.length || 0} titles
+                  </div>
+                )}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Attendance Program<span className="text-red-500 ml-1">*</span></label>
@@ -831,20 +1257,22 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                 </select>
                 {errors.companyLocation && <div className="text-red-500 text-xs">{errors.companyLocation}</div>}
               </div>
-              <div className="w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Line Manager<span className="text-red-500 ml-1">*</span></label>
-                <select 
-                  className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" 
-                  value={form.manager} 
-                  onChange={e => handleChange('manager', e.target.value)}
-                >
-                  <option value="">Select line manager</option>
-                  {employeesList && employeesList.map(emp => (
-                    <option key={emp.id} value={emp.name}>{emp.name}</option>
-                  ))}
-                </select>
-                {errors.manager && <div className="text-red-500 text-xs">{errors.manager}</div>}
-              </div>
+              {form.jobTitle !== "Manager" && (
+                <div className="w-full">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Line Manager</label>
+                  <select 
+                    className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" 
+                    value={form.manager} 
+                    onChange={e => handleChange('manager', e.target.value)}
+                  >
+                    <option value="">Select line manager (Optional)</option>
+                    {employeesList && employeesList.map(emp => (
+                      <option key={emp.id} value={emp.name}>{emp.name}</option>
+                    ))}
+                  </select>
+                  {errors.manager && <div className="text-red-500 text-xs">{errors.manager}</div>}
+                </div>
+              )}
               <div className="w-full flex items-center gap-2 mt-6">
                 <input type="checkbox" checked={form.isLineManager} onChange={e => handleChange('isLineManager', e.target.checked)} />
                 <label className="block text-sm font-medium text-gray-700 mb-1">Is Line Manager</label>
@@ -893,19 +1321,67 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                   {openLegalSection === section.key && (
                     <div className="p-4 bg-white">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-4">
-                        {section.fields.map(field => (
-                          <div key={field.name} className="w-full">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
-                            <input
-                              className="w-full h-[42px] px-4 py-2 text-sm border rounded-md"
-                              type={field.type || 'text'}
-                              placeholder={field.placeholder || field.label}
-                              value={form[field.name] || ''}
-                              onChange={e => handleChange(field.name, e.target.value)}
-                            />
-                            {errors[field.name] && <div className="text-red-500 text-xs">{errors[field.name]}</div>}
-                          </div>
-                        ))}
+                        {section.fields.map(field => {
+                          // Special handling for passport expiry date
+                          const isPassportExpiry = field.name === 'passportExpiry';
+                          return (
+                            <div key={field.name} className="w-full">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+                              <input
+                                className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
+                                  errors[field.name] ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                                }`}
+                                type={field.type || 'text'}
+                                placeholder={field.placeholder || field.label}
+                                value={form[field.name] || ''}
+                                onChange={e => {
+                                  const value = e.target.value;
+                                  handleChange(field.name, value);
+                                  
+                                  // Real-time validation for passport expiry
+                                  if (isPassportExpiry) {
+                                    const expiryError = validatePassportExpiry(value);
+                                    if (expiryError) {
+                                      setErrors(prev => ({ ...prev, [field.name]: expiryError }));
+                                    } else {
+                                      setErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors[field.name];
+                                        return newErrors;
+                                      });
+                                    }
+                                  }
+                                }}
+                                min={isPassportExpiry ? (() => {
+                                  // Set min date to 6 months from today
+                                  const today = new Date();
+                                  const minDate = new Date();
+                                  minDate.setMonth(today.getMonth() + 6);
+                                  return minDate.toISOString().split('T')[0];
+                                })() : undefined}
+                              />
+                              {errors[field.name] && (
+                                <div className={`text-xs mt-1 ${
+                                  errors[field.name].includes('6 months') 
+                                    ? 'text-red-600 font-medium' 
+                                    : 'text-red-500'
+                                }`}>
+                                  {errors[field.name]}
+                                </div>
+                              )}
+                              {isPassportExpiry && form[field.name] && !errors[field.name] && (() => {
+                                const expiry = new Date(form[field.name]);
+                                const today = new Date();
+                                const monthsUntilExpiry = (expiry.getFullYear() - today.getFullYear()) * 12 + (expiry.getMonth() - today.getMonth());
+                                return (
+                                  <div className="text-xs text-green-600 mt-1">
+                                    Valid for {monthsUntilExpiry} months
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          );
+                        })}
                       </div>
                       
                       {/* Attachment Section */}
@@ -986,7 +1462,9 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
               <div className="w-full"><b>Job Title:</b> {form.jobTitle}</div>
               <div className="w-full"><b>Attendance Program:</b> {form.attendanceProgram}</div>
               <div className="w-full"><b>Company Location:</b> {form.companyLocation}</div>
-              <div className="w-full"><b>Line Manager:</b> {form.manager}</div>
+              {form.jobTitle !== "Manager" && (
+                <div className="w-full"><b>Line Manager:</b> {form.manager}</div>
+              )}
               <div className="w-full"><b>Passport:</b> {form.passport}</div>
               <div className="w-full"><b>ID:</b> {form.id}</div>
               <div className="w-full"><b>Visa:</b> {form.visa}</div>
@@ -1061,7 +1539,11 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                    if (!form.nationality) errs.nationality = 'Required';
                    if (!form.currentAddress) errs.currentAddress = 'Required';
                    if (!form.childrenCount) errs.childrenCount = 'Required';
-                   if (!form.birthday) errs.birthday = 'Required';
+                   // Validate birthday with age check
+                   const birthdayError = validateBirthday(form.birthday);
+                   if (birthdayError) {
+                     errs.birthday = birthdayError;
+                   }
                  }
                  if (idx === 2) {
                    if (!form.contacts[0].value) errs.contacts = 'At least one phone required';
@@ -1075,22 +1557,19 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                    if (!form.joiningDate) errs.joiningDate = 'Required';
                    if (!form.exitDate) errs.exitDate = 'Required';
                    if (!form.workingLocations || form.workingLocations.length === 0) errs.workingLocations = 'Required';
-                   if (!form.manager) errs.manager = 'Required';
+                   // Line Manager is optional - no validation required
                  }
                  if (idx === 4) {
+                   // Passport - REQUIRED
                    if (!form.passportNumber) errs.passportNumber = 'Required';
                    if (!form.passportIssue) errs.passportIssue = 'Required';
-                   if (!form.passportExpiry) errs.passportExpiry = 'Required';
-                   if (!form.nationalIdNumber) errs.nationalIdNumber = 'Required';
-                   if (!form.nationalIdExpiry) errs.nationalIdExpiry = 'Required';
-                   if (!form.residencyNumber) errs.residencyNumber = 'Required';
-                   if (!form.residencyExpiry) errs.residencyExpiry = 'Required';
-                   if (!form.insuranceNumber) errs.insuranceNumber = 'Required';
-                   if (!form.insuranceExpiry) errs.insuranceExpiry = 'Required';
-                   if (!form.drivingNumber) errs.drivingNumber = 'Required';
-                   if (!form.drivingExpiry) errs.drivingExpiry = 'Required';
-                   if (!form.labourNumber) errs.labourNumber = 'Required';
-                   if (!form.labourExpiry) errs.labourExpiry = 'Required';
+                   // Validate passport expiry - must be at least 6 months away
+                   const passportExpiryError = validatePassportExpiry(form.passportExpiry);
+                   if (passportExpiryError) {
+                     errs.passportExpiry = passportExpiryError;
+                   }
+                   // All other legal documents (National ID, Residency, Insurance, Driving License, Labour ID) are OPTIONAL
+                   // No validation required for these fields
                  }
                 return Object.keys(errs).length === 0;
               });
@@ -1148,8 +1627,22 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 }
 
 export default function Employees() {
+  const location = useLocation();
+  // Get navigation state for breadcrumbs (company, department, subdepartment, position)
+  const navigationState = location.state || {};
+  const company = navigationState.company || null;
+  const department = navigationState.department || null;
+  const subDepartment = navigationState.subDepartment || null;
+  const position = navigationState.position || null;
   const [showForm, setShowForm] = useState(false);
-  const [employees, setEmployees] = useState(demoEmployees);
+  const [employees, setEmployees] = useState([]);
+  const [statistics, setStatistics] = useState({
+    totalEmployees: 0,
+    activeEmployees: 0,
+    inactiveEmployees: 0,
+    totalDepartments: 0
+  });
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showJobTitlesModal, setShowJobTitlesModal] = useState(false);
   const [showAttendanceProgramModal, setShowAttendanceProgramModal] = useState(false);
@@ -1164,14 +1657,57 @@ export default function Employees() {
   const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState(null);
   const [openLegalSection, setOpenLegalSection] = useState('');
   
+  // Fetch employees and statistics on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch employees
+        const employeesResponse = await getEmployees();
+        if (employeesResponse.success && employeesResponse.data) {
+          // Transform backend employee data to match frontend format
+          const transformedEmployees = employeesResponse.data.map(emp => ({
+            id: emp.id,
+            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+            department: emp.department || 'N/A',
+            email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
+            jobTitle: emp.jobTitle || 'N/A',
+            employeeType: emp.employeeType || 'N/A',
+            status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
+            phone: emp.phone || (emp.phoneNumbers ? (Array.isArray(emp.phoneNumbers) ? emp.phoneNumbers[0]?.value : JSON.parse(emp.phoneNumbers || '[]')[0]?.value) : 'No phone'),
+            manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
+            joiningDate: emp.joiningDate || null,
+            ...emp // Include all backend fields
+          }));
+          setEmployees(transformedEmployees);
+        }
+
+        // Fetch statistics
+        const statsResponse = await getEmployeeStatistics();
+        if (statsResponse.success && statsResponse.data) {
+          setStatistics(statsResponse.data);
+        }
+      } catch (error) {
+        console.error('Error fetching employees and statistics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   // Filter employees based on search term
-  const filteredEmployees = employees.filter(emp => 
-    emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.id.toString().includes(searchTerm)
-  );
+  const filteredEmployees = employees.filter(emp => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (emp.name || '').toLowerCase().includes(searchLower) ||
+      (emp.department || '').toLowerCase().includes(searchLower) ||
+      (emp.jobTitle || '').toLowerCase().includes(searchLower) ||
+      (emp.email || '').toLowerCase().includes(searchLower) ||
+      (emp.id || '').toString().includes(searchTerm)
+    );
+  });
   
   const [employeeDocuments, setEmployeeDocuments] = useState({
     1: [
@@ -1494,13 +2030,132 @@ export default function Employees() {
     setShowEditModal(true);
   };
 
-  const handleUpdateEmployee = () => {
+  const handleDeleteEmployee = async (employee) => {
+    const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.name || 'this employee';
+    
+    if (window.confirm(`Are you sure you want to delete ${employeeName}? This will deactivate their account.`)) {
+      try {
+        const response = await deleteEmployee(employee.id);
+        
+        if (response.success) {
+          alert(`Employee ${employeeName} has been deactivated successfully.`);
+          
+          // Refresh employees and statistics
+          const employeesResponse = await getEmployees();
+          if (employeesResponse.success && employeesResponse.data) {
+            const transformedEmployees = employeesResponse.data.map(emp => ({
+              id: emp.id,
+              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+              firstName: emp.firstName,
+              lastName: emp.lastName,
+              department: emp.department || 'N/A',
+              email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
+              jobTitle: emp.jobTitle || 'N/A',
+              employeeType: emp.employeeType || 'N/A',
+              status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
+              isActive: emp.isActive,
+              ...emp
+            }));
+            setEmployees(transformedEmployees);
+          }
+          
+          // Refresh statistics
+          const statsResponse = await getEmployeeStatistics();
+          if (statsResponse.success && statsResponse.data) {
+            setStatistics(statsResponse.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+        alert(`Failed to delete employee: ${error.message}`);
+      }
+    }
+  };
+
+  const handleRestoreEmployee = async (employee) => {
+    const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.name || 'this employee';
+    
+    if (window.confirm(`Are you sure you want to restore ${employeeName}? This will reactivate their account.`)) {
+      try {
+        const response = await restoreEmployee(employee.id);
+        
+        if (response.success) {
+          alert(`Employee ${employeeName} has been restored successfully.`);
+          
+          // Refresh employees and statistics
+          const employeesResponse = await getEmployees();
+          if (employeesResponse.success && employeesResponse.data) {
+            const transformedEmployees = employeesResponse.data.map(emp => ({
+              id: emp.id,
+              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+              firstName: emp.firstName,
+              lastName: emp.lastName,
+              department: emp.department || 'N/A',
+              email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
+              jobTitle: emp.jobTitle || 'N/A',
+              employeeType: emp.employeeType || 'N/A',
+              status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
+              isActive: emp.isActive,
+              ...emp
+            }));
+            setEmployees(transformedEmployees);
+          }
+          
+          // Refresh statistics
+          const statsResponse = await getEmployeeStatistics();
+          if (statsResponse.success && statsResponse.data) {
+            setStatistics(statsResponse.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring employee:', error);
+        alert(`Failed to restore employee: ${error.message}`);
+      }
+    }
+  };
+
+  const handleUpdateEmployee = async () => {
     if (selectedEmployeeForEdit) {
-      setEmployees(prev => prev.map(emp => 
-        emp.id === selectedEmployeeForEdit.id ? selectedEmployeeForEdit : emp
-      ));
-      setShowEditModal(false);
-      setSelectedEmployeeForEdit(null);
+      try {
+        // Update employee via API
+        const response = await updateEmployee(selectedEmployeeForEdit.id, selectedEmployeeForEdit);
+        
+        if (response.success) {
+          // Refresh employees and statistics
+          const employeesResponse = await getEmployees();
+          if (employeesResponse.success && employeesResponse.data) {
+            const transformedEmployees = employeesResponse.data.map(emp => ({
+              id: emp.id,
+              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+              department: emp.department || 'N/A',
+              email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
+              jobTitle: emp.jobTitle || 'N/A',
+              employeeType: emp.employeeType || 'N/A',
+              status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
+              phone: emp.phone || (emp.phoneNumbers ? (Array.isArray(emp.phoneNumbers) ? emp.phoneNumbers[0]?.value : JSON.parse(emp.phoneNumbers || '[]')[0]?.value) : 'No phone'),
+              manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
+              joiningDate: emp.joiningDate || null,
+              ...emp
+            }));
+            setEmployees(transformedEmployees);
+          }
+
+          // Refresh statistics
+          const statsResponse = await getEmployeeStatistics();
+          if (statsResponse.success && statsResponse.data) {
+            setStatistics(statsResponse.data);
+          }
+
+          setShowEditModal(false);
+          setSelectedEmployeeForEdit(null);
+          alert('Employee updated successfully!');
+        } else {
+          alert(`Failed to update employee: ${response.message}`);
+        }
+      } catch (error) {
+        console.error('Error updating employee:', error);
+        alert(`Error updating employee: ${error.message}`);
+      }
     }
   };
 
@@ -1516,34 +2171,74 @@ export default function Employees() {
     navigate(-1);
   };
 
-  const handleSaveEmployee = (employeeData) => {
-    const newEmployee = {
-      id: employees.length + 1,
-      name: `${employeeData.firstName} ${employeeData.lastName}`,
-      department: employeeData.department,
-      email: employeeData.emails[0] || 'No email',
-      jobTitle: employeeData.jobTitle,
-      employeeType: employeeData.employeeType,
-      status: employeeData.status,
-      phone: employeeData.contacts[0]?.value || 'No phone',
-      manager: employeeData.manager,
-      joiningDate: employeeData.joiningDate,
-      // Add all the form data
-      ...employeeData
-    };
-    
-    setEmployees(prev => [...prev, newEmployee]);
-    setShowForm(false);
+  const handleSaveEmployee = async (employeeData) => {
+    try {
+      // Create employee via API
+      const response = await createEmployee(employeeData);
+      
+      if (response.success) {
+        // Refresh employees and statistics
+        const employeesResponse = await getEmployees();
+        if (employeesResponse.success && employeesResponse.data) {
+          const transformedEmployees = employeesResponse.data.map(emp => ({
+            id: emp.id,
+            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+            department: emp.department || 'N/A',
+            email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
+            jobTitle: emp.jobTitle || 'N/A',
+            employeeType: emp.employeeType || 'N/A',
+            status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
+            phone: emp.phone || (emp.phoneNumbers ? (Array.isArray(emp.phoneNumbers) ? emp.phoneNumbers[0]?.value : JSON.parse(emp.phoneNumbers || '[]')[0]?.value) : 'No phone'),
+            manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
+            joiningDate: emp.joiningDate || null,
+            ...emp
+          }));
+          setEmployees(transformedEmployees);
+        }
+
+        // Refresh statistics
+        const statsResponse = await getEmployeeStatistics();
+        if (statsResponse.success && statsResponse.data) {
+          setStatistics(statsResponse.data);
+        }
+
+        setShowForm(false);
+        alert('Employee created successfully!');
+      } else {
+        alert(`Failed to create employee: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error creating employee:', error);
+      alert(`Error creating employee: ${error.message}`);
+    }
   };
 
   const handleAddJobTitle = (newJobTitle) => {
+    // Check for duplicates (case-insensitive)
+    const titleLower = newJobTitle.title?.toLowerCase().trim();
+    const isDuplicate = jobTitles.some(job => 
+      (job.title || job.name || '').toLowerCase().trim() === titleLower
+    );
+    
+    if (isDuplicate) {
+      alert(`Job title "${newJobTitle.title}" already exists. Please use a different title.`);
+      return;
+    }
+    
+    if (!titleLower) {
+      alert('Please enter a job title.');
+      return;
+    }
+    
     const jobTitle = {
       id: jobTitles.length + 1,
-      title: newJobTitle.title,
-      department: newJobTitle.department,
-      description: newJobTitle.description
+      title: newJobTitle.title.trim(),
+      department: newJobTitle.department?.trim() || 'All',
+      description: newJobTitle.description?.trim() || ''
     };
+    
     setJobTitles(prev => [...prev, jobTitle]);
+    alert(`Job title "${jobTitle.title}" has been added successfully!`);
   };
 
   const handleAddAttendanceProgram = (newProgram) => {
@@ -1786,7 +2481,15 @@ export default function Employees() {
   const canEditPayroll = currentUserRole === "admin" || currentUserRole === "hr";
   return (
     <div className="w-full h-full flex flex-col">
-      {!showForm && <Breadcrumbs names={{}} />}
+      {!showForm && <Breadcrumbs 
+        names={{ 
+          company: company?.name || null,
+          department: department?.name || null,
+          subdepartment: subDepartment?.name || null,
+          position: position?.name || null
+        }} 
+        company={company}
+      />}
       
       {/* Enhanced Top Section - Employee Directory */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-6 px-4 sm:px-6 lg:px-10 gap-4">
@@ -1868,7 +2571,9 @@ export default function Employees() {
                       <UserIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-white">{filteredEmployees.length}</div>
+                      <div className="text-2xl font-bold text-white">
+                        {loading ? '...' : (searchTerm ? filteredEmployees.length : statistics.totalEmployees)}
+                      </div>
                       <div className="text-indigo-100 text-sm">
                         {searchTerm ? 'Filtered Employees' : 'Total Employees'}
                       </div>
@@ -1881,7 +2586,9 @@ export default function Employees() {
                       <BriefcaseIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-white">4</div>
+                      <div className="text-2xl font-bold text-white">
+                        {loading ? '...' : statistics.totalDepartments}
+                      </div>
                       <div className="text-indigo-100 text-sm">Departments</div>
                     </div>
                   </div>
@@ -1892,7 +2599,9 @@ export default function Employees() {
                       <CheckCircleIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-white">{filteredEmployees.length}</div>
+                      <div className="text-2xl font-bold text-white">
+                        {loading ? '...' : (searchTerm ? filteredEmployees.filter(emp => (emp.status || '').toLowerCase() === 'active').length : statistics.activeEmployees)}
+                      </div>
                       <div className="text-indigo-100 text-sm">
                         {searchTerm ? 'Filtered Active' : 'Active Employees'}
                       </div>
@@ -1956,10 +2665,12 @@ export default function Employees() {
           <div className="w-full mt-4 sm:mt-8">
             {/* Enhanced Mobile Cards View */}
             <div className="lg:hidden space-y-6">
-              {filteredEmployees.map(emp => (
+              {filteredEmployees.map(emp => {
+                const isInactive = !emp.isActive;
+                return (
                 <div 
                   key={emp.id} 
-                  className="group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-indigo-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02] relative overflow-hidden"
+                  className={`group bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl hover:border-indigo-300 transition-all duration-500 cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02] relative overflow-hidden ${isInactive ? 'opacity-40' : ''}`}
                   onClick={() => handleEmployeeClick(emp)}
                   title="Click to view employee details"
                 >
@@ -1975,7 +2686,6 @@ export default function Employees() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-gray-900 text-lg group-hover:text-indigo-900 transition-colors">{emp.name}</h3>
-                          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">ID: {emp.id}</span>
                         </div>
                         <p className="text-gray-500 text-sm">Employee</p>
                     </div>
@@ -2016,19 +2726,62 @@ export default function Employees() {
                       </div>
                     </div>
                     
-                    {/* Action indicator */}
+                    {/* Action buttons */}
                     <div className="mt-6 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Click to view details</span>
-                        <div className="flex items-center gap-2 text-indigo-600 text-sm font-semibold group-hover:gap-3 transition-all duration-300">
-                          <span>View Details</span>
-                          <span className="transform group-hover:translate-x-1 transition-transform duration-300">→</span>
-                        </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewEmployee(emp);
+                          }}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="View Employee"
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditEmployee(emp);
+                          }}
+                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Edit Employee"
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        {!emp.isActive ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRestoreEmployee(emp);
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Restore Employee"
+                          >
+                            <ArrowPathIcon className="h-5 w-5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEmployee(emp);
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Employee"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
               
               {/* No Results Message for Mobile */}
               {searchTerm && filteredEmployees.length === 0 && (
@@ -2067,10 +2820,12 @@ export default function Employees() {
                   </tr>
                 </thead>
                     <tbody className="bg-white divide-y divide-gray-50">
-                  {filteredEmployees.map(emp => (
+                  {filteredEmployees.map(emp => {
+                    const isInactive = !emp.isActive;
+                    return (
                     <tr 
                       key={emp.id} 
-                          className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 cursor-pointer group" 
+                          className={`hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-300 cursor-pointer group ${isInactive ? 'opacity-40' : ''}`}
                       onClick={() => handleEmployeeClick(emp)}
                       title="Click to view employee details"
                     >
@@ -2082,7 +2837,6 @@ export default function Employees() {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <div className="font-bold text-gray-900 text-base group-hover:text-indigo-900 transition-colors">{emp.name}</div>
-                                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">ID: {emp.id}</span>
                                 </div>
                                 <div className="text-gray-500 text-sm">Employee</div>
                               </div>
@@ -2169,6 +2923,29 @@ export default function Employees() {
                               >
                                 <ClockIcon className="h-5 w-5" />
                               </button>
+                              {!emp.isActive ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRestoreEmployee(emp);
+                                  }}
+                                  className="p-3 text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                  title="Restore Employee"
+                                >
+                                  <ArrowPathIcon className="h-5 w-5" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteEmployee(emp);
+                                  }}
+                                  className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                  title="Delete Employee"
+                                >
+                                  <TrashIcon className="h-5 w-5" />
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2182,7 +2959,7 @@ export default function Employees() {
                             </div>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
               
@@ -3097,10 +3874,12 @@ export default function Employees() {
                           <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type</label>
                           <p className="text-gray-900 font-medium">{selectedEmployeeForView.employeeType || 'Full-time'}</p>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.manager || 'Not assigned'}</p>
-                        </div>
+                        {selectedEmployeeForView.jobTitle !== "Manager" && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
+                            <p className="text-gray-900 font-medium">{selectedEmployeeForView.manager || 'Not assigned'}</p>
+                          </div>
+                        )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Joining Date</label>
                           <p className="text-gray-900 font-medium">{selectedEmployeeForView.joiningDate || 'Not specified'}</p>
@@ -3680,17 +4459,40 @@ export default function Employees() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
                         <select
-                          value={selectedEmployeeForEdit.jobTitle}
-                          onChange={(e) => handleEditFieldChange('jobTitle', e.target.value)}
+                          key={`edit-job-title-select-${jobTitles?.length || 0}`}
+                          value={selectedEmployeeForEdit.jobTitle || ""}
+                          onChange={(e) => {
+                            const newJobTitle = e.target.value;
+                            handleEditFieldChange('jobTitle', newJobTitle);
+                            // Clear manager field when job title is "Manager"
+                            if (newJobTitle === "Manager") {
+                              handleEditFieldChange('manager', '');
+                            }
+                          }}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value="">Select job title</option>
-                          <option value="Manager">Manager</option>
-                          <option value="Developer">Developer</option>
-                          <option value="Accountant">Accountant</option>
-                          <option value="Sales Rep">Sales Rep</option>
-                          <option value="Designer">Designer</option>
-                          <option value="Analyst">Analyst</option>
+                          {jobTitles && jobTitles.length > 0 ? (
+                            jobTitles.map((job, index) => {
+                              const jobTitleValue = job.title || job.name || '';
+                              const jobTitleDisplay = job.title || job.name || '';
+                              return (
+                                <option 
+                                  key={job.id || `edit-job-${index}`} 
+                                  value={jobTitleValue}
+                                >
+                                  {jobTitleDisplay}
+                                </option>
+                              );
+                            })
+                          ) : (
+                            <>
+                              <option value="Manager">Manager</option>
+                              <option value="Developer">Developer</option>
+                              <option value="Accountant">Accountant</option>
+                              <option value="Sales Rep">Sales Rep</option>
+                            </>
+                          )}
                         </select>
                       </div>
                       <div>
@@ -3735,16 +4537,18 @@ export default function Employees() {
                           <option value="Terminated">Terminated</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Manager</label>
-                        <input
-                          type="text"
-                          value={selectedEmployeeForEdit.manager || ''}
-                          onChange={(e) => handleEditFieldChange('manager', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter manager name"
-                        />
-                      </div>
+                      {selectedEmployeeForEdit.jobTitle !== "Manager" && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Line Manager (Optional)</label>
+                          <input
+                            type="text"
+                            value={selectedEmployeeForEdit.manager || ''}
+                            onChange={(e) => handleEditFieldChange('manager', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter manager name (Optional)"
+                          />
+                        </div>
+                      )}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Joining Date</label>
                         <input
@@ -3762,16 +4566,9 @@ export default function Employees() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value="">Select location</option>
-                          <option value="HQ - Main Office">HQ - Main Office</option>
-                          <option value="Branch 1 - Downtown">Branch 1 - Downtown</option>
-                          <option value="Branch 2 - Industrial Area">Branch 2 - Industrial Area</option>
-                          <option value="Branch 3 - Airport Road">Branch 3 - Airport Road</option>
-                          <option value="Branch 4 - Shopping District">Branch 4 - Shopping District</option>
-                          <option value="Branch 5 - Business Park">Branch 5 - Business Park</option>
-                          <option value="Remote - Work from Home">Remote - Work from Home</option>
-                          <option value="Site Office - Project Location">Site Office - Project Location</option>
-                          <option value="Client Office - On-site">Client Office - On-site</option>
-                          <option value="Mobile - Field Work">Mobile - Field Work</option>
+                          <option value="Dubai HQ">Dubai HQ</option>
+                          <option value="Abu Dhabi Office">Abu Dhabi Office</option>
+                          <option value="Syria Office">Syria Office</option>
                         </select>
                       </div>
                       <div>

@@ -3,7 +3,7 @@
  * Handles tender-related API calls including sending email invitations
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Send tender invitation emails to selected contractors/engineers

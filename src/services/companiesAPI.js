@@ -1,5 +1,5 @@
 // Companies API service for backend connection
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Get all companies
@@ -107,17 +107,59 @@ export const createCompany = async (companyData) => {
       throw new Error('No token found. Please login again.');
     }
 
-    console.log('📝 Creating company via API:', companyData);
+    // Check if there are any File objects to upload
+    const hasFiles = companyData.logo instanceof File || 
+                     companyData.header instanceof File || 
+                     companyData.footer instanceof File;
 
-    const response = await fetch(`${API_BASE_URL}/companies`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(companyData),
-    });
+    let response;
+    if (hasFiles) {
+      // Use FormData for file uploads
+      const formData = new FormData();
+      
+      // Add all text fields
+      Object.keys(companyData).forEach(key => {
+        if (key === 'logo' || key === 'header' || key === 'footer') {
+          // Handle file fields
+          if (companyData[key] instanceof File) {
+            formData.append(key, companyData[key]);
+          } else if (companyData[key] && typeof companyData[key] === 'string') {
+            // Keep existing URL if it's a string
+            formData.append(key, companyData[key]);
+          }
+        } else {
+          // Add other fields as strings
+          if (companyData[key] !== null && companyData[key] !== undefined) {
+            formData.append(key, String(companyData[key]));
+          }
+        }
+      });
+
+      console.log('📝 Creating company with files via API (FormData)');
+
+      response = await fetch(`${API_BASE_URL}/companies`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type for FormData - browser will set it with boundary
+        },
+        credentials: 'include',
+        body: formData,
+      });
+    } else {
+      // Use JSON for text-only data
+      console.log('📝 Creating company via API (JSON):', companyData);
+
+      response = await fetch(`${API_BASE_URL}/companies`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(companyData),
+      });
+    }
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
@@ -159,15 +201,64 @@ export const updateCompany = async (companyId, companyData) => {
       throw new Error('No token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/companies/${companyId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(companyData),
-    });
+    // Check if there are any File objects to upload
+    const hasFiles = companyData.logo instanceof File || 
+                     companyData.header instanceof File || 
+                     companyData.footer instanceof File;
+    
+    // Check if there are existing file URLs to preserve (for updates)
+    const hasFileUrls = (companyData.logo && typeof companyData.logo === 'string') ||
+                        (companyData.header && typeof companyData.header === 'string') ||
+                        (companyData.footer && typeof companyData.footer === 'string');
+
+    let response;
+    if (hasFiles || hasFileUrls) {
+      // Use FormData for file uploads
+      const formData = new FormData();
+      
+      // Add all text fields
+      Object.keys(companyData).forEach(key => {
+        if (key === 'logo' || key === 'header' || key === 'footer') {
+          // Handle file fields
+          if (companyData[key] instanceof File) {
+            formData.append(key, companyData[key]);
+          } else if (companyData[key] && typeof companyData[key] === 'string') {
+            // Keep existing URL if it's a string
+            formData.append(key, companyData[key]);
+          }
+        } else {
+          // Add other fields as strings
+          if (companyData[key] !== null && companyData[key] !== undefined) {
+            formData.append(key, String(companyData[key]));
+          }
+        }
+      });
+
+      console.log('📝 Updating company via API (FormData)', hasFiles ? 'with new files' : 'preserving existing files');
+
+      response = await fetch(`${API_BASE_URL}/companies/${companyId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type for FormData
+        },
+        credentials: 'include',
+        body: formData,
+      });
+    } else {
+      // Use JSON for text-only data (no files at all)
+      console.log('📝 Updating company via API (JSON):', companyData);
+
+      response = await fetch(`${API_BASE_URL}/companies/${companyId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(companyData),
+      });
+    }
 
     if (!response.ok) {
       throw new Error('Failed to update company');

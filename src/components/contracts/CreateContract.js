@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   CalendarIcon, 
   UserGroupIcon, 
@@ -10,9 +10,18 @@ import {
   CheckIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import GoogleMap from '../GoogleMap';
+import ContractsAPI from '../../services/contractsAPI';
+import { useNavigate } from 'react-router-dom';
+import { getCompanies } from '../../services/companiesAPI';
+import ClientsAPI from '../../services/clientsAPI';
+import { usePreferences } from '../../context/PreferencesContext';
 
 const CreateContract = () => {
+  const navigate = useNavigate();
+  const { toBase, currencyCode, preferences } = usePreferences();
+  const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
+  const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
+  
   // Form state
   const [formData, setFormData] = useState({
     // Questionnaire
@@ -31,6 +40,7 @@ const CreateContract = () => {
     startDate: new Date().toISOString().split('T')[0],
     
     // Location
+    makaniNumber: '',
     latitude: '',
     longitude: '',
     region: '',
@@ -92,6 +102,8 @@ const CreateContract = () => {
     phone: ''
   });
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [newApprovalStatus, setNewApprovalStatus] = useState('');
   const [approvalStatuses, setApprovalStatuses] = useState([
     'Pending',
@@ -125,23 +137,11 @@ const CreateContract = () => {
     'Support Contract'
   ];
 
-  const companies = [
-    'Tech Solutions Inc.',
-    'Creative Agency Ltd.',
-    'Digital Innovations',
-    'Business Solutions Co.',
-    'Enterprise Systems'
-  ];
-
-
-  const [clients, setClients] = useState([
-    { id: 1, name: 'SEYED MEHDI HASSANZADEH', type: 'Person', email: 'mehdi@example.com' },
-    { id: 2, name: 'SAMER SAMRA', type: 'Person', email: 'samer@example.com' },
-    { id: 3, name: 'MOHAMMED ALAMERI', type: 'Person', email: 'mohammed@example.com' },
-    { id: 4, name: 'MOHAMMED AL MOHAMMADI', type: 'Person', email: 'mohammed2@example.com' },
-    { id: 5, name: 'ABC Corporation', type: 'Company', email: 'contact@abc.com' },
-    { id: 6, name: 'XYZ Enterprises', type: 'Company', email: 'info@xyz.com' }
-  ]);
+  // Companies and Clients state
+  const [companies, setCompanies] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
 
   const regions = [
     'Dubai',
@@ -315,18 +315,53 @@ const CreateContract = () => {
   // Handle file upload
   const handleFileUpload = (event) => {
     const files = Array.from(event.target.files);
+    const filesWithMetadata = files.map(file => ({
+      id: Date.now() + Math.random(),
+      file: file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      systemRef: `REF-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      category: 'General',
+      uploadedOn: new Date().toLocaleDateString(),
+      // Keep the original File object for compatibility
+      ...file
+    }));
     setFormData(prev => ({
       ...prev,
-      attachments: [...prev.attachments, ...files]
+      attachments: [...prev.attachments, ...filesWithMetadata]
+    }));
+  };
+
+  // Update file category in attachments
+  const updateAttachmentCategory = (index, category) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: prev.attachments.map((att, i) => 
+        i === index ? { ...att, category } : att
+      )
     }));
   };
 
   // Remove attachment
   const removeAttachment = (index) => {
+    // Clean up object URL if it exists
+    const file = formData.attachments[index];
+    if (file instanceof File) {
+      const url = URL.createObjectURL(file);
+      URL.revokeObjectURL(url);
+    }
+    
     setFormData(prev => ({
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index)
     }));
+    
+    // Close preview modal if the removed file is being previewed
+    if (previewFile && previewFile.index === index) {
+      setShowPreviewModal(false);
+      setPreviewFile(null);
+    }
   };
 
   // Handle new client creation
@@ -607,13 +642,80 @@ const CreateContract = () => {
     };
   };
 
-  // Handle map location change
-  const handleMapLocationChange = (lat, lng) => {
+  // Handle Makani number validation
+  const [makaniValid, setMakaniValid] = useState(null);
+  const [makaniError, setMakaniError] = useState(null);
+  const [validatingMakani, setValidatingMakani] = useState(false);
+
+  const validateMakaniNumber = async (makaniNumber) => {
+    if (!makaniNumber || makaniNumber.length === 0) {
+      setMakaniValid(null);
+      setMakaniError(null);
+      return;
+    }
+
+    // Basic format validation (10 digits)
+    if (!/^\d{10}$/.test(makaniNumber)) {
+      setMakaniValid(false);
+      setMakaniError('Makani number must be exactly 10 digits');
+      return;
+    }
+
+    // Validate with backend
+    setValidatingMakani(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/maps/validate-makani?makaniNumber=${makaniNumber}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      const data = await response.json();
+      
+      if (data.success && data.data.isValid) {
+        setMakaniValid(true);
+        setMakaniError(null);
+      } else {
+        setMakaniValid(false);
+        setMakaniError(data.message || 'Invalid Makani number');
+      }
+    } catch (error) {
+      console.error('Error validating Makani:', error);
+      // If validation fails, still allow submission if format is correct
+      setMakaniValid(true);
+      setMakaniError(null);
+    } finally {
+      setValidatingMakani(false);
+    }
+  };
+
+  // Handle Makani input change
+  const handleMakaniChange = (value) => {
+    // Remove non-digits
+    const digitsOnly = value.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    const limited = digitsOnly.slice(0, 10);
+    
     setFormData(prev => ({
       ...prev,
-      latitude: lat.toString(),
-      longitude: lng.toString()
+      makaniNumber: limited
     }));
+
+    // Validate when 10 digits are entered
+    if (limited.length === 10) {
+      validateMakaniNumber(limited);
+    } else if (limited.length > 0) {
+      setMakaniValid(false);
+      setMakaniError('Makani number must be exactly 10 digits');
+    } else {
+      setMakaniValid(null);
+      setMakaniError(null);
+    }
   };
 
   // Auto-recalculate fees when relevant inputs change
@@ -633,6 +735,72 @@ const CreateContract = () => {
       })
     }));
   }, [formData.fees.map(fee => `${fee.type}-${fee.amount}-${fee.squareFeetPrice}-${fee.sizeInSquareFeet}-${fee.profitPercentage}-${fee.months}-${fee.quarters}`).join(',')]);
+
+  // Fetch companies on component mount
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setLoadingCompanies(true);
+      try {
+        const companiesData = await getCompanies();
+        if (companiesData && companiesData.success && Array.isArray(companiesData.data)) {
+          setCompanies(companiesData.data);
+        } else if (companiesData && Array.isArray(companiesData.data)) {
+          // Fallback: if success field is missing but data exists
+          setCompanies(companiesData.data);
+        } else {
+          console.warn('Companies data format unexpected:', companiesData);
+          setCompanies([]);
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+        setCompanies([]);
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  // Fetch clients function (reusable)
+  const fetchClients = useCallback(async () => {
+    setLoadingClients(true);
+    try {
+      const response = await ClientsAPI.getClients({ limit: 100 });
+      if (response && response.success && response.data) {
+        // Backend returns: { success: true, data: { clients: [], pagination: {} } }
+        const clientsList = response.data.clients || (Array.isArray(response.data) ? response.data : []);
+        setClients(clientsList);
+        console.log('✅ Loaded clients:', clientsList.length);
+      } else {
+        console.warn('Clients data format unexpected:', response);
+        setClients([]);
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      setClients([]);
+    } finally {
+      setLoadingClients(false);
+    }
+  }, []);
+
+  // Fetch clients on component mount and when component becomes visible
+  useEffect(() => {
+    fetchClients();
+    
+    // Refresh clients when the page becomes visible again (e.g., when navigating back from clients page)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchClients();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchClients]);
 
   // Handle adding new approval status
   const handleAddApprovalStatus = () => {
@@ -816,11 +984,10 @@ const CreateContract = () => {
   };
 
   const handleUploadDone = () => {
-    // Add uploaded files to form data
-    const files = uploadedFiles.map(item => item.file);
+    // Add uploaded files with full metadata to form data
     setFormData(prev => ({
       ...prev,
-      attachments: [...prev.attachments, ...files]
+      attachments: [...prev.attachments, ...uploadedFiles]
     }));
     
     // Reset modal state
@@ -848,87 +1015,248 @@ const CreateContract = () => {
     if (!formData.startDate) {
       newErrors.startDate = 'Start date is required';
     }
-    if (!formData.contractFee) {
-      newErrors.contractFee = 'Contract fee is required';
+    // Check if fees array exists and has at least one fee with an amount
+    if (!formData.fees || formData.fees.length === 0 || 
+        !formData.fees.some(fee => fee.amount || fee.calculatedAmount)) {
+      newErrors.contractFee = 'At least one contract fee is required';
     }
 
     setErrors(newErrors);
+    
+    // Log validation errors for debugging
+    if (Object.keys(newErrors).length > 0) {
+      console.warn('⚠️ Form validation errors:', newErrors);
+    }
+    
     return Object.keys(newErrors).length === 0;
   };
 
   // Handle form submission
   const handleSubmit = async (isDraft = false) => {
+    console.log('📝 Form submission started', { isDraft, formData });
+    
     if (!isDraft && !validateForm()) {
+      console.warn('⚠️ Form validation failed, submission cancelled');
+      alert('Please fill in all required fields before submitting.');
       return;
     }
 
     setIsSubmitting(true);
+    console.log('✅ Form validation passed, proceeding with submission');
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Map form data to backend API format
+      // Ensure title is always provided (required by backend)
+      const contractTitle = formData.referenceNumber?.trim() 
+        || formData.contractCategory 
+        || `Contract ${new Date().toISOString().split('T')[0]}`;
       
-      console.log('Contract data:', {
-        ...formData,
-        status: isDraft ? 'draft' : 'submitted'
-      });
-      
-      // Show success message
-      alert(`Contract ${isDraft ? 'saved as draft' : 'submitted'} successfully!`);
-      
-      // Reset form if not draft
-      if (!isDraft) {
-        setFormData({
-          projectTypes: [],
-          selectedPhases: [],
-          referenceNumber: '',
-          contractCategory: '',
-          company: '',
-          selectedClients: [],
-          startDate: new Date().toISOString().split('T')[0],
-          latitude: '',
-          longitude: '',
-          region: '',
-          plotNumber: '',
-          devNumber: '',
-          authorityApproval: '',
-          community: '',
-          numberOfFloors: '',
-          fees: [
-            {
-              id: 1,
-              name: '',
-              amount: '',
-              type: 'fixed',
-              squareFeetPrice: '',
-              sizeInSquareFeet: '',
-              profitPercentage: 0,
-              months: 1,
-              quarters: 1,
-              paymentPeriod: 'One-Time',
-              dueDate: '',
-              calculatedAmount: 0,
-              generateInvoice: false,
-              // Custom installment fields
-              customInstallments: false,
-              numberOfInstallments: 1,
-              installments: [
-                {
-                  id: 1,
-                  installmentNumber: 1,
-                  amount: 0,
-                  dueDate: ''
-                }
-              ]
-            }
-          ],
-          description: '',
-          attachments: []
+      const contractData = {
+        title: contractTitle,
+        description: formData.description || null,
+        contractCategory: formData.contractCategory || null,
+        contractType: formData.contractCategory || null, // Use category as type
+        status: isDraft ? 'DRAFT' : 'PENDING_REVIEW',
+        
+        // Project Nature - map projectTypes array
+        projectNature: formData.projectTypes && formData.projectTypes.length > 0 
+          ? formData.projectTypes 
+          : null,
+        
+        // Company - check if formData.company is an ID or name
+        companyId: formData.company && companies.find(c => c.id === formData.company) 
+          ? formData.company 
+          : (formData.company && companies.find(c => c.name === formData.company)
+            ? companies.find(c => c.name === formData.company).id
+            : null),
+        companyName: formData.company && companies.find(c => c.id === formData.company)
+          ? companies.find(c => c.id === formData.company).name
+          : (formData.company || null),
+        
+        // Multiple Clients - map selectedClients array (assuming they are client IDs)
+        selectedClients: formData.selectedClients && formData.selectedClients.length > 0
+          ? formData.selectedClients.map(client => typeof client === 'object' ? client.id : client)
+          : null,
+        
+        // Primary client (first one if multiple)
+        clientId: formData.selectedClients && formData.selectedClients.length > 0
+          ? (typeof formData.selectedClients[0] === 'object' ? formData.selectedClients[0].id : formData.selectedClients[0])
+          : null,
+        
+        // Dates
+        startDate: formData.startDate || null,
+        
+        // Location
+        makaniNumber: formData.makaniNumber || null,
+        latitude: formData.latitude || null,
+        longitude: formData.longitude || null,
+        region: formData.region || null,
+        plotNumber: formData.plotNumber || null,
+        community: formData.community || null,
+        numberOfFloors: formData.numberOfFloors ? parseInt(formData.numberOfFloors) : null,
+        
+        // Building Details (convert display → base for storage)
+        buildingCost: formData.buildingCost ? toBase(Number(formData.buildingCost), 'currency') : null,
+        builtUpArea: formData.builtUpArea ? toBase(Number(formData.builtUpArea), 'area') : null,
+        buildingHeight: formData.buildingHeight ? toBase(Number(formData.buildingHeight), 'height') : null,
+        structuralSystem: formData.structuralSystem || null,
+        buildingType: formData.buildingType || null,
+        
+        // Authority & Community
+        authorityApprovalStatus: formData.authorityApproval || null,
+        developerName: formData.devNumber || null,
+        authorityApprovalRequired: formData.authorityApproval ? true : false,
+        
+        // Contract Fees - map fees array
+        contractFees: formData.fees && formData.fees.length > 0
+          ? formData.fees.map(fee => ({
+              name: fee.name || '',
+              type: fee.type || 'fixed',
+              amount: fee.amount || fee.calculatedAmount || '0',
+              calculatedAmount: fee.calculatedAmount || fee.amount || '0',
+              period: fee.paymentPeriod || 'One-Time',
+              dueDate: fee.dueDate || null,
+              generateInvoice: fee.generateInvoice || false,
+              installments: fee.customInstallments && fee.installments
+                ? fee.installments.map(inst => ({
+                    installmentNumber: inst.installmentNumber,
+                    amount: inst.amount,
+                    dueDate: inst.dueDate
+                  }))
+                : null
+            }))
+          : null,
+        
+        // Payment Schedule - calculate from fees
+        paymentScheduleType: formData.fees && formData.fees.some(f => f.customInstallments)
+          ? 'Custom'
+          : 'Standard',
+        totalAmount: formData.fees && formData.fees.length > 0
+          ? formData.fees.reduce((sum, fee) => sum + (parseFloat(fee.calculatedAmount || fee.amount || 0)), 0)
+          : null,
+        installments: formData.fees && formData.fees.length > 0 && formData.fees[0].customInstallments
+          ? formData.fees[0].numberOfInstallments
+          : (formData.fees && formData.fees.length > 0 ? 1 : null),
+        perInstallment: formData.fees && formData.fees.length > 0
+          ? (formData.fees[0].customInstallments && formData.fees[0].installments && formData.fees[0].installments.length > 0
+              ? formData.fees[0].installments[0].amount
+              : formData.fees[0].calculatedAmount || formData.fees[0].amount)
+          : null,
+        generateInvoice: formData.fees && formData.fees.length > 0
+          ? formData.fees.some(f => f.generateInvoice)
+          : false,
+        
+        // Attachments - map attachments array
+        attachments: formData.attachments && formData.attachments.length > 0
+          ? formData.attachments.map(att => ({
+              fileName: att.name || att.fileName,
+              filePath: att.path || att.filePath,
+              fileUrl: att.url || att.fileUrl
+            }))
+          : null,
+      };
+
+      // Extract all File objects from attachments
+      const attachmentFiles = [];
+      if (formData.attachments && formData.attachments.length > 0) {
+        formData.attachments.forEach((att, index) => {
+          // Support both formats: { file: File, ... } or direct File object
+          const fileObj = att.file || att;
+          if (fileObj instanceof File) {
+            attachmentFiles.push(fileObj);
+          }
         });
       }
+
+      // Use first attachment as contractDocument (for backward compatibility)
+      const contractDocument = attachmentFiles.length > 0 ? attachmentFiles[0] : null;
+
+      console.log('Submitting contract data:', contractData);
+      console.log('Attachment files:', attachmentFiles.length);
+      
+      // Call API with all attachment files
+      const response = await ContractsAPI.createContract(contractData, contractDocument, attachmentFiles);
+      
+      if (response && response.success) {
+        // Show success message
+        console.log('✅ Contract created successfully:', response.data);
+        alert(`Contract ${isDraft ? 'saved as draft' : 'created'} successfully!`);
+        
+        // Navigate to contracts list (contract detail view not implemented yet)
+        // Use replace: false to allow browser back button, and add a small delay to ensure backend has processed
+        setTimeout(() => {
+          navigate('/contracts', { replace: true });
+          // Force page reload to refresh contract list
+          window.location.reload();
+        }, 500);
+        
+        // Reset form if not draft
+        if (!isDraft) {
+          setFormData({
+            projectTypes: [],
+            selectedPhases: [],
+            referenceNumber: '',
+            contractCategory: '',
+            company: '',
+            selectedClients: [],
+            startDate: new Date().toISOString().split('T')[0],
+            makaniNumber: '',
+            latitude: '',
+            longitude: '',
+            region: '',
+            plotNumber: '',
+            devNumber: '',
+            authorityApproval: '',
+            community: '',
+            numberOfFloors: '',
+            fees: [
+              {
+                id: 1,
+                name: '',
+                amount: '',
+                type: 'fixed',
+                squareFeetPrice: '',
+                sizeInSquareFeet: '',
+                profitPercentage: 0,
+                months: 1,
+                quarters: 1,
+                paymentPeriod: 'One-Time',
+                dueDate: '',
+                calculatedAmount: 0,
+                generateInvoice: false,
+                customInstallments: false,
+                numberOfInstallments: 1,
+                installments: [
+                  {
+                    id: 1,
+                    installmentNumber: 1,
+                    amount: 0,
+                    dueDate: ''
+                  }
+                ]
+              }
+            ],
+            description: '',
+            attachments: []
+          });
+        }
+      } else {
+        throw new Error(response?.message || 'Failed to create contract');
+      }
     } catch (error) {
-      console.error('Error submitting contract:', error);
-      alert('Error submitting contract. Please try again.');
+      console.error('❌ Error submitting contract:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+      
+      // Show more detailed error message
+      const errorMessage = error.message || 'Unknown error occurred';
+      console.error('❌ Full error for user display:', errorMessage);
+      
+      // Show user-friendly alert
+      alert(`Contract submission failed!\n\nError: ${errorMessage}\n\nPlease check the browser console (F12) and backend terminal for detailed logs.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -1443,9 +1771,17 @@ const CreateContract = () => {
                             }`}
                           >
                             <option value="">Select company</option>
-                            {companies.map(company => (
-                              <option key={company} value={company}>{company}</option>
-                            ))}
+                            {loadingCompanies ? (
+                              <option value="" disabled>Loading companies...</option>
+                            ) : companies.length === 0 ? (
+                              <option value="" disabled>No companies available</option>
+                            ) : (
+                              companies.map(company => (
+                                <option key={company.id} value={company.id}>
+                                  {company.name}
+                                </option>
+                              ))
+                            )}
                           </select>
                           <div className="absolute inset-0 bg-gradient-to-r from-teal-500/5 to-blue-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                           <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -1488,40 +1824,58 @@ const CreateContract = () => {
                     </div>
                     
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200 shadow-lg">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {clients.map(client => (
-                          <div
-                            key={client.id}
-                            className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-lg ${
-                              formData.selectedClients.includes(client.id)
-                                ? 'border-green-500 bg-green-100 shadow-lg transform scale-105'
-                                : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
-                            }`}
-                            onClick={() => handleClientToggle(client.id)}
+                      {loadingClients ? (
+                        <div className="text-center py-8">
+                          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                          <p className="mt-4 text-gray-600">Loading clients...</p>
+                        </div>
+                      ) : clients.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-600">No clients available</p>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewClientModal(true)}
+                            className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
                           >
-                            <input
-                              type="checkbox"
-                              checked={formData.selectedClients.includes(client.id)}
-                              onChange={() => handleClientToggle(client.id)}
-                              className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                            />
-                            <div className="ml-4 flex-1">
-                              <p className="text-base font-semibold text-gray-900">{client.name}</p>
-                              <p className="text-sm text-gray-600">{client.type} • {client.email}</p>
-                            </div>
-                            {client.type === 'Person' && (
-                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-md">
-                                <span className="text-xs font-bold text-white">AI</span>
+                            Add First Client
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {clients.map(client => (
+                            <div
+                              key={client.id}
+                              className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                                formData.selectedClients.includes(client.id)
+                                  ? 'border-green-500 bg-green-100 shadow-lg transform scale-105'
+                                  : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                              }`}
+                              onClick={() => handleClientToggle(client.id)}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.selectedClients.includes(client.id)}
+                                onChange={() => handleClientToggle(client.id)}
+                                className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                              />
+                              <div className="ml-4 flex-1">
+                                <p className="text-base font-semibold text-gray-900">{client.name}</p>
+                                <p className="text-sm text-gray-600">{client.isCorporate || 'Person'} • {client.email || 'No email'}</p>
                               </div>
-                            )}
-                            {client.type === 'Company' && (
-                              <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center shadow-md">
-                                <span className="text-xs font-bold text-white">CO</span>
-          </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                              {(client.isCorporate === 'Person' || !client.isCorporate) && (
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-md">
+                                  <span className="text-xs font-bold text-white">AI</span>
+                                </div>
+                              )}
+                              {client.isCorporate === 'Company' && (
+                                <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center shadow-md">
+                                  <span className="text-xs font-bold text-white">CO</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {errors.selectedClients && (
                         <p className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
                           {errors.selectedClients}
@@ -1562,7 +1916,6 @@ const CreateContract = () => {
                               value={formData.startDate}
                               onChange={(e) => handleInputChange('startDate', e.target.value)}
                               className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-purple-300 ${errors.startDate ? 'border-red-500 bg-red-50/80' : ''}`}
-                              min={new Date().toISOString().split('T')[0]}
                             />
                             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
           </div>
@@ -1598,46 +1951,95 @@ const CreateContract = () => {
                       <div className="relative mb-8">
                         <div className="flex items-center mb-6">
                           <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-400 rounded-lg flex items-center justify-center mr-3">
-                            <span className="text-white text-sm">🌍</span>
+                            <MapPinIcon className="w-5 h-5 text-white" />
           </div>
-                          <h3 className="text-xl font-bold text-gray-900">Basic Location</h3>
+                          <h3 className="text-xl font-bold text-gray-900">Location Details</h3>
           </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-6">
                           <div className="group">
                             <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
                               <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-400 rounded-lg flex items-center justify-center mr-2">
-                                <span className="text-white text-xs">📐</span>
+                                <span className="text-white text-xs">📍</span>
                               </div>
-                              Latitude
+                              Makani Number <span className="text-red-500 ml-1">*</span>
                             </label>
                             <div className="relative">
                               <input
                                 type="text"
-                                value={formData.latitude}
-                                onChange={(e) => handleInputChange('latitude', e.target.value)}
-                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-emerald-300"
-                                placeholder="25.2048"
+                                value={formData.makaniNumber}
+                                onChange={(e) => handleMakaniChange(e.target.value)}
+                                className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                                  makaniValid === true
+                                    ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
+                                    : makaniValid === false
+                                    ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                                    : 'border-gray-200 hover:border-emerald-300 focus:ring-emerald-500/20 focus:border-emerald-500'
+                                }`}
+                                placeholder="Enter 10-digit Makani number"
+                                maxLength={10}
                               />
+                              {validatingMakani && (
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600"></div>
+                                </div>
+                              )}
+                              {makaniValid === true && !validatingMakani && (
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                  <CheckIcon className="w-6 h-6 text-green-500" />
+                                </div>
+                              )}
+                              {makaniValid === false && !validatingMakani && (
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                  <XMarkIcon className="w-6 h-6 text-red-500" />
+                                </div>
+                              )}
                               <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-green-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                             </div>
+                            {makaniError && (
+                              <p className="mt-2 text-sm text-red-600">{makaniError}</p>
+                            )}
+                            {makaniValid === true && (
+                              <p className="mt-2 text-sm text-green-600">✓ Valid Makani number</p>
+                            )}
                           </div>
                           
-                          <div className="group">
-                            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
-                              <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-400 rounded-lg flex items-center justify-center mr-2">
-                                <span className="text-white text-xs">📏</span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="group">
+                              <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                                <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-400 rounded-lg flex items-center justify-center mr-2">
+                                  <span className="text-white text-xs">📐</span>
+                                </div>
+                                Latitude (Optional)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={formData.latitude}
+                                  onChange={(e) => handleInputChange('latitude', e.target.value)}
+                                  className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-emerald-300"
+                                  placeholder="25.2048"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-green-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                               </div>
-                              Longitude
-                            </label>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={formData.longitude}
-                                onChange={(e) => handleInputChange('longitude', e.target.value)}
-                                className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-green-300"
-                                placeholder="55.2708"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                            </div>
+                            
+                            <div className="group">
+                              <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                                <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-teal-400 rounded-lg flex items-center justify-center mr-2">
+                                  <span className="text-white text-xs">📏</span>
+                                </div>
+                                Longitude (Optional)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={formData.longitude}
+                                  onChange={(e) => handleInputChange('longitude', e.target.value)}
+                                  className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-green-300"
+                                  placeholder="55.2708"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                              </div>
                             </div>
                           </div>
                           
@@ -1753,7 +2155,7 @@ const CreateContract = () => {
                               <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center mr-2">
                                 <span className="text-white text-xs">💰</span>
                               </div>
-                              Building Cost
+                              Building Cost ({currencyCode || 'AED'})
                             </label>
                             <div className="relative">
                               <input
@@ -1761,7 +2163,7 @@ const CreateContract = () => {
                                 value={formData.buildingCost}
                                 onChange={(e) => handleInputChange('buildingCost', e.target.value)}
                                 className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-blue-300"
-                                placeholder="Enter building cost (AED)"
+                                placeholder={`Enter building cost (${currencyCode || 'AED'})`}
                                 min="0"
                                 step="0.01"
                               />
@@ -1774,7 +2176,7 @@ const CreateContract = () => {
                               <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center mr-2">
                                 <span className="text-white text-xs">📐</span>
                               </div>
-                              Built Up Area
+                              Built Up Area ({areaLabel})
                             </label>
                             <div className="relative">
                               <input
@@ -1782,7 +2184,7 @@ const CreateContract = () => {
                                 value={formData.builtUpArea}
                                 onChange={(e) => handleInputChange('builtUpArea', e.target.value)}
                                 className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-indigo-300"
-                                placeholder="Enter built up area (sq ft)"
+                                placeholder={`Enter built up area (${areaLabel})`}
                                 min="0"
                                 step="0.01"
                               />
@@ -1826,7 +2228,7 @@ const CreateContract = () => {
                               <div className="w-6 h-6 bg-gradient-to-br from-pink-400 to-red-400 rounded-lg flex items-center justify-center mr-2">
                                 <span className="text-white text-xs">📏</span>
                               </div>
-                              Building Height
+                              Building Height ({heightLabel})
                             </label>
                             <div className="relative">
                               <input
@@ -1834,7 +2236,7 @@ const CreateContract = () => {
                                 value={formData.buildingHeight}
                                 onChange={(e) => handleInputChange('buildingHeight', e.target.value)}
                                 className="w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:scale-105 border-gray-200 hover:border-pink-300"
-                                placeholder="Enter building height (m)"
+                                placeholder={`Enter building height (${heightLabel})`}
                                 min="0"
                                 step="0.1"
                               />
@@ -1864,6 +2266,7 @@ const CreateContract = () => {
                                 <option value="Hospitality">Hospitality</option>
                                 <option value="Healthcare">Healthcare</option>
                                 <option value="Educational">Educational</option>
+                                <option value="Villa">Villa</option>
                                 <option value="Other">Other</option>
                               </select>
                               <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-orange-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
@@ -1965,36 +2368,87 @@ const CreateContract = () => {
                         </div>
                       </div>
                       
-                      {/* Interactive Map */}
+                      {/* Makani Number */}
                       <div className="relative">
                         <div className="flex items-center mb-6">
                           <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-400 rounded-lg flex items-center justify-center mr-3">
-                            <span className="text-white text-sm">🗺️</span>
+                            <MapPinIcon className="w-5 h-5 text-white" />
                           </div>
-                          <h3 className="text-xl font-bold text-gray-900">Interactive Map</h3>
+                          <h3 className="text-xl font-bold text-gray-900">Location (Makani Number)</h3>
                         </div>
-                        <div className="relative group">
-                          <GoogleMap
-                            latitude={formData.latitude || 25.2048}
-                            longitude={formData.longitude || 55.2708}
-                            zoom={15}
-                            onLocationChange={handleMapLocationChange}
-                            plotNumber={formData.plotNumber}
-                            className="w-full h-80 rounded-2xl border-2 border-emerald-200 shadow-2xl hover:shadow-3xl transition-all duration-300 transform group-hover:scale-105"
-                          />
-                          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-xl border border-emerald-200">
-                            <div className="flex items-center mb-2">
-                              <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-green-400 rounded-lg flex items-center justify-center mr-2">
-                                <span className="text-white text-xs">📍</span>
-                              </div>
-                              <span className="text-sm font-semibold text-gray-800">Location Info</span>
+                        <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-6 border border-emerald-200 shadow-lg">
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Makani Number <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={formData.makaniNumber}
+                                onChange={(e) => handleMakaniChange(e.target.value)}
+                                className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 transition-all duration-300 bg-white shadow-lg ${
+                                  makaniValid === true
+                                    ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
+                                    : makaniValid === false
+                                    ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                                    : 'border-gray-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                                }`}
+                                placeholder="Enter 10-digit Makani number (e.g., 1234567890)"
+                                maxLength={10}
+                              />
+                              {validatingMakani && (
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600"></div>
+                                </div>
+                              )}
+                              {makaniValid === true && !validatingMakani && (
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                  <CheckIcon className="w-6 h-6 text-green-500" />
+                                </div>
+                              )}
+                              {makaniValid === false && !validatingMakani && (
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                                  <XMarkIcon className="w-6 h-6 text-red-500" />
+                                </div>
+                              )}
                             </div>
-                            <p className="text-xs text-gray-600 mb-1">
-                              <span className="font-medium">Plot:</span> {formData.plotNumber || 'Not specified'}
+                            {makaniError && (
+                              <p className="mt-2 text-sm text-red-600">{makaniError}</p>
+                            )}
+                            {makaniValid === true && (
+                              <p className="mt-2 text-sm text-green-600">✓ Valid Makani number</p>
+                            )}
+                            <p className="mt-2 text-xs text-gray-500">
+                              Makani is the official UAE addressing system. Enter the 10-digit number for the location.
                             </p>
-                            <p className="text-xs text-gray-500">
-                              <span className="font-medium">Coords:</span> {formData.latitude || '25.2048'}, {formData.longitude || '55.2708'}
-                            </p>
+                          </div>
+                          
+                          {/* Optional: Still allow manual coordinates if needed */}
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Latitude (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.latitude}
+                                onChange={(e) => handleInputChange('latitude', e.target.value)}
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-300 bg-white"
+                                placeholder="25.2048"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Longitude (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.longitude}
+                                onChange={(e) => handleInputChange('longitude', e.target.value)}
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-300 bg-white"
+                                placeholder="55.2708"
+                              />
+                            </div>
                           </div>
                         </div>
                         <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl border border-emerald-200 shadow-lg">
@@ -2003,7 +2457,7 @@ const CreateContract = () => {
                               <span className="text-white text-sm">💡</span>
                             </div>
                             <p className="text-sm text-emerald-800">
-                              <span className="font-semibold">Tip:</span> Click on the map or drag the marker to update the location coordinates.
+                              <span className="font-semibold">Tip:</span> Makani number is the official UAE addressing system. You can find it on property documents or by contacting Dubai Municipality.
                             </p>
                           </div>
                         </div>
@@ -2537,7 +2991,7 @@ const CreateContract = () => {
                         </div>
                       </div>
                       
-                      {/* File List */}
+                      {/* File List - Table View */}
                       {formData.attachments.length > 0 && (
                         <div className="mt-8">
                           <div className="flex items-center mb-4">
@@ -2549,30 +3003,120 @@ const CreateContract = () => {
                               {formData.attachments.length} file{formData.attachments.length !== 1 ? 's' : ''}
                             </span>
                           </div>
-                          <div className="space-y-3">
-                            {formData.attachments.map((file, index) => (
-                              <div key={index} className="group flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                                <div className="flex items-center">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center mr-3 shadow-md">
-                                    <span className="text-white text-sm">📄</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-semibold text-gray-900 block">{file.name}</span>
-                                    <span className="text-xs text-gray-500">
-                                      {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
-                                    </span>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeAttachment(index)}
-                                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 transform hover:scale-110"
-                                  title="Remove file"
-                                >
-                                  <XMarkIcon className="w-5 h-5" />
-                                </button>
-                              </div>
-                            ))}
+                          
+                          {/* Table View */}
+                          <div className="overflow-x-auto bg-white rounded-2xl border border-indigo-200 shadow-lg">
+                            <table className="w-full border-collapse">
+                              <thead>
+                                <tr className="bg-gradient-to-r from-indigo-50 to-purple-50">
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Preview</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">File Name</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">System Ref #</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Document Title</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Document Category</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Size</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Uploaded On</th>
+                                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {formData.attachments.map((file, index) => {
+                                  const fileObj = file.file || file; // Support both formats
+                                  const fileName = file.name || fileObj.name;
+                                  const fileSize = file.size || fileObj.size;
+                                  const fileType = file.type || fileObj.type;
+                                  const systemRef = file.systemRef || `REF-${Date.now()}-${index}`;
+                                  const category = file.category || 'General';
+                                  const uploadedOn = file.uploadedOn || new Date().toLocaleDateString();
+                                  
+                                  const fileUrl = fileObj instanceof File ? URL.createObjectURL(fileObj) : (file.url || file.path || fileObj.url || '');
+                                  const isImage = fileType?.startsWith('image/') || fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                  const isPdf = fileType === 'application/pdf' || fileName?.match(/\.pdf$/i);
+                                  
+                                  return (
+                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                      {/* Preview Thumbnail */}
+                                      <td className="border border-gray-200 px-4 py-3">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center overflow-hidden cursor-pointer shadow-md"
+                                             onClick={() => {
+                                               setPreviewFile({ file: fileObj, index, url: fileUrl, isImage, isPdf });
+                                               setShowPreviewModal(true);
+                                             }}
+                                             title="Click to preview">
+                                          {isImage && fileUrl ? (
+                                            <img src={fileUrl} alt={fileName} className="w-full h-full object-cover" />
+                                          ) : isPdf ? (
+                                            <span className="text-white text-lg">📕</span>
+                                          ) : (
+                                            <span className="text-white text-xs">📄</span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      
+                                      {/* File Name */}
+                                      <td className="border border-gray-200 px-4 py-3 text-sm font-medium text-gray-900">{fileName}</td>
+                                      
+                                      {/* System Ref # */}
+                                      <td className="border border-gray-200 px-4 py-3 text-sm font-mono text-gray-600">{systemRef}</td>
+                                      
+                                      {/* Document Title */}
+                                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-700">{fileName}</td>
+                                      
+                                      {/* Document Category */}
+                                      <td className="border border-gray-200 px-4 py-3 text-sm">
+                                        <select
+                                          value={category}
+                                          onChange={(e) => updateAttachmentCategory(index, e.target.value)}
+                                          className="border border-gray-300 rounded px-2 py-1 text-sm w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        >
+                                          <option value="General">General</option>
+                                          <option value="Contract">Contract</option>
+                                          <option value="Invoice">Invoice</option>
+                                          <option value="Legal">Legal</option>
+                                          <option value="Technical">Technical</option>
+                                        </select>
+                                      </td>
+                                      
+                                      {/* Size */}
+                                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600">
+                                        {fileSize ? `${(fileSize / 1024).toFixed(2)} KB` : 'Unknown size'}
+                                      </td>
+                                      
+                                      {/* Uploaded On */}
+                                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-600">{uploadedOn}</td>
+                                      
+                                      {/* Actions */}
+                                      <td className="border border-gray-200 px-4 py-3">
+                                        <div className="flex items-center space-x-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setPreviewFile({ file: fileObj, index, url: fileUrl, isImage, isPdf });
+                                              setShowPreviewModal(true);
+                                            }}
+                                            className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                                            title="Preview file"
+                                          >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeAttachment(index)}
+                                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                            title="Remove file"
+                                          >
+                                            <TrashIcon className="w-5 h-5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
@@ -3161,6 +3705,122 @@ const CreateContract = () => {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Preview Modal */}
+      {showPreviewModal && previewFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center mr-3">
+                  {previewFile.isImage ? (
+                    <span className="text-white text-xl">🖼️</span>
+                  ) : previewFile.isPdf ? (
+                    <span className="text-white text-xl">📕</span>
+                  ) : (
+                    <span className="text-white text-sm">📄</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">{previewFile.file.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {previewFile.file.size ? `${(previewFile.file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setPreviewFile(null);
+                  // Clean up object URL if it was created
+                  if (previewFile.url && previewFile.url.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewFile.url);
+                  }
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all duration-200"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Content - Preview */}
+            <div className="flex-1 overflow-auto p-6 bg-gray-50">
+              {previewFile.isImage && previewFile.url ? (
+                <div className="flex items-center justify-center">
+                  <img 
+                    src={previewFile.url} 
+                    alt={previewFile.file.name}
+                    className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                  />
+                </div>
+              ) : previewFile.isPdf && previewFile.url ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <iframe
+                    src={previewFile.url}
+                    className="w-full h-[70vh] border border-gray-300 rounded-lg shadow-lg"
+                    title={previewFile.file.name}
+                  />
+                  <a
+                    href={previewFile.url}
+                    download={previewFile.file.name}
+                    className="mt-4 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                  >
+                    Download PDF
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-32 h-32 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                    <span className="text-white text-5xl">📄</span>
+                  </div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">{previewFile.file.name}</h4>
+                  <p className="text-gray-500 mb-4">
+                    {previewFile.file.size ? `${(previewFile.file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                  </p>
+                  <p className="text-gray-400 text-sm mb-6">
+                    Preview not available for this file type. Download to view.
+                  </p>
+                  {previewFile.url && (
+                    <a
+                      href={previewFile.url}
+                      download={previewFile.file.name}
+                      className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                    >
+                      Download File
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end space-x-4 p-6 border-t border-gray-200 bg-white">
+              <button
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setPreviewFile(null);
+                  if (previewFile.url && previewFile.url.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewFile.url);
+                  }
+                }}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+              >
+                Close
+              </button>
+              {previewFile.url && (
+                <a
+                  href={previewFile.url}
+                  download={previewFile.file.name}
+                  className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                >
+                  Download
+                </a>
+              )}
             </div>
           </div>
         </div>

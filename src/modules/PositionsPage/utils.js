@@ -4,7 +4,6 @@ export const filterPositions = (positions, searchTerm) => {
     position.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     position.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     position.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    position.salary.toLowerCase().includes(searchTerm.toLowerCase()) ||
     position.requirements.toLowerCase().includes(searchTerm.toLowerCase()) ||
     position.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
     position.id.toString().includes(searchTerm)
@@ -58,7 +57,6 @@ export const createNewPosition = (newPosition, positions) => {
     manager: newPosition.manager,
     employees: 0,
     status: newPosition.status,
-    salary: newPosition.salary,
     requirements: newPosition.requirements
   };
 };

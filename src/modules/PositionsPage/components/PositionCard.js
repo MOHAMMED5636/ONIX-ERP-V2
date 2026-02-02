@@ -93,17 +93,7 @@ const PositionCard = ({
               </div>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <div className="p-1.5 bg-indigo-100 rounded-lg">
-                  <span className="text-indigo-600 font-bold text-sm">$</span>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">Salary</p>
-                  <p className="font-semibold text-gray-900 text-sm">{position.salary}</p>
-                </div>
-              </div>
-              
+            <div className="flex items-center justify-end">
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                 position.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
               }`}>

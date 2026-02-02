@@ -13,43 +13,69 @@ import {
   ClockIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { usePreferences } from '../../context/PreferencesContext';
 
 const ContractViewModal = ({ isOpen, onClose, contract }) => {
+  const { toDisplay, currencyCode, preferences } = usePreferences();
+
   if (!isOpen || !contract) return null;
+
+  // Use contract values when present (from API, stored in base units); fallback to mock
+  const rawBuildingCost = contract.buildingCost != null && contract.buildingCost !== '' ? Number(contract.buildingCost) : 4500000;
+  const rawBuiltUpArea = contract.builtUpArea != null && contract.builtUpArea !== '' ? Number(contract.builtUpArea) : 25000;
+  const rawBuildingHeight = contract.buildingHeight != null && contract.buildingHeight !== '' ? Number(contract.buildingHeight) : 45;
+
+  // Convert base → display using Admin preferences (real-time)
+  const displayBuildingCost = toDisplay(rawBuildingCost, 'currency');
+  const displayBuiltUpArea = toDisplay(rawBuiltUpArea, 'area');
+  const displayBuildingHeight = toDisplay(rawBuildingHeight, 'height');
+
+  const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
+  const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
 
   // Mock detailed contract data (in real app, this would come from props or API)
   const contractDetails = {
     ...contract,
     // General Information
-    company: 'ABC Construction Ltd.',
-    client: 'XYZ Development',
-    description: 'Complete construction project for residential/commercial development',
+    company: contract.company || 'ABC Construction Ltd.',
+    client: contract.client || 'XYZ Development',
+    description: contract.description || 'Complete construction project for residential/commercial development',
     
     // Location Details
-    latitude: '25.2048',
-    longitude: '55.2708',
-    region: 'Dubai',
-    plotNumber: 'PL-2024-001',
-    community: 'Downtown Dubai',
-    numberOfFloors: '15',
+    latitude: contract.latitude || '25.2048',
+    longitude: contract.longitude || '55.2708',
+    region: contract.region || 'Dubai',
+    plotNumber: contract.plotNumber || 'PL-2024-001',
+    community: contract.community || 'Downtown Dubai',
+    numberOfFloors: contract.numberOfFloors || '15',
     
-    // Building Details (newly added)
-    buildingCost: '4500000',
-    builtUpArea: '25000',
-    structuralSystem: 'Reinforced Concrete',
-    buildingHeight: '45',
-    buildingType: 'Mixed-Use',
+    // Building Details (display values from Admin preferences)
+    buildingCost: displayBuildingCost,
+    builtUpArea: displayBuiltUpArea,
+    structuralSystem: contract.structuralSystem || 'Reinforced Concrete',
+    buildingHeight: displayBuildingHeight,
+    buildingType: contract.buildingType || 'Mixed-Use',
     
     // Authority & Community
-    authorityApproval: 'Approved',
-    developerName: 'Emaar Properties',
+    authorityApproval: contract.authorityApprovalStatus || 'Approved',
+    developerName: contract.developerName || 'Emaar Properties',
     
-    // Financial Details
-    fees: [
-      { name: 'Design Fee', amount: '150000', type: 'fixed' },
-      { name: 'Construction Fee', amount: '3500000', type: 'percentage' },
-      { name: 'Supervision Fee', amount: '250000', type: 'monthly' }
-    ],
+    // Financial Details (convert amounts base → display when from API)
+    fees: (() => {
+      const raw = typeof contract.contractFees === 'string' ? (() => { try { return JSON.parse(contract.contractFees) || []; } catch { return []; } })() : (contract.contractFees || []);
+      if (Array.isArray(raw) && raw.length > 0) {
+        return raw.map(f => ({
+          name: f.name,
+          type: f.type || 'fixed',
+          amount: toDisplay(Number(f.amount || f.calculatedAmount || 0), 'currency'),
+        }));
+      }
+      return [
+        { name: 'Design Fee', amount: toDisplay(150000, 'currency'), type: 'fixed' },
+        { name: 'Construction Fee', amount: toDisplay(3500000, 'currency'), type: 'percentage' },
+        { name: 'Supervision Fee', amount: toDisplay(250000, 'currency'), type: 'monthly' },
+      ];
+    })(),
     
     // Project Details
     projectTypes: ['exterior', 'interior'],
@@ -64,12 +90,13 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
   };
 
   const formatCurrency = (amount) => {
+    const code = currencyCode || 'AED';
     return new Intl.NumberFormat('en-AE', {
       style: 'currency',
-      currency: 'AED',
+      currency: code,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount ?? 0);
   };
 
   const getStatusColor = (status) => {
@@ -227,7 +254,7 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Built Up Area:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.builtUpArea} sq ft</span>
+                    <span className="text-gray-900 font-semibold">{contractDetails.builtUpArea != null ? Number(contractDetails.builtUpArea).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} {areaLabel}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Structural System:</span>
@@ -235,7 +262,7 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Building Height:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.buildingHeight} m</span>
+                    <span className="text-gray-900 font-semibold">{contractDetails.buildingHeight != null ? Number(contractDetails.buildingHeight).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} {heightLabel}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Building Type:</span>

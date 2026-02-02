@@ -16,30 +16,75 @@ export const AVAILABLE_ACTIONS = [
   'view',
   'edit', 
   'delete',
-  'create'
+  'create',
+  'manage'
 ];
 
-// Available fields
+// Available fields organized by category
+export const FIELD_CATEGORIES = {
+  // Form Fields - Employee Information
+  'formFields': {
+    label: 'Form Fields (Employee Information)',
+    fields: [
+      'name',
+      'email',
+      'phone',
+      'salary',
+      'department',
+      'position',
+      'hireDate',
+      'manager',
+      'location',
+      'status',
+      'employeeId',
+      'passportNumber',
+      'nationalId',
+      'insurance',
+      'bankDetails',
+      'emergencyContact',
+      'performanceRating',
+      'attendance',
+      'leaveBalance'
+    ]
+  },
+  // Sidebar Menu Items
+  'sidebarMenu': {
+    label: 'Sidebar Menu Items',
+    fields: [
+      'company-policy',
+      'attendance',
+      'leave',
+      'feedback',
+      'survey',
+      'project-list',
+      'tender',
+      'supervision',
+      'contracts',
+      'clients',
+      'task-category-list',
+      'team',
+      'project-tracker',
+      'project-lifecycle',
+      'project-overview',
+      'project-management',
+      'team-members',
+      'progress-tracking',
+      'reports',
+      'suppliers',
+      'companies',
+      'contractors',
+      'bank-reconciliation',
+      'it-support',
+      'ai-employee-evaluations',
+      'settings'
+    ]
+  }
+};
+
+// Flattened list of all available fields (for backward compatibility)
 export const AVAILABLE_FIELDS = [
-  'name',
-  'email',
-  'phone',
-  'salary',
-  'department',
-  'position',
-  'hireDate',
-  'manager',
-  'location',
-  'status',
-  'employeeId',
-  'passportNumber',
-  'nationalId',
-  'insurance',
-  'bankDetails',
-  'emergencyContact',
-  'performanceRating',
-  'attendance',
-  'leaveBalance'
+  ...FIELD_CATEGORIES.formFields.fields,
+  ...FIELD_CATEGORIES.sidebarMenu.fields
 ];
 
 // Available conditions
@@ -101,8 +146,10 @@ export const MOCK_EMPLOYEE_RULES = {
 
 // Default new rule template
 export const DEFAULT_NEW_RULE = {
-  role: '',
-  action: '',
+  role: '', // Comma-separated string for multiple roles
+  roles: [], // Array of roles
+  action: '', // Comma-separated string for multiple actions
+  actions: [], // Array of actions
   field: '',
   conditions: [{ key: '', operator: 'equals', value: '' }],
   description: '',
@@ -111,8 +158,10 @@ export const DEFAULT_NEW_RULE = {
 
 // Default edit rule template
 export const DEFAULT_EDIT_RULE = {
-  role: '',
-  action: '',
+  role: '', // Comma-separated string for multiple roles
+  roles: [], // Array of roles
+  action: '', // Comma-separated string for multiple actions
+  actions: [], // Array of actions
   field: '',
   conditions: [{ key: '', operator: 'equals', value: '' }],
   description: '',

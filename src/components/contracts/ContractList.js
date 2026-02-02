@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   ChartBarIcon,
@@ -12,6 +12,8 @@ import {
 } from '@heroicons/react/24/outline';
 import ContractViewModal from './ContractViewModal';
 import AmendmentForm from './AmendmentForm';
+import ContractsAPI from '../../services/contractsAPI';
+import { usePreferences } from '../../context/PreferencesContext';
 
 const demoContracts = [
   { 
@@ -158,11 +160,85 @@ const demoContracts = [
 
 export default function ContractList() {
   const navigate = useNavigate();
+  const { toDisplay, currencyCode, preferences } = usePreferences();
+  const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
+  const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
   const [showAmendmentModal, setShowAmendmentModal] = useState(false);
   const [contractForAmendment, setContractForAmendment] = useState(null);
-  const [contracts, setContracts] = useState(demoContracts);
+  const [contractsRaw, setContractsRaw] = useState([]); // Store base values from API
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Map raw contracts to display using Admin preferences (auto-updates when preferences change)
+  const contracts = React.useMemo(() => {
+    return contractsRaw.map(contract => {
+      let contractStatus = contract.status;
+      if (typeof contractStatus === 'number') contractStatus = 'DRAFT';
+      else if (!contractStatus || contractStatus === '') contractStatus = 'DRAFT';
+      else contractStatus = String(contractStatus);
+      const baseValue = contract.contractValue ? Number(contract.contractValue) : (contract.totalAmount ? Number(contract.totalAmount) : 0);
+      const displayValue = toDisplay(baseValue, 'currency');
+      return {
+        id: contract.id,
+        ref: contract.referenceNumber || `CT-${contract.id.substring(0, 8)}`,
+        start: contract.startDate ? new Date(contract.startDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'N/A',
+        end: contract.endDate ? new Date(contract.endDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'N/A',
+        category: contract.contractCategory || contract.contractType || 'N/A',
+        status: contractStatus,
+        value: displayValue,
+        contractValue: baseValue != null && baseValue !== '' ? `${Number(displayValue).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currencyCode || 'AED'}` : 'N/A',
+        startDate: contract.startDate ? new Date(contract.startDate).toISOString().split('T')[0] : null,
+        endDate: contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : null,
+        paymentTerms: contract.paymentTerms || 'N/A',
+        scopeOfWork: contract.description || 'N/A',
+        deliverables: contract.specialClauses || 'N/A',
+        termsAndConditions: contract.termsAndConditions || 'N/A',
+        penaltyClauses: contract.specialClauses || 'N/A',
+        warrantyPeriod: contract.renewalTerms || 'N/A',
+        buildingCost: contract.buildingCost != null && contract.buildingCost !== '' ? `${Number(toDisplay(Number(contract.buildingCost), 'currency')).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currencyCode || 'AED'}` : 'N/A',
+        builtUpArea: contract.builtUpArea != null && contract.builtUpArea !== '' ? `${Number(toDisplay(Number(contract.builtUpArea), 'area')).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${areaLabel}` : 'N/A',
+        structuralSystem: contract.structuralSystem || 'N/A',
+        buildingHeight: contract.buildingHeight != null && contract.buildingHeight !== '' ? `${Number(toDisplay(Number(contract.buildingHeight), 'height')).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${heightLabel}` : 'N/A',
+        buildingType: contract.buildingType || 'N/A',
+        region: contract.region || 'N/A',
+        plotNumber: contract.plotNumber || 'N/A',
+        community: contract.community || 'N/A',
+        numberOfFloors: contract.numberOfFloors ? String(contract.numberOfFloors) : 'N/A',
+        authorityApproval: contract.authorityApprovalStatus || 'N/A',
+        ...contract,
+        status: contractStatus,
+      };
+    });
+  }, [contractsRaw, toDisplay, currencyCode, preferences, areaLabel, heightLabel]);
+
+  // Fetch contracts from backend (store raw base values)
+  useEffect(() => {
+    const fetchContracts = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await ContractsAPI.getContracts({ limit: 100 });
+        
+        if (response && response.success && response.data) {
+          const contractsList = response.data.contracts || (Array.isArray(response.data) ? response.data : []);
+          setContractsRaw(contractsList);
+          console.log('✅ Loaded contracts:', contractsList.length);
+        } else {
+          setContractsRaw([]);
+        }
+      } catch (error) {
+        console.error('Error fetching contracts:', error);
+        setError(error.message || 'Failed to load contracts');
+        setContractsRaw([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContracts();
+  }, []);
 
   const handleViewContract = (contract) => {
     setSelectedContract(contract);
@@ -186,12 +262,12 @@ export default function ContractList() {
 
   const handleCreateAmendmentSubmit = async (updatedContract, amendmentRecord) => {
     try {
-      // Update the original contract in the list with the changes
-      setContracts(prevContracts => 
-        prevContracts.map(contract => 
-          contract.id === updatedContract.id || contract.ref === updatedContract.ref
-            ? updatedContract
-            : contract
+      // Update the original contract in the list with the changes (update raw list; display will recompute via useMemo)
+      setContractsRaw(prev => 
+        prev.map(c => 
+          c.id === updatedContract.id || c.referenceNumber === updatedContract.ref
+            ? { ...c, ...updatedContract }
+            : c
         )
       );
       
@@ -225,13 +301,27 @@ export default function ContractList() {
   // Calculate contract statistics
   const contractStats = {
     total: contracts.length,
-    active: contracts.filter(contract => contract.status === "Active").length,
-    completed: contracts.filter(contract => contract.status === "Completed").length,
-    residential: contracts.filter(contract => contract.category === "Residential Villa").length,
-    commercial: contracts.filter(contract => contract.category === "Commercial Building").length,
-    industrial: contracts.filter(contract => contract.category === "Industrial Complex").length,
-    totalValue: contracts.reduce((sum, contract) => sum + contract.value, 0),
-    averageValue: Math.round(contracts.reduce((sum, contract) => sum + contract.value, 0) / contracts.length)
+    active: contracts.filter(contract => contract.status === "ACTIVE" || contract.status === "Active").length,
+    completed: contracts.filter(contract => contract.status === "COMPLETED" || contract.status === "Completed").length,
+    residential: contracts.filter(contract => 
+      contract.category?.toLowerCase().includes('residential') || 
+      contract.buildingType?.toLowerCase().includes('residential') ||
+      contract.contractType?.toLowerCase().includes('residential')
+    ).length,
+    commercial: contracts.filter(contract => 
+      contract.category?.toLowerCase().includes('commercial') || 
+      contract.buildingType?.toLowerCase().includes('commercial') ||
+      contract.contractType?.toLowerCase().includes('commercial')
+    ).length,
+    industrial: contracts.filter(contract => 
+      contract.category?.toLowerCase().includes('industrial') || 
+      contract.buildingType?.toLowerCase().includes('industrial') ||
+      contract.contractType?.toLowerCase().includes('industrial')
+    ).length,
+    totalValue: contracts.reduce((sum, contract) => sum + (contract.value || 0), 0),
+    averageValue: contracts.length > 0 
+      ? Math.round(contracts.reduce((sum, contract) => sum + (contract.value || 0), 0) / contracts.length)
+      : 0
   };
 
   return (
@@ -343,52 +433,110 @@ export default function ContractList() {
         </div>
       </div>
       <div className="overflow-x-auto bg-white rounded-xl shadow p-2 sm:p-4">
-        <table className="min-w-full text-xs sm:text-sm">
-          <thead>
-            <tr className="text-left text-gray-600 border-b">
-              <th className="py-2 px-2">Reference Number</th>
-              <th className="py-2 px-2">Start Date</th>
-              <th className="py-2 px-2">End Date</th>
-              <th className="py-2 px-2">Contract Category</th>
-              <th className="py-2 px-2">Options</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contracts.map((c, idx) => (
-              <tr key={idx} className={`even:bg-gray-50 ${c.amendmentHistory && c.amendmentHistory.length > 0 ? 'bg-green-50' : ''}`}>
-                <td className="py-2 px-2 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    {c.ref}
-                    {c.amendmentHistory && c.amendmentHistory.length > 0 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Amended ({c.amendmentHistory.length})
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-2 px-2 whitespace-nowrap">{c.start}</td>
-                <td className="py-2 px-2 whitespace-nowrap">{c.end}</td>
-                <td className="py-2 px-2 whitespace-nowrap">{c.category}</td>
-                <td className="py-2 px-2 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleViewContract(c)}
-                      className="text-blue-600 hover:underline text-xs sm:text-sm hover:text-blue-800 transition-colors"
-                    >
-                      View
-                    </button>
-                    <button 
-                      onClick={() => handleCreateAmendment(c)}
-                      className="text-green-600 hover:underline text-xs sm:text-sm hover:text-green-800 transition-colors"
-                    >
-                      Create Amendment
-                    </button>
-                  </div>
-                </td>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Loading contracts...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">Error: {error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        ) : contracts.length === 0 ? (
+          <div className="text-center py-12">
+            <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <p className="mt-4 text-gray-600">No contracts found</p>
+            <button
+              onClick={() => navigate("/contracts/create")}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Create First Contract
+            </button>
+          </div>
+        ) : (
+          <table className="min-w-full text-xs sm:text-sm">
+            <thead>
+              <tr className="text-left text-gray-600 border-b">
+                <th className="py-2 px-2">Reference Number</th>
+                <th className="py-2 px-2">Start Date</th>
+                <th className="py-2 px-2">End Date</th>
+                <th className="py-2 px-2">Contract Category</th>
+                <th className="py-2 px-2">Status</th>
+                <th className="py-2 px-2">Options</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {contracts.map((c, idx) => (
+                <tr key={c.id || idx} className={`even:bg-gray-50 ${c.amendmentHistory && c.amendmentHistory.length > 0 ? 'bg-green-50' : ''}`}>
+                  <td className="py-2 px-2 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      {c.ref}
+                      {c.amendmentHistory && c.amendmentHistory.length > 0 && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Amended ({c.amendmentHistory.length})
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2 px-2 whitespace-nowrap">{c.start}</td>
+                  <td className="py-2 px-2 whitespace-nowrap">{c.end}</td>
+                  <td className="py-2 px-2 whitespace-nowrap">{c.category}</td>
+                  <td className="py-2 px-2 whitespace-nowrap">
+                    {(() => {
+                      // Ensure status is a string and handle different status formats
+                      const displayStatus = typeof c.status === 'string' 
+                        ? c.status 
+                        : (typeof c.status === 'number' 
+                          ? 'DRAFT' // If status is a number, it's an error - use default
+                          : (c.status || 'DRAFT'));
+                      
+                      // Normalize status to uppercase for comparison
+                      const normalizedStatus = String(displayStatus).toUpperCase();
+                      
+                      return (
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          normalizedStatus === 'ACTIVE' || normalizedStatus === 'PENDING_REVIEW'
+                            ? 'bg-green-100 text-green-800'
+                            : normalizedStatus === 'COMPLETED' || normalizedStatus === 'APPROVED'
+                            ? 'bg-blue-100 text-blue-800'
+                            : normalizedStatus === 'DRAFT'
+                            ? 'bg-gray-100 text-gray-800'
+                            : normalizedStatus === 'REJECTED' || normalizedStatus === 'CANCELLED'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {displayStatus}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td className="py-2 px-2 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleViewContract(c)}
+                        className="text-blue-600 hover:underline text-xs sm:text-sm hover:text-blue-800 transition-colors"
+                      >
+                        View
+                      </button>
+                      <button 
+                        onClick={() => handleCreateAmendment(c)}
+                        className="text-green-600 hover:underline text-xs sm:text-sm hover:text-green-800 transition-colors"
+                      >
+                        Create Amendment
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Contract View Modal */}

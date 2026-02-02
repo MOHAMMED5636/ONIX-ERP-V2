@@ -5,7 +5,7 @@ import ChatWindow from "./ChatWindow";
 import ChatMessageInput from "./ChatMessageInput";
 import io from "socket.io-client";
 
-const socket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || "http://192.168.1.54:3001"); // Backend URL
+const socket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || "http://localhost:3001"); // Backend URL
 
 export default function ChatRoom() {
   const { t, lang } = useLanguage();

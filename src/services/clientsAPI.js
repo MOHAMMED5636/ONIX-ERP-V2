@@ -1,5 +1,5 @@
 // API service for clients management
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 class ClientsAPI {
   // Get all clients with optional search and pagination
@@ -61,17 +61,32 @@ class ClientsAPI {
   // Create a new client
   static async createClient(clientData) {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Check if clientData is FormData (for file uploads) or regular object
+      const isFormData = clientData instanceof FormData;
+      
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+      };
+      
+      // Don't set Content-Type for FormData - browser will set it with boundary
+      if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const response = await fetch(`${API_BASE_URL}/clients`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(clientData),
+        headers: headers,
+        body: isFormData ? clientData : JSON.stringify(clientData),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       return await response.json();
@@ -175,5 +190,8 @@ class ClientsAPI {
     }
   }
 }
+
+// Alias for backward compatibility
+ClientsAPI.getAllClients = ClientsAPI.getClients;
 
 export default ClientsAPI;

@@ -123,7 +123,8 @@ const ProfileForm = ({ onUpdate }) => {
       
       // Provide more helpful error messages
       if (errorMessage.includes('Failed to fetch')) {
-        errorMessage = 'Cannot connect to backend server. Please ensure:\n1. Backend is running on http://192.168.1.54:3001\n2. CORS is configured\n3. Network connection is working';
+        const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+        errorMessage = `Cannot connect to backend server. Please ensure:\n1. Backend is running on ${backendUrl}\n2. CORS is configured\n3. Network connection is working`;
       } else if (errorMessage.includes('404')) {
         errorMessage = 'Profile update endpoint not found. Please check backend implementation.';
       } else if (errorMessage.includes('500')) {

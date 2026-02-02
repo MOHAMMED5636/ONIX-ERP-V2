@@ -1,5 +1,5 @@
 // Document Management API service
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Get all documents for a user
@@ -163,7 +163,8 @@ export const uploadDocument = async (formData) => {
     
     // Provide more helpful error messages
     if (error.message.includes('Failed to fetch')) {
-      throw new Error('Cannot connect to server. Please check:\n1. Backend server is running on http://192.168.1.54:3001\n2. CORS is configured correctly\n3. Network connection is working');
+      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      throw new Error(`Cannot connect to server. Please check:\n1. Backend server is running on ${backendUrl}\n2. CORS is configured correctly\n3. Network connection is working`);
     }
     
     throw error;

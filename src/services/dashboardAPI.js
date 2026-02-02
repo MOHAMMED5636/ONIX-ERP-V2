@@ -1,5 +1,5 @@
 // Dashboard API service for backend connection
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 // Helper function to add timeout to fetch requests
 const fetchWithTimeout = (url, options, timeout = 10000) => {
@@ -50,7 +50,8 @@ export const getDashboardSummary = async () => {
     if (error.message.includes('timeout')) {
       throw new Error('Connection timeout - please check if backend is running on port 3001');
     } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      throw new Error('Cannot connect to server - make sure backend is running on http://192.168.1.54:3001');
+      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
     }
     throw error;
   }

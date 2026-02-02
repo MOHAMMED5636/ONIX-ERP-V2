@@ -1,5 +1,5 @@
 // Backend API Base URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

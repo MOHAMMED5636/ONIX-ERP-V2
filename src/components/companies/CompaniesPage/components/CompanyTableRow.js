@@ -18,11 +18,9 @@ import {
 
 const CompanyTableRow = ({ 
   company, 
-  selectedCompany, 
   onView, 
   onEdit, 
-  onDelete, 
-  onSelectCompany 
+  onDelete
 }) => {
   const navigate = useNavigate();
 
@@ -113,24 +111,6 @@ const CompanyTableRow = ({
             aria-label="Delete Company"
           >
             <TrashIcon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onSelectCompany(company.name)}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              selectedCompany === company.name
-                ? "bg-green-100 text-green-700 border border-green-200"
-                : "bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700"
-            }`}
-            title={selectedCompany === company.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
-          >
-            {selectedCompany === company.name ? (
-              <div className="flex items-center gap-1">
-                <CheckIcon className="h-3 w-3" />
-                <span>Selected</span>
-              </div>
-            ) : (
-              "Select"
-            )}
           </button>
         </div>
       </td>

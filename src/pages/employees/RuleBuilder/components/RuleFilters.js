@@ -59,7 +59,9 @@ const RuleFilters = ({
               >
                 <option value="">All Actions</option>
                 {AVAILABLE_ACTIONS.map(action => (
-                  <option key={action} value={action}>{action}</option>
+                  <option key={action} value={action}>
+                    {action.charAt(0).toUpperCase() + action.slice(1)}
+                  </option>
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">

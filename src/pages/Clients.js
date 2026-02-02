@@ -21,159 +21,7 @@ import ClientsAPI from '../services/clientsAPI';
 import DocumentUploadForm, { DOCUMENT_TYPES_MASTER } from '../components/DocumentUploadForm';
 
 // Mock data - replace with API call
-const mockClients = [
-    {
-      id: 1,
-      referenceNumber: 'O-CL-25100bytf',
-      name: 'KVIEM REAL ESTATE LLC',
-      isCorporate: 'Company',
-      leadSource: 'Social Media',
-      rank: 'Gold',
-      email: 'kviem@realestate.com',
-      phone: '+971 50 123 4567',
-      address: 'Dubai, UAE',
-      idNumber: '784-1985-1234567-8',
-      idEndDate: '2025-12-31',
-      nationality: 'Emirati',
-      passportNumber: 'A1234567',
-      birthDate: '1985-06-15',
-      trnNumber: 'TRN123456789',
-      ibanNumber: 'AE070331234567890123456',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: 2,
-      referenceNumber: 'O-CL-2543',
-      name: 'JAGGIM SALMAN',
-      isCorporate: 'Person',
-      leadSource: 'Company Website',
-      rank: 'Silver',
-      email: 'jaggim@email.com',
-      phone: '+971 50 234 5678',
-      address: 'Abu Dhabi, UAE',
-      idNumber: '784-1990-2345678-9',
-      idEndDate: '2026-03-15',
-      nationality: 'Pakistani',
-      passportNumber: 'B2345678',
-      birthDate: '1990-03-15',
-      createdAt: '2024-01-20'
-    },
-    {
-      id: 3,
-      referenceNumber: 'O-CL-2547',
-      name: 'MAZEN IBRAHIM ALNATOUR',
-      isCorporate: 'Person',
-      leadSource: 'Friends',
-      rank: 'Gold',
-      email: 'mazen@email.com',
-      phone: '+971 50 345 6789',
-      address: 'Sharjah, UAE',
-      createdAt: '2024-01-25'
-    },
-    {
-      id: 4,
-      referenceNumber: 'O-CL-2546',
-      name: 'AHMAD MOHAMMED ABDULRAHMAN AHMAD',
-      isCorporate: 'Person',
-      leadSource: 'Social Media',
-      rank: 'Diamond',
-      email: 'ahmad@email.com',
-      phone: '+971 50 456 7890',
-      address: 'Ajman, UAE',
-      createdAt: '2024-02-01'
-    },
-    {
-      id: 5,
-      referenceNumber: 'O-CL-2542',
-      name: 'SUNNY MAHESH VASWIANI',
-      isCorporate: 'Person',
-      leadSource: 'Company Website',
-      rank: 'Silver',
-      email: 'sunny@email.com',
-      phone: '+971 50 567 8901',
-      address: 'Dubai, UAE',
-      createdAt: '2024-02-05'
-    },
-    {
-      id: 6,
-      referenceNumber: 'O-CL-2537',
-      name: 'MAD ABDULLA ALMI',
-      isCorporate: 'Person',
-      leadSource: 'Friends',
-      rank: 'Gold',
-      email: 'mad@email.com',
-      phone: '+971 50 678 9012',
-      address: 'Ras Al Khaimah, UAE',
-      createdAt: '2024-02-10'
-    },
-    {
-      id: 7,
-      referenceNumber: 'O-CL-2536',
-      name: 'ZAHID HASAN',
-      isCorporate: 'Person',
-      leadSource: 'Social Media',
-      rank: 'Silver',
-      email: 'zahid@email.com',
-      phone: '+971 50 789 0123',
-      address: 'Fujairah, UAE',
-      createdAt: '2024-02-15'
-    },
-    {
-      id: 8,
-      referenceNumber: 'O-CL-2588',
-      name: 'RASHID SAEED ALMANSOORI',
-      isCorporate: 'Person',
-      leadSource: 'Company Website',
-      rank: 'Diamond',
-      email: 'rashid@email.com',
-      phone: '+971 50 890 1234',
-      address: 'Umm Al Quwain, UAE',
-      createdAt: '2024-02-20'
-    },
-    {
-      id: 9,
-      referenceNumber: 'O-CL-2500',
-      name: 'PRINCESS AL JOHARA AHMED SAUD AL SAUD',
-      isCorporate: 'Person',
-      leadSource: 'Friends',
-      rank: 'Gold',
-      email: 'princess@email.com',
-      phone: '+971 50 901 2345',
-      address: 'Dubai, UAE',
-      createdAt: '2024-02-25'
-    },
-    {
-      id: 10,
-      referenceNumber: 'O-CL-2522',
-      name: 'RANIA AGAMOU',
-      isCorporate: 'Person',
-      leadSource: 'Social Media',
-      rank: 'Silver',
-      email: 'rania@email.com',
-      phone: '+971 50 012 3456',
-      address: 'Abu Dhabi, UAE',
-      createdAt: '2024-03-01'
-    },
-    {
-      id: 11,
-      referenceNumber: 'O-CL-2523',
-      name: 'VIP CLIENT LLC',
-      isCorporate: 'Company',
-      leadSource: 'Company Website',
-      rank: 'VIP',
-      email: 'vip@client.com',
-      phone: '+971 50 999 9999',
-      address: 'Dubai, UAE',
-      idNumber: '784-1980-9999999-9',
-      idEndDate: '2027-12-31',
-      nationality: 'Emirati',
-      passportNumber: 'VIP999999',
-      birthDate: '1980-01-01',
-      trnNumber: 'TRN999999999',
-      ibanNumber: 'AE070339999999999999999',
-      createdAt: '2024-03-15'
-    }
-  ];
+const mockClients = [];
 
 const Clients = () => {
   const [clients, setClients] = useState([]);
@@ -197,6 +45,19 @@ const Clients = () => {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [clientType, setClientType] = useState('');
+  const [clientFormData, setClientFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    leadSource: '',
+    rank: '',
+    nationality: '',
+    idNumber: '',
+    idExpiryDate: '',
+    passportNumber: '',
+    birthDate: ''
+  });
   const [companyInfo, setCompanyInfo] = useState({
     corporateName: '',
     website: '',
@@ -207,80 +68,96 @@ const Clients = () => {
     ibanNumber: ''
   });
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      setLoading(true);
-      try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 3000)
-        );
-        
-        const apiPromise = ClientsAPI.getClients({
-          page: currentPage,
-          limit: itemsPerPage,
-          search: searchQuery,
-          corporate: filterCorporate !== 'all' ? filterCorporate : undefined,
-          leadSource: filterLeadSource !== 'all' ? filterLeadSource : undefined,
-        });
-        
-        // Race between API call and timeout
-        const response = await Promise.race([apiPromise, timeoutPromise]);
-        
-        setClients(response.data || response);
-        setFilteredClients(response.data || response);
-      } catch (error) {
-        console.error('Error fetching clients from API, using mock data:', error);
-        // Fallback to mock data if API fails
-        setClients(mockClients);
-        setFilteredClients(mockClients);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Extract fetchClients as a reusable function
+  const fetchClients = async (page = currentPage) => {
+    setLoading(true);
+    try {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      );
+      
+      const apiPromise = ClientsAPI.getClients({
+        page: page,
+        limit: itemsPerPage,
+        search: searchQuery,
+        corporate: filterCorporate !== 'all' ? filterCorporate : undefined,
+        leadSource: filterLeadSource !== 'all' ? filterLeadSource : undefined,
+      });
+      
+      // Race between API call and timeout
+      const response = await Promise.race([apiPromise, timeoutPromise]);
+      
+      // Extract clients array from response structure
+      // Backend returns: { success: true, data: { clients: [...], pagination: {...} } }
+      const clientsArray = response?.data?.clients || response?.clients || (Array.isArray(response?.data) ? response.data : []);
+      
+      setClients(clientsArray);
+      setFilteredClients(clientsArray);
+      return clientsArray;
+    } catch (error) {
+      console.error('Error fetching clients from API, using mock data:', error);
+      // Fallback to mock data if API fails
+      setClients(mockClients);
+      setFilteredClients(mockClients);
+      return mockClients;
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchClients();
   }, [currentPage, searchQuery, filterCorporate, filterLeadSource, itemsPerPage]);
 
   // Initial load effect to ensure loading state is properly managed
   useEffect(() => {
-    if (clients.length === 0 && !loading) {
+    const safeClients = Array.isArray(clients) ? clients : [];
+    if (safeClients.length === 0 && !loading) {
       setClients(mockClients);
       setFilteredClients(mockClients);
     }
-  }, [clients.length, loading]);
+  }, [clients, loading]);
 
   useEffect(() => {
-    let filtered = clients;
+    // Ensure clients is an array before filtering
+    if (!Array.isArray(clients)) {
+      console.warn('Clients is not an array:', clients);
+      setFilteredClients([]);
+      return;
+    }
+
+    let filtered = [...clients]; // Create a copy to avoid mutating original
 
     // Search filter
     if (searchQuery) {
       filtered = filtered.filter(client =>
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchQuery.toLowerCase())
+        client?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client?.referenceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client?.email?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Corporate filter
     if (filterCorporate !== 'all') {
-      filtered = filtered.filter(client => client.isCorporate === filterCorporate);
+      filtered = filtered.filter(client => client?.isCorporate === filterCorporate);
     }
 
     // Lead source filter
     if (filterLeadSource !== 'all') {
-      filtered = filtered.filter(client => client.leadSource === filterLeadSource);
+      filtered = filtered.filter(client => client?.leadSource === filterLeadSource);
     }
 
     setFilteredClients(filtered);
     setCurrentPage(1); // Reset to first page when filters change
   }, [clients, searchQuery, filterCorporate, filterLeadSource]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+  // Pagination logic - ensure filteredClients is an array
+  const safeFilteredClients = Array.isArray(filteredClients) ? filteredClients : [];
+  const totalPages = Math.ceil(safeFilteredClients.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentClients = filteredClients.slice(startIndex, endIndex);
+  const currentClients = safeFilteredClients.slice(startIndex, endIndex);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -297,9 +174,30 @@ const Clients = () => {
     alert(`Edit functionality for ${client.name} will be implemented soon.`);
   };
 
-  const handleAddClient = (e) => {
+  const handleAddClient = async (e) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!clientFormData.name || !clientFormData.name.trim()) {
+      alert('Client name is required');
+      return;
+    }
+
+    if (!clientType) {
+      alert('Client type (Person/Company) is required');
+      return;
+    }
+
+    if (!clientFormData.email) {
+      alert('Email is required');
+      return;
+    }
+
+    if (!clientFormData.phone) {
+      alert('Phone is required');
+      return;
+    }
+
     // Validate user account if creating one
     if (createUserAccount) {
       if (!userAccount.username || !userAccount.password || !userAccount.confirmPassword) {
@@ -312,40 +210,99 @@ const Clients = () => {
       }
     }
 
-    // Here you would normally submit to API
-    console.log('Creating client with user account:', createUserAccount);
-    if (createUserAccount) {
-      console.log('User account details:', userAccount);
-    }
-    if (documents.length > 0) {
-      console.log('Documents to upload:', documents.map(doc => ({ name: doc.name, size: doc.size, type: doc.type })));
-    }
-    if (uploadedDocuments.length > 0) {
-      console.log('Uploaded documents:', uploadedDocuments.map(doc => ({ name: doc.fileName, ref: doc.systemRef, size: doc.size })));
-    }
+    setLoading(true);
     
-    // Close modal and reset form
-    setShowAddModal(false);
-    setCreateUserAccount(false);
-    setUserAccount({ username: '', password: '', confirmPassword: '' });
-    setDocuments([]);
-    setUploadedDocuments([]);
-    setClientType('');
-    setCompanyInfo({
-      corporateName: '',
-      website: '',
-      licenseNumber: '',
-      address: '',
-      description: '',
-      trnNumber: '',
-      ibanNumber: ''
-    });
-    
-    // Show success message
-    const message = 'Client created successfully!' + 
-      (createUserAccount ? ' User account has been created and credentials will be sent via email.' : '') +
-      (uploadedDocuments.length > 0 ? ` ${uploadedDocuments.length} document(s) uploaded.` : '');
-    alert(message);
+    try {
+      // Prepare client data
+      const clientData = {
+        name: clientFormData.name.trim(),
+        isCorporate: clientType,
+        email: clientFormData.email.trim(),
+        phone: clientFormData.phone.trim(),
+        address: clientFormData.address?.trim() || null,
+        leadSource: clientFormData.leadSource || null,
+        rank: clientFormData.rank || null,
+        nationality: clientFormData.nationality || null,
+        idNumber: clientFormData.idNumber?.trim() || null,
+        idExpiryDate: clientFormData.idExpiryDate || null,
+        passportNumber: clientFormData.passportNumber?.trim() || null,
+        birthDate: clientFormData.birthDate || null,
+      };
+
+      // Handle document upload if there's a document
+      let formDataToSend;
+      if (documents.length > 0 && documents[0] instanceof File) {
+        // Use FormData for file upload
+        formDataToSend = new FormData();
+        formDataToSend.append('document', documents[0]);
+        Object.keys(clientData).forEach(key => {
+          if (clientData[key] !== null && clientData[key] !== undefined) {
+            formDataToSend.append(key, clientData[key]);
+          }
+        });
+      } else {
+        // Use JSON for regular data
+        formDataToSend = clientData;
+      }
+
+      // Call API to create client
+      console.log('Creating client with data:', clientData);
+      const response = await ClientsAPI.createClient(formDataToSend);
+      console.log('Client creation response:', response);
+      
+      if (response && response.success) {
+        // Close modal and reset form first
+        setShowAddModal(false);
+        setCreateUserAccount(false);
+        setUserAccount({ username: '', password: '', confirmPassword: '' });
+        setDocuments([]);
+        setUploadedDocuments([]);
+        setClientType('');
+        setClientFormData({
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          leadSource: '',
+          rank: '',
+          nationality: '',
+          idNumber: '',
+          idExpiryDate: '',
+          passportNumber: '',
+          birthDate: ''
+        });
+        setCompanyInfo({
+          corporateName: '',
+          website: '',
+          licenseNumber: '',
+          address: '',
+          description: '',
+          trnNumber: '',
+          ibanNumber: ''
+        });
+        
+        // Show success message
+        const message = 'Client created successfully!' + 
+          (createUserAccount ? ' User account has been created and credentials will be sent via email.' : '') +
+          (uploadedDocuments.length > 0 ? ` ${uploadedDocuments.length} document(s) uploaded.` : '');
+        alert(message);
+        
+        // Refresh clients list by calling fetchClients
+        // Reset to page 1 to see the new client
+        setCurrentPage(1);
+        // Wait a bit for the database to be updated, then refresh
+        setTimeout(async () => {
+          await fetchClients(1);
+        }, 500);
+      } else {
+        throw new Error(response?.message || 'Failed to create client');
+      }
+    } catch (error) {
+      console.error('Error creating client:', error);
+      alert(`Failed to create client: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseAddModal = () => {
@@ -355,6 +312,19 @@ const Clients = () => {
     setDocuments([]);
     setUploadedDocuments([]);
     setClientType('');
+    setClientFormData({
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      leadSource: '',
+      rank: '',
+      nationality: '',
+      idNumber: '',
+      idExpiryDate: '',
+      passportNumber: '',
+      birthDate: ''
+    });
     setCompanyInfo({
       corporateName: '',
       website: '',
@@ -480,14 +450,18 @@ const Clients = () => {
       try {
         // Try API call first
         await ClientsAPI.deleteClient(clientId);
-        // Update local state
-        setClients(clients.filter(client => client.id !== clientId));
-        setFilteredClients(filteredClients.filter(client => client.id !== clientId));
+        // Update local state - ensure clients is an array
+        const safeClients = Array.isArray(clients) ? clients : [];
+        const safeFiltered = Array.isArray(filteredClients) ? filteredClients : [];
+        setClients(safeClients.filter(client => client?.id !== clientId));
+        setFilteredClients(safeFiltered.filter(client => client?.id !== clientId));
       } catch (error) {
         console.error('Error deleting client from API, removing from local state:', error);
         // If API fails, still remove from local state for demo purposes
-        setClients(clients.filter(client => client.id !== clientId));
-        setFilteredClients(filteredClients.filter(client => client.id !== clientId));
+        const safeClients = Array.isArray(clients) ? clients : [];
+        const safeFiltered = Array.isArray(filteredClients) ? filteredClients : [];
+        setClients(safeClients.filter(client => client?.id !== clientId));
+        setFilteredClients(safeFiltered.filter(client => client?.id !== clientId));
         // Show success message since we removed it locally
         console.log('Client deleted locally (API unavailable)');
       }
@@ -508,18 +482,19 @@ const Clients = () => {
     return isCorporate === 'Company' ? BuildingOfficeIcon : UserIcon;
   };
 
-  // Calculate client statistics
+  // Calculate client statistics - ensure clients is an array
+  const safeClients = Array.isArray(clients) ? clients : [];
   const clientStats = {
-    total: clients.length,
-    companies: clients.filter(client => client.isCorporate === 'Company').length,
-    persons: clients.filter(client => client.isCorporate === 'Person').length,
-    rankGold: clients.filter(client => client.rank === 'Gold').length,
-    rankSilver: clients.filter(client => client.rank === 'Silver').length,
-    rankDiamond: clients.filter(client => client.rank === 'Diamond').length,
-    rankVIP: clients.filter(client => client.rank === 'VIP').length,
-    socialMedia: clients.filter(client => client.leadSource === 'Social Media').length,
-    website: clients.filter(client => client.leadSource === 'Company Website').length,
-    friends: clients.filter(client => client.leadSource === 'Friends').length
+    total: safeClients.length,
+    companies: safeClients.filter(client => client?.isCorporate === 'Company').length,
+    persons: safeClients.filter(client => client?.isCorporate === 'Person').length,
+    rankGold: safeClients.filter(client => client?.rank === 'Gold').length,
+    rankSilver: safeClients.filter(client => client?.rank === 'Silver').length,
+    rankDiamond: safeClients.filter(client => client?.rank === 'Diamond').length,
+    rankVIP: safeClients.filter(client => client?.rank === 'VIP').length,
+    socialMedia: safeClients.filter(client => client?.leadSource === 'Social Media').length,
+    website: safeClients.filter(client => client?.leadSource === 'Company Website').length,
+    friends: safeClients.filter(client => client?.leadSource === 'Friends').length
   };
 
   if (loading) {
@@ -829,8 +804,8 @@ const Clients = () => {
                 <div>
                   <p className="text-sm text-gray-700">
                     Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, filteredClients.length)}</span> of{' '}
-                    <span className="font-medium">{filteredClients.length}</span> results
+                    <span className="font-medium">{Math.min(endIndex, safeFilteredClients.length)}</span> of{' '}
+                    <span className="font-medium">{safeFilteredClients.length}</span> results
                   </p>
                 </div>
                 <div>
@@ -915,6 +890,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
                       <input
                         type="text"
+                        value={clientFormData.name}
+                        onChange={(e) => setClientFormData({...clientFormData, name: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter client name"
                         required
@@ -926,6 +903,7 @@ const Clients = () => {
                         value={clientType}
                         onChange={(e) => setClientType(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
                       >
                         <option value="">Select type</option>
                         <option value="Person">Person</option>
@@ -933,8 +911,12 @@ const Clients = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Lead Source *</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Lead Source</label>
+                      <select 
+                        value={clientFormData.leadSource}
+                        onChange={(e) => setClientFormData({...clientFormData, leadSource: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
                         <option value="">Select source</option>
                         <option value="Social Media">Social Media</option>
                         <option value="Company Website">Company Website</option>
@@ -943,8 +925,12 @@ const Clients = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Rank *</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
+                      <select 
+                        value={clientFormData.rank}
+                        onChange={(e) => setClientFormData({...clientFormData, rank: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
                         <option value="">Select rank</option>
                         <option value="Gold">Gold</option>
                         <option value="Diamond">Diamond</option>
@@ -956,6 +942,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                       <input
                         type="email"
+                        value={clientFormData.email}
+                        onChange={(e) => setClientFormData({...clientFormData, email: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="client@example.com"
                         required
@@ -965,6 +953,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
                       <input
                         type="tel"
+                        value={clientFormData.phone}
+                        onChange={(e) => setClientFormData({...clientFormData, phone: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="+971 50 123 4567"
                         required
@@ -973,6 +963,8 @@ const Clients = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                       <textarea
+                        value={clientFormData.address}
+                        onChange={(e) => setClientFormData({...clientFormData, address: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         rows="3"
                         placeholder="Enter address"
@@ -1073,7 +1065,11 @@ const Clients = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <select 
+                        value={clientFormData.nationality}
+                        onChange={(e) => setClientFormData({...clientFormData, nationality: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
                         <option value="">Select nationality</option>
                         <option value="Afghan">Afghan</option>
                         <option value="Albanian">Albanian</option>
@@ -1175,6 +1171,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
                       <input
                         type="text"
+                        value={clientFormData.idNumber}
+                        onChange={(e) => setClientFormData({...clientFormData, idNumber: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter ID number"
                       />
@@ -1183,6 +1181,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">ID Expiry Date</label>
                       <input
                         type="date"
+                        value={clientFormData.idExpiryDate}
+                        onChange={(e) => setClientFormData({...clientFormData, idExpiryDate: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
@@ -1190,6 +1190,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
                       <input
                         type="text"
+                        value={clientFormData.passportNumber}
+                        onChange={(e) => setClientFormData({...clientFormData, passportNumber: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter passport number"
                       />
@@ -1198,6 +1200,8 @@ const Clients = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Birth Date</label>
                       <input
                         type="date"
+                        value={clientFormData.birthDate}
+                        onChange={(e) => setClientFormData({...clientFormData, birthDate: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>

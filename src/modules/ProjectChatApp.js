@@ -12,49 +12,9 @@ import {
   Bars3Icon,
 } from "@heroicons/react/24/outline";
 
-const chatGroups = [
-  { 
-    id: "contract", 
-    name: "Sign the Contract",
-    lastMessage: "Hey team, are we ready for the meeting?",
-    time: "10:04 AM",
-    unread: 2,
-    avatar: "https://ui-avatars.com/api/?name=Contract&background=6366f1&color=fff"
-  },
-  { 
-    id: "architecture", 
-    name: "Architecture Concept Design",
-    lastMessage: "Let's finalize the architecture diagrams today.",
-    time: "09:05 AM",
-    unread: 0,
-    avatar: "https://ui-avatars.com/api/?name=Architecture&background=8b5cf6&color=fff"
-  },
-  { 
-    id: "test-task-2", 
-    name: "Test Task 2",
-    lastMessage: "Test Task 2 is almost done.",
-    time: "11:10 AM",
-    unread: 1,
-    avatar: "https://ui-avatars.com/api/?name=Test+Task&background=ec4899&color=fff"
-  },
-];
+const chatGroups = [];
 
-const initialMessages = {
-  contract: [
-    { id: 1, user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "10:01 AM", text: "Hey team, are we ready for the meeting?" },
-    { id: 2, user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "10:02 AM", text: "Almost! Just finishing up my notes." },
-    { id: 3, user: "Charlie", avatar: "https://ui-avatars.com/api/?name=Charlie&background=fbbf24&color=fff", time: "10:03 AM", text: "I'll join in 2 minutes." },
-    { id: 4, user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "10:04 AM", text: "Great, see you all there!" },
-  ],
-  architecture: [
-    { id: 1, user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "09:00 AM", text: "Let's finalize the architecture diagrams today." },
-    { id: 2, user: "Alice", avatar: "https://ui-avatars.com/api/?name=Alice&background=34d399&color=fff", time: "09:05 AM", text: "Agreed! I'll share my notes soon." },
-  ],
-  "test-task-2": [
-    { id: 1, user: "Charlie", avatar: "https://ui-avatars.com/api/?name=Charlie&background=fbbf24&color=fff", time: "11:00 AM", text: "Test Task 2 is almost done." },
-    { id: 2, user: "Bob", avatar: "https://ui-avatars.com/api/?name=Bob&background=60a5fa&color=fff", time: "11:10 AM", text: "Great work, Charlie!" },
-  ],
-};
+const initialMessages = {};
 
 function getCurrentTime() {
   const now = new Date();
@@ -63,7 +23,7 @@ function getCurrentTime() {
 
 export default function ProjectChatApp() {
   const { user } = useAuth();
-  const [activeChat, setActiveChat] = useState(chatGroups[0].id);
+  const [activeChat, setActiveChat] = useState(chatGroups.length > 0 ? chatGroups[0].id : null);
   const [messages, setMessages] = useState(initialMessages);
   const [showSidebar, setShowSidebar] = useState(false);
   const [input, setInput] = useState("");
@@ -144,7 +104,13 @@ export default function ProjectChatApp() {
         {/* Chat Groups List */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-3 space-y-1">
-            {filteredGroups.map((group) => {
+            {filteredGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-12 px-4 text-center">
+                <ChatBubbleLeftRightIcon className="w-16 h-16 text-gray-300 mb-4" />
+                <p className="text-gray-500 text-sm">No project chats available</p>
+              </div>
+            ) : (
+              filteredGroups.map((group) => {
               const isActive = activeChat === group.id;
               return (
                 <button
@@ -189,7 +155,8 @@ export default function ProjectChatApp() {
                   </div>
                 </button>
               );
-            })}
+            })
+            )}
           </div>
         </div>
       </div>
@@ -204,50 +171,60 @@ export default function ProjectChatApp() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-white">
-        {/* Chat Header */}
-        <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <button
-              onClick={() => setShowSidebar(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <Bars3Icon className="w-6 h-6 text-gray-600" />
-            </button>
-            
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden ring-2 ring-indigo-100">
-                <img 
-                  src={activeChatGroup?.avatar || "https://ui-avatars.com/api/?name=Project&background=6366f1&color=fff"} 
-                  alt={activeChatGroup?.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="font-bold text-gray-900 text-lg truncate">
-                  {activeChatGroup?.name || 'Project Chat'}
-                </h1>
-                <p className="text-sm text-gray-500">Active conversation • {currentMessages.length} messages</p>
-              </div>
+        {!activeChat ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <ChatBubbleLeftRightIcon className="w-20 h-20 text-gray-300 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">No chat selected</h2>
+              <p className="text-gray-500">Select a project chat from the sidebar to start messaging</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="Voice Call">
-              <PhoneIcon className="w-5 h-5" />
-            </button>
-            <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="Video Call">
-              <VideoCameraIcon className="w-5 h-5" />
-            </button>
-            <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="More options">
-              <EllipsisVerticalIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Chat Header */}
+            <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <button
+                  onClick={() => setShowSidebar(true)}
+                  className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Bars3Icon className="w-6 h-6 text-gray-600" />
+                </button>
+                
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden ring-2 ring-indigo-100">
+                    <img 
+                      src={activeChatGroup?.avatar || "https://ui-avatars.com/api/?name=Project&background=6366f1&color=fff"} 
+                      alt={activeChatGroup?.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h1 className="font-bold text-gray-900 text-lg truncate">
+                      {activeChatGroup?.name || 'Project Chat'}
+                    </h1>
+                    <p className="text-sm text-gray-500">Active conversation • {currentMessages.length} messages</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="Voice Call">
+                  <PhoneIcon className="w-5 h-5" />
+                </button>
+                <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="Video Call">
+                  <VideoCameraIcon className="w-5 h-5" />
+                </button>
+                <button className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition-colors" title="More options">
+                  <EllipsisVerticalIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white px-4 lg:px-8 py-6">
-          <div className="max-w-4xl mx-auto space-y-4">
-            {currentMessages.map((msg) => {
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white px-4 lg:px-8 py-6">
+              <div className="max-w-4xl mx-auto space-y-4">
+                {currentMessages.map((msg) => {
               const isMe = msg.user === (user?.name || "You");
               const isBot = msg.user === "AI Bot";
               
@@ -334,6 +311,8 @@ export default function ProjectChatApp() {
             <p className="text-xs text-gray-400 mt-2 text-center">Press Enter to send, Shift+Enter for new line</p>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

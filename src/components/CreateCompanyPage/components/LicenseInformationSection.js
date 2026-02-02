@@ -22,6 +22,7 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.licenseCategory}
             onChange={(e) => setForm(prev => ({ ...prev, licenseCategory: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            title="Select the type of business license category (e.g., Commercial, Industrial, Professional, Trading, Construction, Consulting)"
           >
             <option value="">Select License Category</option>
             {licenseCategoryOptions.map(option => (
@@ -40,6 +41,7 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.legalType}
             onChange={(e) => setForm(prev => ({ ...prev, legalType: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            title="Select the legal structure of your company (e.g., LLC, Corporation, Partnership, Sole Proprietorship, Branch, Representative Office)"
           >
             <option value="">Select Legal Type</option>
             {legalTypeOptions.map(option => (
@@ -59,6 +61,8 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.expiryDate}
             onChange={(e) => setForm(prev => ({ ...prev, expiryDate: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            title="Enter the expiration date of your trade license (format: dd/mm/yyyy). This is the date when your license will expire and needs renewal."
+            placeholder="Select license expiry date"
           />
         </div>
         <div>
@@ -70,19 +74,21 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.dunsNumber}
             onChange={(e) => setForm(prev => ({ ...prev, dunsNumber: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder="Enter D&B D-U-N-S Number"
+            placeholder="Enter D&B D-U-N-S Number from trade license"
+            title="Enter your D&B (Dun & Bradstreet) D-U-N-S Number. This is a unique 9-digit identifier found on your trade license. It's used for business credit reporting and identification."
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Register Number
+            Commercial License Number
           </label>
           <input
             type="text"
             value={form.registerNo}
             onChange={(e) => setForm(prev => ({ ...prev, registerNo: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder="Enter Register Number"
+            placeholder="Enter Commercial License Number from trade license"
+            title="Enter the commercial license number issued by the licensing authority. This number is typically found on your trade license document and identifies your company's commercial registration with the government."
           />
         </div>
         <div>
@@ -94,6 +100,8 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.issueDate}
             onChange={(e) => setForm(prev => ({ ...prev, issueDate: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            title="Enter the date when your trade license was issued (format: dd/mm/yyyy). This is the date printed on your license document when it was first issued."
+            placeholder="Select license issue date"
           />
         </div>
         <div>
@@ -106,7 +114,8 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.mainLicenseNo}
             onChange={(e) => setForm(prev => ({ ...prev, mainLicenseNo: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder="Enter Main License Number"
+            placeholder="Enter Main License Number from trade license"
+            title="Enter the primary license number issued by the licensing authority. This is the main license number displayed prominently on your trade license document. It's required for all business operations."
           />
         </div>
         <div>
@@ -118,7 +127,8 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.dcciNo}
             onChange={(e) => setForm(prev => ({ ...prev, dcciNo: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder="Enter DCCI Number"
+            placeholder="Enter DCCI (Dubai Chamber) Number"
+            title="Enter your Dubai Chamber of Commerce and Industry (DCCI) membership number, if applicable. This number is issued when your company becomes a member of the Dubai Chamber."
           />
         </div>
         <div>
@@ -131,7 +141,8 @@ const LicenseInformationSection = ({ form, setForm }) => {
             value={form.trnNumber}
             onChange={(e) => setForm(prev => ({ ...prev, trnNumber: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder="Enter TRN Number"
+            placeholder="Enter TRN (Tax Registration Number) / ESBN"
+            title="Enter your Tax Registration Number (TRN) or Economic Substance Business Number (ESBN). This is a unique identifier issued by the tax authority for VAT and tax purposes. It's mandatory for companies registered for VAT."
           />
         </div>
       </div>

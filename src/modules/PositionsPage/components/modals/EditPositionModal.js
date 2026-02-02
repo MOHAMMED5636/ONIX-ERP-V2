@@ -50,15 +50,6 @@ const EditPositionModal = ({
               />
             </div>
             <div>
-              <label className="block font-medium mb-1 text-gray-700 text-sm">Salary</label>
-              <input 
-                className="input focus:ring-2 focus:ring-blue-300 text-sm" 
-                placeholder="Enter salary" 
-                value={editPosition.salary} 
-                onChange={e => setEditPosition(f => ({ ...f, salary: e.target.value }))} 
-              />
-            </div>
-            <div>
               <label className="block font-medium mb-1 text-gray-700 text-sm">Requirements</label>
               <textarea 
                 className="input focus:ring-2 focus:ring-blue-300 text-sm" 

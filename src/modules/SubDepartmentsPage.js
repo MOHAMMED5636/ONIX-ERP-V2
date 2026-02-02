@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PencilIcon, TrashIcon, PlusIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, ArrowLeftIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
+import { getDepartmentById, getDepartmentSubDepartments, createSubDepartment, updateSubDepartment, deleteSubDepartment } from '../services/departmentAPI';
+import { getEmployees } from '../services/employeeAPI';
 
 // Demo sub-departments data for each main department
 const demoSubDepartments = {
@@ -32,17 +34,119 @@ export default function SubDepartmentsPage() {
   const { departmentId } = useParams();
   const navigate = useNavigate();
   
-  const [subDepartments, setSubDepartments] = useState(demoSubDepartments[departmentId] || []);
+  const [subDepartments, setSubDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedSubDepartment, setSelectedSubDepartment] = useState(null);
-  const [newSubDepartment, setNewSubDepartment] = useState({ name: '', description: '', manager: '', status: 'Active', location: '', budget: '' });
-  const [editSubDepartment, setEditSubDepartment] = useState({ name: '', description: '', manager: '', status: 'Active', location: '', budget: '' });
+  const [newSubDepartment, setNewSubDepartment] = useState({ name: '', description: '', managerId: '', status: 'ACTIVE', location: '', budget: '' });
+  const [editSubDepartment, setEditSubDepartment] = useState({ name: '', description: '', managerId: '', status: 'ACTIVE', location: '', budget: '' });
+  const [department, setDepartment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-  const departmentName = departmentNames[departmentId] || "Department";
+  // Fetch department data and sub-departments from backend
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Load department (includes company info)
+        const deptResponse = await getDepartmentById(departmentId);
+        if (deptResponse.success && deptResponse.data) {
+          setDepartment(deptResponse.data);
+        }
+        
+        // Load sub-departments
+        const subDeptsResponse = await getDepartmentSubDepartments(departmentId);
+        if (subDeptsResponse.success && subDeptsResponse.data) {
+          // Transform backend data to match frontend format
+          const transformed = subDeptsResponse.data.map(subDept => {
+            // Determine manager display name
+            let managerName = 'No Manager';
+            if (subDept.manager) {
+              // Manager object exists
+              if (subDept.manager.firstName && subDept.manager.lastName) {
+                managerName = `${subDept.manager.firstName} ${subDept.manager.lastName}`;
+              } else if (subDept.manager.firstName) {
+                managerName = subDept.manager.firstName;
+              } else if (subDept.manager.email) {
+                managerName = subDept.manager.email;
+              } else {
+                managerName = 'Manager (No name)';
+              }
+            } else if (subDept.managerId) {
+              // Manager ID exists but manager object is null (user might be deleted or not found)
+              managerName = `Manager (ID: ${subDept.managerId})`;
+            }
+            
+            return {
+              id: subDept.id,
+              name: subDept.name,
+              description: subDept.description || '',
+              manager: managerName,
+              managerId: subDept.managerId,
+              employees: subDept.employees || 0,
+              status: subDept.status === 'ACTIVE' ? 'Active' : 'Inactive',
+              location: subDept.location || '',
+              budget: subDept.budget || '',
+              // Keep full backend data for updates
+              _backendData: subDept
+            };
+          });
+          setSubDepartments(transformed);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (departmentId) {
+      loadData();
+    }
+  }, [departmentId]);
+
+  const departmentName = department?.name || departmentNames[departmentId] || "Department";
+  const companyName = department?.company?.name || null;
+  const company = department?.company || null;
+
+  // Load employees for manager selection
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoadingEmployees(true);
+        const response = await getEmployees();
+        if (response.success && response.data) {
+          // Backend returns { data: { employees: [...], pagination: {...} } }
+          // Handle both formats: direct array or nested object
+          let employeesList = [];
+          if (Array.isArray(response.data)) {
+            employeesList = response.data;
+          } else if (response.data.employees && Array.isArray(response.data.employees)) {
+            employeesList = response.data.employees;
+          } else if (Array.isArray(response.data.data)) {
+            employeesList = response.data.data;
+          }
+          
+          setEmployees(employeesList);
+          console.log('✅ Loaded employees for manager selection:', employeesList.length);
+        } else {
+          setEmployees([]);
+        }
+      } catch (error) {
+        console.error('Error loading employees:', error);
+        setEmployees([]); // Set to empty array on error
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+
+    loadEmployees();
+  }, []);
 
   // Filter sub-departments based on search term
   const filteredSubDepartments = subDepartments.filter(subDept =>
@@ -55,21 +159,64 @@ export default function SubDepartmentsPage() {
     subDept.id.toString().includes(searchTerm)
   );
 
-  const handleCreateSubDepartment = () => {
-    if (newSubDepartment.name && newSubDepartment.description && newSubDepartment.manager) {
-      const newSubDept = {
-        id: subDepartments.length + 1,
-        name: newSubDepartment.name,
-        description: newSubDepartment.description,
-        manager: newSubDepartment.manager,
-        employees: 0,
-        status: newSubDepartment.status,
-        location: newSubDepartment.location,
-        budget: newSubDepartment.budget
-      };
-      setSubDepartments([...subDepartments, newSubDept]);
-      setNewSubDepartment({ name: '', description: '', manager: '', status: 'Active', location: '', budget: '' });
-      setShowCreateModal(false);
+  const handleCreateSubDepartment = async () => {
+    if (newSubDepartment.name && newSubDepartment.description) {
+      try {
+        const subDeptData = {
+          name: newSubDepartment.name,
+          description: newSubDepartment.description,
+          status: newSubDepartment.status === 'Active' ? 'ACTIVE' : 'INACTIVE',
+          managerId: newSubDepartment.managerId || null,
+          location: newSubDepartment.location || null,
+          budget: newSubDepartment.budget || null,
+        };
+
+        const response = await createSubDepartment(departmentId, subDeptData);
+        if (response.success) {
+          // Reload sub-departments
+          const subDeptsResponse = await getDepartmentSubDepartments(departmentId);
+          if (subDeptsResponse.success && subDeptsResponse.data) {
+            const transformed = subDeptsResponse.data.map(subDept => {
+              // Determine manager display name
+              let managerName = 'No Manager';
+              if (subDept.manager) {
+                if (subDept.manager.firstName && subDept.manager.lastName) {
+                  managerName = `${subDept.manager.firstName} ${subDept.manager.lastName}`;
+                } else if (subDept.manager.firstName) {
+                  managerName = subDept.manager.firstName;
+                } else if (subDept.manager.email) {
+                  managerName = subDept.manager.email;
+                } else {
+                  managerName = 'Manager (No name)';
+                }
+              } else if (subDept.managerId) {
+                managerName = `Manager (ID: ${subDept.managerId})`;
+              }
+              
+              return {
+                id: subDept.id,
+                name: subDept.name,
+                description: subDept.description || '',
+                manager: managerName,
+                managerId: subDept.managerId,
+                employees: subDept.employees || 0,
+                status: subDept.status === 'ACTIVE' ? 'Active' : 'Inactive',
+                location: subDept.location || '',
+                budget: subDept.budget || '',
+                _backendData: subDept
+              };
+            });
+            setSubDepartments(transformed);
+          }
+          setNewSubDepartment({ name: '', description: '', managerId: '', status: 'ACTIVE', location: '', budget: '' });
+          setShowCreateModal(false);
+        } else {
+          alert(`Failed to create sub-department: ${response.message}`);
+        }
+      } catch (error) {
+        console.error('Error creating sub-department:', error);
+        alert(`Error creating sub-department: ${error.message}`);
+      }
     }
   };
 
@@ -77,11 +224,11 @@ export default function SubDepartmentsPage() {
     setSelectedSubDepartment(subDept);
     setEditSubDepartment({
       name: subDept.name,
-      description: subDept.description,
-      manager: subDept.manager,
-      status: subDept.status,
-      location: subDept.location,
-      budget: subDept.budget
+      description: subDept.description || '',
+      managerId: subDept.managerId || '',
+      status: subDept.status === 'Active' ? 'ACTIVE' : 'INACTIVE',
+      location: subDept.location || '',
+      budget: subDept.budget || ''
     });
     setShowEditModal(true);
   };
@@ -91,16 +238,65 @@ export default function SubDepartmentsPage() {
     setShowViewModal(true);
   };
 
-  const handleUpdateSubDepartment = () => {
-    if (editSubDepartment.name && editSubDepartment.description && editSubDepartment.manager) {
-      setSubDepartments(subDepartments.map(subDept => 
-        subDept.id === selectedSubDepartment.id 
-          ? { ...subDept, ...editSubDepartment }
-          : subDept
-      ));
-      setShowEditModal(false);
-      setSelectedSubDepartment(null);
-      setEditSubDepartment({ name: '', description: '', manager: '', status: 'Active', location: '', budget: '' });
+  const handleUpdateSubDepartment = async () => {
+    if (editSubDepartment.name && editSubDepartment.description) {
+      try {
+        const subDeptData = {
+          name: editSubDepartment.name,
+          description: editSubDepartment.description,
+          status: editSubDepartment.status === 'Active' ? 'ACTIVE' : 'INACTIVE',
+          managerId: editSubDepartment.managerId || null,
+          location: editSubDepartment.location || null,
+          budget: editSubDepartment.budget || null,
+        };
+
+        const response = await updateSubDepartment(selectedSubDepartment.id, subDeptData);
+        if (response.success) {
+          // Reload sub-departments
+          const subDeptsResponse = await getDepartmentSubDepartments(departmentId);
+          if (subDeptsResponse.success && subDeptsResponse.data) {
+            const transformed = subDeptsResponse.data.map(subDept => {
+              // Determine manager display name
+              let managerName = 'No Manager';
+              if (subDept.manager) {
+                if (subDept.manager.firstName && subDept.manager.lastName) {
+                  managerName = `${subDept.manager.firstName} ${subDept.manager.lastName}`;
+                } else if (subDept.manager.firstName) {
+                  managerName = subDept.manager.firstName;
+                } else if (subDept.manager.email) {
+                  managerName = subDept.manager.email;
+                } else {
+                  managerName = 'Manager (No name)';
+                }
+              } else if (subDept.managerId) {
+                managerName = `Manager (ID: ${subDept.managerId})`;
+              }
+              
+              return {
+                id: subDept.id,
+                name: subDept.name,
+                description: subDept.description || '',
+                manager: managerName,
+                managerId: subDept.managerId,
+                employees: subDept.employees || 0,
+                status: subDept.status === 'ACTIVE' ? 'Active' : 'Inactive',
+                location: subDept.location || '',
+                budget: subDept.budget || '',
+                _backendData: subDept
+              };
+            });
+            setSubDepartments(transformed);
+          }
+          setShowEditModal(false);
+          setSelectedSubDepartment(null);
+          setEditSubDepartment({ name: '', description: '', managerId: '', status: 'ACTIVE', location: '', budget: '' });
+        } else {
+          alert(`Failed to update sub-department: ${response.message}`);
+        }
+      } catch (error) {
+        console.error('Error updating sub-department:', error);
+        alert(`Error updating sub-department: ${error.message}`);
+      }
     }
   };
 
@@ -109,15 +305,59 @@ export default function SubDepartmentsPage() {
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteSubDepartment = () => {
-    setSubDepartments(subDepartments.filter(subDept => subDept.id !== selectedSubDepartment.id));
-    setShowDeleteModal(false);
-    setSelectedSubDepartment(null);
+  const confirmDeleteSubDepartment = async () => {
+    try {
+      const response = await deleteSubDepartment(selectedSubDepartment.id);
+      if (response.success) {
+        // Reload sub-departments
+        const subDeptsResponse = await getDepartmentSubDepartments(departmentId);
+        if (subDeptsResponse.success && subDeptsResponse.data) {
+          const transformed = subDeptsResponse.data.map(subDept => {
+            // Determine manager display name
+            let managerName = 'No Manager';
+            if (subDept.manager) {
+              if (subDept.manager.firstName && subDept.manager.lastName) {
+                managerName = `${subDept.manager.firstName} ${subDept.manager.lastName}`;
+              } else if (subDept.manager.firstName) {
+                managerName = subDept.manager.firstName;
+              } else if (subDept.manager.email) {
+                managerName = subDept.manager.email;
+              } else {
+                managerName = 'Manager (No name)';
+              }
+            } else if (subDept.managerId) {
+              managerName = `Manager (ID: ${subDept.managerId})`;
+            }
+            
+            return {
+              id: subDept.id,
+              name: subDept.name,
+              description: subDept.description || '',
+              manager: managerName,
+              managerId: subDept.managerId,
+              employees: subDept.employees || 0,
+              status: subDept.status === 'ACTIVE' ? 'Active' : 'Inactive',
+              location: subDept.location || '',
+              budget: subDept.budget || '',
+              _backendData: subDept
+            };
+          });
+          setSubDepartments(transformed);
+        }
+        setShowDeleteModal(false);
+        setSelectedSubDepartment(null);
+      } else {
+        alert(`Failed to delete sub-department: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting sub-department:', error);
+      alert(`Error deleting sub-department: ${error.message}`);
+    }
   };
 
   return (
     <div className="w-full h-full flex flex-col">
-      <Breadcrumbs />
+      <Breadcrumbs names={{ company: companyName, department: departmentName }} company={company} />
       
       {/* Top Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 px-4 sm:px-6 lg:px-10 border-b bg-white shadow-sm gap-4">
@@ -632,17 +872,31 @@ export default function SubDepartmentsPage() {
                 <div className="group">
                   <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
                     <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                    Manager <span className="text-red-500">*</span>
+                    Manager <span className="text-gray-500 text-xs">(Optional)</span>
                   </label>
                   <div className="relative">
-                    <input 
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 text-sm bg-white shadow-sm" 
-                      placeholder="e.g., Sarah Johnson" 
-                      value={newSubDepartment.manager} 
-                      onChange={e => setNewSubDepartment(f => ({ ...f, manager: e.target.value }))} 
-                    />
+                    <select 
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 text-sm bg-white shadow-sm appearance-none" 
+                      value={newSubDepartment.managerId || ''} 
+                      onChange={e => setNewSubDepartment(f => ({ ...f, managerId: e.target.value }))} 
+                    >
+                      <option value="">Select a manager (optional)</option>
+                      {loadingEmployees ? (
+                        <option disabled>Loading employees...</option>
+                      ) : Array.isArray(employees) && employees.length > 0 ? (
+                        employees.map(emp => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.firstName} {emp.lastName} {emp.email ? `(${emp.email})` : ''}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No employees available</option>
+                      )}
+                    </select>
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <div className="w-2 h-2 bg-teal-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
                 </div>
@@ -726,13 +980,25 @@ export default function SubDepartmentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block font-medium mb-1 text-gray-700 text-sm">Manager <span className="text-red-500">*</span></label>
-                  <input 
-                    className="input focus:ring-2 focus:ring-blue-300 text-sm" 
-                    placeholder="Enter manager name" 
-                    value={editSubDepartment.manager} 
-                    onChange={e => setEditSubDepartment(f => ({ ...f, manager: e.target.value }))} 
-                  />
+                  <label className="block font-medium mb-1 text-gray-700 text-sm">Manager</label>
+                  <select 
+                    className="input focus:ring-2 focus:ring-blue-300 text-sm appearance-none" 
+                    value={editSubDepartment.managerId || ''} 
+                    onChange={e => setEditSubDepartment(f => ({ ...f, managerId: e.target.value }))} 
+                  >
+                    <option value="">No Manager</option>
+                    {loadingEmployees ? (
+                      <option disabled>Loading employees...</option>
+                    ) : Array.isArray(employees) && employees.length > 0 ? (
+                      employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName} {emp.email ? `(${emp.email})` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No employees available</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium mb-1 text-gray-700 text-sm">Location</label>
@@ -759,8 +1025,8 @@ export default function SubDepartmentsPage() {
                     value={editSubDepartment.status} 
                     onChange={e => setEditSubDepartment(f => ({ ...f, status: e.target.value }))} 
                   >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
                   </select>
                 </div>
               </div>

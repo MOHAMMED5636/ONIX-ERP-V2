@@ -12,16 +12,28 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   EllipsisVerticalIcon,
-  CheckIcon,
   ArrowRightIcon
 } from "@heroicons/react/24/outline";
-import { useCompanySelection } from "../../context/CompanySelectionContext";
 import { getCompanies, deleteCompany as deleteCompanyAPI, getCompanyStats } from "../../services/companiesAPI";
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Helper function to get full image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    // If it's a relative path, construct full URL
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    // Remove leading slash if present to avoid double slashes
+    const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    return `${baseUrl}${cleanPath}`;
+  };
   const [stats, setStats] = useState({
     totalCompanies: 0,
     activeCompanies: 0,
@@ -36,7 +48,6 @@ export default function CompaniesPage() {
   const [filterLicenseStatus, setFilterLicenseStatus] = useState("all");
   const [viewMode, setViewMode] = useState("cards"); // "cards" or "table"
   const navigate = useNavigate();
-  const { selectedCompany, selectCompany } = useCompanySelection();
 
   // Load companies from backend API
   useEffect(() => {
@@ -201,20 +212,6 @@ export default function CompaniesPage() {
             </div>
           </div>
           
-          {/* Selection Indicator */}
-          {selectedCompany && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckIcon className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-green-800">Company Selected for Employee Creation</p>
-                  <p className="text-lg font-semibold text-green-900">{selectedCompany}</p>
-                </div>
-              </div>
-            </div>
-          )}
           
           {/* Stats Cards */}
           {loading ? (
@@ -487,26 +484,6 @@ export default function CompaniesPage() {
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => selectCompany(company.name)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                          selectedCompany === company.name
-                            ? "bg-green-100 text-green-700 border border-green-200"
-                            : "bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700"
-                        }`}
-                        title={selectedCompany === company.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
-                      >
-                        {selectedCompany === company.name ? (
-                          <div className="flex items-center gap-1">
-                            <CheckIcon className="h-4 w-4" />
-                            <span>Selected</span>
-                          </div>
-                        ) : (
-                          "Select"
-                        )}
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -630,24 +607,6 @@ export default function CompaniesPage() {
                             aria-label="Delete Company"
                           >
                             <TrashIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => selectCompany(company.name)}
-                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                              selectedCompany === company.name
-                                ? "bg-green-100 text-green-700 border border-green-200"
-                                : "bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700"
-                            }`}
-                            title={selectedCompany === company.name ? "Selected for Employee Creation" : "Select for Employee Creation"}
-                          >
-                            {selectedCompany === company.name ? (
-                              <div className="flex items-center gap-1">
-                                <CheckIcon className="h-3 w-3" />
-                                <span>Selected</span>
-                              </div>
-                            ) : (
-                              "Select"
-                            )}
                           </button>
                         </div>
                       </td>
@@ -820,16 +779,26 @@ export default function CompaniesPage() {
                       <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
                         {viewCompany.logo ? (
                           <div>
-                            <img src={viewCompany.logo} alt="Logo" className="mx-auto h-12 w-12 object-contain" />
+                            <img 
+                              src={getImageUrl(viewCompany.logo)} 
+                              alt="Logo" 
+                              className="mx-auto max-h-24 max-w-full object-contain rounded-lg"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                            <div className="hidden mx-auto h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <BuildingOfficeIcon className="h-6 w-6 text-gray-400" />
+                            </div>
                             <p className="mt-1 text-sm font-medium text-gray-900">Company Logo</p>
-                            <p className="text-xs text-gray-500">{formatFileSize(viewCompany.logo.size)}</p>
                           </div>
                         ) : (
                           <div>
                             <div className="mx-auto h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
                               <BuildingOfficeIcon className="h-6 w-6 text-gray-400" />
                             </div>
-                            <p className="mt-1 text-sm text-gray-500">No logo uploaded</p>
+                            <p className="mt-1 text-sm text-gray-500">Company Logo (not uploaded)</p>
                           </div>
                         )}
                       </div>
@@ -838,7 +807,18 @@ export default function CompaniesPage() {
                         <div className="p-3 border-2 border-dashed border-gray-300 rounded-lg text-center">
                           {viewCompany.header ? (
                             <div>
-                              <img src={viewCompany.header} alt="Header" className="mx-auto h-8 w-8 object-contain" />
+                              <img 
+                                src={getImageUrl(viewCompany.header)} 
+                                alt="Header" 
+                                className="mx-auto max-h-16 max-w-full object-contain rounded"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                }}
+                              />
+                              <div className="hidden mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
+                                <span className="text-xs text-gray-400">H</span>
+                              </div>
                               <p className="mt-1 text-xs font-medium text-gray-900">Header</p>
                             </div>
                           ) : (
@@ -846,15 +826,26 @@ export default function CompaniesPage() {
                               <div className="mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
                                 <span className="text-xs text-gray-400">H</span>
                               </div>
-                              <p className="mt-1 text-xs text-gray-500">No header</p>
+                              <p className="mt-1 text-xs text-gray-500">No Header</p>
                             </div>
                           )}
                         </div>
                         
                         <div className="p-3 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                      {viewCompany.footer ? (
-                        <div>
-                              <img src={viewCompany.footer} alt="Footer" className="mx-auto h-8 w-8 object-contain" />
+                          {viewCompany.footer ? (
+                            <div>
+                              <img 
+                                src={getImageUrl(viewCompany.footer)} 
+                                alt="Footer" 
+                                className="mx-auto max-h-16 max-w-full object-contain rounded"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                }}
+                              />
+                              <div className="hidden mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
+                                <span className="text-xs text-gray-400">F</span>
+                              </div>
                               <p className="mt-1 text-xs font-medium text-gray-900">Footer</p>
                             </div>
                           ) : (
@@ -862,7 +853,7 @@ export default function CompaniesPage() {
                               <div className="mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
                                 <span className="text-xs text-gray-400">F</span>
                               </div>
-                              <p className="mt-1 text-xs text-gray-500">No footer</p>
+                              <p className="mt-1 text-xs text-gray-500">No Footer</p>
                             </div>
                           )}
                         </div>

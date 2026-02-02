@@ -220,11 +220,12 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
     }
     // If it's a relative path, construct full URL
     let fullUrl;
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
     if (photo.startsWith('/uploads/')) {
-      fullUrl = `http://192.168.1.54:3001${photo}`;
+      fullUrl = `${backendUrl}${photo}`;
     } else {
       // If it's just a filename, construct full URL
-      fullUrl = `http://192.168.1.54:3001/uploads/photos/${photo}`;
+      fullUrl = `${backendUrl}/uploads/photos/${photo}`;
     }
     // Add cache busting
     const separator = fullUrl.includes('?') ? '&' : '?';

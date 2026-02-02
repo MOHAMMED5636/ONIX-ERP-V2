@@ -9,6 +9,7 @@ export function getActionColor(action) {
     case 'edit': return 'bg-yellow-100 text-yellow-800';
     case 'delete': return 'bg-red-100 text-red-800';
     case 'create': return 'bg-green-100 text-green-800';
+    case 'manage': return 'bg-purple-100 text-purple-800';
     default: return 'bg-gray-100 text-gray-800';
   }
 }
@@ -47,12 +48,18 @@ export function filterRules(rules, searchTerm, filterRole, filterAction) {
 export function validateRule(rule) {
   const errors = [];
   
-  if (!rule.role.trim()) {
-    errors.push("Role is required");
+  // Check role - can be string or array (for multiple roles)
+  const hasRole = rule.role && rule.role.trim() !== '';
+  const hasRoles = rule.roles && Array.isArray(rule.roles) && rule.roles.length > 0;
+  if (!hasRole && !hasRoles) {
+    errors.push("At least one role is required");
   }
   
-  if (!rule.action.trim()) {
-    errors.push("Action is required");
+  // Check action - can be string or array (for multiple actions)
+  const hasAction = rule.action && rule.action.trim() !== '';
+  const hasActions = rule.actions && Array.isArray(rule.actions) && rule.actions.length > 0;
+  if (!hasAction && !hasActions) {
+    errors.push("At least one action is required");
   }
   
   if (!rule.field.trim()) {

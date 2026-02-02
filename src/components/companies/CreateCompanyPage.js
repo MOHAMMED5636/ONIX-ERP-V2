@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { createCompany, updateCompany } from "../../services/companiesAPI";
+import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
+import { createCompany, updateCompany, getCompanyById } from "../../services/companiesAPI";
 
 export default function CreateCompanyPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isEditMode = location.state?.company;
+  const params = useParams();
+  const [isEditMode, setIsEditMode] = useState(null);
+  const [loadingCompany, setLoadingCompany] = useState(false);
   
   const [form, setForm] = useState({
     name: "",
@@ -26,10 +28,7 @@ export default function CreateCompanyPage() {
     trnNumber: ""
   });
   
-  const [contacts, setContacts] = useState([
-    { id: 1, name: "John Doe", email: "john@example.com", phone: "+971-50-123-4567", extension: "101" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", phone: "+971-50-987-6543", extension: "102" },
-  ]);
+  const [contacts, setContacts] = useState([]);
 
   // Contact modal state
   const [showContactModal, setShowContactModal] = useState(false);
@@ -44,53 +43,222 @@ export default function CreateCompanyPage() {
   // File upload state
   const [fileErrors, setFileErrors] = useState({});
 
+  // Fetch company data when in edit mode
+  useEffect(() => {
+    const loadCompanyData = async () => {
+      // Check if we have company data from navigation state
+      const companyFromState = location.state?.company;
+      
+      // Check if we have company ID from URL params or from state company
+      const companyId = params.id || params.companyId || companyFromState?.id;
+      
+      // Always fetch fresh data from API to ensure we have all fields including license info
+      if (companyId) {
+        setLoadingCompany(true);
+        try {
+          console.log('📡 Fetching company data for ID:', companyId);
+          const response = await getCompanyById(companyId);
+          if (response.success && response.data) {
+            console.log('✅ Loaded company data for editing:', response.data);
+            console.log('📋 License fields in response:', {
+              licenseCategory: response.data.licenseCategory,
+              legalType: response.data.legalType,
+              dunsNumber: response.data.dunsNumber,
+              registerNo: response.data.registerNo,
+              issueDate: response.data.issueDate,
+              mainLicenseNo: response.data.mainLicenseNo,
+              dcciNo: response.data.dcciNo,
+              trnNumber: response.data.trnNumber
+            });
+            setIsEditMode(response.data);
+          } else {
+            console.error('❌ Failed to load company data');
+            alert('Failed to load company data. Please try again.');
+            navigate('/companies');
+          }
+        } catch (error) {
+          console.error('❌ Error loading company:', error);
+          alert('Failed to load company data: ' + error.message);
+          navigate('/companies');
+        } finally {
+          setLoadingCompany(false);
+        }
+      } else if (companyFromState) {
+        // Fallback: use company from state if no ID available (shouldn't happen in edit mode)
+        console.log('⚠️ Using company from state (may be incomplete):', companyFromState);
+        setIsEditMode(companyFromState);
+      }
+    };
+
+    loadCompanyData();
+  }, [location.state, params.id, params.companyId, navigate]);
+
   // Initialize form with company data if in edit mode
   useEffect(() => {
     if (isEditMode) {
-      setForm({
+      console.log('📝 Loading form with company data:', isEditMode);
+      console.log('📝 License fields check:', {
+        licenseCategory: isEditMode.licenseCategory,
+        legalType: isEditMode.legalType,
+        dunsNumber: isEditMode.dunsNumber,
+        registerNo: isEditMode.registerNo,
+        issueDate: isEditMode.issueDate,
+        mainLicenseNo: isEditMode.mainLicenseNo,
+        dcciNo: isEditMode.dcciNo,
+        trnNumber: isEditMode.trnNumber,
+        licenseExpiry: isEditMode.licenseExpiry
+      });
+      
+      // Format date fields if they exist
+      const formatDate = (dateValue) => {
+        if (!dateValue) return "";
+        if (typeof dateValue === 'string') {
+          // If it's already a string in YYYY-MM-DD format, return as is
+          if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) return dateValue;
+          // Try to parse and format
+          const date = new Date(dateValue);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+        }
+        if (dateValue instanceof Date) {
+          return dateValue.toISOString().split('T')[0];
+        }
+        return "";
+      };
+
+      const formData = {
         name: isEditMode.name || "",
         tag: isEditMode.tag || "",
         address: isEditMode.address || "",
-        contact: isEditMode.contact || "",
-        logo: isEditMode.logo || null,
+        contact: isEditMode.contact || isEditMode.contactName || "",
+        logo: isEditMode.logo || null, // Keep as string URL for existing images
         header: isEditMode.header || null,
         footer: isEditMode.footer || null,
         licenseCategory: isEditMode.licenseCategory || "",
         legalType: isEditMode.legalType || "",
-        expiryDate: isEditMode.expiryDate || "",
+        expiryDate: formatDate(isEditMode.expiryDate || isEditMode.licenseExpiry),
         dunsNumber: isEditMode.dunsNumber || "",
         registerNo: isEditMode.registerNo || "",
-        issueDate: isEditMode.issueDate || "",
+        issueDate: formatDate(isEditMode.issueDate),
         mainLicenseNo: isEditMode.mainLicenseNo || "",
         dcciNo: isEditMode.dcciNo || "",
         trnNumber: isEditMode.trnNumber || ""
-      });
+      };
+
+      console.log('📝 Setting form data:', formData);
+      setForm(formData);
+      
+      // Also load contacts if they exist
+      if (isEditMode.contactName || isEditMode.contactEmail) {
+        setContacts([{
+          id: 1,
+          name: isEditMode.contactName || "",
+          email: isEditMode.contactEmail || "",
+          phone: isEditMode.contactPhone || "",
+          extension: isEditMode.contactExtension || ""
+        }]);
+      }
     }
   }, [isEditMode]);
+
+  // Cleanup object URLs when component unmounts or files change
+  useEffect(() => {
+    const objectUrls = [];
+    
+    // Create object URLs for File objects
+    if (form.logo instanceof File) {
+      objectUrls.push(URL.createObjectURL(form.logo));
+    }
+    if (form.header instanceof File) {
+      objectUrls.push(URL.createObjectURL(form.header));
+    }
+    if (form.footer instanceof File) {
+      objectUrls.push(URL.createObjectURL(form.footer));
+    }
+    
+    // Cleanup function
+    return () => {
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [form.logo, form.header, form.footer]);
+
+  // Helper function to get file value for API submission
+  const getFileValue = (file) => {
+    if (!file) return null;
+    // If it's already a string (URL or path), return it (for existing files)
+    if (typeof file === 'string') return file;
+    // If it's a File object, return it as-is (will be sent via FormData)
+    if (file instanceof File) return file;
+    return null;
+  };
+
+  // Helper function to get image URL for display
+  const getImageUrl = (file) => {
+    if (!file) return null;
+    // If it's a string (URL), return it
+    if (typeof file === 'string') {
+      // If it's already a full URL, return as is
+      if (file.startsWith('http://') || file.startsWith('https://')) {
+        return file;
+      }
+      // If it's a relative path, construct full URL
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      return `${baseUrl}${file}`;
+    }
+    // If it's a File object, create object URL for preview
+    if (file instanceof File) {
+      return URL.createObjectURL(file);
+    }
+    return null;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!form.name || form.name.trim() === '') {
+      alert('Company name is required');
+      return;
+    }
+    
     try {
       // Map form data to API format
+      // Note: File uploads (logo, header, footer) should be handled separately
+      // For now, we'll send null and handle file uploads in a separate step
       const companyData = {
-        name: form.name,
-        tag: form.tag || null,
-        address: form.address || null,
-        industry: form.licenseCategory || null,
-        founded: form.issueDate || null,
+        name: form.name.trim(),
+        tag: form.tag?.trim() || null,
+        address: form.address?.trim() || null,
+        industry: form.industry?.trim() || null,
+        founded: form.founded || null,
         status: 'ACTIVE', // Default to active
-        contactName: form.contact || null,
+        contactName: form.contact?.trim() || contacts[0]?.name || null,
         contactEmail: contacts[0]?.email || null,
         contactPhone: contacts[0]?.phone || null,
         contactExtension: contacts[0]?.extension || null,
+        licenseCategory: form.licenseCategory || null,
+        legalType: form.legalType || null,
         licenseExpiry: form.expiryDate || null,
         licenseStatus: form.expiryDate && new Date(form.expiryDate) > new Date() ? 'ACTIVE' : 'EXPIRED',
-        logo: form.logo || null,
-        header: form.header || null,
-        footer: form.footer || null,
+        dunsNumber: form.dunsNumber || null,
+        registerNo: form.registerNo || null,
+        issueDate: form.issueDate || null,
+        mainLicenseNo: form.mainLicenseNo || null,
+        dcciNo: form.dcciNo || null,
+        trnNumber: form.trnNumber || null,
+        logo: getFileValue(form.logo), // Returns File object or string URL
+        header: getFileValue(form.header),
+        footer: getFileValue(form.footer),
         employees: 0, // Default, can be updated later
       };
+      
+      console.log('📝 Submitting company data:', {
+        ...companyData,
+        logo: companyData.logo ? 'File/URL present' : 'null',
+        header: companyData.header ? 'File/URL present' : 'null',
+        footer: companyData.footer ? 'File/URL present' : 'null',
+      });
       
       if (isEditMode && isEditMode.id) {
         // Update existing company via API
@@ -99,14 +267,17 @@ export default function CreateCompanyPage() {
       } else {
         // Create new company via API
         console.log('📝 Creating company via API');
-        await createCompany(companyData);
+        const response = await createCompany(companyData);
+        console.log('✅ Company created:', response);
       }
       
       // Redirect to companies page
       navigate('/companies');
     } catch (error) {
-      console.error('Error saving company:', error);
-      alert('Failed to save company: ' + (error.message || 'Unknown error'));
+      console.error('❌ Error saving company:', error);
+      const errorMessage = error.message || 'Unknown error';
+      console.error('   Full error:', error);
+      alert('Failed to save company: ' + errorMessage);
     }
   };
 
@@ -217,6 +388,18 @@ export default function CreateCompanyPage() {
     });
   };
 
+  // Show loading state while fetching company data
+  if (loadingCompany) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading company data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
       <div className="max-w-5xl mx-auto">
@@ -301,6 +484,7 @@ export default function CreateCompanyPage() {
                       onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                       placeholder="Enter company name"
+                      title="Enter the full legal name of your company as it appears on your trade license and official documents."
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,6 +505,7 @@ export default function CreateCompanyPage() {
                       onChange={(e) => setForm(prev => ({ ...prev, tag: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                       placeholder="e.g., ONIX"
+                      title="Enter a short tag or abbreviation for your company (e.g., ONIX, ABC). This is used for quick identification and display purposes throughout the system."
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,6 +529,7 @@ export default function CreateCompanyPage() {
                     rows={3}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md resize-none"
                     placeholder="Enter company address"
+                    title="Enter the complete physical address of your company including building name, street, area, city, and country. This should match the address on your trade license."
                   />
                   <div className="absolute top-3 right-3 pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,6 +561,7 @@ export default function CreateCompanyPage() {
                      value={form.licenseCategory}
                      onChange={(e) => setForm(prev => ({ ...prev, licenseCategory: e.target.value }))}
                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                     title="Select the type of business license category (e.g., Commercial, Industrial, Professional, Trading, Construction, Consulting)"
                    >
                     <option value="">Select License Category</option>
                     <option value="commercial">Commercial</option>
@@ -394,6 +581,7 @@ export default function CreateCompanyPage() {
                      value={form.legalType}
                      onChange={(e) => setForm(prev => ({ ...prev, legalType: e.target.value }))}
                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                     title="Select the legal structure of your company (e.g., LLC, Corporation, Partnership, Sole Proprietorship, Branch, Representative Office)"
                    >
                     <option value="">Select Legal Type</option>
                     <option value="llc">Limited Liability Company (LLC)</option>
@@ -414,6 +602,8 @@ export default function CreateCompanyPage() {
                      value={form.expiryDate}
                      onChange={(e) => setForm(prev => ({ ...prev, expiryDate: e.target.value }))}
                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                     title="Enter the expiration date of your trade license (format: dd/mm/yyyy). This is the date when your license will expire and needs renewal."
+                     placeholder="Select license expiry date"
                    />
                 </div>
                 <div>
@@ -425,20 +615,22 @@ export default function CreateCompanyPage() {
                     value={form.dunsNumber}
                     onChange={(e) => setForm(prev => ({ ...prev, dunsNumber: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="Enter D&B D-U-N-S Number"
+                    placeholder="Enter D&B D-U-N-S Number from trade license"
+                    title="Enter your D&B (Dun & Bradstreet) D-U-N-S Number. This is a unique 9-digit identifier found on your trade license. It's used for business credit reporting and identification."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Register Number
-                  </label>
-                  <input
-                    type="text"
-                    value={form.registerNo}
-                    onChange={(e) => setForm(prev => ({ ...prev, registerNo: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="Enter Register Number"
-                  />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Commercial License Number
+                    </label>
+                    <input
+                      type="text"
+                      value={form.registerNo}
+                      onChange={(e) => setForm(prev => ({ ...prev, registerNo: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      placeholder="Enter Commercial License Number from trade license"
+                      title="Enter the commercial license number issued by the licensing authority. This number is typically found on your trade license document and identifies your company's commercial registration with the government."
+                    />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -449,6 +641,8 @@ export default function CreateCompanyPage() {
                     value={form.issueDate}
                     onChange={(e) => setForm(prev => ({ ...prev, issueDate: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    title="Enter the date when your trade license was issued (format: dd/mm/yyyy). This is the date printed on your license document when it was first issued."
+                    placeholder="Select license issue date"
                   />
                 </div>
                                  <div>
@@ -461,7 +655,8 @@ export default function CreateCompanyPage() {
                      value={form.mainLicenseNo}
                      onChange={(e) => setForm(prev => ({ ...prev, mainLicenseNo: e.target.value }))}
                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                     placeholder="Enter Main License Number"
+                     placeholder="Enter Main License Number from trade license"
+                     title="Enter the primary license number issued by the licensing authority. This is the main license number displayed prominently on your trade license document. It's required for all business operations."
                    />
                 </div>
                 <div>
@@ -473,7 +668,8 @@ export default function CreateCompanyPage() {
                     value={form.dcciNo}
                     onChange={(e) => setForm(prev => ({ ...prev, dcciNo: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="Enter DCCI Number"
+                    placeholder="Enter DCCI (Dubai Chamber) Number"
+                    title="Enter your Dubai Chamber of Commerce and Industry (DCCI) membership number, if applicable. This number is issued when your company becomes a member of the Dubai Chamber."
                   />
                 </div>
                                  <div>
@@ -486,7 +682,8 @@ export default function CreateCompanyPage() {
                      value={form.trnNumber}
                      onChange={(e) => setForm(prev => ({ ...prev, trnNumber: e.target.value }))}
                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                     placeholder="Enter TRN Number"
+                     placeholder="Enter TRN (Tax Registration Number) / ESBN"
+                     title="Enter your Tax Registration Number (TRN) or Economic Substance Business Number (ESBN). This is a unique identifier issued by the tax authority for VAT and tax purposes. It's mandatory for companies registered for VAT."
                    />
                 </div>
               </div>
@@ -583,14 +780,48 @@ export default function CreateCompanyPage() {
                     className="hidden"
                     id="logo-upload"
                   />
-                  <label htmlFor="logo-upload" className="cursor-pointer">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <p className="mt-1 text-sm text-gray-600">Upload logo</p>
-                    <p className="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, PDF under 5MB</p>
-                  </label>
-                  {form.logo && (
+                  {getImageUrl(form.logo) ? (
+                    <div className="relative">
+                      <img 
+                        src={getImageUrl(form.logo)} 
+                        alt="Company Logo" 
+                        className="max-w-full max-h-48 mx-auto rounded-lg object-contain"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }}
+                      />
+                      <div className="hidden text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="mt-1 text-sm text-gray-600">Upload logo</p>
+                      </div>
+                      <div className="mt-2 flex items-center justify-center gap-2">
+                        <label htmlFor="logo-upload" className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 underline">
+                          Change Logo
+                        </label>
+                        {form.logo && (
+                          <button
+                            type="button"
+                            onClick={() => removeFile('logo', 0)}
+                            className="text-xs text-red-500 hover:text-red-700 underline"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <label htmlFor="logo-upload" className="cursor-pointer">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <p className="mt-1 text-sm text-gray-600">Upload logo</p>
+                      <p className="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, PDF under 5MB</p>
+                    </label>
+                  )}
+                  {form.logo && form.logo instanceof File && (
                     <div className="mt-2">
                       <div className="flex items-center justify-between bg-blue-50 p-2 rounded">
                         <span className="text-xs text-blue-700">{form.logo.name}</span>
@@ -622,14 +853,48 @@ export default function CreateCompanyPage() {
                     className="hidden"
                     id="header-upload"
                   />
-                  <label htmlFor="header-upload" className="cursor-pointer">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <p className="mt-1 text-sm text-gray-600">Upload header</p>
-                    <p className="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, PDF under 5MB</p>
-                  </label>
-                  {form.header && (
+                  {getImageUrl(form.header) ? (
+                    <div className="relative">
+                      <img 
+                        src={getImageUrl(form.header)} 
+                        alt="Header Image" 
+                        className="max-w-full max-h-48 mx-auto rounded-lg object-contain"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }}
+                      />
+                      <div className="hidden text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="mt-1 text-sm text-gray-600">Upload header</p>
+                      </div>
+                      <div className="mt-2 flex items-center justify-center gap-2">
+                        <label htmlFor="header-upload" className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 underline">
+                          Change Header
+                        </label>
+                        {form.header && (
+                          <button
+                            type="button"
+                            onClick={() => removeFile('header', 0)}
+                            className="text-xs text-red-500 hover:text-red-700 underline"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <label htmlFor="header-upload" className="cursor-pointer">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <p className="mt-1 text-sm text-gray-600">Upload header</p>
+                      <p className="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, PDF under 5MB</p>
+                    </label>
+                  )}
+                  {form.header && form.header instanceof File && (
                     <div className="mt-2">
                       <div className="flex items-center justify-between bg-blue-50 p-2 rounded">
                         <span className="text-xs text-blue-700">{form.header.name}</span>
@@ -661,14 +926,48 @@ export default function CreateCompanyPage() {
                     className="hidden"
                     id="footer-upload"
                   />
-                  <label htmlFor="footer-upload" className="cursor-pointer">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <p className="mt-1 text-sm text-gray-600">Upload footer</p>
-                    <p className="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, PDF under 5MB</p>
-                  </label>
-                  {form.footer && (
+                  {getImageUrl(form.footer) ? (
+                    <div className="relative">
+                      <img 
+                        src={getImageUrl(form.footer)} 
+                        alt="Footer Image" 
+                        className="max-w-full max-h-48 mx-auto rounded-lg object-contain"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }}
+                      />
+                      <div className="hidden text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="mt-1 text-sm text-gray-600">Upload footer</p>
+                      </div>
+                      <div className="mt-2 flex items-center justify-center gap-2">
+                        <label htmlFor="footer-upload" className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 underline">
+                          Change Footer
+                        </label>
+                        {form.footer && (
+                          <button
+                            type="button"
+                            onClick={() => removeFile('footer', 0)}
+                            className="text-xs text-red-500 hover:text-red-700 underline"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <label htmlFor="footer-upload" className="cursor-pointer">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <p className="mt-1 text-sm text-gray-600">Upload footer</p>
+                      <p className="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, PDF under 5MB</p>
+                    </label>
+                  )}
+                  {form.footer && form.footer instanceof File && (
                     <div className="mt-2">
                       <div className="flex items-center justify-between bg-blue-50 p-2 rounded">
                         <span className="text-xs text-blue-700">{form.footer.name}</span>

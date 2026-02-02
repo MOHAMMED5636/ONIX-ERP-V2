@@ -288,6 +288,18 @@ export default function Dashboard() {
       fetchDashboardData(true);
       localStorage.removeItem('dashboardNeedsRefresh');
     }
+    
+    // Set up interval to check for refresh flag (for real-time updates when projects are created)
+    const refreshInterval = setInterval(() => {
+      const needsRefresh = localStorage.getItem('dashboardNeedsRefresh');
+      if (needsRefresh === 'true') {
+        console.log('🔄 Dashboard refresh triggered by localStorage flag');
+        fetchDashboardData(true);
+        localStorage.removeItem('dashboardNeedsRefresh');
+      }
+    }, 2000); // Check every 2 seconds
+    
+    return () => clearInterval(refreshInterval);
   }, []);
 
   /**
@@ -305,10 +317,29 @@ export default function Dashboard() {
     // Also check localStorage flag on location change
     const shouldRefresh = localStorage.getItem('dashboardNeedsRefresh');
     if (shouldRefresh === 'true') {
+      console.log('🔄 Dashboard refresh triggered by location change');
       fetchDashboardData(true);
       localStorage.removeItem('dashboardNeedsRefresh');
     }
   }, [location]);
+  
+  /**
+   * Listen for custom dashboard refresh events (triggered when projects/tasks are created)
+   * This provides real-time updates without requiring navigation
+   */
+  useEffect(() => {
+    const handleDashboardRefresh = () => {
+      console.log('🔄 Dashboard refresh triggered by custom event');
+      fetchDashboardData(true);
+      localStorage.removeItem('dashboardNeedsRefresh');
+    };
+    
+    window.addEventListener('dashboardRefresh', handleDashboardRefresh);
+    
+    return () => {
+      window.removeEventListener('dashboardRefresh', handleDashboardRefresh);
+    };
+  }, []);
 
   // Save widget order to localStorage
   useEffect(() => {

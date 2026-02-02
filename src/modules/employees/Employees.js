@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getEmployees, createEmployee, updateEmployee } from '../../services/employeeAPI';
 import { 
   UserIcon, 
   EnvelopeIcon, 
@@ -51,7 +52,8 @@ const Employees = () => {
   const canCreateEmployee = user?.role === 'ADMIN' || user?.role === 'HR';
   
   // State management
-  const [employees, setEmployees] = useState(demoEmployees);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -83,6 +85,64 @@ const Employees = () => {
     };
   }, []);
 
+  // Load employees from backend
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoading(true);
+        const response = await getEmployees();
+        if (response.success && response.data) {
+          // Transform backend data to match frontend format
+          const employeesList = response.data.map(emp => {
+            // Parse JSON strings for contacts and emails
+            let phoneNumbers = [];
+            let emailAddresses = [];
+            try {
+              phoneNumbers = emp.phoneNumbers ? JSON.parse(emp.phoneNumbers) : [];
+              emailAddresses = emp.emailAddresses ? JSON.parse(emp.emailAddresses) : [];
+            } catch (e) {
+              console.error('Error parsing contacts/emails:', e);
+            }
+
+            // Get manager name
+            let managerName = '';
+            if (emp.manager) {
+              managerName = `${emp.manager.firstName} ${emp.manager.lastName}`;
+            }
+
+            return {
+              id: emp.id,
+              name: `${emp.firstName} ${emp.lastName}`,
+              email: emp.email || (emailAddresses.length > 0 ? emailAddresses[0] : ''),
+              phone: emp.phone || (phoneNumbers.length > 0 ? phoneNumbers[0]?.value : ''),
+              department: emp.department || '',
+              jobTitle: emp.jobTitle || '',
+              status: emp.status || (emp.isActive ? 'active' : 'inactive'),
+              employeeId: emp.employeeId || emp.id,
+              // Include all backend data for editing
+              ...emp,
+              contacts: phoneNumbers,
+              emails: emailAddresses,
+              manager: managerName,
+            };
+          });
+          setEmployees(employeesList);
+        } else {
+          // Fallback to demo data if API fails
+          setEmployees(demoEmployees);
+        }
+      } catch (error) {
+        console.error('Error loading employees:', error);
+        // Fallback to demo data on error
+        setEmployees(demoEmployees);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEmployees();
+  }, []);
+
   // Event handlers
   const handleAddEmployee = () => {
     // Navigate to new employee creation page (uses backend API)
@@ -94,18 +154,124 @@ const Employees = () => {
     }
   };
 
-  const handleSaveEmployee = (employeeData) => {
-    const newEmployee = {
-      ...employeeData,
-      id: employees.length + 1,
-      name: `${employeeData.firstName} ${employeeData.lastName}`,
-      email: employeeData.emails[0],
-      phone: employeeData.contacts[0]?.value,
-      status: employeeData.status || 'active'
-    };
-    
-    setEmployees([...employees, newEmployee]);
-    setShowForm(false);
+  const handleSaveEmployee = async (employeeData) => {
+    try {
+      // Prepare data for backend
+      const backendData = {
+        firstName: employeeData.firstName,
+        lastName: employeeData.lastName,
+        employeeId: employeeData.employeeId,
+        employeeType: employeeData.employeeType,
+        status: employeeData.status,
+        userAccount: employeeData.userAccount || false,
+        
+        // Personal Details
+        gender: employeeData.gender,
+        maritalStatus: employeeData.maritalStatus,
+        nationality: employeeData.nationality,
+        birthday: employeeData.birthday,
+        childrenCount: employeeData.childrenCount,
+        currentAddress: employeeData.currentAddress,
+        
+        // Contact Info
+        contacts: employeeData.contacts || [],
+        emails: employeeData.emails || [],
+        
+        // Company Info
+        company: employeeData.company,
+        department: employeeData.department,
+        jobTitle: employeeData.jobTitle,
+        companyLocation: employeeData.companyLocation,
+        managerId: employeeData.manager || null, // manager field contains the managerId from dropdown
+        attendanceProgram: employeeData.attendanceProgram,
+        joiningDate: employeeData.joiningDate,
+        exitDate: employeeData.exitDate,
+        isLineManager: employeeData.isLineManager || false,
+        
+        // Legal Documents (include File objects if they exist)
+        passportNumber: employeeData.passportNumber,
+        passportIssueDate: employeeData.passportIssue,
+        passportExpiryDate: employeeData.passportExpiry,
+        passportAttachment: employeeData.passportAttachment, // File object if uploaded
+        
+        nationalIdNumber: employeeData.nationalIdNumber,
+        nationalIdExpiryDate: employeeData.nationalIdExpiry,
+        nationalIdAttachment: employeeData.nationalIdAttachment, // File object if uploaded
+        
+        residencyNumber: employeeData.residencyNumber,
+        residencyExpiryDate: employeeData.residencyExpiry,
+        residencyAttachment: employeeData.residencyAttachment, // File object if uploaded
+        
+        insuranceNumber: employeeData.insuranceNumber,
+        insuranceExpiryDate: employeeData.insuranceExpiry,
+        insuranceAttachment: employeeData.insuranceAttachment, // File object if uploaded
+        
+        drivingLicenseNumber: employeeData.drivingNumber,
+        drivingLicenseExpiryDate: employeeData.drivingExpiry,
+        drivingLicenseAttachment: employeeData.drivingAttachment, // File object if uploaded
+        
+        labourIdNumber: employeeData.labourNumber,
+        labourIdExpiryDate: employeeData.labourExpiry,
+        labourIdAttachment: employeeData.labourAttachment, // File object if uploaded
+        
+        remarks: employeeData.remarks,
+        
+        // Basic fields
+        role: 'EMPLOYEE',
+        phone: employeeData.contacts?.[0]?.value || '',
+        
+        // Include personalImage/photo if it's a File
+        personalImage: employeeData.personalImage, // File object if uploaded
+      };
+
+      const response = await createEmployee(backendData);
+      
+      if (response.success) {
+        // Reload employees list
+        const employeesResponse = await getEmployees();
+        if (employeesResponse.success && employeesResponse.data) {
+          const employeesList = employeesResponse.data.map(emp => {
+            let phoneNumbers = [];
+            let emailAddresses = [];
+            try {
+              phoneNumbers = emp.phoneNumbers ? JSON.parse(emp.phoneNumbers) : [];
+              emailAddresses = emp.emailAddresses ? JSON.parse(emp.emailAddresses) : [];
+            } catch (e) {}
+            
+            let managerName = '';
+            if (emp.manager) {
+              managerName = `${emp.manager.firstName} ${emp.manager.lastName}`;
+            }
+
+            return {
+              id: emp.id,
+              name: `${emp.firstName} ${emp.lastName}`,
+              email: emp.email || (emailAddresses.length > 0 ? emailAddresses[0] : ''),
+              phone: emp.phone || (phoneNumbers.length > 0 ? phoneNumbers[0]?.value : ''),
+              department: emp.department || '',
+              jobTitle: emp.jobTitle || '',
+              status: emp.status || (emp.isActive ? 'active' : 'inactive'),
+              employeeId: emp.employeeId || emp.id,
+              ...emp,
+              contacts: phoneNumbers,
+              emails: emailAddresses,
+              manager: managerName,
+            };
+          });
+          setEmployees(employeesList);
+        }
+        
+        setShowForm(false);
+        
+        // Show success message
+        alert('Employee created successfully!');
+      } else {
+        alert(`Failed to create employee: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error saving employee:', error);
+      alert(`Error creating employee: ${error.message}`);
+    }
   };
 
   const handleViewEmployee = (employee) => {
@@ -122,13 +288,70 @@ const Employees = () => {
     setEmployees(employees.filter(emp => emp.id !== employeeId));
   };
 
-  const handleUpdateEmployee = () => {
-    if (selectedEmployeeForEdit) {
-      setEmployees(employees.map(emp => 
-        emp.id === selectedEmployeeForEdit.id ? selectedEmployeeForEdit : emp
-      ));
-      setShowEditModal(false);
-      setSelectedEmployeeForEdit(null);
+  const handleUpdateEmployee = async () => {
+    if (!selectedEmployeeForEdit) return;
+    
+    try {
+      // Prepare data for backend
+      const backendData = {
+        firstName: selectedEmployeeForEdit.firstName || selectedEmployeeForEdit.name?.split(' ')[0],
+        lastName: selectedEmployeeForEdit.lastName || selectedEmployeeForEdit.name?.split(' ')[1],
+        email: selectedEmployeeForEdit.email,
+        phone: selectedEmployeeForEdit.phone,
+        department: selectedEmployeeForEdit.department,
+        jobTitle: selectedEmployeeForEdit.jobTitle,
+        employeeId: selectedEmployeeForEdit.employeeId,
+        status: selectedEmployeeForEdit.status,
+        isActive: selectedEmployeeForEdit.status === 'active' || selectedEmployeeForEdit.status === 'Active',
+      };
+
+      const response = await updateEmployee(selectedEmployeeForEdit.id, backendData);
+      
+      if (response.success) {
+        // Reload employees list
+        const employeesResponse = await getEmployees();
+        if (employeesResponse.success && employeesResponse.data) {
+          const employeesList = employeesResponse.data.map(emp => {
+            let phoneNumbers = [];
+            let emailAddresses = [];
+            try {
+              phoneNumbers = emp.phoneNumbers ? JSON.parse(emp.phoneNumbers) : [];
+              emailAddresses = emp.emailAddresses ? JSON.parse(emp.emailAddresses) : [];
+            } catch (e) {}
+            
+            let managerName = '';
+            if (emp.manager) {
+              managerName = `${emp.manager.firstName} ${emp.manager.lastName}`;
+            }
+
+            return {
+              id: emp.id,
+              name: `${emp.firstName} ${emp.lastName}`,
+              email: emp.email || (emailAddresses.length > 0 ? emailAddresses[0] : ''),
+              phone: emp.phone || (phoneNumbers.length > 0 ? phoneNumbers[0]?.value : ''),
+              department: emp.department || '',
+              jobTitle: emp.jobTitle || '',
+              status: emp.status || (emp.isActive ? 'active' : 'inactive'),
+              employeeId: emp.employeeId || emp.id,
+              ...emp,
+              contacts: phoneNumbers,
+              emails: emailAddresses,
+              manager: managerName,
+            };
+          });
+          setEmployees(employeesList);
+        }
+        
+        setShowEditModal(false);
+        setSelectedEmployeeForEdit(null);
+        
+        alert('Employee updated successfully!');
+      } else {
+        alert(`Failed to update employee: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      alert(`Error updating employee: ${error.message}`);
     }
   };
 

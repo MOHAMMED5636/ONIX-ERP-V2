@@ -52,6 +52,7 @@ import AIEmployeeEvaluations from "./components/AIEmployeeEvaluations";
 import BankReconciliationDashboard from "./components/BankReconciliation";
 import Settings from "./pages/Settings";
 import { CompanySelectionProvider } from "./context/CompanySelectionContext";
+import { PreferencesProvider } from "./context/PreferencesContext";
 import { RuleProvider } from "./context/RuleContext";
 import { AIAssistantProvider, AIAssistantEnhanced } from "./components/AIAssistant";
 
@@ -251,6 +252,7 @@ export default function App() {
   return (
     <AuthProvider>
       <CompanySelectionProvider>
+        <PreferencesProvider>
         <RuleProvider>
           <AIAssistantProvider>
             <Router>
@@ -284,6 +286,7 @@ export default function App() {
             </Router>
           </AIAssistantProvider>
         </RuleProvider>
+        </PreferencesProvider>
       </CompanySelectionProvider>
     </AuthProvider>
   );

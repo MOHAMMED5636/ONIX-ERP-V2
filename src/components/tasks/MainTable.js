@@ -47,7 +47,7 @@ import useSocket from "../../hooks/useSocket";
 import { MessageCircle } from 'lucide-react';
 import EngineerInviteModal from "./MainTable/EngineerInviteModal";
 import { sendTenderInvitations } from "../../services/tenderAPI";
-import { createProject } from "../../services/projectsAPI";
+import { createProject, getProjects, deleteProject } from "../../services/projectsAPI";
 
 
 // Import utilities
@@ -772,29 +772,111 @@ export default function MainTable() {
 
 
 
-  // Load tasks from localStorage or use initialTasks
-  const loadTasksFromStorage = () => {
+  // Load projects from backend API
+  const [tasks, setTasks] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  
+  // Fetch projects from backend API on component mount
+  useEffect(() => {
+    loadProjectsFromAPI();
+  }, []);
+
+  const loadProjectsFromAPI = async () => {
     try {
-      const savedTasks = localStorage.getItem('projectTasks');
-      if (savedTasks) {
-        const parsed = JSON.parse(savedTasks);
-        // Convert date strings back to Date objects for timeline
-        return parsed.map(task => ({
-          ...task,
-          timeline: task.timeline ? task.timeline.map(date => new Date(date)) : null,
-          subtasks: task.subtasks ? task.subtasks.map(subtask => ({
-            ...subtask,
-            timeline: subtask.timeline ? subtask.timeline.map(date => new Date(date)) : null
-          })) : []
+      setLoadingProjects(true);
+      console.log('📡 Fetching projects from backend API...');
+      
+      const response = await getProjects();
+      
+      if (response.success && response.data) {
+        console.log(`✅ Loaded ${response.data.length} projects from API`);
+        
+        // Map backend projects to frontend task format
+        const mappedTasks = response.data.map(project => ({
+          id: project.id,
+          name: project.name || 'Untitled Project',
+          referenceNumber: project.referenceNumber || '',
+          pin: project.pin || '',
+          client: project.client?.name || '',
+          clientId: project.clientId || null,
+          owner: project.owner || '',
+          category: 'General',
+          status: project.status === 'OPEN' ? 'Pending' : 
+                  project.status === 'IN_PROGRESS' ? 'In Progress' :
+                  project.status === 'COMPLETED' ? 'Done' :
+                  project.status === 'CANCELLED' ? 'Cancelled' :
+                  project.status === 'ON_HOLD' ? 'Suspended' : 'Pending',
+          projectManagerId: project.projectManagerId || null,
+          timeline: [
+            project.startDate ? new Date(project.startDate) : null,
+            project.endDate ? new Date(project.endDate) : null
+          ],
+          planDays: project.planDays || 0,
+          remarks: project.remarks || '',
+          assigneeNotes: project.assigneeNotes || '',
+          attachments: [],
+          priority: 'Low',
+          location: '',
+          plotNumber: '',
+          community: '',
+          projectType: 'Residential',
+          projectFloor: '',
+          developerProject: '',
+          notes: project.description || '',
+          autoNumber: 0,
+          predecessors: '',
+          checklist: false,
+          checklistItems: [],
+          link: '',
+          rating: 0,
+          progress: 0,
+          color: '#60a5fa',
+          subtasks: [],
+          expanded: false,
+          createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
         }));
+        
+        setTasks(mappedTasks);
+        
+        // Also save to localStorage for backward compatibility
+        try {
+          localStorage.setItem('projectTasks', JSON.stringify(mappedTasks));
+        } catch (error) {
+          console.error('Error saving to localStorage:', error);
+        }
+      } else {
+        console.warn('⚠️ No projects returned from API');
+        setTasks([]);
       }
     } catch (error) {
-      console.error('Error loading tasks from localStorage:', error);
+      console.error('❌ Error loading projects from API:', error);
+      
+      // Fallback to localStorage if API fails
+      try {
+        const savedTasks = localStorage.getItem('projectTasks');
+        if (savedTasks) {
+          const parsed = JSON.parse(savedTasks);
+          const mapped = parsed.map(task => ({
+            ...task,
+            timeline: task.timeline ? task.timeline.map(date => date ? new Date(date) : null) : null,
+            subtasks: task.subtasks ? task.subtasks.map(subtask => ({
+              ...subtask,
+              timeline: subtask.timeline ? subtask.timeline.map(date => date ? new Date(date) : null) : null
+            })) : []
+          }));
+          setTasks(mapped);
+          console.log('📦 Loaded projects from localStorage as fallback');
+        } else {
+          setTasks(initialTasks);
+        }
+      } catch (localError) {
+        console.error('Error loading from localStorage:', localError);
+        setTasks(initialTasks);
+      }
+    } finally {
+      setLoadingProjects(false);
     }
-    return initialTasks;
   };
-
-  const [tasks, setTasks] = useState(loadTasksFromStorage);
   
   // Save tasks to localStorage whenever tasks change
   useEffect(() => {
@@ -986,14 +1068,19 @@ export default function MainTable() {
       // IMPORTANT: Save project to database via API
       // Map frontend status to backend enum values
       const statusMap = {
+        'To Do': 'OPEN',
+        'to do': 'OPEN',
+        'ToDo': 'OPEN',
         'Pending': 'OPEN',
         'pending': 'OPEN',
         'not started': 'OPEN',
+        'Not Started': 'OPEN',
         'In Progress': 'IN_PROGRESS',
         'in progress': 'IN_PROGRESS',
         'Done': 'COMPLETED',
         'done': 'COMPLETED',
         'Completed': 'COMPLETED',
+        'completed': 'COMPLETED',
         'Cancelled': 'CANCELLED',
         'cancelled': 'CANCELLED',
         'Suspended': 'ON_HOLD',
@@ -1002,7 +1089,9 @@ export default function MainTable() {
         'on hold': 'ON_HOLD',
       };
       
-      const backendStatus = statusMap[newTask.status] || 'OPEN'; // Default to OPEN
+      // Map status: if status is "Done" or "Completed", use COMPLETED (won't count as active)
+      // Otherwise default to OPEN (will count as active)
+      const backendStatus = statusMap[newTask.status] || 'OPEN';
       
       // Map newTask to API format
       const projectData = {
@@ -1045,13 +1134,18 @@ export default function MainTable() {
           return calculateTaskTimelines(updatedTasks, projectStartDate);
         });
         
-        // Set flag to refresh dashboard when user navigates to it
+        // Set flag to refresh dashboard immediately
         // This ensures Active Projects/Tasks counts are updated
         localStorage.setItem('dashboardNeedsRefresh', 'true');
         
+        // Also trigger a custom event for real-time dashboard refresh
+        window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+        
+        console.log('✅ Project created - Dashboard refresh triggered');
+        
         // Show success message
         setToast({
-          message: 'Project created successfully!',
+          message: 'Project created successfully! Dashboard will update automatically.',
           type: 'success'
         });
         
@@ -1204,15 +1298,32 @@ export default function MainTable() {
     let itemType = '';
     let message = '';
     
-    // Soft delete selected tasks
+    // Delete selected tasks from backend
     if (selectedTasks.length > 0) {
-      setTasks(tasks => {
-        const updatedTasks = applySoftDelete(tasks, selectedTasks);
-        return calculateTaskTimelines(updatedTasks, projectStartDate);
-      });
-      deletedItems = [...deletedItems, ...selectedTasks];
-      itemType = 'project';
-      message = `${selectedTasks.length} project${selectedTasks.length > 1 ? 's' : ''} deleted`;
+      // Delete all projects from backend API
+      const deletePromises = selectedTasks.map(task => deleteProject(task.id));
+      
+      Promise.all(deletePromises)
+        .then(() => {
+          // Remove from local state after successful deletion
+          setTasks(tasks => {
+            const taskIdsToDelete = new Set(selectedTasks.map(t => t.id));
+            const updatedTasks = tasks.filter(t => !taskIdsToDelete.has(t.id));
+            return calculateTaskTimelines(updatedTasks, projectStartDate);
+          });
+          
+          deletedItems = [...deletedItems, ...selectedTasks];
+          itemType = 'project';
+          message = `${selectedTasks.length} project${selectedTasks.length > 1 ? 's' : ''} deleted`;
+          
+          console.log(`✅ ${selectedTasks.length} project(s) deleted successfully`);
+        })
+        .catch((error) => {
+          console.error('❌ Error deleting projects:', error);
+          alert(`Failed to delete some projects: ${error.message || 'Unknown error'}`);
+        });
+      
+      return; // Exit early since we're handling deletion asynchronously
     }
     
     // Soft delete selected subtasks
@@ -1505,13 +1616,22 @@ export default function MainTable() {
       const taskToDelete = tasks.find(t => t.id === id);
       
       if (taskToDelete) {
-        setTasks(tasks => {
-          const updatedTasks = applySoftDelete(tasks, [taskToDelete]);
-          return calculateTaskTimelines(updatedTasks, projectStartDate);
-        });
-        
-        // Show undo toast for task
-        undoManager.showUndoToast([taskToDelete], 'project', `Project "${taskToDelete.name}" deleted`);
+        // Call backend API to delete the project
+        deleteProject(id)
+          .then(() => {
+            // Remove from local state after successful deletion
+            setTasks(tasks => {
+              const updatedTasks = tasks.filter(t => t.id !== id);
+              return calculateTaskTimelines(updatedTasks, projectStartDate);
+            });
+            
+            console.log(`✅ Project "${taskToDelete.name}" deleted successfully`);
+          })
+          .catch((error) => {
+            console.error('❌ Error deleting project:', error);
+            alert(`Failed to delete project: ${error.message || 'Unknown error'}`);
+            // Optionally restore the project in the UI if deletion failed
+          });
       }
     }
   }

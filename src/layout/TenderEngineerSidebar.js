@@ -123,9 +123,11 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
     if (photo.startsWith('http://') || photo.startsWith('https://')) {
       fullUrl = photo;
     } else if (photo.startsWith('/uploads/')) {
-      fullUrl = `http://192.168.1.54:3001${photo}`;
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      fullUrl = `${backendUrl}${photo}`;
     } else {
-      fullUrl = `http://192.168.1.54:3001/uploads/photos/${photo}`;
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      fullUrl = `${backendUrl}/uploads/photos/${photo}`;
     }
     // Add cache busting timestamp
     const separator = fullUrl.includes('?') ? '&' : '?';

@@ -17,6 +17,38 @@ const CreateRuleModal = ({
   onSave
 }) => {
   const [errors, setErrors] = React.useState([]);
+  
+  // Check if role is admin or manager (for multi-action selection)
+  const isAdminOrManager = newRule.role === 'admin' || newRule.role === 'manager';
+  
+  // Initialize actions as array if it's admin/manager, otherwise keep as string
+  const selectedActions = isAdminOrManager 
+    ? (Array.isArray(newRule.actions) ? newRule.actions : (newRule.action ? [newRule.action] : []))
+    : [];
+  
+  const handleActionToggle = (action) => {
+    if (isAdminOrManager) {
+      const currentActions = Array.isArray(newRule.actions) ? newRule.actions : (newRule.action ? [newRule.action] : []);
+      const updatedActions = currentActions.includes(action)
+        ? currentActions.filter(a => a !== action)
+        : [...currentActions, action];
+      setNewRule({ ...newRule, actions: updatedActions, action: updatedActions.join(',') });
+    } else {
+      setNewRule({ ...newRule, action: action, actions: [] });
+    }
+  };
+  
+  const handleSelectAllActions = () => {
+    if (isAdminOrManager) {
+      setNewRule({ ...newRule, actions: AVAILABLE_ACTIONS, action: AVAILABLE_ACTIONS.join(',') });
+    }
+  };
+  
+  const handleDeselectAllActions = () => {
+    if (isAdminOrManager) {
+      setNewRule({ ...newRule, actions: [], action: '' });
+    }
+  };
 
   const handleSave = () => {
     const validationErrors = validateRule(newRule);
@@ -90,7 +122,17 @@ const CreateRuleModal = ({
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
                   value={newRule.role}
-                  onChange={(e) => setNewRule({ ...newRule, role: e.target.value })}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    const isNewRoleAdminOrManager = newRole === 'admin' || newRole === 'manager';
+                    // Reset actions when role changes
+                    setNewRule({ 
+                      ...newRule, 
+                      role: newRole,
+                      action: '',
+                      actions: []
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="">Select Role</option>
@@ -101,17 +143,62 @@ const CreateRuleModal = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
-                <select
-                  value={newRule.action}
-                  onChange={(e) => setNewRule({ ...newRule, action: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="">Select Action</option>
-                  {AVAILABLE_ACTIONS.map(action => (
-                    <option key={action} value={action}>{action}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {isAdminOrManager ? 'Actions (Select Multiple)' : 'Action'}
+                </label>
+                {isAdminOrManager ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllActions}
+                        className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllActions}
+                        className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        Deselect All
+                      </button>
+                    </div>
+                    <div className="border border-gray-300 rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                      {AVAILABLE_ACTIONS.map(action => (
+                        <label key={action} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                          <input
+                            type="checkbox"
+                            checked={selectedActions.includes(action)}
+                            onChange={() => handleActionToggle(action)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {action.charAt(0).toUpperCase() + action.slice(1)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {selectedActions.length > 0 && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Selected: {selectedActions.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <select
+                    value={newRule.action || ''}
+                    onChange={(e) => setNewRule({ ...newRule, action: e.target.value, actions: [] })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Select Action</option>
+                    {AVAILABLE_ACTIONS.map(action => (
+                      <option key={action} value={action}>
+                        {action.charAt(0).toUpperCase() + action.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>

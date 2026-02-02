@@ -296,7 +296,7 @@ export const initialFormState = {
   department: "",
   jobTitle: "",
   location: "",
-  manager: "",
+  manager: "", // This will store managerId (UUID)
   passport: "",
   id: "",
   visa: "",

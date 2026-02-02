@@ -19,6 +19,20 @@ const ViewCompanyModal = ({
 }) => {
   if (!isOpen || !company) return null;
 
+  // Helper function to get full image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    // If it's a relative path, construct full URL
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    // Remove leading slash if present to avoid double slashes
+    const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    return `${baseUrl}${cleanPath}`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -79,29 +93,35 @@ const ViewCompanyModal = ({
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                    <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">{company.contactDetails?.name?.charAt(0)}</span>
+                  {(company.contactDetails?.name || company.contactName) && (
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                      <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">{(company.contactDetails?.name || company.contactName)?.charAt(0)?.toUpperCase()}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{company.contactDetails?.name || company.contactName}</p>
+                        <p className="text-sm text-gray-600">Primary Contact</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{company.contactDetails?.name}</p>
-                      <p className="text-sm text-gray-600">Primary Contact</p>
-                    </div>
-                  </div>
+                  )}
                   
-                  {company.contactDetails && (
+                  {(company.contactDetails || company.contactEmail || company.contactPhone) && (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <EnvelopeIcon className="h-4 w-4" />
-                        <span>{company.contactDetails.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <PhoneIcon className="h-4 w-4" />
-                        <span>{company.contactDetails.phone}</span>
-                        {company.contactDetails.extension && (
-                          <span className="text-xs text-gray-500">(Ext: {company.contactDetails.extension})</span>
-                        )}
-                      </div>
+                      {(company.contactDetails?.email || company.contactEmail) && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <EnvelopeIcon className="h-4 w-4" />
+                          <span>{company.contactDetails?.email || company.contactEmail}</span>
+                        </div>
+                      )}
+                      {(company.contactDetails?.phone || company.contactPhone) && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <PhoneIcon className="h-4 w-4" />
+                          <span>{company.contactDetails?.phone || company.contactPhone}</span>
+                          {(company.contactDetails?.extension || company.contactExtension) && (
+                            <span className="text-xs text-gray-500">(Ext: {company.contactDetails?.extension || company.contactExtension})</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -153,16 +173,26 @@ const ViewCompanyModal = ({
                   <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
                     {company.logo ? (
                       <div>
-                        <img src={company.logo} alt="Logo" className="mx-auto h-12 w-12 object-contain" />
+                        <img 
+                          src={getImageUrl(company.logo)} 
+                          alt="Logo" 
+                          className="mx-auto max-h-24 max-w-full object-contain rounded-lg"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                        <div className="hidden mx-auto h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <BuildingOfficeIcon className="h-6 w-6 text-gray-400" />
+                        </div>
                         <p className="mt-1 text-sm font-medium text-gray-900">Company Logo</p>
-                        <p className="text-xs text-gray-500">{formatFileSize(company.logo.size)}</p>
                       </div>
                     ) : (
                       <div>
                         <div className="mx-auto h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center">
                           <BuildingOfficeIcon className="h-6 w-6 text-gray-400" />
                         </div>
-                        <p className="mt-1 text-sm text-gray-500">No logo uploaded</p>
+                        <p className="mt-1 text-sm text-gray-500">Company Logo (not uploaded)</p>
                       </div>
                     )}
                   </div>
@@ -171,7 +201,18 @@ const ViewCompanyModal = ({
                     <div className="p-3 border-2 border-dashed border-gray-300 rounded-lg text-center">
                       {company.header ? (
                         <div>
-                          <img src={company.header} alt="Header" className="mx-auto h-8 w-8 object-contain" />
+                          <img 
+                            src={getImageUrl(company.header)} 
+                            alt="Header" 
+                            className="mx-auto max-h-16 max-w-full object-contain rounded"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                          <div className="hidden mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
+                            <span className="text-xs text-gray-400">H</span>
+                          </div>
                           <p className="mt-1 text-xs font-medium text-gray-900">Header</p>
                         </div>
                       ) : (
@@ -179,7 +220,7 @@ const ViewCompanyModal = ({
                           <div className="mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
                             <span className="text-xs text-gray-400">H</span>
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">No header</p>
+                          <p className="mt-1 text-xs text-gray-500">No Header</p>
                         </div>
                       )}
                     </div>
@@ -187,7 +228,18 @@ const ViewCompanyModal = ({
                     <div className="p-3 border-2 border-dashed border-gray-300 rounded-lg text-center">
                       {company.footer ? (
                         <div>
-                          <img src={company.footer} alt="Footer" className="mx-auto h-8 w-8 object-contain" />
+                          <img 
+                            src={getImageUrl(company.footer)} 
+                            alt="Footer" 
+                            className="mx-auto max-h-16 max-w-full object-contain rounded"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                          <div className="hidden mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
+                            <span className="text-xs text-gray-400">F</span>
+                          </div>
                           <p className="mt-1 text-xs font-medium text-gray-900">Footer</p>
                         </div>
                       ) : (
@@ -195,7 +247,7 @@ const ViewCompanyModal = ({
                           <div className="mx-auto h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
                             <span className="text-xs text-gray-400">F</span>
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">No footer</p>
+                          <p className="mt-1 text-xs text-gray-500">No Footer</p>
                         </div>
                       )}
                     </div>

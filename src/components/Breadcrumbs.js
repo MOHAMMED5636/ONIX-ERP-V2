@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronRightIcon, HomeIcon } from '@heroicons/react/24/outline';
 
-const Breadcrumbs = ({ names = {} }) => {
+const Breadcrumbs = ({ names = {}, company = null }) => {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,6 +29,10 @@ const Breadcrumbs = ({ names = {} }) => {
   // Get the current path segments
   const pathSegments = location.pathname.split('/').filter(segment => segment);
 
+  // Get company name from props or use default
+  // Priority: company object name > names.company > default
+  const companyName = company?.name || names.company || 'ONIX Construction';
+
   // Define the breadcrumb structure based on the current route
   const getBreadcrumbs = () => {
     const breadcrumbs = [
@@ -37,16 +41,17 @@ const Breadcrumbs = ({ names = {} }) => {
 
     // Departments page
     if (pathSegments.includes('departments') && pathSegments.length === 1) {
-      breadcrumbs.push({ name: 'ONIX Construction', path: '/departments' });
+      breadcrumbs.push({ name: companyName, path: '/departments' });
     }
     
     // SubDepartments page
     else if (pathSegments.includes('departments') && pathSegments.length >= 3 && pathSegments.includes('sub-departments') && pathSegments.length === 4) {
       const departmentId = pathSegments[2];
-      const departmentName = departmentNames[departmentId] || names.department || 'Department';
+      // Use department name from props (fetched from backend) or fallback to mapping
+      const departmentName = names.department || departmentNames[departmentId] || 'Department';
       
       breadcrumbs.push(
-        { name: 'ONIX Construction', path: '/departments' },
+        { name: companyName, path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}/sub-departments` }
       );
     }
@@ -55,11 +60,12 @@ const Breadcrumbs = ({ names = {} }) => {
     else if (pathSegments.includes('departments') && pathSegments.length >= 5 && pathSegments.includes('sub-departments') && pathSegments.includes('positions')) {
       const departmentId = pathSegments[2];
       const subDepartmentId = pathSegments[4];
-      const departmentName = departmentNames[departmentId] || names.department || 'Department';
-      const subDepartmentName = subDepartmentNames[subDepartmentId] || names.subdepartment || 'Sub Department';
+      // Use department name from props (fetched from backend) or fallback to mapping
+      const departmentName = names.department || departmentNames[departmentId] || 'Department';
+      const subDepartmentName = names.subdepartment || subDepartmentNames[subDepartmentId] || 'Sub Department';
       
       breadcrumbs.push(
-        { name: 'ONIX Construction', path: '/departments' },
+        { name: companyName, path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}/sub-departments` },
         { name: subDepartmentName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}/positions` }
       );
@@ -71,7 +77,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const departmentName = departmentNames[departmentId] || names.department || 'Department';
       
       breadcrumbs.push(
-        { name: 'ONIX Construction', path: '/departments' },
+        { name: companyName, path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}/sub-departments` }
       );
     }
@@ -84,7 +90,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const subDepartmentName = subDepartmentNames[subDepartmentId] || names.subdepartment || 'Sub Department';
       
       breadcrumbs.push(
-        { name: 'ONIX Construction', path: '/departments' },
+        { name: companyName, path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}` },
         { name: subDepartmentName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}` }
       );
@@ -100,7 +106,7 @@ const Breadcrumbs = ({ names = {} }) => {
       const positionName = names.position || 'Position';
       
       breadcrumbs.push(
-        { name: 'ONIX Construction', path: '/departments' },
+        { name: companyName, path: '/departments' },
         { name: departmentName, path: `/company-resources/departments/${departmentId}` },
         { name: subDepartmentName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}` },
         { name: positionName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}/positions/${positionId}` }
@@ -109,12 +115,44 @@ const Breadcrumbs = ({ names = {} }) => {
     
     // Employees directory page
     else if (pathSegments.includes('employees') && pathSegments.length === 1) {
-      breadcrumbs.push(
-        { name: 'ONIX Construction', path: '/departments' },
-        { name: 'Board of Directors', path: '/company-resources/departments/board-of-directors/sub-departments' },
-        { name: 'Executive Committee', path: '/company-resources/departments/board-of-directors/sub-departments/executive-committee/positions' },
-        { name: 'Employees', path: '/employees' }
-      );
+      // Use dynamic data from props if available, otherwise fallback to defaults
+      const deptName = names.department || 'Department';
+      const subDeptName = names.subdepartment || 'Sub Department';
+      const positionName = names.position || 'Position';
+      
+      // If we have company context, build full breadcrumb path
+      if (company && names.department && names.subdepartment) {
+        // Find department and subdepartment IDs from location state
+        const departmentId = location.state?.department?.id || location.state?.departmentId;
+        const subDepartmentId = location.state?.subDepartment?.id || location.state?.subDepartmentId;
+        const positionId = location.state?.position?.id || location.state?.positionId;
+        
+        if (departmentId && subDepartmentId) {
+          // Build full breadcrumb path with all levels
+          breadcrumbs.push(
+            { name: companyName, path: '/departments' },
+            { name: deptName, path: `/company-resources/departments/${departmentId}/sub-departments` },
+            { name: subDeptName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}/positions` },
+            { name: positionName, path: `/company-resources/departments/${departmentId}/sub-departments/${subDepartmentId}/positions` },
+            { name: 'Employees', path: '/employees' }
+          );
+        } else {
+          // Fallback: use names but navigate to departments with company context
+          breadcrumbs.push(
+            { name: companyName, path: '/departments' },
+            { name: deptName, path: '/departments' },
+            { name: subDeptName, path: '/departments' },
+            { name: positionName, path: '/departments' },
+            { name: 'Employees', path: '/employees' }
+          );
+        }
+      } else {
+        // No context available, show minimal breadcrumbs
+        breadcrumbs.push(
+          { name: companyName, path: '/departments' },
+          { name: 'Employees', path: '/employees' }
+        );
+      }
     }
 
     return breadcrumbs;
@@ -124,7 +162,22 @@ const Breadcrumbs = ({ names = {} }) => {
 
   const handleBreadcrumbClick = (breadcrumb) => {
     if (breadcrumb.path !== location.pathname) {
-      navigate(breadcrumb.path);
+      // If navigating to /departments and we have company info, preserve it in state
+      if (breadcrumb.path === '/departments' && company) {
+        navigate(breadcrumb.path, { state: { selectedCompany: company } });
+      } 
+      // If navigating to department/subdepartment/position paths, preserve context from location.state
+      else if (breadcrumb.path.includes('/company-resources/departments/') && location.state) {
+        // Preserve the navigation state when navigating back
+        navigate(breadcrumb.path, { state: location.state });
+      }
+      // If navigating from employees page, preserve the full context
+      else if (location.pathname === '/employees' && location.state) {
+        navigate(breadcrumb.path, { state: location.state });
+      }
+      else {
+        navigate(breadcrumb.path);
+      }
     }
   };
 

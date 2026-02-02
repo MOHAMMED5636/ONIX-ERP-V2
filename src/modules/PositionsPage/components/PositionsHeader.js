@@ -104,7 +104,7 @@ const PositionsHeader = ({
               </div>
               <input
                 type="text"
-                placeholder="Search positions by name, description, manager, salary, requirements, status, or ID..."
+                placeholder="Search positions by name, description, manager, requirements, status, or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-gray-700 placeholder-gray-400"

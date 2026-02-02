@@ -161,19 +161,96 @@ export default function TaskList() {
     }
   }, [location.state, navigate, location.pathname]);
 
-  // Simulate loading and fetch stats
+  // Calculate stats from actual tasks
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setStats({
-        total: 156,
-        completed: 89,
-        inProgress: 42,
-        pending: 25
-      });
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    const calculateStats = () => {
+      try {
+        // Get tasks from localStorage (same source as MainTable)
+        const savedTasks = localStorage.getItem('projectTasks');
+        let tasks = [];
+        
+        if (savedTasks) {
+          tasks = JSON.parse(savedTasks);
+        }
+        
+        // If no tasks, set all stats to 0
+        if (!tasks || tasks.length === 0) {
+          setStats({
+            total: 0,
+            completed: 0,
+            inProgress: 0,
+            pending: 0
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Calculate stats from actual tasks
+        const total = tasks.length;
+        const completed = tasks.filter(task => {
+          const status = task.status?.toLowerCase();
+          return status === 'done' || status === 'completed' || status === 'COMPLETED';
+        }).length;
+        const inProgress = tasks.filter(task => {
+          const status = task.status?.toLowerCase();
+          return status === 'in progress' || status === 'in_progress' || status === 'IN_PROGRESS' || status === 'working';
+        }).length;
+        const pending = tasks.filter(task => {
+          const status = task.status?.toLowerCase();
+          return status === 'pending' || status === 'PENDING' || status === 'open' || status === 'OPEN' || 
+                 status === 'not started' || status === 'to do' || !status;
+        }).length;
+        
+        setStats({
+          total,
+          completed,
+          inProgress,
+          pending
+        });
+      } catch (error) {
+        console.error('Error calculating stats:', error);
+        // On error, set to 0
+        setStats({
+          total: 0,
+          completed: 0,
+          inProgress: 0,
+          pending: 0
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Initial calculation
+    const timer = setTimeout(calculateStats, 1000);
+    
+    // Listen for dashboard refresh events from MainTable
+    const handleDashboardRefresh = () => {
+      calculateStats();
+    };
+    
+    window.addEventListener('dashboardRefresh', handleDashboardRefresh);
+    
+    // Also listen for storage changes (when tasks are updated)
+    const handleStorageChange = (e) => {
+      if (e.key === 'projectTasks') {
+        calculateStats();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Poll localStorage periodically to catch changes from same window
+    const interval = setInterval(() => {
+      calculateStats();
+    }, 2000); // Check every 2 seconds
+    
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener('dashboardRefresh', handleDashboardRefresh);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   return (

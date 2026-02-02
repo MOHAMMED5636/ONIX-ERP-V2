@@ -1,6 +1,7 @@
 import React from 'react';
 import ProfileForm from '../components/ProfileForm';
 import DocumentManagement from '../components/DocumentManagement';
+import CustomizationPreferencesSection from '../components/CustomizationPreferencesSection';
 import { useAuth } from '../contexts/AuthContext';
 
 function Settings() {
@@ -24,6 +25,9 @@ function Settings() {
           </p>
           <ProfileForm />
         </div>
+
+        {/* Customization & Preferences (Admin Profile) - all users see; only Admin can edit */}
+        <CustomizationPreferencesSection />
 
         {/* Admin Documents Section */}
         {isAdmin && (

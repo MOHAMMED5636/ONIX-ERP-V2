@@ -91,25 +91,6 @@ const CreatePositionModal = ({
               </div>
             </div>
 
-            {/* Salary Field */}
-            <div className="group">
-              <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
-                <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                Salary
-              </label>
-              <div className="relative">
-                <input 
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 text-sm bg-white shadow-sm" 
-                  placeholder="e.g., $150,000" 
-                  value={newPosition.salary} 
-                  onChange={e => setNewPosition(f => ({ ...f, salary: e.target.value }))} 
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity duration-200"></div>
-                </div>
-              </div>
-            </div>
-
             {/* Requirements Field */}
             <div className="group">
               <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">

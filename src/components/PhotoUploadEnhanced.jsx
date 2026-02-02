@@ -26,7 +26,7 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
     if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:')) {
       return photo;
     }
-    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.54:3001/api';
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
     let BACKEND_URL = API_BASE_URL;
     if (BACKEND_URL.endsWith('/api')) {
       BACKEND_URL = BACKEND_URL.slice(0, -4);

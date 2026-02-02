@@ -4,8 +4,9 @@ import { initialFormState, steps, companyLocations } from '../constants';
 import { validateStep, createFormHandlers, formatPhoneForSubmission } from '../utils';
 import { EmployeeFormProvider } from '../context';
 import FormStep0 from './FormStep0';
+import { getEmployees } from '../../../services/employeeAPI';
 
-const EmployeeForm = ({ onBack, onSaveEmployee, jobTitles, attendancePrograms, employeesList }) => {
+const EmployeeForm = ({ onBack, onSaveEmployee, jobTitles, attendancePrograms, employeesList: propEmployeesList }) => {
   const [step, setStep] = useState(0);
   const { selectedCompany, selectedDepartment } = useCompanySelection();
   
@@ -21,6 +22,8 @@ const EmployeeForm = ({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
   const [userAccountFields, setUserAccountFields] = useState({ username: '', password: '', passwordConfirm: '' });
   const [openLegalSection, setOpenLegalSection] = useState('');
   const [nationalityDropdownOpen, setNationalityDropdownOpen] = useState(false);
+  const [employeesList, setEmployeesList] = useState(propEmployeesList || []);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   // Context value
   const ctxValue = { form, setForm };
@@ -38,6 +41,34 @@ const EmployeeForm = ({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [nationalityDropdownOpen]);
+
+  // Load employees for manager selection
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoadingEmployees(true);
+        const response = await getEmployees();
+        if (response.success && response.data) {
+          const employeesList = response.data.map(emp => ({
+            id: emp.id,
+            name: `${emp.firstName} ${emp.lastName}`,
+            email: emp.email,
+          }));
+          setEmployeesList(employeesList);
+        }
+      } catch (error) {
+        console.error('Error loading employees:', error);
+        // Use prop list as fallback
+        if (propEmployeesList) {
+          setEmployeesList(propEmployeesList);
+        }
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+
+    loadEmployees();
+  }, [propEmployeesList]);
 
   // Update form when selected company or department changes
   useEffect(() => {
@@ -296,16 +327,24 @@ const EmployeeForm = ({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                 {errors.jobTitle && <div className="text-red-500 text-xs">{errors.jobTitle}</div>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Manager</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Line Manager</label>
                 <select 
                   className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" 
                   value={form.manager} 
                   onChange={e => handlers.handleChange('manager', e.target.value)}
                 >
-                  <option value="">Select manager</option>
-                  {employeesList?.map(emp => (
-                    <option key={emp.id} value={emp.name}>{emp.name}</option>
-                  ))}
+                  <option value="">Select line manager</option>
+                  {loadingEmployees ? (
+                    <option disabled>Loading employees...</option>
+                  ) : employeesList && employeesList.length > 0 ? (
+                    employeesList.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} {emp.email ? `(${emp.email})` : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>No employees available</option>
+                  )}
                 </select>
                 {errors.manager && <div className="text-red-500 text-xs">{errors.manager}</div>}
               </div>
