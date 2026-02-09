@@ -12,22 +12,24 @@ const fetchWithTimeout = (url, options, timeout = 10000) => {
 };
 
 /**
- * Login user with email, password, and role
+ * Login user with email and password (single login for Admin and Employee).
+ * Backend returns user role; no role required in request.
  * @param {string} email - User email
  * @param {string} password - User password
- * @param {string} role - User role (ADMIN, TENDER_ENGINEER, PROJECT_MANAGER, CONTRACTOR)
- * @returns {Promise} Login response with token and user data
+ * @param {string} [role] - Optional: if provided, backend validates user has this role
+ * @returns {Promise} Login response with token, user (id, role, employeeId, permissions)
  */
-
 export const login = async (email, password, role) => {
   try {
+    const body = { email, password };
+    if (role) body.role = role;
     const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify({ email, password, role }),
+      body: JSON.stringify(body),
     }, 10000); // 10 second timeout
 
     // Check if response is ok before parsing JSON

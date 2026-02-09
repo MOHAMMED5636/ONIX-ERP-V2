@@ -75,15 +75,21 @@ export const clearAuth = () => {
   localStorage.removeItem('userRole');
 };
 
-// Get redirect path based on role
+// Get redirect path based on role (unified login: Admin ERP vs Employee ERP)
 export const getRoleRedirectPath = (role) => {
   switch (role) {
     case ROLES.ADMIN:
       return '/dashboard';
     case ROLES.TENDER_ENGINEER:
       return '/erp/tender/dashboard';
+    case 'HR':
+    case 'PROJECT_MANAGER':
+    case 'CONTRACTOR':
+      return '/dashboard';
+    case 'EMPLOYEE':
+      return '/employee/dashboard';
     default:
-      return '/login';
+      return '/dashboard';
   }
 };
 

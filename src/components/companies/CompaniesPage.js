@@ -118,12 +118,29 @@ export default function CompaniesPage() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this company?")) {
+    const company = companies.find(c => c.id === id);
+    const companyName = company?.name || 'this company';
+    
+    const confirmMessage = `⚠️ WARNING: Deleting "${companyName}" will permanently delete:\n\n` +
+      `• The company\n` +
+      `• All employees associated with this company\n` +
+      `• All departments belonging to this company\n\n` +
+      `This action cannot be undone!\n\n` +
+      `Are you sure you want to proceed?`;
+    
+    if (window.confirm(confirmMessage)) {
       try {
-        await deleteCompanyAPI(id);
+        const response = await deleteCompanyAPI(id);
         // Reload companies after deletion
         await loadCompanies();
         await loadStats();
+        
+        // Show success message with employee deletion count
+        if (response?.deletedEmployees !== undefined) {
+          alert(`Company "${companyName}" deleted successfully.\n${response.deletedEmployees} employee(s) were also deleted.`);
+        } else {
+          alert(`Company "${companyName}" deleted successfully.`);
+        }
       } catch (err) {
         console.error('Error deleting company:', err);
         alert('Failed to delete company: ' + (err.message || 'Unknown error'));

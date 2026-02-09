@@ -60,6 +60,53 @@ class ContractsAPI {
     }
   }
 
+  // Get contract by reference number
+  static async getContractByReferenceNumber(referenceNumber) {
+    try {
+      if (!referenceNumber || !referenceNumber.trim()) {
+        console.log('⚠️ Empty reference number provided');
+        return { success: false, data: null };
+      }
+
+      const refNum = referenceNumber.trim();
+      const url = `${API_BASE_URL}/contracts/by-reference?referenceNumber=${encodeURIComponent(refNum)}`;
+      console.log('📡 Fetching contract from:', url);
+      console.log('🔑 Token exists:', !!localStorage.getItem('token'));
+
+      // Use the dedicated /by-reference endpoint for exact matching
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      console.log('📥 Response status:', response.status, response.statusText);
+
+      const result = await response.json();
+      console.log('✅ Contract API response:', result);
+      
+      // Backend returns:
+      // - { success: true, data: contract, projectData: {...}, message: "..." } when found
+      // - { success: false, data: null, message: "..." } when not found (status 200)
+      // - { success: false, ... } with error status codes
+      
+      if (!response.ok) {
+        // If HTTP error status (not 200), throw error
+        console.error('❌ HTTP Error:', response.status, result);
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      // Return the result (which includes success, data, projectData, message)
+      return result;
+    } catch (error) {
+      console.error('❌ Error fetching contract by reference number:', error);
+      // Return error format that frontend expects
+      return { success: false, data: null, error: error.message };
+    }
+  }
+
   // Create a new contract
   static async createContract(contractData, contractDocument = null, attachmentFiles = []) {
     try {
@@ -97,15 +144,22 @@ class ContractsAPI {
           });
         }
         
-        // Append all other fields
+        // Always append critical fields so backend never misses them
+        if (contractData.title != null && contractData.title !== '') {
+          formData.append('title', String(contractData.title));
+        }
+        if (contractData.status != null && contractData.status !== '') {
+          formData.append('status', String(contractData.status));
+        }
+        // Append all other fields (primitives as string so server gets consistent types)
         Object.keys(contractData).forEach(key => {
+          if (key === 'title' || key === 'status') return; // already appended
           const value = contractData[key];
           if (value !== null && value !== undefined && value !== '') {
             if (typeof value === 'object' && !(value instanceof File)) {
-              // Stringify objects/arrays
               formData.append(key, JSON.stringify(value));
             } else {
-              formData.append(key, value);
+              formData.append(key, typeof value === 'number' ? String(value) : value);
             }
           }
         });
@@ -272,6 +326,29 @@ class ContractsAPI {
       return await response.json();
     } catch (error) {
       console.error('Error deleting contract:', error);
+      throw error;
+    }
+  }
+
+  // Load Out: Create project from contract
+  static async loadOutContract(contractId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/contracts/${contractId}/load-out`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error loading out contract:', error);
       throw error;
     }
   }

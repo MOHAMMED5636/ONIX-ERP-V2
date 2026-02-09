@@ -25,7 +25,10 @@ export default function CreateCompanyPage() {
     issueDate: "",
     mainLicenseNo: "",
     dcciNo: "",
-    trnNumber: ""
+    trnNumber: "",
+    officeLatitude: "",
+    officeLongitude: "",
+    attendanceRadius: "200"
   });
   
   const [contacts, setContacts] = useState([]);
@@ -143,7 +146,10 @@ export default function CreateCompanyPage() {
         issueDate: formatDate(isEditMode.issueDate),
         mainLicenseNo: isEditMode.mainLicenseNo || "",
         dcciNo: isEditMode.dcciNo || "",
-        trnNumber: isEditMode.trnNumber || ""
+        trnNumber: isEditMode.trnNumber || "",
+        officeLatitude: isEditMode.officeLatitude != null ? String(isEditMode.officeLatitude) : "",
+        officeLongitude: isEditMode.officeLongitude != null ? String(isEditMode.officeLongitude) : "",
+        attendanceRadius: isEditMode.attendanceRadius != null ? String(isEditMode.attendanceRadius) : "200"
       };
 
       console.log('📝 Setting form data:', formData);
@@ -251,6 +257,9 @@ export default function CreateCompanyPage() {
         header: getFileValue(form.header),
         footer: getFileValue(form.footer),
         employees: 0, // Default, can be updated later
+        officeLatitude: form.officeLatitude ? parseFloat(form.officeLatitude) : null,
+        officeLongitude: form.officeLongitude ? parseFloat(form.officeLongitude) : null,
+        attendanceRadius: form.attendanceRadius ? parseInt(form.attendanceRadius, 10) : null,
       };
       
       console.log('📝 Submitting company data:', {
@@ -536,6 +545,50 @@ export default function CreateCompanyPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Office location (for attendance check-in) */}
+              <div className="mt-6 group">
+                <label className="block text-sm font-semibold text-gray-700 mb-3 group-hover:text-blue-600 transition-colors">
+                  Office location (attendance)
+                </label>
+                <p className="text-sm text-gray-500 mb-3">
+                  Set coordinates so employees can check in only when near the office. Leave empty to disable location-based attendance.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Latitude</label>
+                    <input
+                      type="text"
+                      value={form.officeLatitude}
+                      onChange={(e) => setForm(prev => ({ ...prev, officeLatitude: e.target.value }))}
+                      placeholder="e.g. 25.2048"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Longitude</label>
+                    <input
+                      type="text"
+                      value={form.officeLongitude}
+                      onChange={(e) => setForm(prev => ({ ...prev, officeLongitude: e.target.value }))}
+                      placeholder="e.g. 55.2708"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Radius (meters)</label>
+                    <input
+                      type="number"
+                      min="50"
+                      max="2000"
+                      value={form.attendanceRadius}
+                      onChange={(e) => setForm(prev => ({ ...prev, attendanceRadius: e.target.value }))}
+                      placeholder="200"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
                   </div>
                 </div>
               </div>

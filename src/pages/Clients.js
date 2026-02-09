@@ -35,6 +35,11 @@ const Clients = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [viewModalEditMode, setViewModalEditMode] = useState(false);
+  const [editFormData, setEditFormData] = useState(null);
+  const [editDocumentRows, setEditDocumentRows] = useState([]);
+  const [savingClient, setSavingClient] = useState(false);
+  const [editError, setEditError] = useState('');
   const [createUserAccount, setCreateUserAccount] = useState(false);
   const [userAccount, setUserAccount] = useState({
     username: '',
@@ -44,6 +49,10 @@ const Clients = () => {
   const [documents, setDocuments] = useState([]);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  // Multiple documents in table form (like Contract upload)
+  const [clientDocumentRows, setClientDocumentRows] = useState([
+    { id: 1, documentType: '', file: null, fileName: '' },
+  ]);
   const [clientType, setClientType] = useState('');
   const [clientFormData, setClientFormData] = useState({
     name: '',
@@ -165,13 +174,130 @@ const Clients = () => {
 
   const handleViewClient = (client) => {
     setSelectedClient(client);
+    setViewModalEditMode(false);
+    setEditFormData(null);
+    setEditError('');
     setShowViewModal(true);
+  };
+
+  const handleStartEditClient = () => {
+    if (!selectedClient) return;
+    const c = selectedClient;
+    const formatDate = (d) => {
+      if (!d) return '';
+      const date = new Date(d);
+      return isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+    };
+    setEditFormData({
+      name: c.name || '',
+      referenceNumber: c.referenceNumber || '',
+      isCorporate: c.isCorporate || 'Person',
+      rank: c.rank || '',
+      email: c.email || '',
+      phone: c.phone || '',
+      address: c.address || '',
+      nationality: c.nationality || '',
+      idNumber: c.idNumber || '',
+      idExpiryDate: formatDate(c.idExpiryDate || c.idEndDate),
+      passportNumber: c.passportNumber || '',
+      birthDate: formatDate(c.birthDate),
+      leadSource: c.leadSource || '',
+    });
+    // Load existing document attachments into edit rows (3-column table)
+    let existing = [];
+    try {
+      const raw = c.documentAttachments;
+      if (typeof raw === 'string' && raw) existing = JSON.parse(raw) || [];
+      else if (Array.isArray(raw)) existing = raw;
+    } catch (_) {}
+    const rows = existing.length
+      ? existing.map((att, i) => ({
+          id: `existing-${i}-${att.path || ''}`,
+          documentType: att.documentType || 'DOC',
+          path: att.path,
+          originalName: att.originalName || '',
+          file: null,
+          fileName: '',
+        }))
+      : [{ id: Date.now(), documentType: '', path: null, originalName: '', file: null, fileName: '' }];
+    setEditDocumentRows(rows);
+    setViewModalEditMode(true);
+    setEditError('');
+  };
+
+  const handleEditFormChange = (field, value) => {
+    setEditFormData((prev) => (prev ? { ...prev, [field]: value } : null));
+  };
+
+  const handleCancelEdit = () => {
+    setViewModalEditMode(false);
+    setEditFormData(null);
+    setEditDocumentRows([]);
+    setEditError('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedClient || !editFormData) return;
+    setSavingClient(true);
+    setEditError('');
+    try {
+      const payload = {
+        name: editFormData.name?.trim(),
+        isCorporate: editFormData.isCorporate,
+        leadSource: editFormData.leadSource || null,
+        rank: editFormData.rank || null,
+        email: editFormData.email?.trim() || null,
+        phone: editFormData.phone?.trim() || null,
+        address: editFormData.address?.trim() || null,
+        nationality: editFormData.nationality || null,
+        idNumber: editFormData.idNumber?.trim() || null,
+        idExpiryDate: editFormData.idExpiryDate || null,
+        passportNumber: editFormData.passportNumber?.trim() || null,
+        birthDate: editFormData.birthDate || null,
+      };
+      const existingAttachments = editDocumentRows
+        .filter((r) => r.path && !r.file)
+        .map((r) => ({ documentType: r.documentType || 'DOC', path: r.path, originalName: r.originalName || '' }));
+      const newFileRows = editDocumentRows.filter((r) => r.file instanceof File);
+      const hasNewFiles = newFileRows.length > 0;
+      let response;
+      if (hasNewFiles) {
+        const formData = new FormData();
+        Object.keys(payload).forEach((key) => {
+          const v = payload[key];
+          if (v !== null && v !== undefined && v !== '') formData.append(key, String(v));
+        });
+        formData.append('existingDocumentAttachments', JSON.stringify(existingAttachments));
+        formData.append('documentTypes', JSON.stringify(newFileRows.map((r) => r.documentType || 'DOC')));
+        newFileRows.forEach((r) => formData.append('documents', r.file));
+        response = await ClientsAPI.updateClient(selectedClient.id, formData);
+      } else {
+        const body = { ...payload, existingDocumentAttachments: JSON.stringify(existingAttachments) };
+        response = await ClientsAPI.updateClient(selectedClient.id, body);
+      }
+      if (response?.success && response?.data) {
+        setSelectedClient(response.data);
+        setClients((prev) => prev.map((c) => (c.id === selectedClient.id ? response.data : c)));
+        setFilteredClients((prev) => prev.map((c) => (c.id === selectedClient.id ? response.data : c)));
+        setViewModalEditMode(false);
+        setEditFormData(null);
+        setEditDocumentRows([]);
+      } else {
+        setEditError(response?.message || 'Failed to update client');
+      }
+    } catch (err) {
+      setEditError(err?.message || 'Failed to update client');
+    } finally {
+      setSavingClient(false);
+    }
   };
 
   const handleEditClient = (client) => {
     setSelectedClient(client);
-    // For now, just show an alert - edit modal can be implemented later
-    alert(`Edit functionality for ${client.name} will be implemented soon.`);
+    setShowViewModal(true);
+    setViewModalEditMode(false);
+    setEditFormData(null);
+    setTimeout(() => handleStartEditClient(), 0);
   };
 
   const handleAddClient = async (e) => {
@@ -229,20 +355,17 @@ const Clients = () => {
         birthDate: clientFormData.birthDate || null,
       };
 
-      // Handle document upload if there's a document
-      let formDataToSend;
-      if (documents.length > 0 && documents[0] instanceof File) {
-        // Use FormData for file upload
-        formDataToSend = new FormData();
-        formDataToSend.append('document', documents[0]);
-        Object.keys(clientData).forEach(key => {
-          if (clientData[key] !== null && clientData[key] !== undefined) {
-            formDataToSend.append(key, clientData[key]);
-          }
-        });
-      } else {
-        // Use JSON for regular data
-        formDataToSend = clientData;
+      // Build FormData: client fields + multiple documents (table form like Contract)
+      const rowsWithFiles = clientDocumentRows.filter((r) => r.file instanceof File);
+      const formDataToSend = new FormData();
+      Object.keys(clientData).forEach((key) => {
+        if (clientData[key] !== null && clientData[key] !== undefined && clientData[key] !== '') {
+          formDataToSend.append(key, clientData[key]);
+        }
+      });
+      if (rowsWithFiles.length > 0) {
+        formDataToSend.append('documentTypes', JSON.stringify(rowsWithFiles.map((r) => r.documentType || 'DOC')));
+        rowsWithFiles.forEach((r) => formDataToSend.append('documents', r.file));
       }
 
       // Call API to create client
@@ -257,6 +380,7 @@ const Clients = () => {
         setUserAccount({ username: '', password: '', confirmPassword: '' });
         setDocuments([]);
         setUploadedDocuments([]);
+        setClientDocumentRows([{ id: 1, documentType: '', file: null, fileName: '' }]);
         setClientType('');
         setClientFormData({
           name: '',
@@ -284,7 +408,7 @@ const Clients = () => {
         // Show success message
         const message = 'Client created successfully!' + 
           (createUserAccount ? ' User account has been created and credentials will be sent via email.' : '') +
-          (uploadedDocuments.length > 0 ? ` ${uploadedDocuments.length} document(s) uploaded.` : '');
+          (rowsWithFiles.length > 0 ? ` ${rowsWithFiles.length} document(s) uploaded.` : '');
         alert(message);
         
         // Refresh clients list by calling fetchClients
@@ -311,6 +435,7 @@ const Clients = () => {
     setUserAccount({ username: '', password: '', confirmPassword: '' });
     setDocuments([]);
     setUploadedDocuments([]);
+    setClientDocumentRows([{ id: 1, documentType: '', file: null, fileName: '' }]);
     setClientType('');
     setClientFormData({
       name: '',
@@ -400,14 +525,44 @@ const Clients = () => {
   };
 
   const removeDocumentFromPreview = (docId) => {
-    // Remove from both documents and uploadedDocuments
     const docToRemove = uploadedDocuments.find(doc => doc.id === docId);
     if (docToRemove) {
-      // Remove from documents array by file name
       setDocuments(prev => prev.filter(doc => doc.name !== docToRemove.fileName));
-      // Remove from uploaded documents
       setUploadedDocuments(prev => prev.filter(doc => doc.id !== docId));
     }
+  };
+
+  // Multiple documents table (like Contract upload)
+  const CLI_DOC_TYPES = DOCUMENT_TYPES_MASTER.filter((d) => d.module === 'CLI');
+  const addClientDocumentRow = () => {
+    setClientDocumentRows((prev) => [
+      ...prev,
+      { id: Date.now(), documentType: '', file: null, fileName: '' },
+    ]);
+  };
+  const removeClientDocumentRow = (id) => {
+    setClientDocumentRows((prev) => prev.filter((r) => r.id !== id));
+  };
+  const setClientDocumentRow = (id, field, value) => {
+    setClientDocumentRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
+  };
+
+  // Edit modal document rows (3-column table)
+  const addEditDocumentRow = () => {
+    setEditDocumentRows((prev) => [
+      ...prev,
+      { id: Date.now(), documentType: '', path: null, originalName: '', file: null, fileName: '' },
+    ]);
+  };
+  const removeEditDocumentRow = (id) => {
+    setEditDocumentRows((prev) => prev.filter((r) => r.id !== id));
+  };
+  const setEditDocumentRow = (id, field, value) => {
+    setEditDocumentRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
   };
 
   const uploadDocuments = async () => {
@@ -1286,25 +1441,94 @@ const Clients = () => {
                   )}
                 </div>
 
-                {/* Documents Section */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200" style={{backgroundColor: '#ff0000', minHeight: '200px'}}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                {/* Documents Section - Multiple documents in table form (like Contract upload) */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Upload Documents</h3>
+                      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded">
+                        {clientDocumentRows.filter((r) => r.file).length} file(s)
+                      </span>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Upload Documents</h3>
+                    <button
+                      type="button"
+                      onClick={addClientDocumentRow}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg transition"
+                    >
+                      <PlusIcon className="w-4 h-4" /> Add document
+                    </button>
                   </div>
-                  
-                  <div className="bg-white rounded-lg p-4 border border-green-200">
-                    <DocumentUploadForm 
-                      onSubmit={handleDocumentUpload}
-                      onCancel={handleCloseAddModal}
-                      defaultModule="CLI"
-                      clientReferenceNumber={`CLI-${Date.now()}`}
-                    />
+                  <div className="bg-white rounded-lg border border-green-200 overflow-hidden">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-green-50 border-b border-green-200">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Document Type</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">File</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Size</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 w-20">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientDocumentRows.map((row) => (
+                          <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-2 px-4">
+                              <select
+                                value={row.documentType}
+                                onChange={(e) => setClientDocumentRow(row.id, 'documentType', e.target.value)}
+                                className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              >
+                                <option value="">Select type</option>
+                                {CLI_DOC_TYPES.map((d) => (
+                                  <option key={d.code} value={d.code}>{d.label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="py-2 px-4">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <span className="text-sm text-gray-600 border border-gray-300 rounded px-2 py-1.5 hover:bg-gray-50">
+                                  {row.fileName || 'Choose file'}
+                                </span>
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    setClientDocumentRows((prev) =>
+                                      prev.map((r) =>
+                                        r.id === row.id
+                                          ? { ...r, file: f || null, fileName: f ? f.name : '' }
+                                          : r
+                                      )
+                                    );
+                                  }}
+                                />
+                              </label>
+                            </td>
+                            <td className="py-2 px-4 text-sm text-gray-600">
+                              {row.file ? formatFileSize(row.file.size) : '—'}
+                            </td>
+                            <td className="py-2 px-4">
+                              <button
+                                type="button"
+                                onClick={() => removeClientDocumentRow(row.id)}
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                                title="Remove"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">PDF, Word, Excel, images. Max 10MB per file. Add multiple rows for multiple documents.</p>
                 </div>
 
                 {/* Form Actions */}
@@ -1332,134 +1556,356 @@ const Clients = () => {
       {/* View Client Modal */}
       {showViewModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowViewModal(false)}></div>
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => !viewModalEditMode && setShowViewModal(false)}></div>
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Client Details</h2>
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                {!viewModalEditMode ? (
+                  <button
+                    onClick={handleStartEditClient}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  >
+                    <PencilIcon className="w-4 h-4" /> Edit
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => { setViewModalEditMode(false); setEditFormData(null); setShowViewModal(false); }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
             </div>
             <div className="p-6 overflow-y-auto flex-1 pb-8">
-              {/* Three-Section Layout */}
-              <div className="space-y-8">
-                
-                {/* Section 1: Basic Information */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">1</span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Reference Number</label>
-                      <p className="text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border">{selectedClient.referenceNumber}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Name</label>
-                      <p className="text-sm text-gray-900 font-semibold bg-white px-3 py-2 rounded border">{selectedClient.name}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Type</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.isCorporate}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Rank</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.rank}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">ID Number</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.idNumber || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">ID Expiry Date</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.idEndDate || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Nationality</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.nationality || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Passport Number</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.passportNumber || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Birth Date</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.birthDate || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 2: Contact Information */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">2</span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">📧 Email</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.email}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">📞 Phone</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.phone}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-sm font-medium text-gray-700">📍 Address</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border min-h-[60px]">{selectedClient.address}</p>
+              {viewModalEditMode && editFormData ? (
+                /* Edit form */
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} className="space-y-8">
+                  {editError && <div className="text-red-600 text-sm bg-red-50 px-3 py-2 rounded">{editError}</div>}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Reference Number</label>
+                        <input type="text" readOnly className="w-full text-sm font-mono bg-gray-100 px-3 py-2 rounded border border-gray-200" value={editFormData.referenceNumber} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Name *</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.name} onChange={(e) => handleEditFormChange('name', e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Type</label>
+                        <select className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.isCorporate} onChange={(e) => handleEditFormChange('isCorporate', e.target.value)}>
+                          <option value="Person">Person</option>
+                          <option value="Company">Company</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Rank</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.rank} onChange={(e) => handleEditFormChange('rank', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">ID Number</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.idNumber} onChange={(e) => handleEditFormChange('idNumber', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">ID Expiry Date</label>
+                        <input type="date" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.idExpiryDate} onChange={(e) => handleEditFormChange('idExpiryDate', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Nationality</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.nationality} onChange={(e) => handleEditFormChange('nationality', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Passport Number</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.passportNumber} onChange={(e) => handleEditFormChange('passportNumber', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Birth Date</label>
+                        <input type="date" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.birthDate} onChange={(e) => handleEditFormChange('birthDate', e.target.value)} />
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Section 3: Business Information */}
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">3</span>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.email} onChange={(e) => handleEditFormChange('email', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Phone</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.phone} onChange={(e) => handleEditFormChange('phone', e.target.value)} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-sm font-medium text-gray-700">Address</label>
+                        <textarea className="w-full text-sm px-3 py-2 rounded border border-gray-200 min-h-[60px]" value={editFormData.address} onChange={(e) => handleEditFormChange('address', e.target.value)} />
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Business Information</h3>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Lead Source</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.leadSource}</p>
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Lead Source</label>
+                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.leadSource} onChange={(e) => handleEditFormChange('leadSource', e.target.value)} />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Client Since</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.createdAt || 'N/A'}</p>
+                  </div>
+                  {/* Edit: Upload Documents - 3 columns */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Upload Documents</h3>
+                      <button
+                        type="button"
+                        onClick={addEditDocumentRow}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg transition"
+                      >
+                        <PlusIcon className="w-4 h-4" /> Add document
+                      </button>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Status</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.status || 'Active'}</p>
+                    <div className="bg-white rounded-lg border border-green-200 overflow-hidden">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-green-50 border-b border-green-200">
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Document Type</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">File</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 w-20">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {editDocumentRows.map((row) => (
+                            <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-2 px-4">
+                                <select
+                                  value={row.documentType}
+                                  onChange={(e) => setEditDocumentRow(row.id, 'documentType', e.target.value)}
+                                  className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                >
+                                  <option value="">Select type</option>
+                                  {CLI_DOC_TYPES.map((d) => (
+                                    <option key={d.code} value={d.code}>{d.label}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="py-2 px-4">
+                                {row.path && !row.file ? (
+                                  <span className="text-sm text-gray-600">{row.originalName || row.path}</span>
+                                ) : (
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <span className="text-sm text-gray-600 border border-gray-300 rounded px-2 py-1.5 hover:bg-gray-50">
+                                      {row.fileName || 'Choose file'}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        setEditDocumentRows((prev) =>
+                                          prev.map((r) =>
+                                            r.id === row.id
+                                              ? { ...r, file: f || null, fileName: f ? f.name : '', path: null, originalName: '' }
+                                              : r
+                                          )
+                                        );
+                                      }}
+                                    />
+                                  </label>
+                                )}
+                              </td>
+                              <td className="py-2 px-4">
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditDocumentRow(row.id)}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                                  title="Remove"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Priority</label>
-                      <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.priority || 'Medium'}</p>
+                    <p className="text-xs text-gray-500 mt-2">Add or replace documents. Existing files are kept until you remove the row or upload a new file.</p>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                    <button type="button" onClick={handleCancelEdit} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
+                    <button type="submit" disabled={savingClient} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                      {savingClient ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Read-only view */
+                <div className="space-y-8">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">1</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
                     </div>
-                    {selectedClient.isCorporate === 'Company' && (
-                      <>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">TRN Number</label>
-                          <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.trnNumber || 'N/A'}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Reference Number</label>
+                        <p className="text-sm text-gray-900 font-mono bg-white px-3 py-2 rounded border">{selectedClient.referenceNumber}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Name</label>
+                        <p className="text-sm text-gray-900 font-semibold bg-white px-3 py-2 rounded border">{selectedClient.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Type</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.isCorporate}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Rank</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.rank}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">ID Number</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.idNumber || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">ID Expiry Date</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.idExpiryDate ? new Date(selectedClient.idExpiryDate).toLocaleDateString() : (selectedClient.idEndDate || 'N/A')}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Nationality</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.nationality || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Passport Number</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.passportNumber || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Birth Date</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.birthDate ? new Date(selectedClient.birthDate).toLocaleDateString() : 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">2</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">📧 Email</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.email}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">📞 Phone</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.phone}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-sm font-medium text-gray-700">📍 Address</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border min-h-[60px]">{selectedClient.address || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">3</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Business Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Lead Source</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.leadSource || '—'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Client Since</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.createdAt ? new Date(selectedClient.createdAt).toLocaleDateString() : 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Status</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.status || 'Active'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Priority</label>
+                        <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.priority || 'Medium'}</p>
+                      </div>
+                      {selectedClient.isCorporate === 'Company' && (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">TRN Number</label>
+                            <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.trnNumber || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">IBAN Number</label>
+                            <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.ibanNumber || 'N/A'}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {/* Documents section - 3 columns */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">4</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+                    </div>
+                    {(() => {
+                      let docs = [];
+                      try {
+                        const raw = selectedClient.documentAttachments;
+                        if (typeof raw === 'string' && raw) docs = JSON.parse(raw) || [];
+                        else if (Array.isArray(raw)) docs = raw;
+                      } catch (_) {}
+                      if (docs.length === 0) {
+                        return <p className="text-sm text-gray-600">No documents uploaded.</p>;
+                      }
+                      // Use backend root for static files (uploads are at /uploads/..., not /api/uploads/...)
+                      const backendRoot = (process.env.REACT_APP_API_URL || 'http://localhost:3001').replace(/\/api\/?$/, '');
+                      return (
+                        <div className="bg-white rounded-lg border border-green-200 overflow-hidden">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="bg-green-50 border-b border-green-200">
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Document Type</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">File Name</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 w-24">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {docs.map((doc, idx) => (
+                                <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="py-2 px-4 text-sm text-gray-900">{doc.documentType || '—'}</td>
+                                  <td className="py-2 px-4 text-sm text-gray-900">{doc.originalName || doc.path || '—'}</td>
+                                  <td className="py-2 px-4">
+                                    {doc.path ? (
+                                      <a
+                                        href={`${backendRoot}${doc.path}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline text-sm"
+                                      >
+                                        View
+                                      </a>
+                                    ) : (
+                                      <span className="text-gray-400 text-sm">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">IBAN Number</label>
-                          <p className="text-sm text-gray-900 bg-white px-3 py-2 rounded border">{selectedClient.ibanNumber || 'N/A'}</p>
-                        </div>
-                      </>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
-
-              </div>
+              )}
             </div>
           </div>
         </div>

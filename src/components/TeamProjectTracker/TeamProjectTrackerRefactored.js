@@ -162,7 +162,7 @@ export default function TeamProjectTrackerRefactored() {
     { key: 'community', label: 'COMMUNITY' },
     { key: 'projectType', label: 'PROJECT TYPE' },
     { key: 'projectFloor', label: 'PROJECT FLOOR' },
-    { key: 'developerProject', label: 'DEVELOPER PROJECT' },
+    { key: 'developerProject', label: 'DEVELOPER NAME' },
     { key: 'autoNumber', label: 'AUTO #' },
     { key: 'predecessors', label: 'PREDECESSORS' },
     { key: 'checklist', label: 'CHECKLIST' },

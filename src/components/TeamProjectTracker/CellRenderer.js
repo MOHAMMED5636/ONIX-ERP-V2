@@ -19,7 +19,7 @@ const CellRenderer = {
       case "task":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm font-bold text-gray-900"
+            className="border rounded px-2 py-1 text-sm font-bold text-gray-900 w-full"
             value={row.name}
             onChange={e => onEdit("name", e.target.value)}
           />
@@ -28,7 +28,7 @@ const CellRenderer = {
       case "reference number":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={row.referenceNumber || ""}
             onChange={e => onEdit("referenceNumber", e.target.value)}
           />
@@ -51,7 +51,7 @@ const CellRenderer = {
       case "status":
         return (
           <select
-            className={`border rounded px-2 py-1 text-xs font-bold ${statusColors[row.status] || 'bg-gray-400 text-white'}`}
+            className={`border rounded px-2 py-1 text-xs font-bold w-full ${statusColors[row.status] || 'bg-gray-400 text-white'}`}
             value={row.status}
             onChange={e => onEdit("status", e.target.value)}
           >
@@ -64,10 +64,19 @@ const CellRenderer = {
       case "owner":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={row.owner || ""}
             onChange={e => onEdit("owner", e.target.value)}
             placeholder="Enter owner"
+          />
+        );
+      case "client":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.client || ""}
+            onChange={e => onEdit("client", e.target.value)}
+            placeholder="Enter client name"
           />
         );
       case "timeline":
@@ -77,7 +86,7 @@ const CellRenderer = {
         return (
           <input
             type="number"
-            className="border rounded px-2 py-1 text-sm text-gray-900"
+            className="border rounded px-2 py-1 text-sm text-gray-900 w-full"
             value={row.planDays || 0}
             onChange={e => onEdit("planDays", Number(e.target.value))}
             placeholder="Enter plan days"
@@ -86,7 +95,7 @@ const CellRenderer = {
       case "remarks":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={row.remarks || ""}
             onChange={e => onEdit("remarks", e.target.value)}
             placeholder="Add remarks"
@@ -96,7 +105,7 @@ const CellRenderer = {
       case "assignee notes":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={row.assigneeNotes || ""}
             onChange={e => onEdit("assigneeNotes", e.target.value)}
             placeholder="Add assignee notes"
@@ -133,7 +142,7 @@ const CellRenderer = {
       case "priority":
         return (
           <select
-            className="border rounded px-2 py-1 text-xs font-bold"
+            className="border rounded px-2 py-1 text-xs font-bold w-full"
             value={row.priority}
             onChange={e => onEdit("priority", e.target.value)}
           >
@@ -146,7 +155,7 @@ const CellRenderer = {
         return (
           <div className="flex items-center gap-1">
             <input
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded px-2 py-1 text-sm w-full"
               value={row.location}
               onChange={e => onEdit("location", e.target.value)}
               placeholder="Enter location or pick on map"
@@ -179,7 +188,7 @@ const CellRenderer = {
       case "project type":
         return (
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={row.projectType || "Residential"}
             onChange={e => onEdit("projectType", e.target.value)}
           >
@@ -197,7 +206,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.projectFloor || ""}
             onChange={e => onEdit("projectFloor", e.target.value)}
-            placeholder="Enter project floor"
+            placeholder="Enter no. of floors"
           />
         );
       case "developerProject":
@@ -207,7 +216,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.developerProject || ""}
             onChange={e => onEdit("developerProject", e.target.value)}
-            placeholder="Enter developer project"
+            placeholder="Enter developer name"
           />
         );
       case "autoNumber":
@@ -218,7 +227,7 @@ const CellRenderer = {
         return (
           <div className="relative">
             <input
-              className={`border rounded px-2 py-1 text-sm pr-6 ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              className={`border rounded px-2 py-1 text-sm pr-6 w-full ${predecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
               value={row.predecessors}
               onChange={e => onEdit("predecessors", e.target.value)}
               placeholder="Enter task IDs (e.g., 1, 2, 3)"
@@ -240,7 +249,7 @@ const CellRenderer = {
       case "link":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={row.link}
             onChange={e => onEdit("link", e.target.value)}
           />
@@ -370,7 +379,7 @@ const CellRenderer = {
       case "reference number":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={sub.referenceNumber || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "referenceNumber", e.target.value)}
           />
@@ -378,7 +387,7 @@ const CellRenderer = {
       case "status":
         return (
           <select
-            className={`border rounded px-2 py-1 text-xs font-bold ${statusColors[sub.status] || 'bg-gray-400 text-white'}`}
+            className={`border rounded px-2 py-1 text-xs font-bold w-full ${statusColors[sub.status] || 'bg-gray-400 text-white'}`}
             value={sub.status}
             onChange={e => handleEditSubtask(task.id, sub.id, "status", e.target.value)}
           >
@@ -391,7 +400,7 @@ const CellRenderer = {
       case "owner":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={sub.owner || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "owner", e.target.value)}
             placeholder="Enter owner"
@@ -405,7 +414,7 @@ const CellRenderer = {
         return (
           <input
             type="number"
-            className="border rounded px-2 py-1 text-sm text-gray-900"
+            className="border rounded px-2 py-1 text-sm text-gray-900 w-full"
             value={sub.planDays || 0}
             onChange={e => handleEditSubtask(task.id, sub.id, "planDays", Number(e.target.value))}
             placeholder="Enter plan days"
@@ -414,7 +423,7 @@ const CellRenderer = {
       case "remarks":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={sub.remarks || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "remarks", e.target.value)}
             placeholder="Add remarks"
@@ -424,7 +433,7 @@ const CellRenderer = {
       case "assignee notes":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={sub.assigneeNotes || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "assigneeNotes", e.target.value)}
             placeholder="Add assignee notes"
@@ -461,7 +470,7 @@ const CellRenderer = {
       case "priority":
         return (
           <select
-            className="border rounded px-2 py-1 text-xs font-bold"
+            className="border rounded px-2 py-1 text-xs font-bold w-full"
             value={sub.priority}
             onChange={e => handleEditSubtask(task.id, sub.id, "priority", e.target.value)}
           >
@@ -474,7 +483,7 @@ const CellRenderer = {
         return (
           <div className="flex items-center gap-1">
             <input
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded px-2 py-1 text-sm w-full"
               value={sub.location}
               onChange={e => handleEditSubtask(task.id, sub.id, "location", e.target.value)}
               placeholder="Enter location or pick on map"
@@ -507,7 +516,7 @@ const CellRenderer = {
       case "project type":
         return (
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={sub.projectType || "Residential"}
             onChange={e => handleEditSubtask(task.id, sub.id, "projectType", e.target.value)}
           >
@@ -525,7 +534,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={sub.projectFloor || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "projectFloor", e.target.value)}
-            placeholder="Enter project floor"
+            placeholder="Enter no. of floors"
           />
         );
       case "developerProject":
@@ -535,7 +544,7 @@ const CellRenderer = {
             className="border rounded px-2 py-1 text-sm w-full"
             value={sub.developerProject || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "developerProject", e.target.value)}
-            placeholder="Enter developer project"
+            placeholder="Enter developer name"
           />
         );
       case "autoNumber":
@@ -546,7 +555,7 @@ const CellRenderer = {
         return (
           <div className="relative">
             <input
-              className={`border rounded px-2 py-1 text-sm pr-6 ${subPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
+              className={`border rounded px-2 py-1 text-sm pr-6 w-full ${subPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
               value={sub.predecessors}
               onChange={e => handleEditSubtask(task.id, sub.id, "predecessors", e.target.value)}
               placeholder="Enter task IDs (e.g., 1, 2, 3)"
@@ -568,7 +577,7 @@ const CellRenderer = {
       case "link":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm w-full"
             value={sub.link}
             onChange={e => handleEditSubtask(task.id, sub.id, "link", e.target.value)}
           />

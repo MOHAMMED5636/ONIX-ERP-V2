@@ -5,9 +5,11 @@ import { Bars3Icon, ChevronDownIcon, ChevronRightIcon, ClipboardDocumentListIcon
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 import ColumnSettingsDropdown from './ColumnSettingsDropdown';
 import CellRenderer from './CellRenderer';
+import { getSubtaskColumnOrder, getHierarchicalAutoNumber } from '../utils/tableUtils';
 
 const SortableProjectRow = ({
   task,
+  projectIndex = 0,
   columnOrder,
   columns,
   expandedActive,
@@ -82,6 +84,15 @@ const SortableProjectRow = ({
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.referenceNumber || ""}
             onChange={e => onEdit("referenceNumber", e.target.value)}
+          />
+        );
+      case "client":
+        return (
+          <input
+            className="border rounded px-2 py-1 text-sm w-full"
+            value={row.client || ""}
+            onChange={e => onEdit("client", e.target.value)}
+            placeholder="Enter client name"
           />
         );
       case "category":
@@ -327,7 +338,7 @@ const SortableProjectRow = ({
           </button>
         );
       case "autoNumber":
-        return <span className="text-sm text-gray-600 font-medium">{row.autoNumber || row.id}</span>;
+        return <span className="text-sm text-gray-600 font-medium">{getHierarchicalAutoNumber(projectIndex, null, null)}</span>;
       case "predecessors":
         const predecessorsHasValue = row.predecessors && row.predecessors.toString().trim() !== '';
         return (
@@ -371,10 +382,10 @@ const SortableProjectRow = ({
     <tr
       ref={setNodeRef}
       style={style}
-      className={`${isDragging ? 'shadow-2xl' : ''} transition-all duration-200`}
+      className={`bg-white ${isDragging ? 'shadow-2xl' : ''} transition-all duration-200 hover:bg-gray-50/50`}
     >
       {/* Drag Handle Column */}
-      <td className="px-2 py-3 align-middle text-center w-16">
+      <td className="px-2 py-3 align-middle text-center w-16 border border-gray-200">
         <button
           {...attributes}
           {...listeners}
@@ -386,7 +397,7 @@ const SortableProjectRow = ({
       </td>
       
       {/* Select Column */}
-      <td className="px-4 py-4 align-middle text-center">
+      <td className="px-4 py-3 align-middle text-center border border-gray-200">
         <MultiSelectCheckbox
           task={task}
           isChecked={isSelected}
@@ -395,7 +406,7 @@ const SortableProjectRow = ({
       </td>
       
       {/* Pin Column */}
-      <td className="px-4 py-4 align-middle text-center">
+      <td className="px-4 py-3 align-middle text-center border border-gray-200">
         <button
           onClick={() => onTogglePin(task.id)}
           className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
@@ -416,7 +427,7 @@ const SortableProjectRow = ({
           const col = columns.find(c => c.key === colKey);
           if (!col) return null;
           return (
-            <td key={col.key} className={`px-4 py-4 align-middle ${
+            <td key={col.key} className={`px-3 py-3 align-middle border border-gray-200 ${
               col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
             } ${
               col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -506,7 +517,7 @@ const SortableProjectRow = ({
         })}
       
       {/* Settings Column */}
-      <td className="px-3 py-4 text-center">
+      <td className="px-3 py-3 text-center border border-gray-200">
         <ColumnSettingsDropdown
           columns={columns}
           visibleColumns={visibleColumns}
@@ -516,7 +527,7 @@ const SortableProjectRow = ({
       </td>
       
       {/* Add Column */}
-      <td className="px-3 py-4 text-center">
+      <td className="px-3 py-3 text-center border border-gray-200">
         <button
           className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
           onClick={onShowAddColumnMenu}
@@ -530,16 +541,16 @@ const SortableProjectRow = ({
     
     {/* Add Subtask Button and Form */}
     {showSubtaskForm === task.id && (
-      <tr>
-        <td colSpan={columnOrder.length + 5} className="px-4 py-3">
+      <tr className="bg-blue-50/30">
+        <td colSpan={columnOrder.length + 5} className="px-4 py-3 border border-gray-200">
           <form
-            className="flex flex-wrap gap-3 items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+            className="flex flex-wrap gap-3 items-center bg-white p-4 rounded border border-gray-200 shadow-sm"
             onSubmit={e => {
               e.preventDefault();
               onAddSubtask(task.id);
             }}
           >
-            {columnOrder.slice(0, 6).map(colKey => {
+            {getSubtaskColumnOrder(columnOrder).slice(0, 6).map(colKey => {
               const col = columns.find(c => c.key === colKey);
               if (!col) return null;
               

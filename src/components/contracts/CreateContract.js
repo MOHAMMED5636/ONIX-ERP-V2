@@ -14,6 +14,7 @@ import ContractsAPI from '../../services/contractsAPI';
 import { useNavigate } from 'react-router-dom';
 import { getCompanies } from '../../services/companiesAPI';
 import ClientsAPI from '../../services/clientsAPI';
+import { getEmployees } from '../../services/employeeAPI';
 import { usePreferences } from '../../context/PreferencesContext';
 
 const CreateContract = () => {
@@ -21,6 +22,17 @@ const CreateContract = () => {
   const { toBase, currencyCode, preferences } = usePreferences();
   const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
   const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
+  
+  // Format currency using preferences
+  const formatCurrency = (amount) => {
+    const code = currencyCode || 'AED';
+    return new Intl.NumberFormat('en-AE', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount ?? 0);
+  };
   
   // Form state
   const [formData, setFormData] = useState({
@@ -35,6 +47,11 @@ const CreateContract = () => {
     
     // Client Information
     selectedClients: [],
+    
+    // Project Manager
+    projectManagerId: '',
+    projectManagerName: '',
+    projectManagerInputMode: 'dropdown', // 'dropdown' or 'manual'
     
     // Start Date
     startDate: new Date().toISOString().split('T')[0],
@@ -137,11 +154,13 @@ const CreateContract = () => {
     'Support Contract'
   ];
 
-  // Companies and Clients state
+  // Companies, Clients, and Managers state
   const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [loadingManagers, setLoadingManagers] = useState(false);
 
   const regions = [
     'Dubai',
@@ -271,11 +290,15 @@ const CreateContract = () => {
         ? prev.projectTypes.filter(type => type !== projectType)
         : [...prev.projectTypes, projectType];
       
-      // Reset selected phases when project types change
+      // Keep only phase selections that still exist in the new merged phases list
+      const mergedPhases = getMergedPhases(newProjectTypes);
+      const validPhaseIds = new Set(mergedPhases.map(p => p.id));
+      const keptSelectedPhases = prev.selectedPhases.filter(id => validPhaseIds.has(id));
+      
       return {
         ...prev,
         projectTypes: newProjectTypes,
-        selectedPhases: []
+        selectedPhases: keptSelectedPhases
       };
     });
   };
@@ -802,6 +825,29 @@ const CreateContract = () => {
     };
   }, [fetchClients]);
 
+  // Fetch employees for project manager dropdown
+  const fetchManagers = useCallback(async () => {
+    setLoadingManagers(true);
+    try {
+      const response = await getEmployees();
+      if (response && response.success && response.data) {
+        const list = Array.isArray(response.data) ? response.data : [];
+        setManagers(list);
+      } else {
+        setManagers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      setManagers([]);
+    } finally {
+      setLoadingManagers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchManagers();
+  }, [fetchManagers]);
+
   // Handle adding new approval status
   const handleAddApprovalStatus = () => {
     if (newApprovalStatus.trim() && !approvalStatuses.includes(newApprovalStatus.trim())) {
@@ -1053,6 +1099,7 @@ const CreateContract = () => {
       
       const contractData = {
         title: contractTitle,
+        referenceNumber: formData.referenceNumber || null, // Auto-generated reference number
         description: formData.description || null,
         contractCategory: formData.contractCategory || null,
         contractType: formData.contractCategory || null, // Use category as type
@@ -1083,6 +1130,10 @@ const CreateContract = () => {
           ? (typeof formData.selectedClients[0] === 'object' ? formData.selectedClients[0].id : formData.selectedClients[0])
           : null,
         
+        // Project Manager
+        projectManagerId: formData.projectManagerId || null,
+        projectManagerName: formData.projectManagerName || null,
+        
         // Dates
         startDate: formData.startDate || null,
         
@@ -1095,10 +1146,22 @@ const CreateContract = () => {
         community: formData.community || null,
         numberOfFloors: formData.numberOfFloors ? parseInt(formData.numberOfFloors) : null,
         
-        // Building Details (convert display → base for storage)
-        buildingCost: formData.buildingCost ? toBase(Number(formData.buildingCost), 'currency') : null,
-        builtUpArea: formData.builtUpArea ? toBase(Number(formData.builtUpArea), 'area') : null,
-        buildingHeight: formData.buildingHeight ? toBase(Number(formData.buildingHeight), 'height') : null,
+        // Building Details (convert display → base for storage; guard against NaN/Infinity)
+        buildingCost: (() => {
+          if (!formData.buildingCost) return null;
+          const v = toBase(Number(formData.buildingCost), 'currency');
+          return (v != null && Number.isFinite(v)) ? v : null;
+        })(),
+        builtUpArea: (() => {
+          if (!formData.builtUpArea) return null;
+          const v = toBase(Number(formData.builtUpArea), 'area');
+          return (v != null && Number.isFinite(v)) ? v : null;
+        })(),
+        buildingHeight: (() => {
+          if (!formData.buildingHeight) return null;
+          const v = toBase(Number(formData.buildingHeight), 'height');
+          return (v != null && Number.isFinite(v)) ? v : null;
+        })(),
         structuralSystem: formData.structuralSystem || null,
         buildingType: formData.buildingType || null,
         
@@ -1177,7 +1240,7 @@ const CreateContract = () => {
       // Call API with all attachment files
       const response = await ContractsAPI.createContract(contractData, contractDocument, attachmentFiles);
       
-      if (response && response.success) {
+      if (response && (response.success === true || response.data)) {
         // Show success message
         console.log('✅ Contract created successfully:', response.data);
         alert(`Contract ${isDraft ? 'saved as draft' : 'created'} successfully!`);
@@ -1199,6 +1262,9 @@ const CreateContract = () => {
             contractCategory: '',
             company: '',
             selectedClients: [],
+            projectManagerId: '',
+            projectManagerName: '',
+            projectManagerInputMode: 'dropdown',
             startDate: new Date().toISOString().split('T')[0],
             makaniNumber: '',
             latitude: '',
@@ -1884,6 +1950,123 @@ const CreateContract = () => {
                     </div>
                   </div>
 
+                  {/* Project Manager */}
+                  <div className="mb-8">
+                    <div className="flex items-center mb-6">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg mr-4">
+                        <UserGroupIcon className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">Project Manager</h2>
+                        <p className="text-sm text-gray-600">Assign a manager to this project</p>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200 shadow-lg">
+                      {/* Mode Toggle */}
+                      <div className="flex items-center gap-4 mb-4">
+                        <label className="block text-sm font-semibold text-gray-800">Input Mode:</label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                projectManagerInputMode: 'dropdown',
+                                projectManagerId: '',
+                                projectManagerName: ''
+                              }));
+                            }}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              formData.projectManagerInputMode === 'dropdown'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            Select from List
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                projectManagerInputMode: 'manual',
+                                projectManagerId: '',
+                                projectManagerName: ''
+                              }));
+                            }}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              formData.projectManagerInputMode === 'manual'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            Enter Name Manually
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dropdown Mode */}
+                      {formData.projectManagerInputMode === 'dropdown' && (
+                        <>
+                          <label className="block text-sm font-semibold text-gray-800 mb-3">Select Project Manager</label>
+                          {loadingManagers ? (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent" />
+                              <span>Loading managers...</span>
+                            </div>
+                          ) : (
+                            <select
+                              value={formData.projectManagerId}
+                              onChange={(e) => {
+                                const id = e.target.value;
+                                const selected = managers.find(m => String(m.id) === String(id));
+                                setFormData(prev => ({
+                                  ...prev,
+                                  projectManagerId: id,
+                                  projectManagerName: selected ? (selected.fullName || selected.name || selected.email || '') : ''
+                                }));
+                              }}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                            >
+                              <option value="">Select a manager (optional)</option>
+                              {managers.map((emp) => (
+                                <option key={emp.id} value={emp.id}>
+                                  {emp.fullName || emp.name || emp.employeeName || emp.email || `Employee ${emp.id}`}
+                                  {emp.email ? ` (${emp.email})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </>
+                      )}
+
+                      {/* Manual Input Mode */}
+                      {formData.projectManagerInputMode === 'manual' && (
+                        <>
+                          <label className="block text-sm font-semibold text-gray-800 mb-3">Enter Project Manager Name</label>
+                          <input
+                            type="text"
+                            value={formData.projectManagerName}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setFormData(prev => ({
+                                ...prev,
+                                projectManagerName: value,
+                                projectManagerId: '' // Clear dropdown selection when typing manually
+                              }));
+                            }}
+                            placeholder="Enter project manager name (e.g., John Doe)"
+                            maxLength={100}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-2">
+                            Maximum 100 characters. You can enter any name, not limited to the employee list.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Start Date */}
                   <div className="mb-8">
                     <div className="flex items-center mb-8">
@@ -2561,7 +2744,7 @@ const CreateContract = () => {
                                        Calculated Amount
                                      </label>
                                      <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700">
-                                       ${calculateFeeAmount(fee).toLocaleString()}
+                                       {formatCurrency(calculateFeeAmount(fee))}
                                      </div>
                                    </div>
                                  </div>
@@ -2615,7 +2798,7 @@ const CreateContract = () => {
                                         Building Cost
                                       </label>
                                       <div className="w-full px-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-blue-700">
-                                        ${((parseFloat(fee.squareFeetPrice) || 0) * (parseFloat(fee.sizeInSquareFeet) || 0)).toLocaleString()}
+                                        {formatCurrency((parseFloat(fee.squareFeetPrice) || 0) * (parseFloat(fee.sizeInSquareFeet) || 0))}
                                       </div>
                                     </div>
                                      <div>
@@ -2623,7 +2806,7 @@ const CreateContract = () => {
                                          Calculated Fee
                                        </label>
                                        <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700">
-                                         ${calculateFeeAmount(fee).toLocaleString()}
+                                         {formatCurrency(calculateFeeAmount(fee))}
                                        </div>
                                      </div>
                                    </div>
@@ -2663,7 +2846,7 @@ const CreateContract = () => {
                                       Total Amount
                                     </label>
                                     <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700">
-                                      ${calculateFeeAmount(fee).toLocaleString()}
+                                      {formatCurrency(calculateFeeAmount(fee))}
                                     </div>
                                   </div>
                                 </div>
@@ -2701,7 +2884,7 @@ const CreateContract = () => {
                                       Total Amount
                                     </label>
                                     <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700">
-                                      ${calculateFeeAmount(fee).toLocaleString()}
+                                      {formatCurrency(calculateFeeAmount(fee))}
                                     </div>
                                   </div>
                                 </div>
@@ -2779,7 +2962,7 @@ const CreateContract = () => {
                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                         <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
                                           <span className="text-blue-700 font-medium block mb-1">Total Amount</span>
-                                          <p className="text-blue-900 font-bold text-lg">${(installmentInfo.numberOfInstallments * installmentInfo.installmentAmount).toLocaleString()}</p>
+                                          <p className="text-blue-900 font-bold text-lg">{formatCurrency(installmentInfo.numberOfInstallments * installmentInfo.installmentAmount)}</p>
                                         </div>
                                         <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
                                           <span className="text-blue-700 font-medium block mb-1">Installments</span>
@@ -2787,7 +2970,7 @@ const CreateContract = () => {
                                         </div>
                                         <div className="text-center p-3 bg-white rounded-lg border border-blue-100">
                                           <span className="text-blue-700 font-medium block mb-1">Per Installment</span>
-                                          <p className="text-blue-900 font-bold text-lg">${installmentInfo.installmentAmount.toLocaleString()}</p>
+                                          <p className="text-blue-900 font-bold text-lg">{formatCurrency(installmentInfo.installmentAmount)}</p>
       </div>
     </div>
   );
@@ -2861,13 +3044,13 @@ const CreateContract = () => {
                                       <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium text-green-800">Total Installments:</span>
                                         <span className="text-lg font-bold text-green-900">
-                                          ${calculateInstallmentTotal(fee.installments).toLocaleString()}
+                                          {formatCurrency(calculateInstallmentTotal(fee.installments))}
                                         </span>
                                       </div>
                                       <div className="flex justify-between items-center mt-1">
                                         <span className="text-sm font-medium text-green-800">Calculated Amount:</span>
                                         <span className="text-lg font-bold text-green-900">
-                                          ${fee.calculatedAmount.toLocaleString()}
+                                          {formatCurrency(fee.calculatedAmount)}
                                         </span>
                                       </div>
                                       {Math.abs(calculateInstallmentTotal(fee.installments) - fee.calculatedAmount) > 0.01 && (

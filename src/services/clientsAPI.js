@@ -96,20 +96,31 @@ class ClientsAPI {
     }
   }
 
-  // Update an existing client
+  // Update an existing client (clientData can be plain object or FormData for document uploads)
   static async updateClient(id, clientData) {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const isFormData = clientData instanceof FormData;
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+      };
+      if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const response = await fetch(`${API_BASE_URL}/clients/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(clientData),
+        headers,
+        body: isFormData ? clientData : JSON.stringify(clientData),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+        throw new Error(errorData.message || errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       return await response.json();

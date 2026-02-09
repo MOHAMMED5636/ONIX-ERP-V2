@@ -1,4 +1,10 @@
 import React from "react";
+import MainTable from "../components/tasks/MainTable";
+
 export default function Tasks() {
-  return <div className="p-8">Project Management (placeholder)</div>;
+  return (
+    <div className="h-full w-full overflow-hidden">
+      <MainTable />
+    </div>
+  );
 } 

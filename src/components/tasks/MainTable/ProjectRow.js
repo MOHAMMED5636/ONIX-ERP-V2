@@ -4,6 +4,7 @@ import { MessageCircle } from 'lucide-react';
 import CheckboxWithPopup from './CheckboxWithPopup';
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 import TruncatedTextCell from './TruncatedTextCell';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ProjectRow = ({
   task,
@@ -39,6 +40,9 @@ const ProjectRow = ({
   onOpenAttachmentsModal,
   onOpenChat
 }) => {
+  const { user } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
+  
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
     switch (col.key) {
@@ -65,25 +69,40 @@ const ProjectRow = ({
       case "task":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm font-bold text-gray-900 border-b-4 border-blue-500"
+            className={`border rounded px-2 py-1 text-sm font-bold text-gray-900 border-b-4 border-blue-500 ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             value={row.name}
-            onChange={e => onEdit("name", e.target.value)}
+            onChange={e => !isEmployee && onEdit("name", e.target.value)}
+            disabled={isEmployee}
+            readOnly={isEmployee}
+            title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : ""}
           />
         );
       case "referenceNumber":
+        // Display contract reference if available, otherwise project reference
+        const displayRef = row.contractReferenceNumber || row.referenceNumber || "";
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
-            value={row.referenceNumber || ""}
-            onChange={e => onEdit("referenceNumber", e.target.value)}
-          />
+          <div className="flex flex-col">
+            <input
+              className={`border rounded px-2 py-1 text-sm w-full ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              value={displayRef}
+              onChange={e => !isEmployee && onEdit("referenceNumber", e.target.value)}
+              disabled={isEmployee}
+              readOnly={isEmployee}
+              title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : row.contractReferenceNumber ? `Contract: ${row.contractReferenceNumber} | Project: ${row.referenceNumber || 'N/A'}` : `Project: ${row.referenceNumber || 'N/A'}`}
+            />
+            {row.contractReferenceNumber && row.contractReferenceNumber !== row.referenceNumber && (
+              <span className="text-xs text-gray-500 mt-0.5">Contract: {row.contractReferenceNumber}</span>
+            )}
+          </div>
         );
       case "category":
         return (
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className={`border rounded px-2 py-1 text-sm ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             value={row.category || "Design"}
-            onChange={e => onEdit("category", e.target.value)}
+            onChange={e => !isEmployee && onEdit("category", e.target.value)}
+            disabled={isEmployee}
+            title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : ""}
           >
             <option value="Design">Design</option>
             <option value="Development">Development</option>

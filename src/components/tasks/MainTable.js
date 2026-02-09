@@ -56,6 +56,8 @@ import {
   calculateTaskTimelines,
   filterCompletedTasks,
   getDefaultColumnOrder,
+  getSubtaskColumnOrder,
+  getHierarchicalAutoNumber,
   loadColumnOrderFromStorage,
   saveColumnOrderToStorage,
   getMissingColumns,
@@ -81,18 +83,18 @@ import { useSearchAndFilters } from './hooks/useSearchAndFilters';
 import UndoToast from '../common/UndoToast';
 import useUndoManager from '../../hooks/useUndoManager';
 import { filterActiveItems, applySoftDelete, applyRestore } from '../../utils/softDeleteUtils';
+import { useAuth } from '../../contexts/AuthContext';
 
 const initialTasks = [];
-
-
-
-const isAdmin = true; // TODO: Replace with real authentication logic
 
 
 
 
 
 export default function MainTable() {
+  const { user } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const isAdmin = !isEmployee; // Admin is anyone who is not an employee
   const navigate = useNavigate();
   
   // Inline edit state and handlers for Project Name (move to top)
@@ -792,49 +794,60 @@ export default function MainTable() {
         console.log(`✅ Loaded ${response.data.length} projects from API`);
         
         // Map backend projects to frontend task format
-        const mappedTasks = response.data.map(project => ({
-          id: project.id,
-          name: project.name || 'Untitled Project',
-          referenceNumber: project.referenceNumber || '',
-          pin: project.pin || '',
-          client: project.client?.name || '',
-          clientId: project.clientId || null,
-          owner: project.owner || '',
-          category: 'General',
-          status: project.status === 'OPEN' ? 'Pending' : 
-                  project.status === 'IN_PROGRESS' ? 'In Progress' :
-                  project.status === 'COMPLETED' ? 'Done' :
-                  project.status === 'CANCELLED' ? 'Cancelled' :
-                  project.status === 'ON_HOLD' ? 'Suspended' : 'Pending',
-          projectManagerId: project.projectManagerId || null,
-          timeline: [
-            project.startDate ? new Date(project.startDate) : null,
-            project.endDate ? new Date(project.endDate) : null
-          ],
-          planDays: project.planDays || 0,
-          remarks: project.remarks || '',
-          assigneeNotes: project.assigneeNotes || '',
-          attachments: [],
-          priority: 'Low',
-          location: '',
-          plotNumber: '',
-          community: '',
-          projectType: 'Residential',
-          projectFloor: '',
-          developerProject: '',
-          notes: project.description || '',
-          autoNumber: 0,
-          predecessors: '',
-          checklist: false,
-          checklistItems: [],
-          link: '',
-          rating: 0,
-          progress: 0,
-          color: '#60a5fa',
-          subtasks: [],
-          expanded: false,
-          createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
-        }));
+        const mappedTasks = response.data.map(project => {
+          // Get the primary contract (most recent one)
+          const primaryContract = project.contracts && project.contracts.length > 0 
+            ? project.contracts[0] 
+            : null;
+          
+          return {
+            id: project.id,
+            name: project.name || 'Untitled Project',
+            referenceNumber: project.referenceNumber || '',
+            pin: project.pin || '',
+            client: project.client?.name || '',
+            clientId: project.clientId || null,
+            owner: project.projectManager || '', // Map backend projectManager (string) to frontend owner field
+            category: 'General',
+            status: project.status === 'OPEN' ? 'Pending' : 
+                    project.status === 'IN_PROGRESS' ? 'In Progress' :
+                    project.status === 'COMPLETED' ? 'Done' :
+                    project.status === 'CANCELLED' ? 'Cancelled' :
+                    project.status === 'ON_HOLD' ? 'Suspended' : 'Pending',
+            timeline: [
+              project.startDate ? new Date(project.startDate) : null,
+              project.endDate ? new Date(project.endDate) : null
+            ],
+            planDays: project.planDays || 0,
+            remarks: project.remarks || '',
+            assigneeNotes: project.assigneeNotes || '',
+            attachments: [],
+            priority: 'Low',
+            // Use project data first (from Load Out), then fall back to contract data
+            location: project.location || '',
+            plotNumber: project.plotNumber || primaryContract?.plotNumber || '',
+            community: project.community || primaryContract?.community || '',
+            projectType: project.projectType || primaryContract?.contractType || 'Residential',
+            projectFloor: project.projectFloor || primaryContract?.numberOfFloors?.toString() || '',
+            developerProject: project.developerProject || primaryContract?.developerName || '',
+            // Contract reference number for display
+            contractReferenceNumber: primaryContract?.referenceNumber || '',
+            contractId: primaryContract?.id || null,
+            contracts: project.contracts || [], // Store all contracts
+            notes: project.description || '',
+            autoNumber: 0,
+            predecessors: '',
+            checklist: false,
+            checklistItems: [],
+            link: '',
+            rating: 0,
+            progress: 0,
+            color: '#60a5fa',
+            subtasks: [],
+            expanded: false,
+            createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
+          };
+        });
         
         setTasks(mappedTasks);
         
@@ -1058,7 +1071,9 @@ export default function MainTable() {
     }
     
     // Validate required fields
-    const errors = validateTask(newTask);
+    // Project name validation removed - name is now optional
+    // const errors = validateTask(newTask);
+    const errors = []; // Skip name validation - allow saving with reference number only
     if (errors.length > 0) {
       alert(errors.join('\n'));
       return;
@@ -1093,16 +1108,27 @@ export default function MainTable() {
       // Otherwise default to OPEN (will count as active)
       const backendStatus = statusMap[newTask.status] || 'OPEN';
       
+      // Validate that reference number is provided (required field)
+      if (!newTask.referenceNumber || newTask.referenceNumber.trim() === '') {
+        showToast('Reference number is required. Please enter a reference number before saving.', 'error');
+        return;
+      }
+
       // Map newTask to API format
+      // Auto-generate project name if not provided
+      let projectName = newTask.name && newTask.name.trim() !== '' 
+        ? newTask.name.trim() 
+        : (newTask.contractTitle || `Project ${newTask.referenceNumber.trim()}`);
+      
       const projectData = {
-        name: newTask.name || 'Untitled Project',
-        referenceNumber: newTask.referenceNumber || `REF-${Date.now()}`,
+        name: projectName,
+        referenceNumber: newTask.referenceNumber.trim(),
         pin: newTask.pin || null,
         clientId: newTask.clientId || null,
         owner: newTask.owner || null,
         description: newTask.description || newTask.notes || null,
         status: backendStatus, // Use mapped enum value (OPEN, IN_PROGRESS, etc.)
-        projectManagerId: newTask.projectManagerId || null,
+        projectManager: newTask.owner || null, // Map frontend owner to backend projectManager (string)
         startDate: newTask.startDate || (newTask.timeline && newTask.timeline[0] ? new Date(newTask.timeline[0]) : null),
         endDate: newTask.endDate || (newTask.timeline && newTask.timeline[1] ? new Date(newTask.timeline[1]) : null),
         deadline: newTask.deadline || null,
@@ -2273,8 +2299,8 @@ export default function MainTable() {
     };
   };
 
-  // Custom cell renderer for child subtasks
-  const renderChildSubtaskCell = (col, childSub, task, parentSubtaskId, childIdx) => {
+  // Custom cell renderer for child subtasks (projectIndex, subtaskIndex used for hierarchical auto-number)
+  const renderChildSubtaskCell = (col, childSub, task, parentSubtaskId, childIdx, projectIndex, subtaskIndex) => {
     switch (col.key) {
       case "task":
       case "project name":
@@ -2522,7 +2548,9 @@ export default function MainTable() {
           />
         );
       case "autoNumber":
-        return <span className="text-xs text-gray-600">{childSub.autoNumber || childSub.id}</span>;
+        return <span className="text-xs text-gray-600">{typeof projectIndex === 'number' && typeof subtaskIndex === 'number'
+          ? getHierarchicalAutoNumber(projectIndex, subtaskIndex, childIdx)
+          : (childSub.autoNumber || childSub.id)}</span>;
       case "predecessors":
         const childPredecessorsHasValue = childSub.predecessors && childSub.predecessors.toString().trim() !== '';
         return (
@@ -2608,7 +2636,7 @@ export default function MainTable() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50">
+    <div className="h-full w-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50 overflow-hidden">
       <style>{`
         .project-row { 
           background-color: #ffffff !important; 
@@ -2635,8 +2663,8 @@ export default function MainTable() {
         }
       `}</style>
       {/* Main Content */}
-      <main className="flex flex-col flex-1 min-h-0">
-        <div className="w-full px-4 pt-0 pb-0">
+      <main className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="w-full px-4 pt-0 pb-0 overflow-x-auto">
                     <Filters
             search={search}
             setSearch={setSearch}
@@ -2684,25 +2712,25 @@ export default function MainTable() {
             {/* Enhanced Table Container - Scrollable */}
           <div className="flex-1 flex flex-col min-h-0">
             <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
-              <table className="w-full table-auto bg-white min-w-full">
+              <table className="w-full table-auto bg-white min-w-full border-collapse border border-gray-200">
                 {/* Enhanced Table header - show Project Header only when no project is expanded */}
                 {expandedProjectId === null && (
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                      <thead className="sticky top-0 bg-white z-10 border-b border-gray-200">
+                      <thead className="sticky top-0 bg-gray-50 z-10 border-b-2 border-gray-300">
                         <tr>
                           {/* Drag Handle Column Header */}
-                          <th className="px-2 py-4 text-center w-16">
+                          <th className="px-2 py-3 text-center w-16 border border-gray-200 bg-gray-50 font-semibold text-gray-700 text-xs uppercase tracking-wider">
                             <div className="flex items-center justify-center">
                               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">↕</span>
                             </div>
                           </th>
                           {/* Select Column Header - No checkbox */}
-                          <th className="px-3 py-4 text-center w-12">
+                          <th className="px-3 py-3 text-center w-12 border border-gray-200 bg-gray-50">
                             {/* Empty header for checkbox alignment */}
                           </th>
                           {/* Pin Column Header */}
-                          <th className="px-3 py-4 text-center w-12">
+                          <th className="px-3 py-3 text-center w-12 border border-gray-200 bg-gray-50 font-semibold text-gray-700 text-xs uppercase tracking-wider">
                             <div className="flex items-center justify-center">
                               <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pin</span>
                             </div>
@@ -2714,7 +2742,7 @@ export default function MainTable() {
                               if (!col) return null;
                               return <DraggableHeader key={col.key} col={col} colKey={col.key} onRemoveColumn={handleToggleColumn} />;
                             })}
-                          <th key="column-settings" className="px-3 py-4 text-center">
+                          <th key="column-settings" className="px-3 py-3 text-center border border-gray-200 bg-gray-50 w-12">
                             <ColumnSettingsDropdown
                               columns={columns}
                               visibleColumns={visibleColumns}
@@ -2722,7 +2750,7 @@ export default function MainTable() {
                               onResetColumns={handleResetColumns}
                             />
                           </th>
-                          <th key="add-column" className="px-3 py-4 text-center">
+                          <th key="add-column" className="px-3 py-3 text-center border border-gray-200 bg-gray-50 w-12">
                             <button
                               className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
                               onClick={handleShowAddColumnMenu}
@@ -2737,11 +2765,11 @@ export default function MainTable() {
                     </SortableContext>
                   </DndContext>
                 )}
-                <tbody className="divide-y divide-gray-100" style={{ overflow: 'visible' }}>
+                <tbody className="bg-white" style={{ overflow: 'visible' }}>
                   {/* No Results Message */}
                   {filteredTasks.length === 0 && !newTask && (
                     <tr>
-                                              <td colSpan={columnOrder.length + 5} className="px-6 py-12 text-center">
+                                              <td colSpan={columnOrder.length + 5} className="px-6 py-12 text-center border border-gray-200">
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                             <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
@@ -2763,15 +2791,15 @@ export default function MainTable() {
                     </tr>
                   )}
                   {newTask && (
-                    <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200" style={{ overflow: 'visible' }}>
+                    <tr className="bg-blue-50/50 hover:bg-blue-50 transition-all duration-200" style={{ overflow: 'visible' }}>
                       {/* Drag Handle Column for New Task */}
-                      <td className="px-2 py-3 align-middle text-center w-16">
+                      <td className="px-2 py-3 align-middle text-center w-16 border border-gray-200">
                         <div className="w-6 h-6 text-gray-300 flex items-center justify-center">
                           <Bars3Icon className="w-4 h-4" />
                         </div>
                       </td>
                       {/* Multi-select Checkbox Column for New Task */}
-                      <td className="px-4 py-3 align-middle text-center">
+                      <td className="px-4 py-3 align-middle text-center border border-gray-200">
                         <MultiSelectCheckbox
                           task={newTask}
                           isChecked={false}
@@ -2779,7 +2807,7 @@ export default function MainTable() {
                         />
                       </td>
                       {/* Pin Column for New Task */}
-                      <td className="px-4 py-3 align-middle text-center">
+                      <td className="px-4 py-3 align-middle text-center border border-gray-200">
                         <button
                           onClick={() => setNewTask({ ...newTask, pinned: !newTask.pinned })}
                           className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${
@@ -2798,7 +2826,7 @@ export default function MainTable() {
                         const col = columns.find(c => c.key === colKey);
                         if (!col) return null;
                         return (
-                          <td key={col.key} className={`px-4 py-3 align-middle ${
+                          <td key={col.key} className={`px-3 py-3 align-middle border border-gray-200 ${
                             col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                           } ${
                             col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -2823,6 +2851,8 @@ export default function MainTable() {
                                 value={newTask.referenceNumber || ""}
                                 onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
                                 onKeyDown={handleNewTaskKeyDown}
+                                placeholder="Enter reference number (required)"
+                                required
                               />
                             ) : col.key === "client" ? (
                               <input
@@ -3008,7 +3038,7 @@ export default function MainTable() {
                                 onKeyDown={handleNewTaskKeyDown}
                               />
                             ) : col.key === "autoNumber" ? (
-                              <span className="text-gray-600 font-medium">{newTask.autoNumber}</span>
+                              <span className="text-gray-600 font-medium">{getHierarchicalAutoNumber(filteredTasks.length, null, null)}</span>
                             ) : col.key === "predecessors" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-24"
@@ -3069,12 +3099,13 @@ export default function MainTable() {
                   )}
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
                     <SortableContext items={filteredTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
-                      {filteredTasks.map(task => (
+                      {filteredTasks.map((task, taskIdx) => (
                         <React.Fragment key={task.id}>
                           {/* Main Task Row */}
                           <SortableProjectRow
                             key={task.id}
                             task={task}
+                            projectIndex={taskIdx}
                             columnOrder={columnOrder.filter(colKey => visibleColumns.includes(colKey))}
                             columns={columns}
                             expandedActive={expandedActive}
@@ -3123,24 +3154,24 @@ export default function MainTable() {
                       {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
                         <tr>
-                                                     <td colSpan={columnOrder.length + 5} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
+                                                     <td colSpan={columnOrder.length + 5} className="p-0 bg-gray-50/30 border-l border-r border-b border-gray-200">
                             <div className="max-h-[400px] overflow-y-auto">
-                              <table className="w-full table-auto">
-                              <thead className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b border-gray-300">
+                              <table className="w-full table-auto border-collapse border border-gray-200 bg-white">
+                              <thead className="sticky top-0 bg-gray-50 z-10 border-b-2 border-gray-300">
                                 <tr>
                                   {/* Drag Handle Header Column for Subtasks */}
-                                  <th className="px-2 py-3 text-xs font-bold text-gray-400 uppercase text-center w-16">
+                                  <th className="px-2 py-2 text-xs font-bold text-gray-600 uppercase text-center w-16 border border-gray-200 bg-gray-50">
                                     <div className="flex items-center justify-center">
                                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">↕</span>
                                     </div>
                                   </th>
                                   {/* Checkbox Header Column */}
-                                  <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                  <th className="px-3 py-2 text-xs font-bold text-gray-600 uppercase text-center w-12 border border-gray-200 bg-gray-50">
                                     {/* Empty header for checkbox alignment */}
                                   </th>
                                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                    <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                                      {columnOrder
+                                    <SortableContext items={getSubtaskColumnOrder(columnOrder)} strategy={horizontalListSortingStrategy}>
+                                      {getSubtaskColumnOrder(columnOrder)
                                         .filter(colKey => visibleColumns.includes(colKey))
                                         .map(colKey => {
                                         const col = columns.find(c => c.key === colKey);
@@ -3157,7 +3188,7 @@ export default function MainTable() {
                                       })}
                                     </SortableContext>
                                   </DndContext>
-                                  <th key="add-column" className="px-4 py-3 text-xs font-bold text-gray-600 uppercase text-center w-12">
+                                  <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-600 uppercase text-center w-12 border border-gray-200 bg-gray-50">
                                     <button
                                       className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
                                       onClick={handleShowAddColumnMenu}
@@ -3169,14 +3200,14 @@ export default function MainTable() {
                                   </th>
                                 </tr>
                               </thead>
-                              <tbody>
+                              <tbody className="bg-white">
                                 <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
                                   <SortableContext items={filterActiveItems(task.subtasks).map(sub => sub.id)} strategy={verticalListSortingStrategy}>
                                     {filterActiveItems(task.subtasks).map((sub, subIdx) => (
                                       <React.Fragment key={sub.id}>
                                         <SortableSubtaskRow sub={sub} subIdx={subIdx} task={task}>
                                           {/* Checkbox Column for Subtask */}
-                                          <td className="px-4 py-3 align-middle text-center w-12">
+                                          <td className="px-3 py-2 align-middle text-center w-12 border border-gray-200">
                                             <div className="flex items-center justify-center">
                                               <input
                                                 type="checkbox"
@@ -3187,13 +3218,13 @@ export default function MainTable() {
                                               />
                                             </div>
                                           </td>
-                                          {columnOrder
+                                          {getSubtaskColumnOrder(columnOrder)
                                             .filter(colKey => visibleColumns.includes(colKey))
                                             .map(colKey => {
                                             const col = columns.find(c => c.key === colKey);
                                             if (!col) return null;
                                             return (
-                                              <td key={col.key} className={`px-4 py-3 align-middle${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                              <td key={col.key} className={`px-3 py-2 align-middle border border-gray-200${col.key === 'delete' ? ' text-center w-12' : ''} ${
                                                 col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                                               } ${
                                                 col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -3201,14 +3232,14 @@ export default function MainTable() {
                                                 col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
                                               } ${
                                                 col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
-                                              } ${
-                                                col.key === 'owner' ? 'w-36 min-w-36' : ''
                                               }`}>
-                                                {CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen)}
+                                                {col.key === 'autoNumber'
+                                                  ? <span className="text-sm text-gray-600 font-medium">{getHierarchicalAutoNumber(taskIdx, subIdx, null)}</span>
+                                                  : CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen)}
                                               </td>
                                             );
                                           })}
-                                          <td className="w-12 text-center">
+                                          <td className="w-12 text-center border border-gray-200">
                                             <button
                                               onClick={() => handleDeleteRow(sub.id, task.id)}
                                               className="text-red-500 hover:text-red-700"
@@ -3221,15 +3252,15 @@ export default function MainTable() {
                                     
                                                                          {/* Child Subtasks */}
                                      {sub.childSubtasks && filterActiveItems(sub.childSubtasks).map((childSub, childIdx) => (
-                                       <tr key={childSub.id} className="childtask-row transition-all duration-200">
+                                       <tr key={childSub.id} className="childtask-row bg-gray-50/50 hover:bg-gray-50 transition-all duration-200">
                                          {/* Drag Handle Column for Child Subtask */}
-                                         <td className="px-2 py-2 align-middle text-center w-16">
+                                         <td className="px-2 py-2 align-middle text-center w-16 border border-gray-200">
                                            <div className="w-6 h-6 text-blue-400 flex items-center justify-center">
                                              <Bars3Icon className="w-4 h-4" />
                                            </div>
                                          </td>
                                          {/* Checkbox Column for Child Subtask */}
-                                         <td className="px-4 py-2 align-middle text-center w-12">
+                                         <td className="px-3 py-2 align-middle text-center w-12 border border-gray-200">
                                           <div className="flex items-center justify-center">
                                             <input
                                               type="checkbox"
@@ -3240,13 +3271,13 @@ export default function MainTable() {
                                             />
                                           </div>
                                         </td>
-                                        {columnOrder
+                                        {getSubtaskColumnOrder(columnOrder)
                                           .filter(colKey => visibleColumns.includes(colKey))
                                           .map(colKey => {
                                           const col = columns.find(c => c.key === colKey);
                                           if (!col) return null;
                                           return (
-                                            <td key={col.key} className={`px-4 py-2 align-middle text-sm${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                            <td key={col.key} className={`px-3 py-2 align-middle text-sm border border-gray-200${col.key === 'delete' ? ' text-center w-12' : ''} ${
                                               col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
                                             } ${
                                               col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
@@ -3254,14 +3285,12 @@ export default function MainTable() {
                                               col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
                                             } ${
                                               col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
-                                            } ${
-                                              col.key === 'owner' ? 'w-36 min-w-36' : ''
                                             }`}>
-                                              {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx)}
+                                              {renderChildSubtaskCell(col, childSub, task, sub.id, childIdx, taskIdx, subIdx)}
                                             </td>
                                           );
                                         })}
-                                        <td className="w-12 text-center">
+                                        <td className="w-12 text-center border border-gray-200">
                                           <button
                                             onClick={() => handleDeleteChildSubtask(task.id, sub.id, childSub.id)}
                                             className="text-red-500 hover:text-red-700 text-xs"
@@ -3285,7 +3314,7 @@ export default function MainTable() {
                                                 handleAddChildSubtask(task.id, sub.id);
                                               }}
                                             >
-                                              {columnOrder
+                                              {getSubtaskColumnOrder(columnOrder)
                                                 .filter(colKey => visibleColumns.includes(colKey))
                                                 .slice(0, 4)
                                                 .map(colKey => {

@@ -4,6 +4,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableSubtaskRow from './SortableSubtaskRow';
 import DraggableHeader from './DraggableHeader';
+import { getSubtaskColumnOrder } from '../utils/tableUtils';
 
 // Recursive TableRow component for Excel-like hierarchical table
 const TableRow = ({ 
@@ -44,7 +45,7 @@ const TableRow = ({
     <React.Fragment>
       {/* Main Excel-like Row */}
       <tr className={`bg-white hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 border-b border-green-100 ${isSubtask ? 'bg-gray-50' : ''}`}>
-        {columnOrder.map((colKey, idx) => {
+        {(isSubtask ? getSubtaskColumnOrder(columnOrder) : columnOrder).map((colKey, idx) => {
           const col = columns.find(c => c.key === colKey);
           if (!col) return null;
           
@@ -126,7 +127,7 @@ const TableRow = ({
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                     <thead>
                       <tr>
-                        {columnOrder.map(colKey => {
+                        {getSubtaskColumnOrder(columnOrder).map(colKey => {
                           const col = columns.find(c => c.key === colKey);
                           if (!col) return null;
                           return (

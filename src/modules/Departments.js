@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { PencilIcon, TrashIcon, PlusIcon, BriefcaseIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, EyeIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, BriefcaseIcon, ChartPieIcon, DocumentTextIcon, UserIcon, UsersIcon, EyeIcon, ArrowLeftIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useCompanySelection } from '../context/CompanySelectionContext';
 import { getCompanyDepartments, createDepartment, updateDepartment, deleteDepartment } from '../services/departmentAPI';
 import { getEmployees } from '../services/employeeAPI';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Departments() {
+  const { user } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -337,22 +340,29 @@ export default function Departments() {
             )}
           </div>
         </div>
-        <button
-          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={() => {
-            if (!selectedCompany?.id) {
-              alert('Please select a company first');
-              return;
-            }
-            setShowCreateModal(true);
-          }}
-          disabled={!selectedCompany?.id || loading}
-        >
-          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          {loading ? 'Loading...' : 'Create Department'}
-        </button>
+        {!isEmployee ? (
+          <button
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => {
+              if (!selectedCompany?.id) {
+                alert('Please select a company first');
+                return;
+              }
+              setShowCreateModal(true);
+            }}
+            disabled={!selectedCompany?.id || loading}
+          >
+            <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            {loading ? 'Loading...' : 'Create Department'}
+          </button>
+        ) : (
+          <div className="text-sm text-gray-500 italic flex items-center gap-2 px-4 py-2 bg-yellow-50 rounded-lg border border-yellow-200">
+            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+            <span>This content is maintained by management. Employees can only view.</span>
+          </div>
+        )}
       </div>
       
 
@@ -549,26 +559,30 @@ export default function Departments() {
                               >
                                 <EyeIcon className="h-4 w-4" />
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditDepartment(dept);
-                                }}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110"
-                                title="Edit Department"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteDepartment(dept);
-                                }}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
-                                title="Delete Department"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
+                              {!isEmployee && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditDepartment(dept);
+                                    }}
+                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110"
+                                    title="Edit Department"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteDepartment(dept);
+                                    }}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110"
+                                    title="Delete Department"
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -725,26 +739,30 @@ export default function Departments() {
                                 >
                                   <EyeIcon className="h-5 w-5" />
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditDepartment(dept);
-                                  }}
-                                  className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
-                                  title="Edit Department"
-                                >
-                                  <PencilIcon className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteDepartment(dept);
-                                  }}
-                                  className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
-                                  title="Delete Department"
-                                >
-                                  <TrashIcon className="h-5 w-5" />
-                                </button>
+                                {!isEmployee && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditDepartment(dept);
+                                      }}
+                                      className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                      title="Edit Department"
+                                    >
+                                      <PencilIcon className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteDepartment(dept);
+                                      }}
+                                      className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                      title="Delete Department"
+                                    >
+                                      <TrashIcon className="h-5 w-5" />
+                                    </button>
+                                  </>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();

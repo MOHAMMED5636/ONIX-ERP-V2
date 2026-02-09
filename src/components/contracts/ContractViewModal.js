@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   XMarkIcon, 
   DocumentTextIcon, 
@@ -11,19 +11,110 @@ import {
   WrenchScrewdriverIcon,
   ChartBarIcon,
   ClockIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PencilSquareIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import { usePreferences } from '../../context/PreferencesContext';
+import ContractsAPI from '../../services/contractsAPI';
 
-const ContractViewModal = ({ isOpen, onClose, contract }) => {
+// Build editable form state from contract (raw/API field names for save)
+const buildEditForm = (contract) => {
+  if (!contract) return {};
+  const clientDisplay = contract.client && typeof contract.client === 'object'
+    ? (contract.client.name || contract.client.email || '')
+    : (contract.clientName || (typeof contract.client === 'string' ? contract.client : '') || '');
+  const companyDisplay = contract.company && typeof contract.company === 'object'
+    ? (contract.company.name || contract.companyName || '')
+    : (contract.companyName || (typeof contract.company === 'string' ? contract.company : '') || '');
+  const rawFees = typeof contract.contractFees === 'string'
+    ? (() => { try { return JSON.parse(contract.contractFees) || []; } catch { return []; } })()
+    : (contract.contractFees || []);
+  return {
+    status: contract.status || 'DRAFT',
+    category: contract.contractCategory || contract.contractType || contract.category || '',
+    contractValue: contract.contractValue != null ? Number(contract.contractValue) : (contract.totalAmount != null ? Number(contract.totalAmount) : 0),
+    company: companyDisplay,
+    client: clientDisplay,
+    startDate: contract.startDate ? (contract.startDate.includes('T') ? contract.startDate.split('T')[0] : contract.startDate) : '',
+    endDate: contract.endDate ? (contract.endDate.includes('T') ? contract.endDate.split('T')[0] : contract.endDate) : '',
+    region: contract.region || '',
+    plotNumber: contract.plotNumber || '',
+    community: contract.community || '',
+    latitude: contract.latitude || '',
+    longitude: contract.longitude || '',
+    numberOfFloors: contract.numberOfFloors != null ? String(contract.numberOfFloors) : '',
+    buildingCost: contract.buildingCost != null && contract.buildingCost !== '' ? Number(contract.buildingCost) : '',
+    builtUpArea: contract.builtUpArea != null && contract.builtUpArea !== '' ? Number(contract.builtUpArea) : '',
+    structuralSystem: contract.structuralSystem || '',
+    buildingHeight: contract.buildingHeight != null && contract.buildingHeight !== '' ? Number(contract.buildingHeight) : '',
+    buildingType: contract.buildingType || '',
+    authorityApprovalStatus: contract.authorityApprovalStatus || contract.authorityApproval || '',
+    developerName: contract.developerName || '',
+    contractFees: Array.isArray(rawFees) ? rawFees.map(f => ({
+      name: f.name,
+      type: f.type || 'fixed',
+      amount: f.amount != null ? Number(f.amount) : Number(f.calculatedAmount || 0),
+    })) : [],
+    phases: Array.isArray(contract.phases) ? [...contract.phases] : (contract.projectPhases ? (typeof contract.projectPhases === 'string' ? JSON.parse(contract.projectPhases || '[]') : contract.projectPhases) : ['Planning', 'Design', 'Construction', 'Handover']),
+    description: contract.description || '',
+  };
+};
+
+const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
   const { toDisplay, currencyCode, preferences } = usePreferences();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [fullContract, setFullContract] = useState(null);
+  const [loadingContract, setLoadingContract] = useState(false);
 
-  if (!isOpen || !contract) return null;
+  // Fetch full contract details from backend when modal opens
+  useEffect(() => {
+    if (isOpen && contract?.id) {
+      setLoadingContract(true);
+      ContractsAPI.getContract(contract.id)
+        .then(response => {
+          if (response?.success && response?.data) {
+            setFullContract(response.data);
+            setEditForm(buildEditForm(response.data));
+          } else {
+            // Fallback to prop contract if API fails
+            setFullContract(contract);
+            setEditForm(buildEditForm(contract));
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching contract details:', error);
+          // Fallback to prop contract on error
+          setFullContract(contract);
+          setEditForm(buildEditForm(contract));
+        })
+        .finally(() => {
+          setLoadingContract(false);
+        });
+    } else if (isOpen && contract) {
+      // If no ID, use prop contract directly
+      setFullContract(contract);
+      setEditForm(buildEditForm(contract));
+    }
+  }, [isOpen, contract?.id]);
+
+  useEffect(() => {
+    if (isOpen && fullContract) {
+      setIsEditMode(false);
+    }
+  }, [isOpen, fullContract]);
+
+  // Use fullContract if available, otherwise fallback to prop contract
+  const contractToUse = fullContract || contract;
+
+  if (!isOpen || !contractToUse) return null;
 
   // Use contract values when present (from API, stored in base units); fallback to mock
-  const rawBuildingCost = contract.buildingCost != null && contract.buildingCost !== '' ? Number(contract.buildingCost) : 4500000;
-  const rawBuiltUpArea = contract.builtUpArea != null && contract.builtUpArea !== '' ? Number(contract.builtUpArea) : 25000;
-  const rawBuildingHeight = contract.buildingHeight != null && contract.buildingHeight !== '' ? Number(contract.buildingHeight) : 45;
+  const rawBuildingCost = contractToUse.buildingCost != null && contractToUse.buildingCost !== '' ? Number(contractToUse.buildingCost) : 4500000;
+  const rawBuiltUpArea = contractToUse.builtUpArea != null && contractToUse.builtUpArea !== '' ? Number(contractToUse.builtUpArea) : 25000;
+  const rawBuildingHeight = contractToUse.buildingHeight != null && contractToUse.buildingHeight !== '' ? Number(contractToUse.buildingHeight) : 45;
 
   // Convert base → display using Admin preferences (real-time)
   const displayBuildingCost = toDisplay(rawBuildingCost, 'currency');
@@ -33,36 +124,51 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
   const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
   const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
 
-  // Mock detailed contract data (in real app, this would come from props or API)
+  // Normalize client to string (API returns client as object { id, name, email, phone })
+  const clientDisplay = contractToUse.client && typeof contractToUse.client === 'object'
+    ? (contractToUse.client.name || contractToUse.client.email || '—')
+    : (contractToUse.clientName || (typeof contractToUse.client === 'string' ? contractToUse.client : null) || 'XYZ Development');
+
+  // Normalize company to string (in case API returns company as object)
+  const companyDisplay = contractToUse.company && typeof contractToUse.company === 'object'
+    ? (contractToUse.company.name || contractToUse.companyName || '—')
+    : (contractToUse.companyName || (typeof contractToUse.company === 'string' ? contractToUse.company : null) || 'ABC Construction Ltd.');
+
+  // Contract details from fetched full contract (ensures correct referenceNumber from backend)
   const contractDetails = {
-    ...contract,
+    ...contractToUse,
+    ref: contractToUse.referenceNumber || contractToUse.ref || null,
+    value: (contractToUse.contractValue != null && contractToUse.contractValue !== '') ? toDisplay(Number(contractToUse.contractValue), 'currency') : contractToUse.value,
+    start: contractToUse.startDate ? new Date(contractToUse.startDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : contractToUse.start,
+    end: contractToUse.endDate ? new Date(contractToUse.endDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : contractToUse.end,
+    category: contractToUse.contractCategory || contractToUse.contractType || contractToUse.category,
     // General Information
-    company: contract.company || 'ABC Construction Ltd.',
-    client: contract.client || 'XYZ Development',
-    description: contract.description || 'Complete construction project for residential/commercial development',
+    company: companyDisplay,
+    client: clientDisplay,
+    description: contractToUse.description || 'Complete construction project for residential/commercial development',
     
     // Location Details
-    latitude: contract.latitude || '25.2048',
-    longitude: contract.longitude || '55.2708',
-    region: contract.region || 'Dubai',
-    plotNumber: contract.plotNumber || 'PL-2024-001',
-    community: contract.community || 'Downtown Dubai',
-    numberOfFloors: contract.numberOfFloors || '15',
+    latitude: contractToUse.latitude || '25.2048',
+    longitude: contractToUse.longitude || '55.2708',
+    region: contractToUse.region || 'Dubai',
+    plotNumber: contractToUse.plotNumber || 'PL-2024-001',
+    community: contractToUse.community || 'Downtown Dubai',
+    numberOfFloors: contractToUse.numberOfFloors || '15',
     
     // Building Details (display values from Admin preferences)
     buildingCost: displayBuildingCost,
     builtUpArea: displayBuiltUpArea,
-    structuralSystem: contract.structuralSystem || 'Reinforced Concrete',
+    structuralSystem: contractToUse.structuralSystem || 'Reinforced Concrete',
     buildingHeight: displayBuildingHeight,
-    buildingType: contract.buildingType || 'Mixed-Use',
+    buildingType: contractToUse.buildingType || 'Mixed-Use',
     
     // Authority & Community
-    authorityApproval: contract.authorityApprovalStatus || 'Approved',
-    developerName: contract.developerName || 'Emaar Properties',
+    authorityApproval: contractToUse.authorityApprovalStatus || 'Approved',
+    developerName: contractToUse.developerName || 'Emaar Properties',
     
     // Financial Details (convert amounts base → display when from API)
     fees: (() => {
-      const raw = typeof contract.contractFees === 'string' ? (() => { try { return JSON.parse(contract.contractFees) || []; } catch { return []; } })() : (contract.contractFees || []);
+      const raw = typeof contractToUse.contractFees === 'string' ? (() => { try { return JSON.parse(contractToUse.contractFees) || []; } catch { return []; } })() : (contractToUse.contractFees || []);
       if (Array.isArray(raw) && raw.length > 0) {
         return raw.map(f => ({
           name: f.name,
@@ -81,12 +187,31 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
     projectTypes: ['exterior', 'interior'],
     phases: ['Planning', 'Design', 'Construction', 'Handover'],
     
-    // Attachments
-    attachments: [
-      { name: 'Contract Document.pdf', type: 'pdf', size: '2.4 MB' },
-      { name: 'Technical Drawings.dwg', type: 'dwg', size: '15.2 MB' },
-      { name: 'Site Photos.zip', type: 'zip', size: '8.7 MB' }
-    ]
+    // Attachments: only from contract data (no demo/placeholder files)
+    attachments: (() => {
+      const list = [];
+      // Primary contract document
+      if (contractToUse.contractDocument) {
+        const path = typeof contractToUse.contractDocument === 'string' ? contractToUse.contractDocument : (contractToUse.contractDocument.filePath || contractToUse.contractDocument.fileUrl || '');
+        const name = path.split('/').pop() || 'Contract document';
+        const ext = (name.split('.').pop() || '').toLowerCase();
+        list.push({ name, type: ext || 'file', size: '—', filePath: path });
+      }
+      // Additional attachments (JSON array)
+      let raw = contractToUse.attachments;
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      if (Array.isArray(raw) && raw.length > 0) {
+        raw.forEach(att => {
+          const name = att.fileName || att.name || (att.filePath || att.fileUrl || '').split('/').pop() || 'Attachment';
+          const ext = (name.split('.').pop() || '').toLowerCase();
+          const size = att.size ? (typeof att.size === 'number' ? `${(att.size / 1024 / 1024).toFixed(1)} MB` : att.size) : '—';
+          list.push({ name, type: ext || 'file', size, filePath: att.filePath || att.fileUrl });
+        });
+      }
+      return list;
+    })(),
   };
 
   const formatCurrency = (amount) => {
@@ -108,11 +233,48 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
     }
   };
 
+  const handleSave = async () => {
+    if (!onSave || !contractToUse?.id) return;
+    setSaving(true);
+    try {
+      // referenceNumber is immutable - do NOT send it in update payload
+      // It's auto-generated and should never be changed
+      const { referenceNumber, ...payload } = editForm;
+      await onSave(contractToUse.id, payload);
+      setIsEditMode(false);
+      // Refresh full contract after save
+      if (contractToUse.id) {
+        const response = await ContractsAPI.getContract(contractToUse.id);
+        if (response?.success && response?.data) {
+          setFullContract(response.data);
+        }
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditForm(buildEditForm(contractToUse));
+    setIsEditMode(false);
+  };
+
   const getFileTypeColor = (type) => {
-    switch (type) {
+    if (!type) return 'bg-gray-100 text-gray-800';
+    const t = String(type).toLowerCase();
+    switch (t) {
       case 'pdf': return 'bg-red-100 text-red-800';
       case 'dwg': return 'bg-blue-100 text-blue-800';
       case 'zip': return 'bg-gray-100 text-gray-800';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp': return 'bg-green-100 text-green-800';
+      case 'doc':
+      case 'docx': return 'bg-indigo-100 text-indigo-800';
+      case 'xls':
+      case 'xlsx': return 'bg-emerald-100 text-emerald-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -131,15 +293,49 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
               </div>
               <div>
                 <h2 className="text-2xl font-bold">Contract Details</h2>
-                <p className="text-blue-100 text-lg font-medium">{contractDetails.ref}</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-3 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200 hover:scale-110"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-medium transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-indigo-600 font-semibold hover:bg-opacity-90 transition-all disabled:opacity-50"
+                  >
+                    {saving ? (
+                      'Saving…'
+                    ) : (
+                      <>
+                        <CheckIcon className="h-5 w-5" />
+                        Save
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-medium transition-all"
+                >
+                  <PencilSquareIcon className="h-5 w-5" />
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-3 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200 hover:scale-110"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -157,27 +353,76 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Contract Overview</h3>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Status:</span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(contractDetails.status)}`}>
-                      {contractDetails.status}
-                    </span>
+                    {isEditMode ? (
+                      <select
+                        value={editForm.status || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold"
+                      >
+                        <option value="DRAFT">Draft</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    ) : (
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(contractDetails.status)}`}>
+                        {contractDetails.status}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Category:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.category}</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.category || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, category: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-semibold">{contractDetails.category}</span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Total Value:</span>
-                    <span className="text-gray-900 font-bold text-lg">{formatCurrency(contractDetails.value)}</span>
+                    {isEditMode ? (
+                      <input
+                        type="number"
+                        value={editForm.contractValue ?? ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, contractValue: e.target.value === '' ? '' : Number(e.target.value) }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-bold w-32"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-bold text-lg">{formatCurrency(contractDetails.value)}</span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Company:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.company}</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.company || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, company: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-semibold">{contractDetails.company}</span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Client:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.client}</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.client || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, client: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-semibold">{contractDetails.client}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -189,18 +434,42 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Timeline</h3>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Start Date:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.start}</span>
+                    {isEditMode ? (
+                      <input
+                        type="date"
+                        value={editForm.startDate || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, startDate: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-semibold">{contractDetails.start}</span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">End Date:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.end}</span>
+                    {isEditMode ? (
+                      <input
+                        type="date"
+                        value={editForm.endDate || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, endDate: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-semibold">{contractDetails.end}</span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Duration:</span>
                     <span className="text-gray-900 font-semibold">
-                      {Math.ceil((new Date(contractDetails.end) - new Date(contractDetails.start)) / (1000 * 60 * 60 * 24))} days
+                      {(() => {
+                        const start = isEditMode ? editForm.startDate : contractDetails.start;
+                        const end = isEditMode ? editForm.endDate : contractDetails.end;
+                        if (!start || !end) return 'N/A';
+                        const days = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
+                        return isNaN(days) ? 'N/A' : days + ' days';
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -213,25 +482,44 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Location Details</h3>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Region:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.region}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.region || ''} onChange={(e) => setEditForm(f => ({ ...f, region: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.region}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Plot Number:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.plotNumber}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.plotNumber || ''} onChange={(e) => setEditForm(f => ({ ...f, plotNumber: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.plotNumber}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Community:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.community}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.community || ''} onChange={(e) => setEditForm(f => ({ ...f, community: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.community}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Coordinates:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.latitude}, {contractDetails.longitude}</span>
+                    {isEditMode ? (
+                      <div className="flex items-center gap-2">
+                        <input type="text" placeholder="Lat" value={editForm.latitude || ''} onChange={(e) => setEditForm(f => ({ ...f, latitude: e.target.value }))}
+                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 w-24" />
+                        <input type="text" placeholder="Lng" value={editForm.longitude || ''} onChange={(e) => setEditForm(f => ({ ...f, longitude: e.target.value }))}
+                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 w-24" />
+                      </div>
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.latitude}, {contractDetails.longitude}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Number of Floors:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.numberOfFloors}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.numberOfFloors || ''} onChange={(e) => setEditForm(f => ({ ...f, numberOfFloors: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold w-20" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.numberOfFloors}</span>}
                   </div>
                 </div>
               </div>
@@ -248,25 +536,40 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Building Details</h3>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Building Cost:</span>
-                    <span className="text-gray-900 font-semibold">{formatCurrency(contractDetails.buildingCost)}</span>
+                    {isEditMode ? (
+                      <input type="number" value={editForm.buildingCost ?? ''} onChange={(e) => setEditForm(f => ({ ...f, buildingCost: e.target.value === '' ? '' : Number(e.target.value) }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold w-36" />
+                    ) : <span className="text-gray-900 font-semibold">{formatCurrency(contractDetails.buildingCost)}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Built Up Area:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.builtUpArea != null ? Number(contractDetails.builtUpArea).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} {areaLabel}</span>
+                    {isEditMode ? (
+                      <input type="number" value={editForm.builtUpArea ?? ''} onChange={(e) => setEditForm(f => ({ ...f, builtUpArea: e.target.value === '' ? '' : Number(e.target.value) }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold w-36" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.builtUpArea != null ? Number(contractDetails.builtUpArea).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} {areaLabel}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Structural System:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.structuralSystem}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.structuralSystem || ''} onChange={(e) => setEditForm(f => ({ ...f, structuralSystem: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.structuralSystem}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Building Height:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.buildingHeight != null ? Number(contractDetails.buildingHeight).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} {heightLabel}</span>
+                    {isEditMode ? (
+                      <input type="number" value={editForm.buildingHeight ?? ''} onChange={(e) => setEditForm(f => ({ ...f, buildingHeight: e.target.value === '' ? '' : Number(e.target.value) }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold w-28" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.buildingHeight != null ? Number(contractDetails.buildingHeight).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} {heightLabel}</span>}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Building Type:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.buildingType}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.buildingType || ''} onChange={(e) => setEditForm(f => ({ ...f, buildingType: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.buildingType}</span>}
                   </div>
                 </div>
               </div>
@@ -278,15 +581,23 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Authority & Community</h3>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Approval Status:</span>
-                    <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 border border-green-200">
-                      {contractDetails.authorityApproval}
-                    </span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.authorityApprovalStatus || ''} onChange={(e) => setEditForm(f => ({ ...f, authorityApprovalStatus: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : (
+                      <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 border border-green-200">
+                        {contractDetails.authorityApproval}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Developer:</span>
-                    <span className="text-gray-900 font-semibold">{contractDetails.developerName}</span>
+                    {isEditMode ? (
+                      <input type="text" value={editForm.developerName || ''} onChange={(e) => setEditForm(f => ({ ...f, developerName: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]" />
+                    ) : <span className="text-gray-900 font-semibold">{contractDetails.developerName}</span>}
                   </div>
                 </div>
               </div>
@@ -298,10 +609,21 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Financial Breakdown</h3>
                 </div>
                 <div className="space-y-3">
-                  {contractDetails.fees.map((fee, index) => (
-                    <div key={index} className="flex justify-between items-center">
+                  {(isEditMode ? editForm.contractFees : contractDetails.fees).map((fee, index) => (
+                    <div key={index} className="flex justify-between items-center gap-4">
                       <span className="text-gray-600 font-medium">{fee.name}:</span>
-                      <span className="text-gray-900 font-semibold">{formatCurrency(fee.amount)} ({fee.type})</span>
+                      {isEditMode ? (
+                        <div className="flex items-center gap-2">
+                          <input type="number" value={fee.amount ?? ''} onChange={(e) => {
+                            const next = [...editForm.contractFees];
+                            next[index] = { ...next[index], amount: e.target.value === '' ? 0 : Number(e.target.value) };
+                            setEditForm(f => ({ ...f, contractFees: next }));
+                          }} className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 w-28" />
+                          <span className="text-gray-500 text-sm">({fee.type})</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-900 font-semibold">{formatCurrency(fee.amount)} ({fee.type})</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -314,9 +636,17 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
                   <h3 className="text-xl font-bold text-gray-900">Project Phases</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {contractDetails.phases.map((phase, index) => (
+                  {(isEditMode ? editForm.phases : contractDetails.phases).map((phase, index) => (
                     <div key={index} className="bg-white rounded-lg p-3 border border-pink-200">
-                      <span className="text-gray-800 font-medium text-sm">{phase}</span>
+                      {isEditMode ? (
+                        <input type="text" value={typeof phase === 'string' ? phase : phase.name || ''} onChange={(e) => {
+                          const next = [...editForm.phases];
+                          next[index] = e.target.value;
+                          setEditForm(f => ({ ...f, phases: next }));
+                        }} className="border border-gray-300 rounded px-2 py-1 text-gray-800 text-sm w-full" />
+                      ) : (
+                        <span className="text-gray-800 font-medium text-sm">{typeof phase === 'string' ? phase : phase.name || phase}</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -325,33 +655,72 @@ const ContractViewModal = ({ isOpen, onClose, contract }) => {
             </div>
           </div>
 
-          {/* Attachments Section */}
+          {/* Attachments Section - same viewable pattern as Clients (backend root for static files) */}
           <div className="mt-8 bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-6 border border-gray-100">
             <div className="flex items-center gap-3 mb-4">
               <DocumentTextIcon className="h-6 w-6 text-gray-600" />
               <h3 className="text-xl font-bold text-gray-900">Attachments</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {contractDetails.attachments.map((attachment, index) => (
-                <div key={index} className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3">
-                    <div className={`px-2 py-1 rounded text-xs font-semibold ${getFileTypeColor(attachment.type)}`}>
-                      {attachment.type.toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{attachment.name}</p>
-                      <p className="text-xs text-gray-500">{attachment.size}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {contractDetails.attachments && contractDetails.attachments.length > 0 ? (
+              (() => {
+                const backendRoot = (process.env.REACT_APP_API_URL || 'http://localhost:3001').replace(/\/api\/?$/, '');
+                return (
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Document Type</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">File Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 w-24">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contractDetails.attachments.map((attachment, index) => {
+                      const viewUrl = attachment.filePath ? `${backendRoot}${attachment.filePath}` : null;
+                      return (
+                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-4">
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getFileTypeColor(attachment.type)}`}>
+                              {(attachment.type || 'file').toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-2 px-4 text-sm text-gray-900">{attachment.name}</td>
+                          <td className="py-2 px-4">
+                            {viewUrl ? (
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-sm font-medium"
+                              >
+                                View
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 text-sm">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+                );
+              })()
+            ) : (
+              <p className="text-sm text-gray-500">No attachments</p>
+            )}
           </div>
 
           {/* Description */}
           <div className="mt-8 bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-6 border border-slate-100">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Project Description</h3>
-            <p className="text-gray-700 leading-relaxed">{contractDetails.description}</p>
+            {isEditMode ? (
+              <textarea value={editForm.description || ''} onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))}
+                rows={4} className="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 w-full" />
+            ) : (
+              <p className="text-gray-700 leading-relaxed">{contractDetails.description}</p>
+            )}
           </div>
 
           {/* Amendment History */}

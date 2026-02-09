@@ -262,7 +262,9 @@ export default function TeamProjectTracker() {
   const handleCreateTask = () => {
     if (!newTask) return;
     
-    const errors = validateTask(newTask);
+    // Project name validation removed - name is now optional
+    // const errors = validateTask(newTask);
+    const errors = []; // Skip name validation - allow saving with reference number only
     if (errors.length > 0) {
       alert(errors.join('\n'));
       return;

@@ -14,7 +14,7 @@ const DraggableHeader = ({ col, colKey, isSubtaskTable = false, onRemoveColumn }
     <th
       ref={setNodeRef}
       style={style}
-      className={`px-3 py-2 text-xs font-bold text-gray-500 uppercase bg-white border-b border-gray-100 ${isDragging ? 'bg-blue-50' : ''} ${
+      className={`px-3 py-2 text-xs font-bold text-gray-700 uppercase bg-gray-50 border border-gray-200 ${isDragging ? 'bg-blue-50' : ''} ${
         colKey === 'referenceNumber' ? 'w-32 min-w-32' : ''
       } ${
         colKey === 'remarks' || colKey === 'assigneeNotes' ? 'w-48 min-w-48' : ''

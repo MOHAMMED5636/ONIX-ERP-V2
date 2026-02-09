@@ -8,7 +8,8 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   BuildingOfficeIcon,
-  HomeIcon
+  HomeIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import ContractViewModal from './ContractViewModal';
 import AmendmentForm from './AmendmentForm';
@@ -170,6 +171,8 @@ export default function ContractList() {
   const [contractsRaw, setContractsRaw] = useState([]); // Store base values from API
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadingOutContractId, setLoadingOutContractId] = useState(null);
+  const [loadOutSuccess, setLoadOutSuccess] = useState(null);
 
   // Map raw contracts to display using Admin preferences (auto-updates when preferences change)
   const contracts = React.useMemo(() => {
@@ -182,7 +185,7 @@ export default function ContractList() {
       const displayValue = toDisplay(baseValue, 'currency');
       return {
         id: contract.id,
-        ref: contract.referenceNumber || `CT-${contract.id.substring(0, 8)}`,
+        ref: contract.referenceNumber || null,
         start: contract.startDate ? new Date(contract.startDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'N/A',
         end: contract.endDate ? new Date(contract.endDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'N/A',
         category: contract.contractCategory || contract.contractType || 'N/A',
@@ -213,32 +216,29 @@ export default function ContractList() {
     });
   }, [contractsRaw, toDisplay, currencyCode, preferences, areaLabel, heightLabel]);
 
-  // Fetch contracts from backend (store raw base values)
-  useEffect(() => {
-    const fetchContracts = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await ContractsAPI.getContracts({ limit: 100 });
-        
-        if (response && response.success && response.data) {
-          const contractsList = response.data.contracts || (Array.isArray(response.data) ? response.data : []);
-          setContractsRaw(contractsList);
-          console.log('✅ Loaded contracts:', contractsList.length);
-        } else {
-          setContractsRaw([]);
-        }
-      } catch (error) {
-        console.error('Error fetching contracts:', error);
-        setError(error.message || 'Failed to load contracts');
+  const fetchContracts = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await ContractsAPI.getContracts({ limit: 100 });
+      if (response && response.success && response.data) {
+        const contractsList = response.data.contracts || (Array.isArray(response.data) ? response.data : []);
+        setContractsRaw(contractsList);
+      } else {
         setContractsRaw([]);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchContracts();
+    } catch (error) {
+      console.error('Error fetching contracts:', error);
+      setError(error.message || 'Failed to load contracts');
+      setContractsRaw([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchContracts();
+  }, [fetchContracts]);
 
   const handleViewContract = (contract) => {
     setSelectedContract(contract);
@@ -258,6 +258,71 @@ export default function ContractList() {
   const handleCloseAmendmentModal = () => {
     setShowAmendmentModal(false);
     setContractForAmendment(null);
+  };
+
+  const handleDeleteContract = async (contract) => {
+    const contractTitle = contract.title || contract.contractCategory || 'this contract';
+    if (!window.confirm(`Delete ${contractTitle}? This cannot be undone.`)) return;
+    try {
+      await ContractsAPI.deleteContract(contract.id);
+      setContractsRaw(prev => prev.filter(c => c.id !== contract.id));
+    } catch (err) {
+      console.error('Delete contract failed:', err);
+      alert(err.message || 'Failed to delete contract.');
+    }
+  };
+
+  const handleLoadOut = async (contract) => {
+    // Check if contract is already linked to a project
+    if (contract.projectId || contract.project) {
+      const existingProject = contract.project?.referenceNumber || 'a project';
+      alert(`This contract is already linked to project ${existingProject}. Duplicate entries are not allowed.`);
+      return;
+    }
+
+    if (!window.confirm(`Load Out contract ${contract.ref || contract.referenceNumber}?\n\nThis will create a new project in the Project List with all contract details.`)) {
+      return;
+    }
+
+    setLoadingOutContractId(contract.id);
+    setLoadOutSuccess(null);
+
+    try {
+      const response = await ContractsAPI.loadOutContract(contract.id);
+      
+      if (response.success) {
+        const projectRef = response.data?.project?.referenceNumber || 'N/A';
+        setLoadOutSuccess({
+          contractRef: contract.ref || contract.referenceNumber,
+          projectRef: projectRef,
+          message: response.message || `Project ${projectRef} created successfully!`
+        });
+
+        // Update contract in list to show it's linked
+        setContractsRaw(prev =>
+          prev.map(c =>
+            c.id === contract.id
+              ? { ...c, projectId: response.data?.project?.id, project: response.data?.project }
+              : c
+          )
+        );
+
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setLoadOutSuccess(null);
+        }, 5000);
+
+        // Optionally navigate to projects page or show success notification
+        alert(`✅ ${response.message}\n\nProject Reference: ${projectRef}\n\nYou can now view it in the Project List.`);
+      } else {
+        throw new Error(response.message || 'Failed to load out contract');
+      }
+    } catch (err) {
+      console.error('Load Out failed:', err);
+      alert(`❌ Error: ${err.message || 'Failed to create project from contract. Please try again.'}`);
+    } finally {
+      setLoadingOutContractId(null);
+    }
   };
 
   const handleCreateAmendmentSubmit = async (updatedContract, amendmentRecord) => {
@@ -432,6 +497,28 @@ export default function ContractList() {
           </div>
         </div>
       </div>
+
+      {/* Load Out Success Notification */}
+      {loadOutSuccess && (
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircleIcon className="h-6 w-6 text-green-600" />
+            <div>
+              <p className="text-green-800 font-semibold">Load Out Successful!</p>
+              <p className="text-green-700 text-sm">
+                Contract {loadOutSuccess.contractRef} → Project {loadOutSuccess.projectRef}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setLoadOutSuccess(null)}
+            className="text-green-600 hover:text-green-800"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto bg-white rounded-xl shadow p-2 sm:p-4">
         {loading ? (
           <div className="text-center py-12">
@@ -463,11 +550,10 @@ export default function ContractList() {
           <table className="min-w-full text-xs sm:text-sm">
             <thead>
               <tr className="text-left text-gray-600 border-b">
-                <th className="py-2 px-2">Reference Number</th>
+                <th className="py-2 px-2">Reference</th>
                 <th className="py-2 px-2">Start Date</th>
                 <th className="py-2 px-2">End Date</th>
                 <th className="py-2 px-2">Contract Category</th>
-                <th className="py-2 px-2">Status</th>
                 <th className="py-2 px-2">Options</th>
               </tr>
             </thead>
@@ -475,8 +561,11 @@ export default function ContractList() {
               {contracts.map((c, idx) => (
                 <tr key={c.id || idx} className={`even:bg-gray-50 ${c.amendmentHistory && c.amendmentHistory.length > 0 ? 'bg-green-50' : ''}`}>
                   <td className="py-2 px-2 whitespace-nowrap">
+                    <span className="font-semibold text-gray-800">{c.ref || c.referenceNumber || 'N/A'}</span>
+                  </td>
+                  <td className="py-2 px-2 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      {c.ref}
+                      {c.start}
                       {c.amendmentHistory && c.amendmentHistory.length > 0 && (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           Amended ({c.amendmentHistory.length})
@@ -484,40 +573,10 @@ export default function ContractList() {
                       )}
                     </div>
                   </td>
-                  <td className="py-2 px-2 whitespace-nowrap">{c.start}</td>
                   <td className="py-2 px-2 whitespace-nowrap">{c.end}</td>
                   <td className="py-2 px-2 whitespace-nowrap">{c.category}</td>
                   <td className="py-2 px-2 whitespace-nowrap">
-                    {(() => {
-                      // Ensure status is a string and handle different status formats
-                      const displayStatus = typeof c.status === 'string' 
-                        ? c.status 
-                        : (typeof c.status === 'number' 
-                          ? 'DRAFT' // If status is a number, it's an error - use default
-                          : (c.status || 'DRAFT'));
-                      
-                      // Normalize status to uppercase for comparison
-                      const normalizedStatus = String(displayStatus).toUpperCase();
-                      
-                      return (
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          normalizedStatus === 'ACTIVE' || normalizedStatus === 'PENDING_REVIEW'
-                            ? 'bg-green-100 text-green-800'
-                            : normalizedStatus === 'COMPLETED' || normalizedStatus === 'APPROVED'
-                            ? 'bg-blue-100 text-blue-800'
-                            : normalizedStatus === 'DRAFT'
-                            ? 'bg-gray-100 text-gray-800'
-                            : normalizedStatus === 'REJECTED' || normalizedStatus === 'CANCELLED'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {displayStatus}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="py-2 px-2 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button 
                         onClick={() => handleViewContract(c)}
                         className="text-blue-600 hover:underline text-xs sm:text-sm hover:text-blue-800 transition-colors"
@@ -525,10 +584,40 @@ export default function ContractList() {
                         View
                       </button>
                       <button 
+                        onClick={() => handleLoadOut(c)}
+                        disabled={loadingOutContractId === c.id || c.projectId || c.project}
+                        className={`flex items-center gap-1 text-xs sm:text-sm transition-colors ${
+                          loadingOutContractId === c.id
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : c.projectId || c.project
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-purple-600 hover:underline hover:text-purple-800'
+                        }`}
+                        title={c.projectId || c.project ? 'Already linked to a project' : 'Create project from this contract'}
+                      >
+                        {loadingOutContractId === c.id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-600"></div>
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <ArrowRightIcon className="h-4 w-4" />
+                            Load Out
+                          </>
+                        )}
+                      </button>
+                      <button 
                         onClick={() => handleCreateAmendment(c)}
                         className="text-green-600 hover:underline text-xs sm:text-sm hover:text-green-800 transition-colors"
                       >
                         Create Amendment
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteContract(c)}
+                        className="text-red-600 hover:underline text-xs sm:text-sm hover:text-red-800 transition-colors"
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -544,6 +633,15 @@ export default function ContractList() {
         isOpen={showViewModal}
         onClose={handleCloseModal}
         contract={selectedContract}
+        onSave={async (contractId, payload) => {
+          await ContractsAPI.updateContract(contractId, payload);
+          setContractsRaw(prev =>
+            prev.map(c => (c.id === contractId ? { ...c, ...payload } : c))
+          );
+          setSelectedContract(prev =>
+            prev && prev.id === contractId ? { ...prev, ...payload } : prev
+          );
+        }}
       />
 
       {/* Amendment Form Modal */}

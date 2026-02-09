@@ -14,7 +14,23 @@ export const createProject = async (projectData) => {
       throw new Error('No token found. Please login again.');
     }
 
-    console.log('📝 Creating project via API:', projectData);
+    // Map frontend form data to backend API format
+    const apiPayload = {
+      name: projectData.projectName,
+      referenceNumber: projectData.referenceNumber,
+      status: projectData.status === 'To Do' ? 'OPEN' : projectData.status === 'In Progress' ? 'IN_PROGRESS' : 'COMPLETED',
+      owner: projectData.owner || projectData.developer,
+      projectManager: projectData.projectManager || null,
+      startDate: projectData.timeline?.startDate || null,
+      endDate: projectData.timeline?.endDate || null,
+      planDays: projectData.planDays || null,
+      remarks: projectData.remarks || null,
+      assigneeNotes: projectData.assigneeNotes || null,
+      // Include contract reference if provided (for auto-population and linking)
+      contractReferenceNumber: projectData.contractReferenceNumber || null,
+    };
+
+    console.log('📝 Creating project via API:', apiPayload);
 
     const response = await fetch(`${API_BASE_URL}/projects`, {
       method: 'POST',
@@ -23,7 +39,7 @@ export const createProject = async (projectData) => {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(projectData),
+      body: JSON.stringify(apiPayload),
     });
 
     if (!response.ok) {

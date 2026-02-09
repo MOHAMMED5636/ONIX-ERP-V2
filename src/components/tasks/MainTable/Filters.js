@@ -6,9 +6,11 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   Bars3Icon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 import { Info } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const Filters = ({
   search,
@@ -34,6 +36,8 @@ const Filters = ({
   selectedTaskIds,
   tasks
 }) => {
+  const { user } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
   const navigate = useNavigate();
   const [showInfoModal, setShowInfoModal] = useState(false);
 
@@ -104,12 +108,19 @@ const Filters = ({
           
           {/* Right side - New Project, Paste, Search, Show Filters */}
           <div className="flex items-center gap-2">
-            <button
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-              onClick={handleAddNewTask}
-            >
-              <PlusIcon className="w-5 h-5" /> New Project
-            </button>
+            {!isEmployee ? (
+              <button
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                onClick={handleAddNewTask}
+              >
+                <PlusIcon className="w-5 h-5" /> New Project
+              </button>
+            ) : (
+              <div className="text-sm text-gray-500 italic flex items-center gap-2 px-4 py-2 bg-yellow-50 rounded-lg border border-yellow-200">
+                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+                <span>Only project managers can create projects</span>
+              </div>
+            )}
             
             {/* Info Icon with Tooltip */}
             <div className="relative group">

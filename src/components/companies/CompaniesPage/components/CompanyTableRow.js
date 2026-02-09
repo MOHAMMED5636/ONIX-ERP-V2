@@ -86,7 +86,7 @@ const CompanyTableRow = ({
           >
             <BuildingOfficeIcon className="h-3.5 w-3.5" />
             <span>Open</span>
-            <ArrowRightIcon className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowRightIcon className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" /> 
           </button>
           <button
             onClick={() => onView(company)}

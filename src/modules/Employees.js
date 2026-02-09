@@ -304,6 +304,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     employeeId: "",
     status: "",
     userAccount: false,
+    role: 'EMPLOYEE',
     personalImage: null,
     gender: "",
     maritalStatus: "",
@@ -353,7 +354,8 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [userAccountFields, setUserAccountFields] = useState({ username: '', password: '', passwordConfirm: '' });
+  const [userAccountFields, setUserAccountFields] = useState({ workEmail: '', password: '', passwordConfirm: '' });
+  const [useGeneratedPassword, setUseGeneratedPassword] = useState(false);
   const [openLegalSection, setOpenLegalSection] = useState('');
   const [nationalityDropdownOpen, setNationalityDropdownOpen] = useState(false);
   const [nationalitySearchTerm, setNationalitySearchTerm] = useState('');
@@ -681,7 +683,19 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     if (!form.attendanceProgram) allErrors.attendanceProgram = "Required";
     if (!form.joiningDate) allErrors.joiningDate = "Required";
     if (!form.companyLocation) allErrors.companyLocation = "Required";
-    // Line Manager is optional - no validation required
+    
+    // ERP Access validation (when enabled)
+    if (form.userAccount) {
+      const we = (userAccountFields.workEmail || '').trim();
+      if (!we) allErrors.workEmail = "Work email is required for ERP login.";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(we)) allErrors.workEmail = "Enter a valid email address.";
+      if (!useGeneratedPassword) {
+        if (!userAccountFields.password) allErrors.erpPassword = "Password is required, or use Generate temporary password.";
+        else if (userAccountFields.password.length < 8) allErrors.erpPassword = "Password must be at least 8 characters.";
+        else if (!/[a-zA-Z]/.test(userAccountFields.password) || !/\d/.test(userAccountFields.password)) allErrors.erpPassword = "Password must contain at least one letter and one number.";
+        else if (userAccountFields.password !== userAccountFields.passwordConfirm) allErrors.erpPasswordConfirm = "Passwords do not match.";
+      }
+    }
     
     // If there are errors, set them and prevent submission
     if (Object.keys(allErrors).length > 0) {
@@ -709,22 +723,26 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       ...restOfForm 
     } = form;
     
+    // ERP Access: workEmail (required when enabled), password (optional - backend generates if empty), role
+    const workEmailVal = form.userAccount ? (userAccountFields.workEmail || '').trim() : '';
+    const passwordVal = form.userAccount && !useGeneratedPassword ? userAccountFields.password : '';
     const submissionData = {
       ...restOfForm,
       contacts: formattedContacts,
-      // Ensure passportNumber is included (it's in restOfForm but explicitly include it)
       passportNumber: form.passportNumber || '',
-      // Map passport fields to backend expected names
       passportIssueDate: passportIssue || '',
       passportExpiryDate: passportExpiry || '',
-      // Map other legal document expiry fields
       nationalIdExpiryDate: nationalIdExpiry || null,
       residencyExpiryDate: residencyExpiry || null,
       insuranceExpiryDate: insuranceExpiry || null,
       drivingLicenseExpiryDate: drivingExpiry || null,
       labourIdExpiryDate: labourExpiry || null,
-      // Map driving license field name
-      drivingLicenseNumber: drivingNumber || null
+      drivingLicenseNumber: drivingNumber || null,
+      // ERP Access
+      workEmail: form.userAccount ? workEmailVal || undefined : undefined,
+      password: form.userAccount && passwordVal ? passwordVal : undefined,
+      userAccount: !!form.userAccount,
+      role: form.role || 'EMPLOYEE',
     };
     
     console.log('Submitting employee data:', submissionData);
@@ -754,26 +772,26 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
             {showUserModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
                 <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg relative animate-fade-in">
-                  <h3 className="text-lg font-bold mb-4">Create User Account</h3>
+                  <h3 className="text-lg font-bold mb-4">ERP Access (Login Credentials)</h3>
                   <div className="mb-4">
-                    <label className="block font-medium mb-1">User Name</label>
-                    <input className="input" placeholder="Enter user name" value={userAccountFields.username} onChange={e => setUserAccountFields(f => ({ ...f, username: e.target.value }))} />
-                    {userAccountFields.username === '' && <div className="text-red-500 text-xs mt-1">Required</div>}
+                    <label className="block font-medium mb-1">Work Email *</label>
+                    <input type="email" className="input" placeholder="e.g. name@company.com" value={userAccountFields.workEmail} onChange={e => setUserAccountFields(f => ({ ...f, workEmail: e.target.value }))} />
+                    {userAccountFields.workEmail === '' && <div className="text-red-500 text-xs mt-1">Required</div>}
                   </div>
                   <div className="mb-4">
                     <label className="block font-medium mb-1">Password</label>
-                    <input type="password" className="input" placeholder="Enter password" value={userAccountFields.password} onChange={e => setUserAccountFields(f => ({ ...f, password: e.target.value }))} />
-                    {userAccountFields.password === '' && <div className="text-red-500 text-xs mt-1">Required</div>}
+                    <input type="password" className="input" placeholder="Min 8 chars, letter + number" value={userAccountFields.password} onChange={e => setUserAccountFields(f => ({ ...f, password: e.target.value }))} />
+                    {userAccountFields.password === '' && <div className="text-red-500 text-xs mt-1">Required (or use Generate in form)</div>}
                   </div>
                   <div className="mb-4">
-                    <label className="block font-medium mb-1">Password Confirm</label>
+                    <label className="block font-medium mb-1">Confirm Password</label>
                     <input type="password" className="input" placeholder="Confirm password" value={userAccountFields.passwordConfirm} onChange={e => setUserAccountFields(f => ({ ...f, passwordConfirm: e.target.value }))} />
                     {userAccountFields.passwordConfirm === '' && <div className="text-red-500 text-xs mt-1">Required</div>}
                   </div>
                   <div className="flex justify-end gap-2 mt-6">
                     <button type="button" className="btn" onClick={() => setShowUserModal(false)}>Cancel</button>
                     <button type="button" className="btn btn-primary" onClick={() => {
-                      if (userAccountFields.username && userAccountFields.password && userAccountFields.passwordConfirm) {
+                      if (userAccountFields.workEmail && userAccountFields.password && userAccountFields.passwordConfirm) {
                         handleUserAccountSave();
                       }
                     }}>Save</button>
@@ -841,6 +859,48 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                   <option value="probation">Probation</option>
                 </select>
                 {errors.status && <div className="text-red-500 text-xs">{errors.status}</div>}
+              </div>
+
+              {/* ERP Access section */}
+              <div className="md:col-span-2 w-full mt-4 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">ERP Access</h4>
+                <p className="text-xs text-gray-500 mb-3">These credentials will be used for ERP login.</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <input type="checkbox" id="erpAccessToggle" checked={form.userAccount} onChange={e => handleChange('userAccount', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <label htmlFor="erpAccessToggle" className="text-sm font-medium text-gray-700">Enable ERP Access</label>
+                </div>
+                {form.userAccount && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Work Email (required for login) *</label>
+                      <input type="email" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="e.g. name@company.com" value={userAccountFields.workEmail} onChange={e => setUserAccountFields(f => ({ ...f, workEmail: e.target.value }))} />
+                      {errors.workEmail && <div className="text-red-500 text-xs mt-1">{errors.workEmail}</div>}
+                    </div>
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.role} onChange={e => handleChange('role', e.target.value)}>
+                        <option value="EMPLOYEE">Employee</option>
+                        <option value="PROJECT_MANAGER">Manager</option>
+                        <option value="HR">HR</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    </div>
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <input type="password" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder={useGeneratedPassword ? "Will be generated" : "Min 8 chars, letter + number"} value={userAccountFields.password} onChange={e => { setUserAccountFields(f => ({ ...f, password: e.target.value })); setUseGeneratedPassword(false); }} disabled={useGeneratedPassword} />
+                      {errors.erpPassword && <div className="text-red-500 text-xs mt-1">{errors.erpPassword}</div>}
+                    </div>
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                      <input type="password" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Confirm password" value={userAccountFields.passwordConfirm} onChange={e => setUserAccountFields(f => ({ ...f, passwordConfirm: e.target.value }))} disabled={useGeneratedPassword} />
+                      {errors.erpPasswordConfirm && <div className="text-red-500 text-xs mt-1">{errors.erpPasswordConfirm}</div>}
+                    </div>
+                    <div className="md:col-span-2 flex items-center gap-2">
+                      <button type="button" className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-100" onClick={() => { setUseGeneratedPassword(true); setUserAccountFields(f => ({ ...f, password: '', passwordConfirm: '' })); }}>Generate temporary password</button>
+                      {useGeneratedPassword && <span className="text-xs text-gray-600">Temporary password will be shown after save.</span>}
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -2203,7 +2263,11 @@ export default function Employees() {
         }
 
         setShowForm(false);
-        alert('Employee created successfully!');
+        if (response.data?.credentials?.temporaryPassword) {
+          alert(`Employee created successfully!\n\nERP Login credentials (save these - they will not be shown again):\nEmail: ${response.data.credentials.email}\nTemporary password: ${response.data.credentials.temporaryPassword}\n\n${response.data.credentials.message || 'User should change password on first login.'}`);
+        } else {
+          alert('Employee created successfully!');
+        }
       } else {
         alert(`Failed to create employee: ${response.message}`);
       }

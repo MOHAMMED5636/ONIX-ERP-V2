@@ -18,7 +18,9 @@ import {
   PaperClipIcon,
   LinkIcon,
   Bars3Icon,
-  EyeIcon
+  EyeIcon,
+  ExclamationTriangleIcon,
+  LockClosedIcon
 } from "@heroicons/react/24/outline";
 import { DateRange } from 'react-date-range';
 import { format, addDays, differenceInCalendarDays, isValid } from 'date-fns';
@@ -30,6 +32,7 @@ import { CSS } from '@dnd-kit/utilities';
 import MapPicker from '../modules/WorkingLocations.js';
 import ReorderableDropdown from "./tasks/ReorderableDropdown";
 import AttachmentsModal from "./tasks/modals/AttachmentsModal";
+import ContractsAPI from '../services/contractsAPI';
 
 const initialTasks = [];
 
@@ -173,6 +176,12 @@ export default function TeamProjectTracker() {
   const [attachmentsModalTarget, setAttachmentsModalTarget] = useState(null); // { type: 'main'|'sub', taskId, subId }
   const [attachmentsModalItems, setAttachmentsModalItems] = useState([]);
 
+  // Contract data binding state
+  const [fetchedContract, setFetchedContract] = useState(null);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [contractError, setContractError] = useState(null);
+  const [lockedFields, setLockedFields] = useState(new Set()); // Fields locked from contract
+
   // --- SVG ARROW CONNECTION LOGIC ---
   const mainTaskRefs = useRef({}); // {taskId: ref}
   const subTableRefs = useRef({}); // {taskId: ref}
@@ -229,18 +238,217 @@ export default function TeamProjectTracker() {
       })
     );
   }
+  // Fetch contract by reference number and map fields
+  useEffect(() => {
+    const fetchContractAndMapFields = async () => {
+      console.log('🔍 useEffect triggered - referenceNumber:', newTask?.referenceNumber);
+      
+      if (!newTask || !newTask.referenceNumber || newTask.referenceNumber.trim() === '') {
+        // Clear contract data if reference number is empty
+        console.log('⚠️ Reference number is empty, clearing contract data');
+        setFetchedContract(null);
+        setLockedFields(new Set());
+        setContractError(null);
+        return;
+      }
+
+      const refNum = newTask.referenceNumber.trim();
+      console.log('📡 Fetching contract for reference number:', refNum);
+      setContractLoading(true);
+      setContractError(null);
+
+      try {
+        const result = await ContractsAPI.getContractByReferenceNumber(refNum);
+        console.log('📥 Contract API response:', result);
+        
+        if (result.success && result.data) {
+          const contract = result.data;
+          
+          // Check if contract status is Active
+          const contractStatus = contract.status || contract.contractStatus || '';
+          if (contractStatus.toUpperCase() !== 'ACTIVE') {
+            setContractError(`Contract status is "${contractStatus}". Only Active contracts can be used to create projects.`);
+            setFetchedContract(null);
+            setLockedFields(new Set());
+            return;
+          }
+
+          setFetchedContract(contract);
+          
+          // Map ALL contract fields to project fields
+          const clientName = contract.client && typeof contract.client === 'object'
+            ? (contract.client.name || contract.client.email || '')
+            : (contract.clientName || (typeof contract.client === 'string' ? contract.client : '') || '');
+          
+          const companyName = contract.company && typeof contract.company === 'object'
+            ? (contract.company.name || contract.companyName || '')
+            : (contract.companyName || (typeof contract.company === 'string' ? contract.company : '') || '');
+          
+          // Location fields
+          const location = contract.region || contract.location || '';
+          const latitude = contract.latitude != null ? String(contract.latitude) : '';
+          const longitude = contract.longitude != null ? String(contract.longitude) : '';
+          const makaniNumber = contract.makaniNumber || '';
+          
+          // Property details
+          const plotNumber = contract.plotNumber || '';
+          const community = contract.community || '';
+          const projectType = contract.buildingType || contract.projectType || contract.contractCategory || '';
+          const numberOfFloors = contract.numberOfFloors != null ? String(contract.numberOfFloors) : '';
+          const developerName = contract.developerName || '';
+          
+          // Building details
+          const buildingCost = contract.buildingCost != null ? String(contract.buildingCost) : '';
+          const builtUpArea = contract.builtUpArea != null ? String(contract.builtUpArea) : '';
+          const buildingHeight = contract.buildingHeight != null ? String(contract.buildingHeight) : '';
+          const structuralSystem = contract.structuralSystem || '';
+          
+          // Authority & approval
+          const authorityApproval = contract.authorityApprovalStatus || contract.authorityApproval || '';
+          
+          // Financial details
+          const contractValue = contract.contractValue != null ? String(contract.contractValue) : '';
+          const paymentTerms = contract.paymentTerms || '';
+          
+          // Dates
+          const startDate = contract.startDate ? (contract.startDate.includes('T') ? contract.startDate.split('T')[0] : contract.startDate) : '';
+          const endDate = contract.endDate ? (contract.endDate.includes('T') ? contract.endDate.split('T')[0] : contract.endDate) : '';
+          
+          // Description/Notes
+          const description = contract.description || contract.remarks || '';
+          
+          // Get attachments from contract
+          const attachments = [];
+          if (contract.contractDocument) {
+            const path = typeof contract.contractDocument === 'string' ? contract.contractDocument : (contract.contractDocument.filePath || contract.contractDocument.fileUrl || '');
+            const name = path.split('/').pop() || 'Contract document';
+            attachments.push({ name, filePath: path, type: 'file' });
+          }
+          if (contract.attachments) {
+            let raw = contract.attachments;
+            if (typeof raw === 'string') {
+              try { raw = JSON.parse(raw); } catch { raw = []; }
+            }
+            if (Array.isArray(raw) && raw.length > 0) {
+              raw.forEach(att => {
+                const name = att.fileName || att.name || (att.filePath || att.fileUrl || '').split('/').pop() || 'Attachment';
+                attachments.push({ name, filePath: att.filePath || att.fileUrl, type: 'file' });
+              });
+            }
+          }
+
+          // Update newTask with ALL mapped contract fields
+          setNewTask(prev => ({
+            ...prev,
+            // Client & Company
+            client: clientName,
+            // Location fields
+            location: location,
+            latitude: latitude,
+            longitude: longitude,
+            makaniNumber: makaniNumber,
+            // Property details
+            plotNumber: plotNumber,
+            community: community,
+            projectType: projectType,
+            projectFloor: numberOfFloors,
+            developerProject: developerName,
+            // Building details (store in remarks or notes if fields don't exist)
+            buildingCost: buildingCost,
+            builtUpArea: builtUpArea,
+            buildingHeight: buildingHeight,
+            structuralSystem: structuralSystem,
+            // Authority
+            authorityApproval: authorityApproval,
+            // Financial
+            contractValue: contractValue,
+            paymentTerms: paymentTerms,
+            // Dates (if project has these fields)
+            contractStartDate: startDate,
+            contractEndDate: endDate,
+            // Description
+            remarks: description || prev.remarks, // Merge with existing remarks if any
+            // Attachments
+            attachments: attachments, // View-only attachments from contract
+            // Store full contract reference for reference
+            contractReferenceNumber: contract.referenceNumber || prev.referenceNumber,
+          }));
+
+          // Lock ALL fields that were auto-filled from contract
+          setLockedFields(new Set([
+            'client',
+            'location',
+            'latitude',
+            'longitude',
+            'makaniNumber',
+            'plotNumber',
+            'community',
+            'projectType',
+            'projectFloor',
+            'developerProject',
+            'buildingCost',
+            'builtUpArea',
+            'buildingHeight',
+            'structuralSystem',
+            'authorityApproval',
+            'contractValue',
+            'paymentTerms',
+            'contractStartDate',
+            'contractEndDate',
+            'attachments'
+          ]));
+        } else {
+          console.log('❌ Contract not found or invalid response:', result);
+          setFetchedContract(null);
+          setLockedFields(new Set());
+          setContractError(result.error || 'Contract not found with the provided reference number.');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching contract:', error);
+        setContractError(error.message || 'Failed to fetch contract details.');
+        setFetchedContract(null);
+        setLockedFields(new Set());
+      } finally {
+        setContractLoading(false);
+        console.log('✅ Contract fetch completed');
+      }
+    };
+
+    fetchContractAndMapFields();
+  }, [newTask?.referenceNumber]);
+
   function handleCreateTask() {
     if (!newTask) return;
     
-    // Validate required fields
-    if (!newTask.name || newTask.name.trim() === "") {
-      alert("Please enter a project name");
-      return;
+    // Project name is now optional - removed requirement
+    // If reference number is provided, validate contract instead
+    if (newTask.referenceNumber && newTask.referenceNumber.trim() !== '') {
+      if (contractError) {
+        alert(`Cannot create project: ${contractError}`);
+        return;
+      }
+      if (!fetchedContract) {
+        alert("Please wait for contract details to load, or enter a valid contract reference number.");
+        return;
+      }
+      const contractStatus = fetchedContract.status || fetchedContract.contractStatus || '';
+      if (contractStatus.toUpperCase() !== 'ACTIVE') {
+        alert(`Cannot create project: Contract status is "${contractStatus}". Only Active contracts can be used.`);
+        return;
+      }
     }
+    
+    // Determine project name: use provided name, or contract title, or generate default
+    let projectName = newTask.name && newTask.name.trim() !== "" 
+      ? newTask.name.trim() 
+      : (fetchedContract && fetchedContract.title 
+          ? fetchedContract.title 
+          : `Project ${newTask.referenceNumber || Date.now()}`);
     
     // Create the task with current newTask data
     const taskToAdd = {
       ...newTask,
+      name: projectName,
       id: Date.now(),
       expanded: false
     };
@@ -250,9 +458,12 @@ export default function TeamProjectTracker() {
       return calculateTaskTimelines(updatedTasks, projectStartDate);
     });
     
-    // Clear the new task form
+    // Clear the new task form and contract data
     setNewTask(null);
     setShowNewTask(false);
+    setFetchedContract(null);
+    setLockedFields(new Set());
+    setContractError(null);
   }
 
   function handleAddSubtask(taskId) {
@@ -394,6 +605,7 @@ export default function TeamProjectTracker() {
       category: "Design",
       status: "not started",
       owner: "AL",
+      client: "",
       timeline: [null, null],
       planDays: 0,
       remarks: "",
@@ -401,11 +613,24 @@ export default function TeamProjectTracker() {
       attachments: [],
       priority: "Low",
       location: "",
+      latitude: "",
+      longitude: "",
+      makaniNumber: "",
       plotNumber: "",
       community: "",
       projectType: "Residential",
       projectFloor: "",
       developerProject: "",
+      buildingCost: "",
+      builtUpArea: "",
+      buildingHeight: "",
+      structuralSystem: "",
+      authorityApproval: "",
+      contractValue: "",
+      paymentTerms: "",
+      contractStartDate: "",
+      contractEndDate: "",
+      contractReferenceNumber: "",
       notes: "",
       autoNumber: tasks.length + 1,
       predecessors: "",
@@ -619,6 +844,7 @@ export default function TeamProjectTracker() {
     { key: 'category', label: 'TASK CATEGORY' },
     { key: 'status', label: 'STATUS' },
     { key: 'owner', label: 'OWNER' },
+    { key: 'client', label: 'CLIENT' },
     { key: 'timeline', label: 'TIMELINE' },
     { key: 'planDays', label: 'PLAN DAYS' },
     { key: 'remarks', label: 'REMARKS' },
@@ -629,8 +855,8 @@ export default function TeamProjectTracker() {
     { key: 'plotNumber', label: 'PLOT NUMBER' },
     { key: 'community', label: 'COMMUNITY' },
     { key: 'projectType', label: 'PROJECT TYPE' },
-    { key: 'projectFloor', label: 'PROJECT FLOOR' },
-    { key: 'developerProject', label: 'DEVELOPER PROJECT' },
+    { key: 'projectFloor', label: 'NO. OF FLOORS' },
+    { key: 'developerProject', label: 'DEVELOPER NAME' },
     { key: 'autoNumber', label: 'AUTO #' },
     { key: 'predecessors', label: 'PREDECESSORS' },
     { key: 'checklist', label: 'CHECKLIST' },
@@ -938,7 +1164,7 @@ export default function TeamProjectTracker() {
             className="border rounded px-2 py-1 text-sm w-full"
             value={row.developerProject || ""}
             onChange={e => onEdit("developerProject", e.target.value)}
-            placeholder="Enter developer project"
+            placeholder="Enter developer name"
           />
         );
       case "notes":
@@ -1238,7 +1464,7 @@ export default function TeamProjectTracker() {
             className="border rounded px-2 py-1 text-sm w-full"
             value={sub.developerProject || ""}
             onChange={e => handleEditSubtask(task.id, sub.id, "developerProject", e.target.value)}
-            placeholder="Enter developer project"
+            placeholder="Enter developer name"
           />
         );
       case "notes":
@@ -1521,12 +1747,12 @@ export default function TeamProjectTracker() {
   }
 
   return (
-    <div className="flex bg-gradient-to-br from-gray-50 via-white to-blue-50 min-h-screen">
+    <div className="flex bg-gradient-to-br from-gray-50 via-white to-blue-50 min-h-screen overflow-x-hidden">
       {/* Sidebar */}
      
       {/* Main Content */}
-      <main className="flex flex-col flex-1">
-        <div className="w-full px-4 pt-0 pb-0">
+      <main className="flex flex-col flex-1 overflow-x-hidden">
+        <div className="w-full pl-2 pr-4 pt-0 pb-0">
           {/* Enhanced Top Bar - Restructured for better alignment */}
           <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200">
             {/* Top row with action buttons */}
@@ -1565,10 +1791,10 @@ export default function TeamProjectTracker() {
             </div>
 
             {/* Bottom row with search - Aligned with table structure */}
-            <div className="px-6 py-4">
-              <div className="flex items-center gap-3">
+            <div className="px-6 py-4 overflow-x-auto">
+              <div className="flex items-center gap-3 min-w-fit">
                 {/* Search input - positioned to align with table columns */}
-                <div className="relative flex-1 max-w-md">
+                <div className="relative flex-1 max-w-md min-w-[200px]">
                   <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md w-full"
@@ -1594,8 +1820,9 @@ export default function TeamProjectTracker() {
           </div>
           {/* Enhanced Table Container */}
           <div className="flex-1 flex flex-col mt-4">
-            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-              <table className="w-full table-auto bg-white">
+            <div className="w-full pl-2 pr-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-y-visible -mx-2 px-2">
+                <table className="table-fixed bg-white" style={{ minWidth: '2000px', width: '100%' }}>
                 {/* Enhanced Table header */}
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -1625,11 +1852,13 @@ export default function TeamProjectTracker() {
                 <tbody className="divide-y divide-gray-100">
                   {newTask && (
                     <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200">
-                      {columnOrder.map((colKey, idx) => {
-                        const col = columns.find(c => c.key === colKey);
-                        if (!col) return null;
-                        return (
-                          <td key={col.key} className="px-4 py-3 align-middle">
+                      {columnOrder
+                        .filter(key => key !== 'category') // Remove TASK CATEGORY to match header and main rows
+                        .map((colKey, idx) => {
+                          const col = columns.find(c => c.key === colKey);
+                          if (!col) return null;
+                          return (
+                            <td key={col.key} className="px-4 py-3 align-middle">
                             {col.key === "task" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
@@ -1637,11 +1866,31 @@ export default function TeamProjectTracker() {
                                 onChange={e => setNewTask({ ...newTask, name: e.target.value })}
                               />
                             ) : col.key === "referenceNumber" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                value={newTask.referenceNumber || ""}
-                                onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
-                              />
+                              <div className="relative">
+                                <input
+                                  className={`border rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 ${
+                                    contractLoading ? 'bg-blue-50 border-blue-300' : contractError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                                  }`}
+                                  value={newTask.referenceNumber || ""}
+                                  onChange={e => setNewTask({ ...newTask, referenceNumber: e.target.value })}
+                                  placeholder="Enter contract ref. no."
+                                />
+                                {contractLoading && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  </div>
+                                )}
+                                {contractError && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2" title={contractError}>
+                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+                                  </div>
+                                )}
+                                {fetchedContract && !contractError && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2" title="Contract loaded">
+                                    <CheckIcon className="h-4 w-4 text-green-500" />
+                                  </div>
+                                )}
+                              </div>
                             ) : col.key === "category" ? (
                               <select
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
@@ -1677,6 +1926,25 @@ export default function TeamProjectTracker() {
                                 <option value="AL">AL</option>
                                 {/* Add all possible users here */}
                               </select>
+                            ) : col.key === "client" ? (
+                              <div className="relative">
+                                <input
+                                  className={`border rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 ${
+                                    lockedFields.has('client') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                  }`}
+                                  value={newTask.client || ""}
+                                  onChange={e => {
+                                    if (!lockedFields.has('client')) {
+                                      setNewTask({ ...newTask, client: e.target.value });
+                                    }
+                                  }}
+                                  placeholder="Enter client name"
+                                  readOnly={lockedFields.has('client')}
+                                />
+                                {lockedFields.has('client') && (
+                                  <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                )}
+                              </div>
                             ) : col.key === "timeline" ? (
                               <div className="flex-1">
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Timeline:</label>
@@ -1720,20 +1988,70 @@ export default function TeamProjectTracker() {
                               />
                             ) : col.key === "attachments" ? (
                               <div>
-                                <input
-                                  type="file"
-                                  multiple
-                                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                  onChange={e => {
-                                    const files = Array.from(e.target.files);
-                                    setNewTask(nt => ({ ...nt, attachments: files }));
-                                  }}
-                                />
-                                <ul className="mt-1 text-xs text-gray-600">
-                                  {(newTask.attachments || []).map((file, idx) => (
-                                    <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
-                                  ))}
-                                </ul>
+                                {lockedFields.has('attachments') ? (
+                                  <div className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full bg-gray-50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <LockClosedIcon className="h-4 w-4 text-gray-400" />
+                                      <span className="text-xs text-gray-500 font-medium">View-only from contract</span>
+                                    </div>
+                                    <ul className="mt-1 text-xs text-gray-600 space-y-1">
+                                      {(newTask.attachments || []).map((file, idx) => {
+                                        let fileName = '';
+                                        let filePath = '';
+                                        
+                                        if (typeof file === 'string') {
+                                          fileName = file;
+                                          filePath = file;
+                                        } else if (file && file.name) {
+                                          fileName = file.name;
+                                          filePath = file.filePath || '';
+                                        } else if (file && file.filePath) {
+                                          const pathParts = file.filePath.split('/');
+                                          fileName = pathParts[pathParts.length - 1] || 'Attachment';
+                                          filePath = file.filePath;
+                                        } else {
+                                          fileName = 'Attachment';
+                                          filePath = '';
+                                        }
+                                        
+                                        return (
+                                          <li key={idx} className="flex items-center gap-2">
+                                            <PaperClipIcon className="h-3 w-3 text-gray-400" />
+                                            {filePath ? (
+                                              <a 
+                                                href={filePath} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 underline truncate"
+                                              >
+                                                {fileName}
+                                              </a>
+                                            ) : (
+                                              <span>{fileName}</span>
+                                            )}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <input
+                                      type="file"
+                                      multiple
+                                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
+                                      onChange={e => {
+                                        const files = Array.from(e.target.files);
+                                        setNewTask(nt => ({ ...nt, attachments: files }));
+                                      }}
+                                    />
+                                    <ul className="mt-1 text-xs text-gray-600">
+                                      {(newTask.attachments || []).map((file, idx) => (
+                                        <li key={idx}>{file.name || (typeof file === 'string' ? file : '')}</li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                )}
                               </div>
                             ) : col.key === "priority" ? (
                               <select
@@ -1747,56 +2065,140 @@ export default function TeamProjectTracker() {
                               </select>
                             ) : col.key === "location" ? (
                               <div className="flex items-center gap-2">
-                                <input
-                                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 flex-1"
-                                  value={newTask.location}
-                                  onChange={e => setNewTask({ ...newTask, location: e.target.value })}
-                                  placeholder="Enter location or pick on map"
-                                />
-                                <button type="button" onClick={() => handleOpenMapPicker('main', newTask.id, null, newTask.location)} title="Pick on map" className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200">
-                                  <MapPinIcon className="w-5 h-5 text-blue-500 hover:text-blue-700" />
+                                <div className="relative flex-1">
+                                  <input
+                                    className={`border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full ${
+                                      lockedFields.has('location') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                    }`}
+                                    value={newTask.location || ""}
+                                    onChange={e => {
+                                      if (!lockedFields.has('location')) {
+                                        setNewTask({ ...newTask, location: e.target.value });
+                                      }
+                                    }}
+                                    placeholder="Enter location or pick on map"
+                                    readOnly={lockedFields.has('location')}
+                                  />
+                                  {lockedFields.has('location') && (
+                                    <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                  )}
+                                </div>
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    if (!lockedFields.has('location')) {
+                                      handleOpenMapPicker('main', newTask.id, null, newTask.location);
+                                    }
+                                  }} 
+                                  title={lockedFields.has('location') ? 'Location locked from contract' : 'Pick on map'} 
+                                  className={`p-2 rounded-lg transition-all duration-200 ${
+                                    lockedFields.has('location') ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'
+                                  }`}
+                                  disabled={lockedFields.has('location')}
+                                >
+                                  <MapPinIcon className={`w-5 h-5 ${lockedFields.has('location') ? 'text-gray-400' : 'text-blue-500 hover:text-blue-700'}`} />
                                 </button>
                               </div>
                             ) : col.key === "plotNumber" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                value={newTask.plotNumber || ""}
-                                onChange={e => setNewTask(nt => ({ ...nt, plotNumber: e.target.value }))}
-                                placeholder="Enter plot number"
-                              />
+                              <div className="relative">
+                                <input
+                                  className={`border rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 ${
+                                    lockedFields.has('plotNumber') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                  }`}
+                                  value={newTask.plotNumber || ""}
+                                  onChange={e => {
+                                    if (!lockedFields.has('plotNumber')) {
+                                      setNewTask(nt => ({ ...nt, plotNumber: e.target.value }));
+                                    }
+                                  }}
+                                  placeholder="Enter plot number"
+                                  readOnly={lockedFields.has('plotNumber')}
+                                />
+                                {lockedFields.has('plotNumber') && (
+                                  <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                )}
+                              </div>
                             ) : col.key === "community" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                value={newTask.community || ""}
-                                onChange={e => setNewTask(nt => ({ ...nt, community: e.target.value }))}
-                                placeholder="Enter community"
-                              />
+                              <div className="relative">
+                                <input
+                                  className={`border rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 ${
+                                    lockedFields.has('community') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                  }`}
+                                  value={newTask.community || ""}
+                                  onChange={e => {
+                                    if (!lockedFields.has('community')) {
+                                      setNewTask(nt => ({ ...nt, community: e.target.value }));
+                                    }
+                                  }}
+                                  placeholder="Enter community"
+                                  readOnly={lockedFields.has('community')}
+                                />
+                                {lockedFields.has('community') && (
+                                  <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                )}
+                              </div>
                             ) : col.key === "projectType" ? (
-                              <select
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                value={newTask.projectType || "Residential"}
-                                onChange={e => setNewTask(nt => ({ ...nt, projectType: e.target.value }))}
-                              >
-                                <option value="Residential">Residential</option>
-                                <option value="Commercial">Commercial</option>
-                                <option value="Industrial">Industrial</option>
-                                <option value="Mixed Use">Mixed Use</option>
-                                <option value="Infrastructure">Infrastructure</option>
-                              </select>
+                              <div className="relative">
+                                <select
+                                  className={`border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full ${
+                                    lockedFields.has('projectType') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                  }`}
+                                  value={newTask.projectType || "Residential"}
+                                  onChange={e => {
+                                    if (!lockedFields.has('projectType')) {
+                                      setNewTask(nt => ({ ...nt, projectType: e.target.value }));
+                                    }
+                                  }}
+                                  disabled={lockedFields.has('projectType')}
+                                >
+                                  <option value="Residential">Residential</option>
+                                  <option value="Commercial">Commercial</option>
+                                  <option value="Industrial">Industrial</option>
+                                  <option value="Mixed Use">Mixed Use</option>
+                                  <option value="Infrastructure">Infrastructure</option>
+                                </select>
+                                {lockedFields.has('projectType') && (
+                                  <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                )}
+                              </div>
                             ) : col.key === "projectFloor" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                value={newTask.projectFloor || ""}
-                                onChange={e => setNewTask(nt => ({ ...nt, projectFloor: e.target.value }))}
-                                placeholder="Enter project floor"
-                              />
+                              <div className="relative">
+                                <input
+                                  className={`border rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 ${
+                                    lockedFields.has('projectFloor') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                  }`}
+                                  value={newTask.projectFloor || ""}
+                                  onChange={e => {
+                                    if (!lockedFields.has('projectFloor')) {
+                                      setNewTask(nt => ({ ...nt, projectFloor: e.target.value }));
+                                    }
+                                  }}
+                                  placeholder="Enter no. of floors"
+                                  readOnly={lockedFields.has('projectFloor')}
+                                />
+                                {lockedFields.has('projectFloor') && (
+                                  <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                )}
+                              </div>
                             ) : col.key === "developerProject" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                value={newTask.developerProject || ""}
-                                onChange={e => setNewTask(nt => ({ ...nt, developerProject: e.target.value }))}
-                                placeholder="Enter developer project"
-                              />
+                              <div className="relative">
+                                <input
+                                  className={`border rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 ${
+                                    lockedFields.has('developerProject') ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : ''
+                                  }`}
+                                  value={newTask.developerProject || ""}
+                                  onChange={e => {
+                                    if (!lockedFields.has('developerProject')) {
+                                      setNewTask(nt => ({ ...nt, developerProject: e.target.value }));
+                                    }
+                                  }}
+                                  placeholder="Enter developer name"
+                                  readOnly={lockedFields.has('developerProject')}
+                                />
+                                {lockedFields.has('developerProject') && (
+                                  <LockClosedIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                )}
+                              </div>
                             ) : col.key === "notes" ? (
                               <input
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
@@ -1812,7 +2214,64 @@ export default function TeamProjectTracker() {
                                     onChange={e => setNewTask(nt => ({ ...nt, predecessors: e.target.value }))}
                                     placeholder="Enter predecessors"
                                   />
-                            ) : null}
+                            ) : col.key === "checklist" ? (
+                              <input
+                                type="checkbox"
+                                checked={!!newTask.checklist}
+                                onChange={e => setNewTask(nt => ({ ...nt, checklist: e.target.checked }))}
+                                className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                            ) : col.key === "link" ? (
+                              <input
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
+                                value={newTask.link || ""}
+                                onChange={e => setNewTask(nt => ({ ...nt, link: e.target.value }))}
+                                placeholder="Enter link"
+                              />
+                            ) : col.key === "rating" ? (
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setNewTask(nt => ({ ...nt, rating: i }))}
+                                    className={`w-5 h-5 transition ${i <= (newTask.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                                  >
+                                    ★
+                                  </button>
+                                ))}
+                              </div>
+                            ) : col.key === "progress" ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 h-2 bg-gray-200 rounded relative overflow-hidden">
+                                  <div
+                                    className="h-full bg-blue-500 transition-all"
+                                    style={{ width: `${newTask.progress || 0}%` }}
+                                  />
+                                </div>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm"
+                                  value={newTask.progress || 0}
+                                  onChange={e => setNewTask(nt => ({ ...nt, progress: Number(e.target.value) }))}
+                                />
+                                <span className="text-xs text-gray-600">%</span>
+                              </div>
+                            ) : col.key === "color" ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={newTask.color || "#60a5fa"}
+                                  onChange={e => setNewTask(nt => ({ ...nt, color: e.target.value }))}
+                                  className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                                />
+                                <span className="text-xs text-gray-600">{newTask.color || "#60a5fa"}</span>
+                              </div>
+                            ) : col.key === "delete" ? null : (
+                              <span className="text-gray-400 text-sm">—</span>
+                            )}
                           </td>
                         );
                       })}
@@ -1900,8 +2359,8 @@ export default function TeamProjectTracker() {
                       {expandedActive[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gradient-to-r from-gray-50 to-blue-50">
-                            <div className="ml-8 pl-4 border-l-2 border-blue-200">
-                              <table className="w-full table-fixed">
+                            <div className="ml-8 pl-4 border-l-2 border-blue-200 overflow-x-auto">
+                              <table className="table-fixed" style={{ minWidth: '2000px', width: '100%' }}>
                               <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b border-gray-300">
                                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -2071,7 +2530,8 @@ export default function TeamProjectTracker() {
                     </React.Fragment>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           </div>
           {completedTasks.length > 0 && (
@@ -2084,8 +2544,9 @@ export default function TeamProjectTracker() {
             </div>
           )}
           {completedTasks.length > 0 && (
-            <div className="w-full px-4 py-0 mt-4 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-              <table className="w-full table-auto bg-white">
+            <div className="w-full pl-2 pr-4 py-0 mt-4 bg-white rounded-xl shadow-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-y-visible -mx-2 px-2">
+                <table className="table-fixed bg-white" style={{ minWidth: '2000px', width: '100%' }}>
                 <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                     <thead className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200">
@@ -2148,8 +2609,8 @@ export default function TeamProjectTracker() {
                       {expandedCompleted[task.id] && (
                         <tr>
                           <td colSpan={columnOrder.length} className="p-0 bg-gray-50">
-                            <div className="ml-8 pl-4 border-l-2 border-green-200">
-                              <table className="w-full table-fixed">
+                            <div className="ml-8 pl-4 border-l-2 border-green-200 overflow-x-auto">
+                              <table className="table-fixed" style={{ minWidth: '2000px', width: '100%' }}>
                               <thead>
                                 <tr>
                                   {columnOrder.map(colKey => {
@@ -2196,7 +2657,8 @@ export default function TeamProjectTracker() {
                     </React.Fragment>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           )}
           {/* Simulate creating a task */}
@@ -2247,8 +2709,8 @@ export default function TeamProjectTracker() {
                         <div><span className="text-gray-500">Type: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectType}</span></div>
                         <div><span className="text-gray-500">Plot Number: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.plotNumber}</span></div>
                         <div><span className="text-gray-500">Community: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.community}</span></div>
-                        <div><span className="text-gray-500">Project Floor: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectFloor}</span></div>
-                        <div><span className="text-gray-500">Developer Project: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.developerProject}</span></div>
+                        <div><span className="text-gray-500">No. of Floors: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectFloor}</span></div>
+                        <div><span className="text-gray-500">Developer Name: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.developerProject}</span></div>
                       </div>
                     </div>
                     <hr className="my-4 border-gray-200" />
@@ -2321,8 +2783,8 @@ export default function TeamProjectTracker() {
               <div><span className="font-semibold">Plot Number:</span> {selectedProject.plotNumber}</div>
               <div><span className="font-semibold">Community:</span> {selectedProject.community}</div>
               <div><span className="font-semibold">Project Type:</span> {selectedProject.projectType}</div>
-              <div><span className="font-semibold">Project Floor:</span> {selectedProject.projectFloor}</div>
-              <div><span className="font-semibold">Developer Project:</span> {selectedProject.developerProject}</div>
+              <div><span className="font-semibold">No. of Floors:</span> {selectedProject.projectFloor}</div>
+              <div><span className="font-semibold">Developer Name:</span> {selectedProject.developerProject}</div>
               <div><span className="font-semibold">Remarks:</span> {selectedProject.remarks}</div>
               <div><span className="font-semibold">Assignee Notes:</span> {selectedProject.assigneeNotes}</div>
               <div><span className="font-semibold">Checklist:</span> <input type="checkbox" checked={!!selectedProject.checklist} readOnly className="w-5 h-5 text-blue-600 border-gray-300 rounded" /></div>

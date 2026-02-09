@@ -52,8 +52,8 @@ const Modals = {
             <div><span className="font-semibold">Plot Number:</span> {selectedProject.plotNumber}</div>
             <div><span className="font-semibold">Community:</span> {selectedProject.community}</div>
             <div><span className="font-semibold">Project Type:</span> {selectedProject.projectType}</div>
-            <div><span className="font-semibold">Project Floor:</span> {selectedProject.projectFloor}</div>
-            <div><span className="font-semibold">Developer Project:</span> {selectedProject.developerProject}</div>
+            <div><span className="font-semibold">No. of Floors:</span> {selectedProject.projectFloor}</div>
+            <div><span className="font-semibold">Developer Name:</span> {selectedProject.developerProject}</div>
             <div><span className="font-semibold">Remarks:</span> {selectedProject.remarks}</div>
             <div><span className="font-semibold">Assignee Notes:</span> {selectedProject.assigneeNotes}</div>
             <div><span className="font-semibold">Checklist:</span> <input type="checkbox" checked={!!selectedProject.checklist} readOnly className="w-5 h-5 text-blue-600 border-gray-300 rounded" /></div>
@@ -114,8 +114,8 @@ const Modals = {
                   <div><span className="text-gray-500">Type: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectType}</span></div>
                   <div><span className="text-gray-500">Plot Number: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.plotNumber}</span></div>
                   <div><span className="text-gray-500">Community: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.community}</span></div>
-                  <div><span className="text-gray-500">Project Floor: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectFloor}</span></div>
-                  <div><span className="text-gray-500">Developer Project: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.developerProject}</span></div>
+                  <div><span className="text-gray-500">No. of Floors: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.projectFloor}</span></div>
+                  <div><span className="text-gray-500">Developer Name: </span><span className="font-medium text-gray-900">{selectedProjectForSummary.developerProject}</span></div>
                 </div>
               </div>
               <hr className="my-4 border-gray-200" />

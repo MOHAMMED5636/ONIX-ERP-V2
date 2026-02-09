@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./ForgotPassword";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
-import { ROLES, getRoleRedirectPath } from "../utils/auth";
+import { getRoleRedirectPath } from "../utils/auth";
 import { login as apiLogin } from "../services/authAPI";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -12,6 +12,9 @@ const translations = {
     mobile: "Mobile Number",
     password: "Password",
     login: "Login",
+    loginAs: "Login as",
+    admin: "Admin",
+    employee: "Employee",
     required: "is required",
     invalidMobile: "Invalid mobile number",
     invalidUsername: "Username must include letters",
@@ -27,6 +30,9 @@ const translations = {
     mobile: "رقم الجوال",
     password: "كلمة المرور",
     login: "تسجيل الدخول",
+    loginAs: "تسجيل الدخول كـ",
+    admin: "مدير",
+    employee: "موظف",
     required: "مطلوب",
     invalidMobile: "رقم الجوال غير صحيح",
     invalidUsername: "يجب أن يحتوي اسم المستخدم على أحرف",
@@ -98,6 +104,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [showForgot, setShowForgot] = useState(false);
+  const [loginAs, setLoginAs] = useState("admin"); // "admin" | "employee"
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -153,16 +160,11 @@ export default function Login() {
       // Determine email from userInput
       const detect = smartDetect(userInput);
       let email = '';
-      let role = ROLES.ADMIN; // Default role
       
-      // Determine email and role from userInput
       if (detect.type === "username") {
-        // If it's a username, try as email or construct email
         if (detect.value.includes('@')) {
-          // It's already an email
           email = detect.value.trim().toLowerCase();
         } else {
-          // Regular username - convert to email
           const username = detect.value.toLowerCase();
           if (username === "admin") {
             email = "admin@onixgroup.ae";
@@ -172,15 +174,6 @@ export default function Login() {
             email = `${detect.value}@onixgroup.ae`;
           }
         }
-        
-        // Auto-detect role based on email pattern
-        const emailLower = email.toLowerCase();
-        if (emailLower.includes('admin') || emailLower === 'admin@onixgroup.ae') {
-          role = ROLES.ADMIN;
-        } else if (emailLower.includes('engineer') || emailLower === 'engineer@onixgroup.ae') {
-          role = ROLES.TENDER_ENGINEER;
-        }
-        // Otherwise defaults to ADMIN (already set above)
       } else if (detect.type === "mobile") {
         // Mobile number - can't use for email login
         setLoading(false);
@@ -200,18 +193,16 @@ export default function Login() {
         return;
       }
       
-      // Call backend login API
-      const response = await apiLogin(email, password, role);
+      // Send role when "Employee" is selected so backend validates role
+      const roleToSend = loginAs === "employee" ? "EMPLOYEE" : undefined;
+      const response = await apiLogin(email, password, roleToSend);
       
       if (response.success && response.data) {
-        // Check if password change is required
         if (response.requiresPasswordChange) {
-          // Store token for password change endpoint
           if (response.data.token) {
             localStorage.setItem('token', response.data.token);
           }
           setLoading(false);
-          // Redirect to password change page
           navigate('/change-password', { 
             state: { 
               message: response.message || 'Password change required',
@@ -222,15 +213,11 @@ export default function Login() {
           return;
         }
         
-        // Normal login flow
         if (response.data.token) {
           try {
             await setAuthUser(response.data.token);
             setLoading(false);
-            
-            // Get user role from response to redirect immediately
-            // TENDER_ENGINEER must go to /erp/tender/dashboard, not /dashboard
-            const userRole = response.data.user?.role || role;
+            const userRole = response.data.user?.role;
             const redirectPath = getRoleRedirectPath(userRole);
             navigate(redirectPath, { state: { lang, dir } });
           } catch (err) {
@@ -317,7 +304,28 @@ export default function Login() {
           </button>
           {!showForgot ? (
             <form onSubmit={handleLogin} className="space-y-6 mt-8">
-              <h2 className="text-2xl font-bold text-cyan-700 mb-4 text-center animate-fade-in">{t.login}</h2>
+              <h2 className="text-2xl font-bold text-cyan-700 mb-2 text-center animate-fade-in">{t.login}</h2>
+              {/* Toggle: Login as Admin / Employee - animated */}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-sm font-medium text-gray-600">{t.loginAs}</span>
+                <div className="inline-flex rounded-full bg-gray-100 p-1 border border-gray-200 login-toggle-track">
+                  <button
+                    type="button"
+                    onClick={() => { setLoginAs("admin"); setLoginError(""); }}
+                    className={`login-toggle-btn px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ease-out ${loginAs === "admin" ? "login-toggle-active bg-cyan-600 text-white shadow-md scale-105" : "text-gray-600 hover:text-gray-800 hover:bg-gray-200/60"}`}
+                  >
+                    {t.admin}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLoginAs("employee"); setLoginError(""); }}
+                    className={`login-toggle-btn px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ease-out ${loginAs === "employee" ? "login-toggle-active bg-cyan-600 text-white shadow-md scale-105" : "text-gray-600 hover:text-gray-800 hover:bg-gray-200/60"}`}
+                  >
+                    {t.employee}
+                  </button>
+                </div>
+              </div>
+              <div key={loginAs} className="animate-toggle-change">
               <div>
                 <label className="block text-gray-700 mb-1 font-semibold" htmlFor="userInput">{t.username} / {t.mobile}</label>
                 <div className="relative">
@@ -384,6 +392,7 @@ export default function Login() {
                   {t.forgot}
                 </button>
               </div>
+              </div>
             </form>
           ) : (
             <ForgotPassword lang={lang} dir={dir} onBack={() => setShowForgot(false)} />
@@ -400,6 +409,13 @@ export default function Login() {
         @keyframes loginPop { from { transform: scale(0.95);} to { transform: scale(1);} }
         .forgot-pop { transition: color 0.2s, text-decoration 0.2s; }
         .forgot-pop:hover { color: #0e7490; text-decoration: underline; }
+        .login-toggle-track { transition: box-shadow 0.3s ease; }
+        .login-toggle-track:hover { box-shadow: 0 2px 8px rgba(6, 182, 212, 0.15); }
+        .login-toggle-btn { transform-origin: center; }
+        .login-toggle-active { animation: togglePulse 0.4s ease-out; }
+        @keyframes togglePulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1.05); } }
+        .animate-toggle-change { animation: toggleChange 0.35s ease-out; }
+        @keyframes toggleChange { from { opacity: 0.6; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

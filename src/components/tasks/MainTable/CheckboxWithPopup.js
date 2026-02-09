@@ -5,6 +5,7 @@ import {
   ClipboardDocumentIcon,
   TrashIcon
 } from "@heroicons/react/24/outline";
+import { useAuth } from '../../../contexts/AuthContext';
 
 const CheckboxWithPopup = ({ 
   task, 
@@ -16,6 +17,8 @@ const CheckboxWithPopup = ({
   isSubtask = false,
   parentTaskId = null 
 }) => {
+  const { user } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
   const [showPopup, setShowPopup] = useState(false);
   
   // Debug popup state changes
@@ -129,44 +132,55 @@ const CheckboxWithPopup = ({
           style={getPopupPosition()}
         >
           {console.log('Rendering popup for:', task.name || task.title)}
-          <button
-            onClick={handleEdit}
-            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors duration-150"
-          >
-            <PencilIcon className="w-4 h-4" />
-            Edit
-          </button>
-          <button
-            onClick={handleCopy}
-            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors duration-150"
-          >
-            <ClipboardDocumentIcon className="w-4 h-4" />
-            Copy to Clipboard
-          </button>
-          {onPaste && (
+          {/* Edit Button - Hidden for employees */}
+          {!isEmployee && (
             <button
-              onClick={() => {
-                setShowPopup(false);
-                onPaste(task);
-              }}
-              className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors duration-150 ${
-                copiedItem ? 'text-green-700 hover:bg-green-100' : 'text-gray-400 cursor-not-allowed'
-              }`}
-              disabled={!copiedItem}
-              title={copiedItem ? `Paste ${copiedItem.name || 'item'}` : 'No item copied'}
+              onClick={handleEdit}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors duration-150"
             >
-              <ClipboardDocumentIcon className="w-4 h-4" />
-              {copiedItem ? `Paste ${copiedItem.name || 'item'}` : 'Paste (No item copied)'}
+              <PencilIcon className="w-4 h-4" />
+              Edit
             </button>
           )}
-          <div className="border-t border-gray-200 my-1"></div>
-          <button
-            onClick={handleDelete}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors duration-150"
-          >
-            <TrashIcon className="w-4 h-4" />
-            Delete
-          </button>
+          {/* Copy Button - Hidden for employees */}
+          {!isEmployee && (
+            <>
+              <button
+                onClick={handleCopy}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors duration-150"
+              >
+                <ClipboardDocumentIcon className="w-4 h-4" />
+                Copy to Clipboard
+              </button>
+              {onPaste && (
+                <button
+                  onClick={() => {
+                    setShowPopup(false);
+                    onPaste(task);
+                  }}
+                  className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors duration-150 ${
+                    copiedItem ? 'text-green-700 hover:bg-green-100' : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                  disabled={!copiedItem}
+                  title={copiedItem ? `Paste ${copiedItem.name || 'item'}` : 'No item copied'}
+                >
+                  <ClipboardDocumentIcon className="w-4 h-4" />
+                  {copiedItem ? `Paste ${copiedItem.name || 'item'}` : 'Paste (No item copied)'}
+                </button>
+              )}
+              <div className="border-t border-gray-200 my-1"></div>
+            </>
+          )}
+          {/* Delete Button - Hidden for employees */}
+          {!isEmployee && (
+            <button
+              onClick={handleDelete}
+              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors duration-150"
+            >
+              <TrashIcon className="w-4 h-4" />
+              Delete
+            </button>
+          )}
         </div>
       )}
     </div>

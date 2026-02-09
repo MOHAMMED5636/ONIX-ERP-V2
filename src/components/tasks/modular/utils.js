@@ -69,9 +69,11 @@ export const calculateProgress = (task) => {
 export const validateTask = (task) => {
   const errors = {};
   
-  if (!task.name || task.name.trim() === '') {
-    errors.name = 'Project name is required';
-  }
+  // Project name is now optional - removed requirement
+  // If reference number is provided, name can be auto-generated
+  // if (!task.name || task.name.trim() === '') {
+  //   errors.name = 'Project name is required';
+  // }
   
   if (task.planDays < 0) {
     errors.planDays = 'Plan days must be non-negative';

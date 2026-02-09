@@ -8,6 +8,7 @@ import {
   DocumentDuplicateIcon,
   ArrowUturnLeftIcon
 } from "@heroicons/react/24/outline";
+import { useAuth } from '../../../contexts/AuthContext';
 // import TaskCopyPasteManager from './TaskCopyPasteManager'; // Removed - using BulkPasteModal instead
 
 const BulkActionBar = ({ 
@@ -30,6 +31,9 @@ const BulkActionBar = ({
   onUndo,
   hasDeletedItems = false
 }) => {
+  const { user } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
+  
   if (totalSelected < 1) return null;
 
   const handleEdit = () => {
@@ -76,19 +80,21 @@ const BulkActionBar = ({
           </div>
           
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleEdit}
-              disabled={!selectionAnalysis.canEdit}
-              className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
-                selectionAnalysis.canEdit
-                  ? 'bg-blue-500 text-white hover:bg-blue-600'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-              title={selectionAnalysis.canEdit ? "Edit selected items" : selectionAnalysis.reason}
-            >
-              <PencilIcon className="w-4 h-4" />
-              Edit
-            </button>
+            {!isEmployee && (
+              <button
+                onClick={handleEdit}
+                disabled={!selectionAnalysis.canEdit}
+                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
+                  selectionAnalysis.canEdit
+                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                title={selectionAnalysis.canEdit ? "Edit selected items" : selectionAnalysis.reason}
+              >
+                <PencilIcon className="w-4 h-4" />
+                Edit
+              </button>
+            )}
             
             <button
               onClick={handleView}
@@ -99,39 +105,46 @@ const BulkActionBar = ({
               View
             </button>
 
-            {/* Copy Button */}
-            <button
-              onClick={onCopy}
-              className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors text-sm"
-              title="Copy selected items"
-            >
-              <ClipboardDocumentIcon className="w-4 h-4" />
-              Copy
-            </button>
+            {/* Copy Button - Hidden for employees */}
+            {!isEmployee && (
+              <>
+                <button
+                  onClick={onCopy}
+                  className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors text-sm"
+                  title="Copy selected items"
+                >
+                  <ClipboardDocumentIcon className="w-4 h-4" />
+                  Copy
+                </button>
 
-            {/* Paste Button */}
-            <button
-              onClick={onPaste}
-              disabled={!bulkCopiedItems || (bulkCopiedItems.tasks.length === 0 && bulkCopiedItems.subtasks.length === 0 && bulkCopiedItems.childTasks.length === 0)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
-                bulkCopiedItems && (bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0)
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-              title={bulkCopiedItems && (bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0) ? "Paste copied items" : "No items to paste"}
-            >
-              <DocumentDuplicateIcon className="w-4 h-4" />
-              Paste
-            </button>
+                {/* Paste Button */}
+                <button
+                  onClick={onPaste}
+                  disabled={!bulkCopiedItems || (bulkCopiedItems.tasks.length === 0 && bulkCopiedItems.subtasks.length === 0 && bulkCopiedItems.childTasks.length === 0)}
+                  className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
+                    bulkCopiedItems && (bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0)
+                      ? 'bg-green-500 text-white hover:bg-green-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={bulkCopiedItems && (bulkCopiedItems.tasks.length > 0 || bulkCopiedItems.subtasks.length > 0 || bulkCopiedItems.childTasks.length > 0) ? "Paste copied items" : "No items to paste"}
+                >
+                  <DocumentDuplicateIcon className="w-4 h-4" />
+                  Paste
+                </button>
+              </>
+            )}
             
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
-              title="Delete selected items"
-            >
-              <TrashIcon className="w-4 h-4" />
-              Delete
-            </button>
+            {/* Delete Button - Hidden for employees */}
+            {!isEmployee && (
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
+                title="Delete selected items"
+              >
+                <TrashIcon className="w-4 h-4" />
+                Delete
+              </button>
+            )}
 
             {/* Undo Button */}
             <button

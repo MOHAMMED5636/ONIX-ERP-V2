@@ -13,6 +13,29 @@ export const statusColors = {
   "not started": "bg-gray-400 text-white"
 };
 
+// Columns hidden in subtask table (project manager, client, and reference not needed for subtasks)
+export const SUBTASK_HIDDEN_COLUMNS = ['owner', 'client', 'referenceNumber'];
+
+export function getSubtaskColumnOrder(columnOrder) {
+  return columnOrder.filter(colKey => !SUBTASK_HIDDEN_COLUMNS.includes(colKey));
+}
+
+/**
+ * Hierarchical auto-number: 1 = project, 1-1 = subtask, 1-1-1 = child task.
+ * @param {number} projectIndex - 0-based index of project in the list
+ * @param {number|null} subtaskIndex - 0-based index of subtask (null for project row)
+ * @param {number|null} childIndex - 0-based index of child task (null for project or subtask row)
+ */
+export function getHierarchicalAutoNumber(projectIndex, subtaskIndex, childIndex) {
+  const oneBased = (n) => (n == null || n < 0) ? null : n + 1;
+  const p = oneBased(projectIndex);
+  if (subtaskIndex == null && childIndex == null) return String(p);
+  const s = oneBased(subtaskIndex);
+  if (childIndex == null) return `${p}-${s}`;
+  const c = oneBased(childIndex);
+  return `${p}-${s}-${c}`;
+}
+
 export const INITIAL_COLUMNS = [
   { key: 'task', label: 'TASK' },
   { key: 'referenceNumber', label: 'REF. NO' },
@@ -30,8 +53,8 @@ export const INITIAL_COLUMNS = [
   { key: 'plotNumber', label: 'PLOT NUMBER' },
   { key: 'community', label: 'COMMUNITY' },
   { key: 'projectType', label: 'PROJECT TYPE' },
-  { key: 'projectFloor', label: 'PROJECT FLOOR' },
-  { key: 'developerProject', label: 'DEVELOPER PROJECT' },
+  { key: 'projectFloor', label: 'NO. OF FLOORS' },
+  { key: 'developerProject', label: 'DEVELOPER NAME' },
   { key: 'autoNumber', label: 'AUTO #' },
   { key: 'predecessors', label: 'PREDECESSORS' },
   { key: 'checklist', label: 'CHECKLIST' },
@@ -228,9 +251,11 @@ export function getMissingColumns(currentOrder, allColumns) {
 export function validateTask(task) {
   const errors = [];
   
-  if (!task.name || task.name.trim() === "") {
-    errors.push("Project name is required");
-  }
+  // Project name is now optional - removed requirement
+  // If reference number is provided, name can be auto-generated
+  // if (!task.name || task.name.trim() === "") {
+  //   errors.push("Project name is required");
+  // }
   
   if (task.planDays && task.planDays < 0) {
     errors.push("Plan days must be non-negative");
@@ -266,13 +291,11 @@ export function createNewTask(tasks, projectStartDate) {
       referenceTrackerInitialized = true;
     }
     
-    // Auto-generate reference number (simple format)
-    const autoReferenceNumber = generateProjectReference("GEN", tasks);
-    
+    // Reference number must be manually entered - no auto-generation
     return {
       id: generateTaskId(),
       name: "",
-      referenceNumber: autoReferenceNumber,
+      referenceNumber: "",
       client: "",
       category: "General",
       status: "not started",
@@ -302,11 +325,11 @@ export function createNewTask(tasks, projectStartDate) {
     };
   } catch (error) {
     console.error('Error creating new task:', error);
-    // Fallback to manual reference number if auto-generation fails
+    // Fallback - reference number must be manually entered
     return {
       id: generateTaskId(),
       name: "",
-      referenceNumber: `REF-${String(tasks.length + 1).padStart(3, '0')}`,
+      referenceNumber: "",
       category: "General",
       status: "not started",
       owner: "AL",

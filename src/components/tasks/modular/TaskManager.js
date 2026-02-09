@@ -80,7 +80,9 @@ const TaskManager = () => {
   const handleCreateTask = () => {
     if (!newTask) return;
     
-    const errors = validateTask(newTask);
+    // Project name validation removed - name is now optional
+    // const errors = validateTask(newTask);
+    const errors = {}; // Skip name validation - allow saving with reference number only
     if (Object.keys(errors).length > 0) {
       alert(`Please fix the following errors:\n${Object.values(errors).join('\n')}`);
       return;

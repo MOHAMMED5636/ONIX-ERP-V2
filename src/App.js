@@ -8,12 +8,20 @@ import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
 import Navbar from "./layout/Navbar";
 import TenderEngineerSidebar from "./layout/TenderEngineerSidebar";
+import EmployeeSidebar from "./layout/EmployeeSidebar";
 import Login from "./modules/Login";
 import ChangePassword from "./components/auth/ChangePassword";
 import CreateEmployeeForm from "./components/employees/CreateEmployeeForm";
 import TenderEngineerLogin from "./modules/TenderEngineerLogin";
 import TenderEngineerDashboard from "./pages/TenderEngineerDashboard";
 import TenderEngineerSubmission from "./pages/TenderEngineerSubmission";
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
+import EmployeeProjects from "./pages/employee/EmployeeProjects";
+import EmployeeProjectDetail from "./pages/employee/EmployeeProjectDetail";
+import EmployeeProfile from "./pages/employee/EmployeeProfile";
+import TaskList from "./components/tasks/TaskList";
+import MyAttendance from "./pages/workplace/MyAttendance";
+import CompanyPolicy from "./pages/workplace/CompanyPolicy";
 import ProjectChatApp from "./modules/ProjectChatApp";
 import Employees from "./modules/Employees";
 import Clients from "./pages/Clients";
@@ -36,8 +44,6 @@ import CreateCompanyPage from "./components/companies/CreateCompanyPage";
 import SubDepartmentsPage from "./modules/SubDepartmentsPage";
 import PositionsPage from "./modules/PositionsPage";
 import EmployeeSectionPage from "./modules/EmployeeSectionPage";
-import CompanyPolicy from "./pages/workplace/CompanyPolicy";
-import MyAttendance from "./pages/workplace/MyAttendance";
 import Leaves from "./pages/workplace/Leaves";
 import FeedbacksSurvey from "./pages/workplace/FeedbacksSurvey";
 import RuleBuilder from "./pages/employees/RuleBuilder";
@@ -199,17 +205,51 @@ function PrivateRoute({ children, requiredRole = null }) {
   return children;
 }
 
-// Component to block TENDER_ENGINEER from accessing main ERP routes
+// Block TENDER_ENGINEER from accessing main ERP routes
 function TenderEngineerBlock({ children }) {
   const { user } = useAuth();
-  const location = useLocation();
-  
-  // If TENDER_ENGINEER tries to access main ERP routes, redirect to their dashboard
   if (user && user.role === 'TENDER_ENGINEER') {
     return <Navigate to="/erp/tender/dashboard" replace />;
   }
-  
   return children;
+}
+
+// Block EMPLOYEE from accessing Admin ERP; redirect to Employee ERP
+function EmployeeBlock({ children }) {
+  const { user } = useAuth();
+  if (user && user.role === 'EMPLOYEE') {
+    return <Navigate to="/employee/dashboard" replace />;
+  }
+  return children;
+}
+
+// Employee ERP layout (limited features)
+function EmployeeLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
+  React.useEffect(() => {
+    const handleResize = () => setSidebarCollapsed(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <EmployeeSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
+      <div className={`flex-1 flex flex-col transition-all duration-300 w-full ${sidebarCollapsed ? 'lg:ml-8' : 'lg:ml-28'}`}>
+        <main className="flex-1 w-full p-4">
+          <Routes>
+            <Route path="dashboard" element={<EmployeeDashboard />} />
+            <Route path="projects" element={<EmployeeProjects />} />
+            <Route path="projects/:id" element={<EmployeeProjectDetail />} />
+            <Route path="tasks/*" element={<TaskList />} />
+            <Route path="attendance" element={<MyAttendance />} />
+            <Route path="company-policy" element={<CompanyPolicy />} />
+            <Route path="profile" element={<EmployeeProfile />} />
+            <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
 }
 
 // Tender Engineer Layout (with sidebar and navbar like main ERP)
@@ -274,11 +314,19 @@ export default function App() {
                     <Navigate to="/erp/tender/dashboard" replace />
                   </PrivateRoute>
                 } />
-                {/* Admin/General Routes - Block TENDER_ENGINEER */}
+                {/* Employee ERP - limited access (same login, different layout) */}
+                <Route path="/employee/*" element={
+                  <PrivateRoute requiredRole="EMPLOYEE">
+                    <EmployeeLayout />
+                  </PrivateRoute>
+                } />
+                {/* Admin/General Routes - Block TENDER_ENGINEER and EMPLOYEE */}
                 <Route path="/*" element={
                   <PrivateRoute>
                     <TenderEngineerBlock>
-                      <MainLayout />
+                      <EmployeeBlock>
+                        <MainLayout />
+                      </EmployeeBlock>
                     </TenderEngineerBlock>
                   </PrivateRoute>
                 } />
