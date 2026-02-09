@@ -47,7 +47,7 @@ import useSocket from "../../hooks/useSocket";
 import { MessageCircle } from 'lucide-react';
 import EngineerInviteModal from "./MainTable/EngineerInviteModal";
 import { sendTenderInvitations } from "../../services/tenderAPI";
-import { createProject, getProjects, deleteProject } from "../../services/projectsAPI";
+import { createProject, getProjects, deleteProject, updateProject } from "../../services/projectsAPI";
 
 
 // Import utilities
@@ -803,7 +803,8 @@ export default function MainTable() {
           return {
             id: project.id,
             name: project.name || 'Untitled Project',
-            referenceNumber: project.referenceNumber || '',
+            // Use contract reference number if available (from Load Out), otherwise use project reference number
+            referenceNumber: primaryContract?.referenceNumber || project.referenceNumber || '',
             pin: project.pin || '',
             client: project.client?.name || '',
             clientId: project.clientId || null,
@@ -830,7 +831,7 @@ export default function MainTable() {
             projectType: project.projectType || primaryContract?.contractType || 'Residential',
             projectFloor: project.projectFloor || primaryContract?.numberOfFloors?.toString() || '',
             developerProject: project.developerProject || primaryContract?.developerName || '',
-            // Contract reference number for display
+            // Store original project reference number (may differ from contract reference if conflict occurred)
             contractReferenceNumber: primaryContract?.referenceNumber || '',
             contractId: primaryContract?.id || null,
             contracts: project.contracts || [], // Store all contracts
@@ -1695,6 +1696,15 @@ export default function MainTable() {
     const statusValues = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'ON_HOLD', 'pending', 'In Progress', 'Done', 'Cancelled', 'Suspended'];
     const isStatusChange = isStatusUpdate && statusValues.includes(value);
 
+    // Fields that should be saved to backend when changed
+    const backendFields = ['name', 'referenceNumber', 'pin', 'status', 'owner', 'projectType', 
+                           'plotNumber', 'community', 'projectFloor', 'developerProject', 
+                           'location', 'makaniNumber', 'planDays', 'remarks', 'assigneeNotes',
+                           'startDate', 'endDate', 'deadline'];
+    
+    // Check if this is a field that should be saved to backend
+    const shouldSaveToBackend = backendFields.includes(col) && task.id;
+
     setTasks(tasks => {
       const idx = tasks.findIndex(t => t.id === task.id);
       let updatedTasks = tasks.map(t => ({ ...t }));
@@ -1728,6 +1738,63 @@ export default function MainTable() {
       
       return updatedTasks;
     });
+    
+    // Save to backend if this is a backend field
+    if (shouldSaveToBackend) {
+      // Map frontend field names to backend field names
+      const backendPayload = {};
+      
+      // Map status from frontend to backend enum
+      if (col === 'status') {
+        const statusMap = {
+          'Pending': 'OPEN',
+          'In Progress': 'IN_PROGRESS',
+          'Done': 'COMPLETED',
+          'Cancelled': 'CANCELLED',
+          'Suspended': 'ON_HOLD'
+        };
+        backendPayload.status = statusMap[value] || value;
+      } else if (col === 'owner') {
+        // Map owner to projectManager in backend
+        backendPayload.projectManager = value || null;
+      } else if (col === 'timeline') {
+        // Map timeline to startDate and endDate
+        const [start, end] = value;
+        backendPayload.startDate = start ? new Date(start).toISOString() : null;
+        backendPayload.endDate = end ? new Date(end).toISOString() : null;
+      } else {
+        // Direct mapping for other fields
+        const fieldMap = {
+          'projectType': 'projectType',
+          'plotNumber': 'plotNumber',
+          'community': 'community',
+          'projectFloor': 'projectFloor',
+          'developerProject': 'developerProject',
+          'location': 'location',
+          'makaniNumber': 'makaniNumber',
+          'planDays': 'planDays',
+          'remarks': 'remarks',
+          'assigneeNotes': 'assigneeNotes',
+          'name': 'name',
+          'referenceNumber': 'referenceNumber',
+          'pin': 'pin'
+        };
+        
+        if (fieldMap[col]) {
+          backendPayload[fieldMap[col]] = value || null;
+        }
+      }
+      
+      // Save to backend
+      updateProject(task.id, backendPayload)
+        .then(response => {
+          console.log('✅ Project updated successfully:', response);
+        })
+        .catch(error => {
+          console.error('❌ Error updating project:', error);
+          // Optionally show error message to user
+        });
+    }
     
     // Set flag to refresh dashboard when status changes (affects Active Tasks count)
     if (isStatusChange) {

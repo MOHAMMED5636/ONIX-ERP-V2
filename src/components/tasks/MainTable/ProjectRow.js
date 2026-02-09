@@ -78,8 +78,8 @@ const ProjectRow = ({
           />
         );
       case "referenceNumber":
-        // Display contract reference if available, otherwise project reference
-        const displayRef = row.contractReferenceNumber || row.referenceNumber || "";
+        // Display the reference number (which is now the contract reference number for Load Out projects)
+        const displayRef = row.referenceNumber || "";
         return (
           <div className="flex flex-col">
             <input
@@ -88,11 +88,8 @@ const ProjectRow = ({
               onChange={e => !isEmployee && onEdit("referenceNumber", e.target.value)}
               disabled={isEmployee}
               readOnly={isEmployee}
-              title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : row.contractReferenceNumber ? `Contract: ${row.contractReferenceNumber} | Project: ${row.referenceNumber || 'N/A'}` : `Project: ${row.referenceNumber || 'N/A'}`}
+              title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : `Reference: ${displayRef || 'N/A'}`}
             />
-            {row.contractReferenceNumber && row.contractReferenceNumber !== row.referenceNumber && (
-              <span className="text-xs text-gray-500 mt-0.5">Contract: {row.contractReferenceNumber}</span>
-            )}
           </div>
         );
       case "category":
@@ -131,17 +128,17 @@ const ProjectRow = ({
           </select>
         );
       case "owner":
+        // Display project manager name as text input (can be edited)
         return (
-          <select
-            className="border rounded px-2 py-1 text-sm w-full"
+          <input
+            className={`border rounded px-2 py-1 text-sm w-full ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             value={row.owner || ""}
-            onChange={e => onEdit("owner", e.target.value)}
-          >
-            <option value="">Select project manager</option>
-            <option value="MN">MN</option>
-            <option value="SA">SA</option>
-            <option value="AL">AL</option>
-          </select>
+            onChange={e => !isEmployee && onEdit("owner", e.target.value)}
+            disabled={isEmployee}
+            readOnly={isEmployee}
+            placeholder="Project manager name"
+            title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : "Enter project manager name"}
+          />
         );
       case "timeline":
         // Use calculated dates from TimelineCalc if available, otherwise fall back to timeline array
