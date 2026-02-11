@@ -262,6 +262,7 @@ export default function MainTable() {
           projectFloor: subtask.projectFloor || null,
           developerProject: subtask.developerProject || null,
           description: subtask.description || subtask.remarks || null,
+          tags: Array.isArray(subtask.tags) ? subtask.tags : [],
         };
 
         // Handle timeline/dates
@@ -298,6 +299,7 @@ export default function MainTable() {
                 projectFloor: childSubtask.projectFloor || null,
                 developerProject: childSubtask.developerProject || null,
                 description: childSubtask.description || childSubtask.remarks || null,
+                tags: Array.isArray(childSubtask.tags) ? childSubtask.tags : [],
               };
 
               // Handle timeline/dates for child subtasks
@@ -867,6 +869,12 @@ export default function MainTable() {
   const [tasks, setTasks] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   
+  // Ref to hold latest tasks state for async persistence
+  const tasksRef = useRef(tasks);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+  
   // Fetch projects from backend API on component mount
   useEffect(() => {
     loadProjectsFromAPI();
@@ -882,12 +890,58 @@ export default function MainTable() {
       if (response.success && response.data) {
         console.log(`✅ Loaded ${response.data.length} projects from API`);
         
+        // Helper function to map backend Task to frontend subtask/child format
+        const mapBackendTaskToSubtask = (t) => ({
+          id: t.id,
+          name: t.title || '',
+          referenceNumber: t.referenceNumber || null,
+          category: t.category || 'Design',
+          status: t.status === 'PENDING' ? 'not started' :
+                  t.status === 'IN_PROGRESS' ? 'working' :
+                  t.status === 'COMPLETED' ? 'done' :
+                  t.status === 'CANCELLED' ? 'cancelled' :
+                  t.status === 'ON_HOLD' ? 'on hold' : 'not started',
+          priority: t.priority === 'LOW' ? 'Low' :
+                    t.priority === 'HIGH' ? 'High' :
+                    t.priority === 'MEDIUM' ? 'Medium' :
+                    t.priority === 'URGENT' ? 'Urgent' : 'Medium',
+          owner: '',
+          timeline: [
+            t.startDate ? new Date(t.startDate) : null,
+            t.dueDate ? new Date(t.dueDate) : null
+          ],
+          planDays: t.planDays || 0,
+          remarks: t.remarks || '',
+          assigneeNotes: t.assigneeNotes || '',
+          attachments: [],
+          location: t.location || '',
+          makaniNumber: t.makaniNumber || null,
+          plotNumber: t.plotNumber || null,
+          community: t.community || null,
+          projectType: t.projectType || null,
+          projectFloor: t.projectFloor || null,
+          developerProject: t.developerProject || null,
+          description: t.description || '',
+          notes: t.description || '',
+          predecessors: '',
+          checklist: false,
+          checklistItems: [],
+          link: '',
+          rating: 0,
+          tags: [],
+          childSubtasks: (t.subtasks || []).map(mapBackendTaskToSubtask), // Recursive mapping for nested child tasks
+        });
+        
         // Map backend projects to frontend task format
         const mappedTasks = response.data.map(project => {
           // Get the primary contract (most recent one)
           const primaryContract = project.contracts && project.contracts.length > 0 
             ? project.contracts[0] 
             : null;
+          
+          // Map backend tasks to frontend subtasks
+          const subtasks = (project.tasks || []).map(mapBackendTaskToSubtask);
+          console.log(`📋 Project ${project.id} (${project.name}): ${subtasks.length} subtasks loaded`);
           
           return {
             id: project.id,
@@ -933,7 +987,7 @@ export default function MainTable() {
             rating: 0,
             progress: 0,
             color: '#60a5fa',
-            subtasks: [],
+            subtasks: subtasks, // Use mapped subtasks from project.tasks
             expanded: false,
             createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
           };
@@ -1586,7 +1640,10 @@ export default function MainTable() {
   function handleAddSubtask(taskId) {
     // Find the parent task to get its reference number
     const parentTask = tasks.find(t => t.id === taskId);
-    if (!parentTask) return;
+    if (!parentTask) {
+      console.error('❌ Parent task not found:', taskId);
+      return;
+    }
     
     // Create subtask with auto-generated reference number based on parent
     const newSubtaskData = {
@@ -1594,28 +1651,44 @@ export default function MainTable() {
       ...newSubtask
     };
     
-    setTasks(tasks => {
-      const updatedTasks = tasks.map(t =>
-        t.id === taskId
-          ? {
-            ...t,
-            subtasks: [
-              ...t.subtasks,
-              newSubtaskData
-            ]
-          }
-          : t
-      );
-      return calculateTaskTimelines(updatedTasks, projectStartDate);
-    });
+    // Build updated task with new subtask
+    const updatedTasks = tasks.map(t =>
+      t.id === taskId
+        ? { ...t, subtasks: [...(t.subtasks || []), newSubtaskData] }
+        : t
+    );
+    const withTimeline = calculateTaskTimelines(updatedTasks, projectStartDate);
+    const updatedTask = withTimeline.find(t => t.id === taskId);
+
+    // Update local state
+    setTasks(() => withTimeline);
     setShowSubtaskForm(null);
-    
-    // Set flag to refresh dashboard when user navigates to it
-    // This ensures Active Tasks count is updated if subtask affects parent status
-    localStorage.setItem('dashboardNeedsRefresh', 'true');
-    
-    // Reset newSubtask to default values
     setNewSubtask(createNewSubtask());
+
+    // CRITICAL: Persist to backend immediately
+    const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+    console.log('💾 Saving subtask to backend:', { 
+      taskId, 
+      subtaskName: newSubtaskData.name,
+      totalSubtasks: payload.subtasks.length,
+      payload: JSON.stringify(payload, null, 2)
+    });
+    
+    updateProject(taskId, payload)
+      .then((response) => {
+        console.log('✅ Subtask saved successfully:', response);
+        localStorage.setItem('dashboardNeedsRefresh', 'true');
+        // Reload from API to get real IDs
+        loadProjectsFromAPI();
+      })
+      .catch((err) => {
+        console.error('❌ Failed to save subtask:', err);
+        console.error('Error details:', err.response?.data || err.message);
+        setToast({ 
+          type: 'error', 
+          message: err?.response?.data?.message || err?.message || 'Failed to save subtask. Please try again.' 
+        });
+      });
   }
 
   function handleEditSubtask(taskId, subId, col, value) {
@@ -1706,6 +1779,28 @@ export default function MainTable() {
       
       return updatedTasks;
     });
+
+    // CRITICAL: Persist changes to backend after state update
+    setTimeout(() => {
+      const currentTasks = tasksRef.current;
+      const updatedTask = currentTasks.find(t => t.id === taskId);
+      if (!updatedTask) {
+        console.error('❌ Task not found for persistence:', taskId);
+        return;
+      }
+      
+      const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+      console.log('💾 Persisting subtask edit to backend:', { taskId, subId, col, value, payload });
+      
+      updateProject(taskId, payload)
+        .then((response) => {
+          console.log('✅ Subtask edit saved successfully:', response);
+        })
+        .catch((err) => {
+          console.error('❌ Failed to save subtask edit:', err);
+          console.error('Error details:', err.response?.data || err.message);
+        });
+    }, 200);
   }
 
   function startEditSubtask(subId, colKey, value) {
@@ -1759,6 +1854,28 @@ export default function MainTable() {
         // Show undo toast for subtask - add subtaskId to identify it as a subtask
         const subtaskWithId = { ...subtask, subtaskId: true, parentTaskId };
         undoManager.showUndoToast([subtaskWithId], 'subtask', `Subtask "${subtask.name}" deleted`);
+
+        // CRITICAL: Persist deletion to backend
+        setTimeout(() => {
+          const currentTasks = tasksRef.current;
+          const updatedTask = currentTasks.find(t => t.id === parentTaskId);
+          if (!updatedTask) {
+            console.error('❌ Task not found for deletion persistence:', parentTaskId);
+            return;
+          }
+          
+          const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+          console.log('💾 Persisting subtask deletion to backend:', { parentTaskId, subtaskId: id, payload });
+          
+          updateProject(parentTaskId, payload)
+            .then((response) => {
+              console.log('✅ Subtask deletion saved successfully:', response);
+            })
+            .catch((err) => {
+              console.error('❌ Failed to save subtask deletion:', err);
+              console.error('Error details:', err.response?.data || err.message);
+            });
+        }, 200);
       }
     } else {
       // Handle main task deletion
@@ -2207,34 +2324,48 @@ export default function MainTable() {
   });
 
   function handleAddChildSubtask(taskId, parentSubtaskId) {
+    const parentTask = tasks.find(t => t.id === taskId);
+    if (!parentTask) {
+      console.error('❌ Parent task not found:', taskId);
+      return;
+    }
+    
+    const parentSubtask = parentTask.subtasks?.find(s => s.id === parentSubtaskId);
+    if (!parentSubtask) {
+      console.error('❌ Parent subtask not found:', parentSubtaskId);
+      return;
+    }
+
     const newChildSubtaskData = {
       ...createNewSubtask(),
       ...newChildSubtask,
       id: generateTaskId() // Ensure unique ID
     };
     
-    setTasks(tasks => {
-      const updatedTasks = tasks.map(t =>
-        t.id === taskId
-          ? {
-            ...t,
-            subtasks: t.subtasks.map(sub =>
-              sub.id === parentSubtaskId
-                ? {
-                  ...sub,
-                  childSubtasks: [
-                    ...(sub.childSubtasks || []),
-                    newChildSubtaskData
-                  ]
-                }
-                : sub
-            )
-          }
-          : t
-      );
-      return calculateTaskTimelines(updatedTasks, projectStartDate);
-    });
-    
+    // Build updated task with new child subtask
+    const updatedTasks = tasks.map(t =>
+      t.id === taskId
+        ? {
+          ...t,
+          subtasks: (t.subtasks || []).map(sub =>
+            sub.id === parentSubtaskId
+              ? {
+                ...sub,
+                childSubtasks: [
+                  ...(sub.childSubtasks || []),
+                  newChildSubtaskData
+                ]
+              }
+              : sub
+          )
+        }
+        : t
+    );
+    const withTimeline = calculateTaskTimelines(updatedTasks, projectStartDate);
+    const updatedTask = withTimeline.find(t => t.id === taskId);
+
+    // Update local state
+    setTasks(() => withTimeline);
     setShowChildSubtaskForm(null);
     setNewChildSubtask({
       name: "",
@@ -2261,6 +2392,32 @@ export default function MainTable() {
       link: "",
       rating: 0
     });
+
+    // CRITICAL: Persist to backend immediately
+    const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+    console.log('💾 Saving child subtask to backend:', { 
+      taskId, 
+      parentSubtaskId,
+      childSubtaskName: newChildSubtaskData.name,
+      totalSubtasks: payload.subtasks.length,
+      payload: JSON.stringify(payload, null, 2)
+    });
+    
+    updateProject(taskId, payload)
+      .then((response) => {
+        console.log('✅ Child subtask saved successfully:', response);
+        localStorage.setItem('dashboardNeedsRefresh', 'true');
+        // Reload from API to get real IDs
+        loadProjectsFromAPI();
+      })
+      .catch((err) => {
+        console.error('❌ Failed to save child subtask:', err);
+        console.error('Error details:', err.response?.data || err.message);
+        setToast({ 
+          type: 'error', 
+          message: err?.response?.data?.message || err?.message || 'Failed to save child subtask. Please try again.' 
+        });
+      });
   }
 
     function handleEditChildSubtask(taskId, parentSubtaskId, childSubtaskId, col, value) {
@@ -2337,6 +2494,28 @@ export default function MainTable() {
       
       return updatedTasks;
     });
+
+    // CRITICAL: Persist changes to backend after state update
+    setTimeout(() => {
+      const currentTasks = tasksRef.current;
+      const updatedTask = currentTasks.find(t => t.id === taskId);
+      if (!updatedTask) {
+        console.error('❌ Task not found for persistence:', taskId);
+        return;
+      }
+      
+      const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+      console.log('💾 Persisting child subtask edit to backend:', { taskId, parentSubtaskId, childSubtaskId, col, value, payload });
+      
+      updateProject(taskId, payload)
+        .then((response) => {
+          console.log('✅ Child subtask edit saved successfully:', response);
+        })
+        .catch((err) => {
+          console.error('❌ Failed to save child subtask edit:', err);
+          console.error('Error details:', err.response?.data || err.message);
+        });
+    }, 200);
   }
 
   // Handle checklist modal save
@@ -2480,6 +2659,28 @@ export default function MainTable() {
       // Show undo toast for child subtask
       const childSubtaskWithId = { ...childSubtask, subtaskId: true, parentTaskId: taskId, parentSubtaskId };
       undoManager.showUndoToast([childSubtaskWithId], 'subtask', `Child subtask "${childSubtask.name}" deleted`);
+
+      // CRITICAL: Persist deletion to backend
+      setTimeout(() => {
+        const currentTasks = tasksRef.current;
+        const updatedTask = currentTasks.find(t => t.id === taskId);
+        if (!updatedTask) {
+          console.error('❌ Task not found for child subtask deletion persistence:', taskId);
+          return;
+        }
+        
+        const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+        console.log('💾 Persisting child subtask deletion to backend:', { taskId, parentSubtaskId, childSubtaskId, payload });
+        
+        updateProject(taskId, payload)
+          .then((response) => {
+            console.log('✅ Child subtask deletion saved successfully:', response);
+          })
+          .catch((err) => {
+            console.error('❌ Failed to save child subtask deletion:', err);
+            console.error('Error details:', err.response?.data || err.message);
+          });
+      }, 200);
     }
   }
 
