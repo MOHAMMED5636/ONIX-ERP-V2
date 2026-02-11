@@ -38,7 +38,10 @@ import BulkPasteModal from "./MainTable/BulkPasteModal";
 import ExportModal from "./MainTable/ExportModal";
 import TruncatedTextCell from "./MainTable/TruncatedTextCell";
 import ChecklistModal from "./modals/ChecklistModal";
+import QuestionnaireModal from "./modals/QuestionnaireModal";
+import QuestionnaireResponseModal from "./modals/QuestionnaireResponseModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
+import ContractLoadOutModal from "./modals/ContractLoadOutModal";
 import Toast from "./MainTable/Toast";
 import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 import TaskDetailsDrawer from "../TaskDetailsDrawer";
@@ -73,7 +76,8 @@ import {
   statusColors,
   updateTaskReferenceNumber,
   updateSubtaskReferenceNumber,
-  resetReferenceTracker
+  resetReferenceTracker,
+  calculateTotalPlanDaysFromSubtasks
 } from "./utils/tableUtils";
 
 // Import shared search and filter hook
@@ -95,6 +99,7 @@ export default function MainTable() {
   const { user } = useAuth();
   const isEmployee = user?.role === 'EMPLOYEE';
   const isAdmin = !isEmployee; // Admin is anyone who is not an employee
+  const isManager = ['ADMIN', 'PROJECT_MANAGER', 'HR'].includes(user?.role);
   const navigate = useNavigate();
   
   // Inline edit state and handlers for Project Name (move to top)
@@ -228,6 +233,90 @@ export default function MainTable() {
     }
   };
   const closeProjectSummary = () => setSelectedProjectForSummary(null);
+  
+  // Helper function to format subtasks for backend
+  const formatSubtasksForBackend = (task) => {
+    if (!task.subtasks || task.subtasks.length === 0) {
+      return [];
+    }
+
+    return task.subtasks
+      .filter(sub => !sub.is_deleted) // Filter out deleted subtasks
+      .map(subtask => {
+        const formattedSubtask = {
+          id: subtask.id,
+          name: subtask.name || '',
+          title: subtask.name || '',
+          status: subtask.status || 'not started',
+          priority: subtask.priority || 'Low',
+          category: subtask.category || null,
+          referenceNumber: subtask.referenceNumber || null,
+          planDays: subtask.planDays || null,
+          remarks: subtask.remarks || null,
+          assigneeNotes: subtask.assigneeNotes || null,
+          location: subtask.location || null,
+          makaniNumber: subtask.makaniNumber || null,
+          plotNumber: subtask.plotNumber || null,
+          community: subtask.community || null,
+          projectType: subtask.projectType || null,
+          projectFloor: subtask.projectFloor || null,
+          developerProject: subtask.developerProject || null,
+          description: subtask.description || subtask.remarks || null,
+        };
+
+        // Handle timeline/dates
+        if (subtask.timeline && Array.isArray(subtask.timeline) && subtask.timeline.length >= 2) {
+          formattedSubtask.timeline = subtask.timeline;
+          formattedSubtask.startDate = subtask.timeline[0] ? new Date(subtask.timeline[0]).toISOString() : null;
+          formattedSubtask.endDate = subtask.timeline[1] ? new Date(subtask.timeline[1]).toISOString() : null;
+        } else if (subtask.startDate || subtask.endDate) {
+          formattedSubtask.startDate = subtask.startDate ? new Date(subtask.startDate).toISOString() : null;
+          formattedSubtask.endDate = subtask.endDate ? new Date(subtask.endDate).toISOString() : null;
+        }
+
+        // Format child subtasks
+        if (subtask.childSubtasks && subtask.childSubtasks.length > 0) {
+          formattedSubtask.childSubtasks = subtask.childSubtasks
+            .filter(child => !child.is_deleted)
+            .map(childSubtask => {
+              const formattedChild = {
+                id: childSubtask.id,
+                name: childSubtask.name || '',
+                title: childSubtask.name || '',
+                status: childSubtask.status || 'not started',
+                priority: childSubtask.priority || 'Low',
+                category: childSubtask.category || null,
+                referenceNumber: childSubtask.referenceNumber || null,
+                planDays: childSubtask.planDays || null,
+                remarks: childSubtask.remarks || null,
+                assigneeNotes: childSubtask.assigneeNotes || null,
+                location: childSubtask.location || null,
+                makaniNumber: childSubtask.makaniNumber || null,
+                plotNumber: childSubtask.plotNumber || null,
+                community: childSubtask.community || null,
+                projectType: childSubtask.projectType || null,
+                projectFloor: childSubtask.projectFloor || null,
+                developerProject: childSubtask.developerProject || null,
+                description: childSubtask.description || childSubtask.remarks || null,
+              };
+
+              // Handle timeline/dates for child subtasks
+              if (childSubtask.timeline && Array.isArray(childSubtask.timeline) && childSubtask.timeline.length >= 2) {
+                formattedChild.timeline = childSubtask.timeline;
+                formattedChild.startDate = childSubtask.timeline[0] ? new Date(childSubtask.timeline[0]).toISOString() : null;
+                formattedChild.endDate = childSubtask.timeline[1] ? new Date(childSubtask.timeline[1]).toISOString() : null;
+              } else if (childSubtask.startDate || childSubtask.endDate) {
+                formattedChild.startDate = childSubtask.startDate ? new Date(childSubtask.startDate).toISOString() : null;
+                formattedChild.endDate = childSubtask.endDate ? new Date(childSubtask.endDate).toISOString() : null;
+              }
+
+              return formattedChild;
+            });
+        }
+
+        return formattedSubtask;
+      });
+  };
   
   // Chat handlers
   // Handle Tender button click - show confirmation modal
@@ -997,6 +1086,11 @@ export default function MainTable() {
   const [checklistModalTarget, setChecklistModalTarget] = useState(null); // { type: 'main'|'sub'|'child', taskId, subId }
   const [checklistModalItems, setChecklistModalItems] = useState([]);
   
+  // Questionnaire modal state
+  const [questionnaireModalOpen, setQuestionnaireModalOpen] = useState(false);
+  const [questionnaireResponseModalOpen, setQuestionnaireResponseModalOpen] = useState(false);
+  const [questionnaireModalTarget, setQuestionnaireModalTarget] = useState(null); // { projectId, taskId, subtaskId }
+  
   // Attachments modal state
   const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false);
   const [attachmentsModalTarget, setAttachmentsModalTarget] = useState(null); // { type: 'main'|'sub'|'child', taskId, subId }
@@ -1005,6 +1099,9 @@ export default function MainTable() {
   // Engineer invite modal state
   const [engineerInviteModalOpen, setEngineerInviteModalOpen] = useState(false);
   const [engineerInviteTarget, setEngineerInviteTarget] = useState(null); // { taskId, taskName, currentAssignee }
+  
+  // Contract Load Out modal state
+  const [contractLoadOutModalOpen, setContractLoadOutModalOpen] = useState(false);
   
   
 
@@ -1137,6 +1234,11 @@ export default function MainTable() {
         remarks: newTask.remarks || null,
         assigneeNotes: newTask.assigneeNotes || null,
       };
+      
+      // Include subtasks and childSubtasks in the payload
+      if (newTask.subtasks && newTask.subtasks.length > 0) {
+        projectData.subtasks = formatSubtasksForBackend(newTask);
+      }
       
       console.log('📝 Creating project via API:', projectData);
       
@@ -1311,7 +1413,27 @@ export default function MainTable() {
     });
   };
 
-  // handleSelectAll removed - no more select all functionality
+  // Handle select all projects
+  const handleSelectAll = () => {
+    const allFilteredTaskIds = filteredTasks.map(task => task.id);
+    const allSelected = allFilteredTaskIds.length > 0 && allFilteredTaskIds.every(id => selectedTaskIds.has(id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedTaskIds(prev => {
+        const newSet = new Set(prev);
+        allFilteredTaskIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    } else {
+      // Select all
+      setSelectedTaskIds(prev => {
+        const newSet = new Set(prev);
+        allFilteredTaskIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+    }
+  };
 
   const handleBulkEdit = (selectedTasks, selectedSubtasks = []) => {
     console.log('Bulk edit called with:', { selectedTasks, selectedSubtasks });
@@ -1664,14 +1786,19 @@ export default function MainTable() {
   }
 
   function handleAddNewTask() {
-    // Ensure reference tracker is initialized
-    if (tasks.length > 0) {
-      initializeReferenceTracker();
+    // Open Contract Load Out modal instead of directly creating a project
+    setContractLoadOutModalOpen(true);
+  }
+
+  function handleContractLoadOutSuccess(createdProjects) {
+    // Refresh the project list after successful load out
+    loadProjectsFromAPI();
+    // Show success message
+    if (createdProjects && createdProjects.length > 0) {
+      showToast(`Successfully created ${createdProjects.length} project(s) from contract(s)`, 'success');
+    } else {
+      showToast('Projects created successfully. Refreshing list...', 'success');
     }
-    
-    // Use createNewTask to auto-generate reference number
-    const newTaskData = createNewTask(tasks, projectStartDate);
-    setNewTask(newTaskData);
   }
 
   function handleEdit(task, col, value) {
@@ -1783,6 +1910,12 @@ export default function MainTable() {
         if (fieldMap[col]) {
           backendPayload[fieldMap[col]] = value || null;
         }
+      }
+      
+      // Include subtasks and childSubtasks in the payload
+      const updatedTask = tasks.find(t => t.id === task.id);
+      if (updatedTask) {
+        backendPayload.subtasks = formatSubtasksForBackend(updatedTask);
       }
       
       // Save to backend
@@ -2469,15 +2602,17 @@ export default function MainTable() {
           </select>
         );
       case "planDays":
+        // Display child subtask's own planDays (will be summed in parent task)
         return (
           <input
             type="number"
             min={0}
-            className="border rounded px-1 py-1 text-xs w-16 text-center"
+            className="border rounded px-1 py-1 text-xs w-16 text-center bg-gray-100 cursor-not-allowed"
             value={childSub.planDays || 0}
-            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "planDays", Number(e.target.value))}
-            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            readOnly={true}
+            disabled={true}
             placeholder="Days"
+            title="Plan days is not editable"
           />
         );
       case "remarks":
@@ -2635,15 +2770,58 @@ export default function MainTable() {
           </div>
         );
       case "checklist":
-        return childSub.checklist ? (
-          <input
-            type="checkbox"
-            checked={true}
-            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "checklist", e.target.checked)}
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-        ) : (
-          <span className="text-gray-400 text-xs">—</span>
+        const childChecklistItems = childSub.checklistItems || [];
+        const childHasChecklist = childChecklistItems.length > 0;
+        
+        // Determine which modal to open based on user role
+        const handleChildChecklistClick = () => {
+          if (isManager) {
+            // Managers open questionnaire management modal for child sub-task
+            setQuestionnaireModalTarget({
+              projectId: task.id,
+              taskId: null,
+              subtaskId: childSub.id, // Use child sub-task ID
+            });
+            setQuestionnaireModalOpen(true);
+          } else {
+            // Employees open response modal for child sub-task
+            setQuestionnaireModalTarget({
+              projectId: task.id,
+              taskId: null,
+              subtaskId: childSub.id, // Use child sub-task ID
+            });
+            setQuestionnaireResponseModalOpen(true);
+          }
+        };
+        
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleChildChecklistClick}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                childHasChecklist 
+                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+              title={isManager ? 'Manage Questionnaire (Managers)' : 'Answer Questionnaire (Employees)'}
+            >
+              {childHasChecklist ? (
+                <>
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {childChecklistItems.length} items
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {isManager ? 'Manage Checklist' : 'Answer Checklist'}
+                </>
+              )}
+            </button>
+          </div>
         );
       case "link":
         return (
@@ -2656,54 +2834,27 @@ export default function MainTable() {
           />
         );
       case "rating":
-        // Always show stars, but only highlight filled ones
+        // Child task rating: always editable so user can rate stars
         const childRating = childSub.rating || 0;
-        if (childSub.status === 'done' && isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-4 h-4 cursor-pointer transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", i)}
-                  fill={i <= childRating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        } else if (isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-4 h-4 cursor-pointer transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "showRatingPrompt", true)}
-                  fill={i <= childRating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        } else {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-4 h-4 transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= childRating ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        }
+        return (
+          <span className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map(i => (
+              <StarIcon
+                key={i}
+                className={`w-4 h-4 cursor-pointer transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", i)}
+                fill={i <= childRating ? '#facc15' : 'none'}
+              />
+            ))}
+          </span>
+        );
       default:
         return <span className="text-xs text-gray-500">{childSub[col.key] || ""}</span>;
     }
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50 overflow-hidden">
+    <div className="h-full w-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50 overflow-hidden" style={{ width: '100%', maxWidth: '100%' }}>
       <style>{`
         .project-row { 
           background-color: #ffffff !important; 
@@ -2728,10 +2879,62 @@ export default function MainTable() {
           transform: translateY(-1px);
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
+        /* Ensure table fits full width */
+        table {
+          width: 100% !important;
+          max-width: 100% !important;
+          table-layout: auto !important;
+        }
+        /* Ensure table container scrolls properly */
+        .table-scroll-container {
+          overflow-x: auto !important;
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch;
+        }
+        .table-scroll-container::-webkit-scrollbar {
+          height: 8px;
+          width: 8px;
+        }
+        .table-scroll-container::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        .table-scroll-container::-webkit-scrollbar-thumb {
+          background: #888;
+          border-radius: 4px;
+        }
+        .table-scroll-container::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
+        /* Prevent white space on sides */
+        body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          overflow-x: hidden;
+        }
+        /* Ensure Filters component doesn't overflow */
+        .filters-container {
+          overflow-x: auto;
+          overflow-y: visible;
+        }
+        .filters-container::-webkit-scrollbar {
+          height: 4px;
+        }
+        .filters-container::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        .filters-container::-webkit-scrollbar-thumb {
+          background: #888;
+          border-radius: 2px;
+        }
+        .filters-container::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
       `}</style>
-      {/* Main Content */}
-      <main className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="w-full px-4 pt-0 pb-0 overflow-x-auto">
+      {/* Main Content - 2cm gap on right side to prevent cutoff */}
+      <main className="flex flex-col flex-1 min-h-0 overflow-hidden pl-4 sm:pl-6 pr-[2cm]" style={{ width: '100%', maxWidth: '100%' }}>
+        <div className="w-full pt-0 pb-0 flex-shrink-0">
                     <Filters
             search={search}
             setSearch={setSearch}
@@ -2759,7 +2962,7 @@ export default function MainTable() {
           
           {/* Search Results Counter */}
           {hasActiveFilters && hasActiveFilters() && (
-            <div className="px-6 py-2 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+            <div className="px-2 py-2 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-blue-800">
                   Found <strong>{filteredTasks.length}</strong> task{filteredTasks.length !== 1 ? 's' : ''} 
@@ -2777,9 +2980,10 @@ export default function MainTable() {
           )}
             
             {/* Enhanced Table Container - Scrollable */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="w-full px-4 py-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
-              <table className="w-full table-auto bg-white min-w-full border-collapse border border-gray-200">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ width: '100%', maxWidth: '100%' }}>
+            <div className="w-full pl-0 pr-[2cm] py-0 bg-white flex-1 table-scroll-container" style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', overflowY: 'auto', position: 'relative', WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ minWidth: 'max-content', width: '100%', display: 'inline-block' }}>
+                <table className="table-auto bg-white border-collapse border border-gray-200" style={{ width: '100%', minWidth: 'max-content', tableLayout: 'auto', display: 'table' }}>
                 {/* Enhanced Table header - show Project Header only when no project is expanded */}
                 {expandedProjectId === null && (
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -2792,9 +2996,17 @@ export default function MainTable() {
                               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">↕</span>
                             </div>
                           </th>
-                          {/* Select Column Header - No checkbox */}
+                          {/* Select Column Header - Select All Checkbox */}
                           <th className="px-3 py-3 text-center w-12 border border-gray-200 bg-gray-50">
-                            {/* Empty header for checkbox alignment */}
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={filteredTasks.length > 0 && filteredTasks.every(task => selectedTaskIds.has(task.id))}
+                                onChange={handleSelectAll}
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                                title="Select all projects"
+                              />
+                            </div>
                           </th>
                           {/* Pin Column Header */}
                           <th className="px-3 py-3 text-center w-12 border border-gray-200 bg-gray-50 font-semibold text-gray-700 text-xs uppercase tracking-wider">
@@ -3217,6 +3429,14 @@ export default function MainTable() {
                             visibleColumns={visibleColumns}
                             onToggleColumn={handleToggleColumn}
                             onResetColumns={handleResetColumns}
+                            onOpenQuestionnaireModal={(target) => {
+                              setQuestionnaireModalTarget(target);
+                              setQuestionnaireModalOpen(true);
+                            }}
+                            onOpenQuestionnaireResponseModal={(target) => {
+                              setQuestionnaireModalTarget(target);
+                              setQuestionnaireResponseModalOpen(true);
+                            }}
                           />
                       {/* Subtasks as separate table with aligned headers */}
                       {expandedActive[task.id] && (
@@ -3302,7 +3522,7 @@ export default function MainTable() {
                                               }`}>
                                                 {col.key === 'autoNumber'
                                                   ? <span className="text-sm text-gray-600 font-medium">{getHierarchicalAutoNumber(taskIdx, subIdx, null)}</span>
-                                                  : CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen)}
+                                                  : CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireModalOpen(true); }, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireResponseModalOpen(true); }, isManager)}
                                               </td>
                                             );
                                           })}
@@ -3502,8 +3722,9 @@ export default function MainTable() {
                   ))}
                     </SortableContext>
                   </DndContext>
-                </tbody>
-              </table>
+                              </tbody>
+                            </table>
+              </div>
             </div>
           </div>
         </div>
@@ -3547,13 +3768,40 @@ export default function MainTable() {
         handleCreateTask={handleCreateTask} 
       />
 
-      {/* Checklist Modal */}
+      {/* Checklist Modal (Legacy) */}
       <ChecklistModal
         open={checklistModalOpen}
         onClose={() => setChecklistModalOpen(false)}
         items={checklistModalItems}
         setItems={setChecklistModalItems}
         onSave={handleChecklistSave}
+      />
+      
+      {/* Questionnaire Modal (For Managers - Create/Edit Questions) */}
+      <QuestionnaireModal
+        open={questionnaireModalOpen}
+        onClose={() => setQuestionnaireModalOpen(false)}
+        projectId={questionnaireModalTarget?.projectId}
+        taskId={questionnaireModalTarget?.taskId}
+        subtaskId={questionnaireModalTarget?.subtaskId}
+        onUpdate={() => {
+          // Refresh questions/status after update
+          if (questionnaireModalTarget?.taskId) {
+            // Could trigger a refresh here if needed
+          }
+        }}
+      />
+      
+      {/* Questionnaire Response Modal (For Employees - Answer Questions) */}
+      <QuestionnaireResponseModal
+        open={questionnaireResponseModalOpen}
+        onClose={() => setQuestionnaireResponseModalOpen(false)}
+        projectId={questionnaireModalTarget?.projectId}
+        taskId={questionnaireModalTarget?.taskId}
+        subtaskId={questionnaireModalTarget?.subtaskId}
+        onUpdate={() => {
+          // Refresh status after response
+        }}
       />
       
       {/* Attachments Modal */}
@@ -3823,6 +4071,13 @@ export default function MainTable() {
           </div>
         </div>
       )}
+
+      {/* Contract Load Out Modal */}
+      <ContractLoadOutModal
+        open={contractLoadOutModalOpen}
+        onClose={() => setContractLoadOutModalOpen(false)}
+        onSuccess={handleContractLoadOutSuccess}
+      />
 
     </div>
   );

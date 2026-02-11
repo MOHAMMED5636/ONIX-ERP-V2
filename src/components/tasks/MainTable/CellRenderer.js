@@ -4,7 +4,7 @@ import TimelineCell from './TimelineCell';
 import { statusColors } from '../utils/tableUtils';
 
 const CellRenderer = {
-  renderSubtaskCell: (col, sub, task, subIdx, handleEditSubtask, isAdmin, handleSubtaskKeyDown, handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen) => {
+  renderSubtaskCell: (col, sub, task, subIdx, handleEditSubtask, isAdmin, handleSubtaskKeyDown, handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, onOpenQuestionnaireModal, onOpenQuestionnaireResponseModal, isManager) => {
     switch (col.key) {
       case "task":
       case "project name":
@@ -99,11 +99,12 @@ const CellRenderer = {
           <input
             type="number"
             min={0}
-            className="border rounded px-2 py-1 text-sm w-20 text-center"
+            className="border rounded px-2 py-1 text-sm w-20 text-center bg-gray-100 cursor-not-allowed"
             value={sub.planDays || 0}
-            onChange={e => handleEditSubtask(task.id, sub.id, "planDays", Number(e.target.value))}
-            onKeyDown={handleSubtaskKeyDown}
+            readOnly={true}
+            disabled={true}
             placeholder="Days"
+            title="Plan days is not editable"
           />
         );
       case "remarks":
@@ -261,13 +262,56 @@ const CellRenderer = {
           </div>
         );
       case "checklist":
+        const checklistItems = sub.checklistItems || [];
+        const hasChecklist = checklistItems.length > 0;
+        
+        // Determine which modal to open based on user role
+        const handleChecklistClick = () => {
+          if (isManager && onOpenQuestionnaireModal) {
+            // Managers open questionnaire management modal for sub-task
+            onOpenQuestionnaireModal({
+              projectId: task.id,
+              taskId: null, // Not for task, but for sub-task
+              subtaskId: sub.id, // Use sub-task ID
+            });
+          } else if (!isManager && onOpenQuestionnaireResponseModal) {
+            // Employees open response modal for sub-task
+            onOpenQuestionnaireResponseModal({
+              projectId: task.id,
+              taskId: null,
+              subtaskId: sub.id, // Use sub-task ID
+            });
+          }
+        };
+        
         return (
-          <input
-            type="checkbox"
-            checked={!!sub.checklist}
-            onChange={e => handleEditSubtask(task.id, sub.id, "checklist", e.target.checked)}
-            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleChecklistClick}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                hasChecklist 
+                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
+                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+              }`}
+              title={isManager ? 'Manage Questionnaire (Managers)' : 'Answer Questionnaire (Employees)'}
+            >
+              {hasChecklist ? (
+                <>
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {checklistItems.length} items
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {isManager ? 'Manage Checklist' : 'Answer Checklist'}
+                </>
+              )}
+            </button>
+          </div>
         );
       case "link":
         return (
@@ -280,26 +324,14 @@ const CellRenderer = {
           />
         );
       case "rating":
-        if (sub.status === 'done' && isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <StarIcon
-                  key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= (sub.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => handleEditSubtask(task.id, sub.id, "rating", i)}
-                  fill={i <= (sub.rating || 0) ? '#facc15' : 'none'}
-                />
-              ))}
-            </span>
-          );
-        }
+        // Subtask rating: always editable so user can rate stars
         return (
           <span className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map(i => (
               <StarIcon
                 key={i}
-                className={`w-5 h-5 ${i <= (sub.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                className={`w-5 h-5 cursor-pointer transition ${i <= (sub.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                onClick={() => handleEditSubtask(task.id, sub.id, "rating", i)}
                 fill={i <= (sub.rating || 0) ? '#facc15' : 'none'}
               />
             ))}

@@ -5,6 +5,7 @@ import CheckboxWithPopup from './CheckboxWithPopup';
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 import TruncatedTextCell from './TruncatedTextCell';
 import { useAuth } from '../../../contexts/AuthContext';
+import { calculateTotalPlanDaysFromSubtasks, calculateAggregateRatingFromSubtasks } from '../utils/tableUtils';
 
 const ProjectRow = ({
   task,
@@ -38,10 +39,13 @@ const ProjectRow = ({
   setNewSubtask,
   handleSubtaskKeyDown,
   onOpenAttachmentsModal,
-  onOpenChat
+  onOpenChat,
+  onOpenQuestionnaireModal,
+  onOpenQuestionnaireResponseModal
 }) => {
   const { user } = useAuth();
   const isEmployee = user?.role === 'EMPLOYEE';
+  const isManager = ['ADMIN', 'PROJECT_MANAGER', 'HR'].includes(user?.role);
   
   // Helper renderers for Monday.com style columns
   const renderMainCell = (col, row, onEdit) => {
@@ -128,16 +132,15 @@ const ProjectRow = ({
           </select>
         );
       case "owner":
-        // Display project manager name as text input (can be edited)
+        // Display project manager name as read-only text input
         return (
           <input
-            className={`border rounded px-2 py-1 text-sm w-full ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.owner || ""}
-            onChange={e => !isEmployee && onEdit("owner", e.target.value)}
-            disabled={isEmployee}
-            readOnly={isEmployee}
+            readOnly={true}
+            disabled={true}
             placeholder="Project manager name"
-            title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : "Enter project manager name"}
+            title="Project manager name is not editable"
           />
         );
       case "timeline":
@@ -157,14 +160,19 @@ const ProjectRow = ({
           </div>
         );
       case "planDays":
+        // Calculate total plan days from all subtasks and child subtasks
+        const totalPlanDays = calculateTotalPlanDaysFromSubtasks(row);
+        const displayValue = totalPlanDays > 0 ? totalPlanDays : (row.planDays || 0);
         return (
           <input
             type="number"
             min={0}
-            className="border rounded px-2 py-1 text-sm w-20 text-center"
-            value={row.planDays || 0}
-            onChange={e => onEdit("planDays", Number(e.target.value))}
-            placeholder="Enter plan days"
+            className="border rounded px-2 py-1 text-sm w-20 text-center bg-gray-100 cursor-not-allowed"
+            value={displayValue}
+            readOnly={true}
+            disabled={true}
+            placeholder="Plan days"
+            title={`Total plan days from subtasks: ${totalPlanDays > 0 ? totalPlanDays : 'No subtasks'}`}
           />
         );
       case "remarks":
@@ -229,13 +237,15 @@ const ProjectRow = ({
         return (
           <div className="flex items-center gap-1">
             <input
-              className="border rounded px-2 py-1 text-sm"
-              value={row.location}
-              onChange={e => onEdit("location", e.target.value)}
-              placeholder="Enter location or pick on map"
+              className="border rounded px-2 py-1 text-sm bg-gray-100 cursor-not-allowed"
+              value={row.location || ""}
+              readOnly={true}
+              disabled={true}
+              placeholder="Location"
+              title="Location is not editable"
             />
-            <button type="button" title="Pick on map">
-              <svg className="w-5 h-5 text-blue-500 hover:text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button type="button" title="Pick on map" disabled className="opacity-50 cursor-not-allowed">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -254,18 +264,22 @@ const ProjectRow = ({
       case "community":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.community || ""}
-            onChange={e => onEdit("community", e.target.value)}
-            placeholder="Enter community"
+            readOnly={true}
+            disabled={true}
+            placeholder="Community"
+            title="Community is not editable"
           />
         );
       case "projectType":
         return (
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm bg-gray-100 cursor-not-allowed"
             value={row.projectType || "Residential"}
-            onChange={e => onEdit("projectType", e.target.value)}
+            readOnly={true}
+            disabled={true}
+            title="Project type is not editable"
           >
             <option value="Residential">Residential</option>
             <option value="Commercial">Commercial</option>
@@ -277,19 +291,23 @@ const ProjectRow = ({
       case "projectFloor":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.projectFloor || ""}
-            onChange={e => onEdit("projectFloor", e.target.value)}
-            placeholder="Enter project floor"
+            readOnly={true}
+            disabled={true}
+            placeholder="No. of floors"
+            title="No. of floors is not editable"
           />
         );
       case "developerProject":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.developerProject || ""}
-            onChange={e => onEdit("developerProject", e.target.value)}
-            placeholder="Enter developer project"
+            readOnly={true}
+            disabled={true}
+            placeholder="Developer name"
+            title="Developer name is not editable"
           />
         );
       case "notes":
@@ -318,39 +336,11 @@ const ProjectRow = ({
           </div>
         );
       case "checklist":
-        const checklistItems = row.checklistItems || [];
-        const hasChecklist = checklistItems.length > 0;
+        // Checklist is now only for sub-tasks, not for tasks
+        // Return empty or disabled state for task level
         return (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                // This will be handled by the parent component
-                if (onEdit && typeof onEdit === 'function') {
-                  onEdit("openChecklistModal", true);
-                }
-              }}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-                hasChecklist 
-                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' 
-                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-              }`}
-            >
-              {hasChecklist ? (
-                <>
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  {checklistItems.length} items
-                </>
-              ) : (
-                <>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Add checklist
-                </>
-              )}
-            </button>
+          <div className="text-xs text-gray-400 italic">
+            Use sub-task checklist
           </div>
         );
       case "link":
@@ -361,42 +351,25 @@ const ProjectRow = ({
             onChange={e => onEdit("link", e.target.value)}
           />
         );
-      case "rating":
-        const isAdmin = true; // TODO: Replace with real authentication logic
-        if (row.status === 'done' && isAdmin) {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <svg
-                  key={i}
-                  className={`w-5 h-5 cursor-pointer transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => onEdit("rating", i)}
-                  fill={i <= row.rating ? '#facc15' : 'none'}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              ))}
-            </span>
-          );
-        } else {
-          return (
-            <span className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(i => (
-                <svg
-                  key={i}
-                  className={`w-5 h-5 transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  fill={i <= row.rating ? '#facc15' : 'none'}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              ))}
-            </span>
-          );
-        }
+      case "rating": {
+        // Parent task rating = aggregate (average) of all subtask + child task ratings, shown as stars (read-only)
+        const displayRating = calculateAggregateRatingFromSubtasks(row);
+        return (
+          <span className="flex items-center gap-1" title="Total of subtasks and child tasks">
+            {[1, 2, 3, 4, 5].map(i => (
+              <svg
+                key={i}
+                className={`w-5 h-5 transition ${i <= displayRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                fill={i <= displayRating ? '#facc15' : 'none'}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            ))}
+          </span>
+        );
+      }
       case "progress":
         const hasSubtasks = row.subtasks && row.subtasks.length > 0;
         return (

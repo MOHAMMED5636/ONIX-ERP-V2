@@ -92,57 +92,58 @@ const Filters = ({
   return (
     <>
       {/* Enhanced Top Bar - Restructured for better alignment */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200">
+      <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-lg border border-gray-200 overflow-hidden">
         {/* Top row with action buttons */}
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center justify-between px-2 sm:px-4 py-3 gap-2 overflow-x-auto filters-container">
           {/* Left side - Main Table Indicator */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
               <Bars3Icon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">Main Table</h2>
-              <p className="text-sm text-gray-600">Project management and task tracking</p>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800">Main Table</h2>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Project management and task tracking</p>
             </div>
           </div>
           
           {/* Right side - New Project, Paste, Search, Show Filters */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 min-w-0">
             {!isEmployee ? (
               <button
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1.5 sm:gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base flex-shrink-0"
                 onClick={handleAddNewTask}
               >
-                <PlusIcon className="w-5 h-5" /> New Project
+                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">New Project</span><span className="sm:hidden">New</span>
               </button>
             ) : (
-              <div className="text-sm text-gray-500 italic flex items-center gap-2 px-4 py-2 bg-yellow-50 rounded-lg border border-yellow-200">
-                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
-                <span>Only project managers can create projects</span>
+              <div className="text-xs sm:text-sm text-gray-500 italic flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 bg-yellow-50 rounded-lg border border-yellow-200 flex-shrink-0">
+                <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
+                <span className="hidden sm:inline">Only project managers can create projects</span>
+                <span className="sm:hidden">Managers only</span>
               </div>
             )}
             
             {/* Info Icon with Tooltip */}
-            <div className="relative group">
+            <div className="relative group flex-shrink-0">
               <button
                 onClick={() => setShowInfoModal(true)}
-                className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200 rounded-full hover:bg-blue-50"
+                className="p-1.5 sm:p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200 rounded-full hover:bg-blue-50"
                 title="Copy-Paste Feature Guide"
               >
-                <Info className="w-5 h-5" />
+                <Info className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
             
             <button
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1.5 sm:gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base flex-shrink-0"
               onClick={handleExport}
               title="Export Table Data"
             >
-              <ArrowDownTrayIcon className="w-5 h-5" /> Export
+              <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">Export</span>
             </button>
 
             <button
-              className={`px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 ${
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1.5 sm:gap-2 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base flex-shrink-0 ${
                 selectedTaskIds && selectedTaskIds.size > 0
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white cursor-pointer"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
@@ -151,28 +152,28 @@ const Filters = ({
               disabled={!selectedTaskIds || selectedTaskIds.size === 0}
               title={selectedTaskIds && selectedTaskIds.size > 0 ? "Create Tender Invitation for selected project" : "Please select a project first"}
             >
-              <ClipboardDocumentListIcon className="w-5 h-5" /> Tender Invitation
+              <ClipboardDocumentListIcon className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">Tender Invitation</span><span className="sm:hidden">Tender</span>
             </button>
             
             {/* Search Box */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <input
                 type="text"
-                placeholder="Search tasks... (Ctrl+K to focus)"
+                placeholder="Search tasks..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-56 pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                className="w-32 sm:w-48 md:w-56 pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm text-sm"
               />
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
               {isSearching && (
-                <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                <div className="absolute right-8 sm:right-10 top-1/2 transform -translate-y-1/2">
                   <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               )}
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
                   title="Clear search"
                 >
                   ×
@@ -183,12 +184,13 @@ const Filters = ({
             {/* Show Filters Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-1.5 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-300 bg-white shadow-sm flex-shrink-0 text-sm"
             >
-              <FunnelIcon className="w-4 h-4" />
-              <span className="text-sm font-medium">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+              <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline text-sm font-medium">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+              <span className="sm:hidden font-medium">{showFilters ? 'Hide' : 'Show'}</span>
               {getActiveFilterCount && getActiveFilterCount() > 0 && (
-                <span className="ml-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                <span className="ml-1 px-1.5 sm:px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
                   {getActiveFilterCount()}
                 </span>
               )}

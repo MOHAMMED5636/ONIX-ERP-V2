@@ -31,11 +31,13 @@ const buildEditForm = (contract) => {
     ? (() => { try { return JSON.parse(contract.contractFees) || []; } catch { return []; } })()
     : (contract.contractFees || []);
   return {
+    referenceNumber: contract.referenceNumber || '',
     status: contract.status || 'DRAFT',
     category: contract.contractCategory || contract.contractType || contract.category || '',
     contractValue: contract.contractValue != null ? Number(contract.contractValue) : (contract.totalAmount != null ? Number(contract.totalAmount) : 0),
     company: companyDisplay,
     client: clientDisplay,
+    projectManagerName: contract.projectManager || '',
     startDate: contract.startDate ? (contract.startDate.includes('T') ? contract.startDate.split('T')[0] : contract.startDate) : '',
     endDate: contract.endDate ? (contract.endDate.includes('T') ? contract.endDate.split('T')[0] : contract.endDate) : '',
     region: contract.region || '',
@@ -145,6 +147,7 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
     // General Information
     company: companyDisplay,
     client: clientDisplay,
+    manager: contractToUse.projectManager || '—',
     description: contractToUse.description || 'Complete construction project for residential/commercial development',
     
     // Location Details
@@ -237,10 +240,8 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
     if (!onSave || !contractToUse?.id) return;
     setSaving(true);
     try {
-      // referenceNumber is immutable - do NOT send it in update payload
-      // It's auto-generated and should never be changed
-      const { referenceNumber, ...payload } = editForm;
-      await onSave(contractToUse.id, payload);
+      // Include referenceNumber in the update payload (now editable)
+      await onSave(contractToUse.id, editForm);
       setIsEditMode(false);
       // Refresh full contract after save
       if (contractToUse.id) {
@@ -354,6 +355,22 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center gap-4">
+                    <span className="text-gray-600 font-medium">Contract Reference:</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.referenceNumber || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, referenceNumber: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-bold text-base bg-blue-50 flex-1 max-w-[250px]"
+                        placeholder="Enter reference number"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-bold text-base bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                        {contractDetails.ref || contractToUse.referenceNumber || '—'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center gap-4">
                     <span className="text-gray-600 font-medium">Status:</span>
                     {isEditMode ? (
                       <select
@@ -422,6 +439,20 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
                       />
                     ) : (
                       <span className="text-gray-900 font-semibold">{contractDetails.client}</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center gap-4">
+                    <span className="text-gray-600 font-medium">Manager:</span>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={editForm.projectManagerName || ''}
+                        onChange={(e) => setEditForm(f => ({ ...f, projectManagerName: e.target.value }))}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]"
+                        placeholder="Project manager name"
+                      />
+                    ) : (
+                      <span className="text-gray-900 font-semibold">{contractDetails.manager}</span>
                     )}
                   </div>
                 </div>

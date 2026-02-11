@@ -353,6 +353,30 @@ class ContractsAPI {
     }
   }
 
+  // Bulk Load Out: Create multiple projects from multiple contracts
+  static async bulkLoadOutContracts(contractIds) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/contracts/bulk-load-out`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ contractIds }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error bulk loading out contracts:', error);
+      throw error;
+    }
+  }
+
   // Get contract statistics
   static async getContractStats() {
     try {

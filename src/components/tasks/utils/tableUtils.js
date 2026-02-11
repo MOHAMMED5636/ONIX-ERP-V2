@@ -70,6 +70,68 @@ export function calculatePlanDaysFromTimeline(timeline) {
   return differenceInCalendarDays(timeline[1], timeline[0]) + 1;
 }
 
+/**
+ * Calculate total plan days from all subtasks and child subtasks recursively
+ * Sums up the planDays from each subtask and child subtask
+ * @param {Object} task - The task object with subtasks and childSubtasks
+ * @returns {number} - Total plan days from all nested subtasks
+ */
+export function calculateTotalPlanDaysFromSubtasks(task) {
+  if (!task || !task.subtasks || task.subtasks.length === 0) {
+    return 0;
+  }
+
+  let total = 0;
+  
+  // Filter out deleted subtasks
+  const activeSubtasks = task.subtasks.filter(sub => !sub.is_deleted);
+  
+  activeSubtasks.forEach(subtask => {
+    // Add subtask's own planDays (use subtask's planDays, not parent's)
+    const subtaskPlanDays = subtask.planDays || 0;
+    total += subtaskPlanDays;
+    
+    // Add child subtasks' planDays recursively
+    if (subtask.childSubtasks && subtask.childSubtasks.length > 0) {
+      const activeChildSubtasks = subtask.childSubtasks.filter(child => !child.is_deleted);
+      activeChildSubtasks.forEach(childSubtask => {
+        // Add child subtask's own planDays
+        const childPlanDays = childSubtask.planDays || 0;
+        total += childPlanDays;
+      });
+    }
+  });
+  
+  return total;
+}
+
+/**
+ * Calculate aggregate rating (1-5) from all subtasks and child subtasks.
+ * Average of all ratings, rounded. Used to show parent task rating as total of children.
+ * @param {Object} task - The task (project row) with subtasks and childSubtasks
+ * @returns {number} - 0-5 integer for star display
+ */
+export function calculateAggregateRatingFromSubtasks(task) {
+  if (!task || !task.subtasks || task.subtasks.length === 0) {
+    return task?.rating != null ? Math.min(5, Math.max(0, Math.round(Number(task.rating)))) : 0;
+  }
+  const activeSubtasks = task.subtasks.filter(sub => !sub.is_deleted);
+  const ratings = [];
+  activeSubtasks.forEach(subtask => {
+    const r = subtask.rating != null ? Number(subtask.rating) : 0;
+    if (!isNaN(r)) ratings.push(Math.min(5, Math.max(0, r)));
+    if (subtask.childSubtasks && subtask.childSubtasks.length > 0) {
+      subtask.childSubtasks.filter(child => !child.is_deleted).forEach(child => {
+        const cr = child.rating != null ? Number(child.rating) : 0;
+        if (!isNaN(cr)) ratings.push(Math.min(5, Math.max(0, cr)));
+      });
+    }
+  });
+  if (ratings.length === 0) return task?.rating != null ? Math.min(5, Math.max(0, Math.round(Number(task.rating)))) : 0;
+  const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  return Math.round(avg);
+}
+
 export function getPredecessorIds(predecessors) {
   if (!predecessors) return [];
   return predecessors

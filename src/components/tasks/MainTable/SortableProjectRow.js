@@ -5,7 +5,8 @@ import { Bars3Icon, ChevronDownIcon, ChevronRightIcon, ClipboardDocumentListIcon
 import MultiSelectCheckbox from './MultiSelectCheckbox';
 import ColumnSettingsDropdown from './ColumnSettingsDropdown';
 import CellRenderer from './CellRenderer';
-import { getSubtaskColumnOrder, getHierarchicalAutoNumber } from '../utils/tableUtils';
+import { getSubtaskColumnOrder, getHierarchicalAutoNumber, calculateTotalPlanDaysFromSubtasks, calculateAggregateRatingFromSubtasks } from '../utils/tableUtils';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const SortableProjectRow = ({
   task,
@@ -42,8 +43,14 @@ const SortableProjectRow = ({
   onTenderClick,
   visibleColumns,
   onToggleColumn,
-  onResetColumns
+  onResetColumns,
+  onOpenQuestionnaireModal,
+  onOpenQuestionnaireResponseModal
 }) => {
+  const { user } = useAuth();
+  const isManager = ['ADMIN', 'PROJECT_MANAGER', 'HR'].includes(user?.role);
+  const isEmployee = user?.role === 'EMPLOYEE';
+  
   const {
     attributes,
     listeners,
@@ -62,7 +69,7 @@ const SortableProjectRow = ({
   };
 
   // Helper renderers for Monday.com style columns
-  const renderMainCell = (col, row, onEdit) => {
+  const renderMainCell = (col, row, onEdit, isEmployeeParam) => {
     switch (col.key) {
       case "checkbox":
         return (
@@ -129,17 +136,17 @@ const SortableProjectRow = ({
           </select>
         );
       case "owner":
+        // Display project manager name as read-only text input
         return (
-          <select
-            className="border rounded px-2 py-1 text-sm w-full"
+          <input
+            type="text"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.owner || ""}
-            onChange={e => onEdit("owner", e.target.value)}
-          >
-            <option value="">Select project manager</option>
-            <option value="MN">MN</option>
-            <option value="SA">SA</option>
-            <option value="AL">AL</option>
-          </select>
+            readOnly={true}
+            disabled={true}
+            placeholder="Project manager name"
+            title="Project manager name is not editable"
+          />
         );
       case "timeline":
         const startDate = row.start || (row.timeline && row.timeline[0]);
@@ -155,14 +162,19 @@ const SortableProjectRow = ({
           </div>
         );
       case "planDays":
+        // Calculate total plan days from all subtasks and child subtasks
+        const totalPlanDays = calculateTotalPlanDaysFromSubtasks(row);
+        const displayValue = totalPlanDays > 0 ? totalPlanDays : (row.planDays || 0);
         return (
           <input
             type="number"
             min={0}
-            className="border rounded px-2 py-1 text-sm w-20 text-center"
-            value={row.planDays || 0}
-            onChange={e => onEdit("planDays", Number(e.target.value))}
-            placeholder="Enter plan days"
+            className="border rounded px-2 py-1 text-sm w-20 text-center bg-gray-100 cursor-not-allowed"
+            value={displayValue}
+            readOnly={true}
+            disabled={true}
+            placeholder="Plan days"
+            title={`Total plan days from subtasks: ${totalPlanDays > 0 ? totalPlanDays : 'No subtasks'}`}
           />
         );
       case "remarks":
@@ -214,12 +226,14 @@ const SortableProjectRow = ({
         return (
           <div className="flex items-center gap-1">
             <input
-              className="border rounded px-2 py-1 text-sm"
-              value={row.location}
-              onChange={e => onEdit("location", e.target.value)}
-              placeholder="Enter location or pick on map"
+              className="border rounded px-2 py-1 text-sm bg-gray-100 cursor-not-allowed"
+              value={row.location || ""}
+              readOnly={true}
+              disabled={true}
+              placeholder="Location"
+              title="Location is not editable"
             />
-            <button type="button" title="Pick on map">
+            <button type="button" title="Pick on map" disabled className="opacity-50 cursor-not-allowed">
               📍
             </button>
           </div>
@@ -236,18 +250,22 @@ const SortableProjectRow = ({
       case "community":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.community || ""}
-            onChange={e => onEdit("community", e.target.value)}
-            placeholder="Enter community"
+            readOnly={true}
+            disabled={true}
+            placeholder="Community"
+            title="Community is not editable"
           />
         );
       case "projectType":
         return (
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm bg-gray-100 cursor-not-allowed"
             value={row.projectType || "Residential"}
-            onChange={e => onEdit("projectType", e.target.value)}
+            readOnly={true}
+            disabled={true}
+            title="Project type is not editable"
           >
             <option value="Residential">Residential</option>
             <option value="Commercial">Commercial</option>
@@ -259,30 +277,35 @@ const SortableProjectRow = ({
       case "projectFloor":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.projectFloor || ""}
-            onChange={e => onEdit("projectFloor", e.target.value)}
-            placeholder="Enter project floor"
+            readOnly={true}
+            disabled={true}
+            placeholder="No. of floors"
+            title="No. of floors is not editable"
           />
         );
       case "developerProject":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.developerProject || ""}
-            onChange={e => onEdit("developerProject", e.target.value)}
-            placeholder="Enter developer project"
+            readOnly={true}
+            disabled={true}
+            placeholder="Developer name"
+            title="Developer name is not editable"
           />
         );
-      case "rating":
+      case "rating": {
+        // Parent task rating = aggregate (average) of all subtask + child task ratings, shown as stars (read-only)
+        const displayRating = calculateAggregateRatingFromSubtasks(row);
         return (
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1" title="Total of subtasks and child tasks">
             {[1, 2, 3, 4, 5].map(i => (
               <svg
                 key={i}
-                className={`w-5 h-5 cursor-pointer transition ${i <= row.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                onClick={() => onEdit("rating", i)}
-                fill={i <= row.rating ? '#facc15' : 'none'}
+                className={`w-5 h-5 transition ${i <= displayRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                fill={i <= displayRating ? '#facc15' : 'none'}
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -291,6 +314,7 @@ const SortableProjectRow = ({
             ))}
           </span>
         );
+      }
       case "progress":
         return (
           <div className="flex flex-col items-center">
@@ -355,13 +379,12 @@ const SortableProjectRow = ({
           </div>
         );
       case "checklist":
+        // Checklist is now only for sub-tasks, not for tasks
+        // Return empty or disabled state for task level
         return (
-          <input
-            type="checkbox"
-            checked={!!row.checklist}
-            onChange={e => onEdit("checklist", e.target.checked)}
-            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
+          <div className="text-xs text-gray-400 italic">
+            Use sub-task checklist
+          </div>
         );
       case "link":
         return (
@@ -510,7 +533,7 @@ const SortableProjectRow = ({
                 renderMainCell(col, task, (field, value) => {
                   if (col.key === 'delete') onDelete(task.id);
                   else onEdit(task, field, value);
-                }, true, onEditTask, onDeleteTask, onCopyTask)
+                }, isEmployee, onEditTask, onDeleteTask, onCopyTask)
               )}
             </td>
           );
