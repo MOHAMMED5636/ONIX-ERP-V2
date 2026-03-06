@@ -37,7 +37,11 @@ const buildEditForm = (contract) => {
     contractValue: contract.contractValue != null ? Number(contract.contractValue) : (contract.totalAmount != null ? Number(contract.totalAmount) : 0),
     company: companyDisplay,
     client: clientDisplay,
-    projectManagerName: contract.projectManager || '',
+    projectManagerName: (contract.assignedManager && typeof contract.assignedManager === 'object'
+      ? `${(contract.assignedManager.firstName || '').trim()} ${(contract.assignedManager.lastName || '').trim()}`.trim() || contract.assignedManager.email
+      : '') || contract.projectManager || '',
+    assignedManagerId: contract.assignedManagerId || null,
+    assignedManagerEmail: contract.assignedManagerEmail || null,
     startDate: contract.startDate ? (contract.startDate.includes('T') ? contract.startDate.split('T')[0] : contract.startDate) : '',
     endDate: contract.endDate ? (contract.endDate.includes('T') ? contract.endDate.split('T')[0] : contract.endDate) : '',
     region: contract.region || '',
@@ -70,6 +74,27 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [fullContract, setFullContract] = useState(null);
   const [loadingContract, setLoadingContract] = useState(false);
+  const [managers, setManagers] = useState([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
+
+  // Fetch managers for dropdown when modal opens or contract changes
+  useEffect(() => {
+    if (isOpen) {
+      setLoadingManagers(true);
+      // Use fullContract if available (from API), otherwise use prop contract
+      const contractToUse = fullContract || contract;
+      // Extract companyId from contract (could be in contract.companyId or contract.company.id)
+      const companyId = contractToUse?.companyId || (contractToUse?.company && typeof contractToUse.company === 'object' ? contractToUse.company.id : null);
+      ContractsAPI.getManagers('', companyId || '')
+        .then(res => {
+          if (res?.success && res?.data) {
+            setManagers(Array.isArray(res.data) ? res.data : []);
+          }
+        })
+        .catch(() => setManagers([]))
+        .finally(() => setLoadingManagers(false));
+    }
+  }, [isOpen, fullContract, contract?.companyId, contract?.company]);
 
   // Fetch full contract details from backend when modal opens
   useEffect(() => {
@@ -147,7 +172,9 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
     // General Information
     company: companyDisplay,
     client: clientDisplay,
-    manager: contractToUse.projectManager || '—',
+    manager: (contractToUse.assignedManager && typeof contractToUse.assignedManager === 'object'
+      ? `${(contractToUse.assignedManager.firstName || '').trim()} ${(contractToUse.assignedManager.lastName || '').trim()}`.trim() || contractToUse.assignedManager.email
+      : '') || contractToUse.projectManager || '—',
     description: contractToUse.description || 'Complete construction project for residential/commercial development',
     
     // Location Details
@@ -442,15 +469,32 @@ const ContractViewModal = ({ isOpen, onClose, contract, onSave }) => {
                     )}
                   </div>
                   <div className="flex justify-between items-center gap-4">
-                    <span className="text-gray-600 font-medium">Manager:</span>
+                    <span className="text-gray-600 font-medium">Project Manager:</span>
                     {isEditMode ? (
-                      <input
-                        type="text"
-                        value={editForm.projectManagerName || ''}
-                        onChange={(e) => setEditForm(f => ({ ...f, projectManagerName: e.target.value }))}
-                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[200px]"
-                        placeholder="Project manager name"
-                      />
+                      <select
+                        value={editForm.assignedManagerId ?? ''}
+                        onChange={(e) => {
+                          const id = e.target.value || null;
+                          const manager = id ? managers.find(m => m.id === id) : null;
+                          setEditForm(f => ({
+                            ...f,
+                            assignedManagerId: id,
+                            assignedManagerEmail: manager ? manager.email : null,
+                            projectManagerName: manager
+                              ? `${(manager.firstName || '').trim()} ${(manager.lastName || '').trim()}`.trim() || manager.email
+                              : '',
+                          }));
+                        }}
+                        disabled={loadingManagers}
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-gray-900 font-semibold flex-1 max-w-[220px]"
+                      >
+                        <option value="">— Select Project Manager —</option>
+                        {managers.map(m => (
+                          <option key={m.id} value={m.id}>
+                            {[(m.firstName || '').trim(), (m.lastName || '').trim()].filter(Boolean).join(' ') || m.email}
+                          </option>
+                        ))}
+                      </select>
                     ) : (
                       <span className="text-gray-900 font-semibold">{contractDetails.manager}</span>
                     )}

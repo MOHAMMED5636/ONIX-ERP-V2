@@ -1,4 +1,6 @@
 // Companies API service for backend connection
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
@@ -8,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
  */
 export const getCompanies = async (filters = {}) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -67,7 +69,7 @@ export const getCompanies = async (filters = {}) => {
  */
 export const getCompanyById = async (companyId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -101,7 +103,7 @@ export const getCompanyById = async (companyId) => {
  */
 export const createCompany = async (companyData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -117,20 +119,24 @@ export const createCompany = async (companyData) => {
       // Use FormData for file uploads
       const formData = new FormData();
       
-      // Add all text fields
+      // Add all fields
       Object.keys(companyData).forEach(key => {
         if (key === 'logo' || key === 'header' || key === 'footer') {
-          // Handle file fields
           if (companyData[key] instanceof File) {
             formData.append(key, companyData[key]);
           } else if (companyData[key] && typeof companyData[key] === 'string') {
-            // Keep existing URL if it's a string
             formData.append(key, companyData[key]);
           }
         } else {
-          // Add other fields as strings
-          if (companyData[key] !== null && companyData[key] !== undefined) {
-            formData.append(key, String(companyData[key]));
+          const val = companyData[key];
+          if (val !== null && val !== undefined) {
+            if (typeof val === 'object' && !(val instanceof File)) {
+              formData.append(key, JSON.stringify(val));
+            } else if (typeof val === 'boolean') {
+              formData.append(key, val ? 'true' : 'false');
+            } else {
+              formData.append(key, String(val));
+            }
           }
         }
       });
@@ -195,7 +201,7 @@ export const createCompany = async (companyData) => {
  */
 export const updateCompany = async (companyId, companyData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -216,20 +222,24 @@ export const updateCompany = async (companyId, companyData) => {
       // Use FormData for file uploads
       const formData = new FormData();
       
-      // Add all text fields
+      // Add all fields
       Object.keys(companyData).forEach(key => {
         if (key === 'logo' || key === 'header' || key === 'footer') {
-          // Handle file fields
           if (companyData[key] instanceof File) {
             formData.append(key, companyData[key]);
           } else if (companyData[key] && typeof companyData[key] === 'string') {
-            // Keep existing URL if it's a string
             formData.append(key, companyData[key]);
           }
         } else {
-          // Add other fields as strings
-          if (companyData[key] !== null && companyData[key] !== undefined) {
-            formData.append(key, String(companyData[key]));
+          const val = companyData[key];
+          if (val !== null && val !== undefined) {
+            if (typeof val === 'object' && !(val instanceof File)) {
+              formData.append(key, JSON.stringify(val));
+            } else if (typeof val === 'boolean') {
+              formData.append(key, val ? 'true' : 'false');
+            } else {
+              formData.append(key, String(val));
+            }
           }
         }
       });
@@ -279,7 +289,7 @@ export const updateCompany = async (companyId, companyData) => {
  */
 export const deleteCompany = async (companyId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -312,7 +322,7 @@ export const deleteCompany = async (companyId) => {
  */
 export const getCompanyStats = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');

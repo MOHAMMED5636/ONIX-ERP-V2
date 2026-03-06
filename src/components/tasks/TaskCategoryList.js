@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getTaskCategories, setTaskCategories, defaultTaskCategories } from "./modular/constants";
 
 const initialCategories = [
   { id: 1, name: "MANAGEMENT", color: "#06b6d4", description: "Project management and coordination tasks" },
@@ -11,8 +12,21 @@ const initialCategories = [
   { id: 8, name: "Tender", color: "#a16207", description: "Tendering and procurement processes" }
 ];
 
+function loadCategories() {
+  const stored = getTaskCategories();
+  if (!stored || stored.length === 0) return initialCategories;
+  return stored.map((name, i) => {
+    const existing = initialCategories.find((c) => c.name === name);
+    return existing || { id: Date.now() + i, name, color: "#06b6d4", description: "" };
+  });
+}
+
+function persistCategories(cats) {
+  setTaskCategories(cats.map((c) => c.name));
+}
+
 export default function TaskCategoryList() {
-  const [categories, setCategories] = useState(initialCategories);
+  const [categories, setCategories] = useState(loadCategories);
   const [editingId, setEditingId] = useState(null); // id of category being edited
   const [editForm, setEditForm] = useState({ name: "", color: "#06b6d4", description: "" });
   const [addForm, setAddForm] = useState({ name: "", color: "#06b6d4", description: "" });
@@ -20,10 +34,9 @@ export default function TaskCategoryList() {
   // Add new category
   function handleAdd() {
     if (!addForm.name.trim()) return;
-    setCategories([
-      ...categories,
-      { ...addForm, id: Date.now() }
-    ]);
+    const next = [...categories, { ...addForm, id: Date.now() }];
+    setCategories(next);
+    persistCategories(next);
     setAddForm({ name: "", color: "#06b6d4", description: "" });
   }
 
@@ -36,7 +49,9 @@ export default function TaskCategoryList() {
   // Save edit
   function handleUpdate(id) {
     if (!editForm.name.trim()) return;
-    setCategories(categories.map(cat => cat.id === id ? { ...cat, ...editForm } : cat));
+    const next = categories.map(cat => cat.id === id ? { ...cat, ...editForm } : cat);
+    setCategories(next);
+    persistCategories(next);
     setEditingId(null);
     setEditForm({ name: "", color: "#06b6d4", description: "" });
   }
@@ -49,7 +64,9 @@ export default function TaskCategoryList() {
 
   // Delete
   function handleDelete(id) {
-    setCategories(categories.filter(cat => cat.id !== id));
+    const next = categories.filter(cat => cat.id !== id);
+    setCategories(next);
+    persistCategories(next);
     if (editingId === id) handleCancelEdit();
   }
 

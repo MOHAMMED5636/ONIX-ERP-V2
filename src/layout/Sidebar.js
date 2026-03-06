@@ -23,6 +23,7 @@ import {
   ComputerDesktopIcon,
   StarIcon,
   BanknotesIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
@@ -88,6 +89,7 @@ const navItems = [
   { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
   { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },
   { key: "bank-reconciliation", icon: BanknotesIcon, label: { en: "Bank Reconciliation", ar: "التوفيق المصرفي" }, path: "/bank-reconciliation" },
+  { key: "payroll", icon: CurrencyDollarIcon, label: { en: "Payroll", ar: "الرواتب" }, path: "/payroll", roles: ["ADMIN", "HR"] },
   { key: "it-support", icon: ComputerDesktopIcon, label: { en: "IT Support", ar: "دعم تكنولوجيا المعلومات" }, path: "/it-support" },
   { key: "ai-employee-evaluations", icon: StarIcon, label: { en: "AI Employee Evaluations", ar: "تقييم الموظفين بالذكاء الاصطناعي" }, path: "/ai-employee-evaluations" },
   { key: "settings", icon: Cog6ToothIcon, label: { en: "Settings", ar: "الإعدادات" }, path: "/settings" },
@@ -328,10 +330,10 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
 
   return (
     <>
-      {/* Overlay for mobile */}
-      {isMobile && (
+      {/* Overlay for mobile - only show when sidebar is open (not collapsed) */}
+      {isMobile && !collapsed && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-40 z-40 transition-opacity duration-300 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 lg:hidden"
           onClick={onToggle}
         />
       )}
@@ -345,9 +347,9 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
       )}
       <aside
         className={`fixed top-0 ${dir === "rtl" ? "right-0" : "left-0"} h-full glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-xl border-r border-indigo-100 z-50 transition-all duration-300
-          ${isMobile ? 'w-[90vw] max-w-full transform ' + (collapsed ? '-translate-x-full' : 'translate-x-0') + ' lg:hidden' : (collapsed ? 'w-16 lg:w-16 xl:w-16' : 'w-28 lg:w-28 xl:w-28')}
+          ${isMobile ? 'w-[280px] max-w-[85vw] transform ' + (collapsed ? '-translate-x-full' : 'translate-x-0') + ' lg:hidden' : (collapsed ? 'w-16 lg:w-16 xl:w-16' : 'w-28 lg:w-28 xl:w-28')}
           flex flex-col justify-between`}
-        style={isMobile ? { transition: 'transform 0.3s' } : {}}
+        style={isMobile ? { transition: 'transform 0.3s ease-in-out' } : {}}
       >
         {/* Top: ONIX GROUP Logo */}
         <div className="flex flex-col items-center gap-2 pt-4 pb-2">
@@ -463,7 +465,14 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
         {/* Navigation */}
         <nav className="flex-1 flex flex-col gap-2 mt-2 px-2 lg:px-0 lg:items-center">
           <div className="mb-2 border-b border-indigo-100 w-full" />
-          {navItems.map((item, idx) => {
+          {navItems.filter((item) => {
+            // If item has roles restriction, check if user role matches
+            if (item.roles && authUser?.role) {
+              return item.roles.includes(authUser.role);
+            }
+            // If no roles restriction, show to everyone
+            return true;
+          }).map((item, idx) => {
             if (item.dropdown) {
               const Icon = item.icon;
               const isOpen = openDropdown === item.key;

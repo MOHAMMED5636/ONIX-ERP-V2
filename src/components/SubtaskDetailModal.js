@@ -766,10 +766,4 @@ const SubtaskDetailModal = ({
         taskName={subtask?.title || subtask?.name}
         currentAssignee={subtask?.assignee}
         onInviteEngineer={handleInviteEngineer}
-      />
-
-    </div>
-  );
-};
-
-export default SubtaskDetailModal;
+        

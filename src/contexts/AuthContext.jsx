@@ -5,6 +5,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentUser, logout as apiLogout, getToken } from '../services/authAPI';
+import * as authStorage from '../utils/authStorage';
 
 const AuthContext = createContext(null);
 
@@ -13,9 +14,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch user profile from API
+  // Fetch user profile from API. Per-tab token from sessionStorage.
   const fetchUserProfile = async () => {
     try {
+      authStorage.removeAuthItem('currentUser');
+      authStorage.removeAuthItem('isAuthenticated');
+      authStorage.removeAuthItem('userRole');
+
       const token = getToken();
       if (!token) {
         setUser(null);
@@ -23,34 +28,22 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const response = await getCurrentUser();
+      const response = await getCurrentUser(token);
       if (response.success && response.data) {
         setUser(response.data);
         setError(null);
-        // Set localStorage items for backward compatibility with existing code
-        localStorage.setItem('currentUser', JSON.stringify(response.data));
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userRole', response.data.role);
-        // Note: forcePasswordChange check is handled in Login component
+        authStorage.setAuthItem('currentUser', response.data);
+        authStorage.setAuthItem('isAuthenticated', 'true');
+        authStorage.setAuthItem('userRole', response.data.role);
       } else {
         setUser(null);
-        // Clear invalid token
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('userRole');
+        authStorage.clearAuth();
       }
     } catch (err) {
       console.error('Failed to fetch user profile:', err);
       setUser(null);
       setError(err.message || 'Failed to load user profile');
-      // Clear invalid token
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userRole');
+      authStorage.clearAuth();
     } finally {
       setLoading(false);
     }
@@ -61,10 +54,11 @@ export const AuthProvider = ({ children }) => {
     fetchUserProfile();
   }, []);
 
-  // Login function - stores token and fetches user profile
+  // Login function - stores token in sessionStorage (this tab only) and fetches user profile
   const login = async (token) => {
     try {
-      localStorage.setItem('token', token);
+      authStorage.clearAuth();
+      authStorage.setToken(token);
       await fetchUserProfile();
     } catch (err) {
       console.error('Login error:', err);
@@ -81,11 +75,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       setError(null);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userRole');
+      authStorage.clearAuth();
     }
   };
 
@@ -102,31 +92,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
   
-  // Update user data directly (for immediate updates)
+  // Update user data directly (for immediate updates, e.g. after profile photo save)
   const updateUserData = (userData) => {
     if (userData) {
-      console.log('[AuthContext] Updating user data:', userData);
-      console.log('[AuthContext] Old photo:', user?.photo);
-      console.log('[AuthContext] New photo path:', userData.photo);
-      
-      // Update state immediately
       setUser(prevUser => {
         const updatedUser = { ...prevUser, ...userData };
-        console.log('[AuthContext] Updated user object:', updatedUser);
+        if (userData.photo !== undefined) {
+          updatedUser.photo = userData.photo;
+        }
+        authStorage.setAuthItem('currentUser', updatedUser);
+        authStorage.setAuthItem('isAuthenticated', 'true');
+        if (updatedUser.role) {
+          authStorage.setAuthItem('userRole', updatedUser.role);
+        }
         return updatedUser;
       });
-      
-      // Update localStorage
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('isAuthenticated', 'true');
-      if (userData.role) {
-        localStorage.setItem('userRole', userData.role);
-      }
-      
-      // Force a small delay to ensure state updates propagate
-      setTimeout(() => {
-        console.log('[AuthContext] User state updated, verifying photo:', userData.photo);
-      }, 100);
     }
   };
 

@@ -160,11 +160,30 @@ const ViewCompanyModal = ({
                       {getLicenseStatusText(company.licenseStatus)}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 space-y-1">
                     <p><strong>Expiry Date:</strong> {company.licenseExpiry ? new Date(company.licenseExpiry).toLocaleDateString() : 'N/A'}</p>
+                    {company.licenseNumber && <p><strong>License Number:</strong> {company.licenseNumber}</p>}
+                    {company.mainLicenseNo && <p><strong>Main License No:</strong> {company.mainLicenseNo}</p>}
+                    {company.trnNumber && <p><strong>TRN:</strong> {company.trnNumber}</p>}
+                    {company.vatRegistrationNumber && <p><strong>VAT Reg No:</strong> {company.vatRegistrationNumber}</p>}
                   </div>
                 </div>
               </div>
+
+              {/* Additional details (enhanced fields) */}
+              {(company.fullNameEn || company.websiteUrl || company.companyEmail || company.ownerName || (company.partnersInfo && company.partnersInfo.length) || (company.activitiesInfo && company.activitiesInfo.length)) && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 space-y-2 text-sm">
+                    {company.fullNameEn && <p><strong>Representative (EN):</strong> {company.fullNameEn}</p>}
+                    {company.websiteUrl && <p><strong>Website:</strong> <a href={company.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">{company.websiteUrl}</a></p>}
+                    {company.companyEmail && <p><strong>Company Email:</strong> {company.companyEmail}</p>}
+                    {company.ownerName && <p><strong>Owner:</strong> {company.ownerName}</p>}
+                    {company.partnersInfo && company.partnersInfo.length > 0 && <p><strong>Partners:</strong> {company.partnersInfo.length} partner(s)</p>}
+                    {company.activitiesInfo && company.activitiesInfo.length > 0 && <p><strong>Activities:</strong> {company.activitiesInfo.length} activity(ies)</p>}
+                  </div>
+                </div>
+              )}
               
               {/* Company Files */}
               <div>

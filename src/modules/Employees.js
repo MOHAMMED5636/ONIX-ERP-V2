@@ -1,13 +1,15 @@
 import React, { useState, createContext, useContext, useEffect } from "react";
-import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon, TrashIcon, ArrowPathIcon, KeyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useCompanySelection } from '../context/CompanySelectionContext';
-import { getEmployees, getEmployeeStatistics, createEmployee, updateEmployee, deleteEmployee, restoreEmployee } from '../services/employeeAPI';
+import { useAuth } from '../contexts/AuthContext';
+import { getEmployees, getEmployeeStatistics, createEmployee, updateEmployee, deleteEmployee, restoreEmployee, checkEmployeeAvailability } from '../services/employeeAPI';
 import { getCompanies } from '../services/companiesAPI';
 import { getCompanyDepartments } from '../services/departmentAPI';
+import SetPasswordModal from '../components/SetPasswordModal';
 
 // Custom styles for PhoneInput integration
 const phoneInputStyles = `
@@ -356,6 +358,8 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
   const [showUserModal, setShowUserModal] = useState(false);
   const [userAccountFields, setUserAccountFields] = useState({ workEmail: '', password: '', passwordConfirm: '' });
   const [useGeneratedPassword, setUseGeneratedPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [openLegalSection, setOpenLegalSection] = useState('');
   const [nationalityDropdownOpen, setNationalityDropdownOpen] = useState(false);
   const [nationalitySearchTerm, setNationalitySearchTerm] = useState('');
@@ -592,60 +596,75 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     setShowUserModal(false);
   };
 
-  // Validation (simple)
-  const validateStep = () => {
-    let errs = {};
-    if (step === 0) {
-      if (!form.employeeType) errs.employeeType = "Required";
-      if (!form.firstName) errs.firstName = "Required";
-      if (!form.lastName) errs.lastName = "Required";
-      if (!form.employeeId) errs.employeeId = "Required";
-      if (!form.status) errs.status = "Required";
+  // Get validation errors for a given step (pure, no setState) - used to disable Next and show inline errors
+  const getStepErrors = (s) => {
+    const errs = {};
+    if (s === 0) {
+      if (!(form.employeeType || '').trim()) errs.employeeType = "Required";
+      if (!(form.firstName || '').trim()) errs.firstName = "Required";
+      if (!(form.lastName || '').trim()) errs.lastName = "Required";
+      if (!(form.employeeId || '').trim()) errs.employeeId = "Required";
+      if (!(form.status || '').trim()) errs.status = "Required";
     }
-    if (step === 1) {
-      if (!form.gender) errs.gender = "Required";
-      if (!form.maritalStatus) errs.maritalStatus = "Required";
-      if (!form.nationality) errs.nationality = "Required";
-      if (!form.currentAddress) errs.currentAddress = "Required";
-      if (!form.childrenCount) errs.childrenCount = "Required";
-      // Validate birthday with age check
+    if (s === 1) {
+      if (!(form.gender || '').trim()) errs.gender = "Required";
+      if (!(form.maritalStatus || '').trim()) errs.maritalStatus = "Required";
+      if (!(form.nationality || '').trim()) errs.nationality = "Required";
+      if (!(form.currentAddress || '').trim()) errs.currentAddress = "Required";
+      if (!(form.childrenCount || '').toString().trim()) errs.childrenCount = "Required";
       const birthdayError = validateBirthday(form.birthday);
-      if (birthdayError) {
-        errs.birthday = birthdayError;
-      }
+      if (birthdayError) errs.birthday = birthdayError;
     }
-    if (step === 2) {
-      if (!form.contacts[0].value) errs.contacts = "At least one phone required";
-      if (form.contacts[0].value && form.contacts[0].value.length < 8) errs.contacts = "Phone number must be at least 8 digits";
-      if (!form.emails[0]) errs.emails = "At least one email required";
+    if (s === 2) {
+      if (!form.contacts[0]?.value?.trim()) errs.contacts = "At least one phone required";
+      else if (form.contacts[0].value.replace(/\D/g, '').length < 8) errs.contacts = "Phone number must be at least 8 digits";
+      if (!(form.emails[0] || '').trim()) errs.emails = "At least one email required";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((form.emails[0] || '').trim())) errs.emails = "Enter a valid email address";
     }
-    if (step === 3) {
-      if (!form.company) errs.company = "Required";
-      if (!form.department) errs.department = "Required";
-      if (!form.jobTitle) errs.jobTitle = "Required";
-      if (!form.attendanceProgram) errs.attendanceProgram = "Required";
-      if (!form.joiningDate) errs.joiningDate = "Required";
-      if (!form.companyLocation) errs.companyLocation = "Required";
-      // Line Manager is optional - no validation required
+    if (s === 3) {
+      if (!(form.company || '').trim()) errs.company = "Required";
+      if (!(form.department || '').trim()) errs.department = "Required";
+      if (!(form.jobTitle || '').trim()) errs.jobTitle = "Required";
+      if (!(form.attendanceProgram || '').trim()) errs.attendanceProgram = "Required";
+      if (!(form.joiningDate || '').trim()) errs.joiningDate = "Required";
+      if (!(form.companyLocation || '').trim()) errs.companyLocation = "Required";
     }
-    if (step === 4) {
-      // Passport - REQUIRED
-      if (!form.passportNumber) errs.passportNumber = "Required";
-      if (!form.passportIssue) errs.passportIssue = "Required";
-      // Validate passport expiry - must be at least 6 months away
+    if (s === 4) {
+      if (!(form.passportNumber || '').trim()) errs.passportNumber = "Required";
+      if (!(form.passportIssue || '').trim()) errs.passportIssue = "Required";
       const passportExpiryError = validatePassportExpiry(form.passportExpiry);
-      if (passportExpiryError) {
-        errs.passportExpiry = passportExpiryError;
-      }
-      // All other legal documents (National ID, Residency, Insurance, Driving License, Labour ID) are OPTIONAL
-      // No validation required for these fields
+      if (passportExpiryError) errs.passportExpiry = passportExpiryError;
     }
+    return errs;
+  };
+
+  const currentStepErrors = getStepErrors(step);
+  const isCurrentStepValid = Object.keys(currentStepErrors).length === 0;
+  // Merge displayed errors: show current step live errors; after a failed Next, also show errors state for visibility
+  const displayErrors = { ...currentStepErrors, ...errors };
+
+  // Validation (simple) - sets errors and returns whether step is valid
+  const validateStep = () => {
+    const errs = getStepErrors(step);
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleNext = () => {
     if (validateStep()) setStep((s) => s + 1);
+  };
+
+  const handleEmployeeIdBlur = async () => {
+    const id = (form.employeeId || '').trim();
+    if (!id) return;
+    try {
+      const result = await checkEmployeeAvailability({ employeeId: id });
+      if (result.employeeIdAvailable === false) {
+        setErrors(prev => ({ ...prev, employeeId: "This Employee ID is already in use" }));
+      } else {
+        setErrors(prev => { const next = { ...prev }; delete next.employeeId; return next; });
+      }
+    } catch (_) { /* allow form to proceed; backend will reject if duplicate */ }
   };
   const handlePrev = () => setStep((s) => s - 1);
   const handleSubmit = (e) => {
@@ -675,6 +694,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     // Validate step 2
     if (!form.contacts[0]?.value) allErrors.contacts = "At least one phone required";
     if (!form.emails[0]) allErrors.emails = "At least one email required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((form.emails[0] || '').trim())) allErrors.emails = "Enter a valid email address";
     
     // Validate step 3
     if (!form.company) allErrors.company = "Required";
@@ -684,11 +704,18 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     if (!form.joiningDate) allErrors.joiningDate = "Required";
     if (!form.companyLocation) allErrors.companyLocation = "Required";
     
-    // ERP Access validation (when enabled)
+    // ERP Access validation (when enabled) - accept email OR mobile number
     if (form.userAccount) {
       const we = (userAccountFields.workEmail || '').trim();
-      if (!we) allErrors.workEmail = "Work email is required for ERP login.";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(we)) allErrors.workEmail = "Enter a valid email address.";
+      if (!we) {
+        allErrors.workEmail = "Work email or mobile number is required for ERP login.";
+      } else {
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(we);
+        const isMobile = /^(\+?\d{1,3}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,9}[-.\s]?\d{1,9}$/.test(we.replace(/\s/g, ''));
+        if (!isEmail && !isMobile) {
+          allErrors.workEmail = "Enter a valid email address or mobile number.";
+        }
+      }
       if (!useGeneratedPassword) {
         if (!userAccountFields.password) allErrors.erpPassword = "Password is required, or use Generate temporary password.";
         else if (userAccountFields.password.length < 8) allErrors.erpPassword = "Password must be at least 8 characters.";
@@ -700,13 +727,17 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     // If there are errors, set them and prevent submission
     if (Object.keys(allErrors).length > 0) {
       setErrors(allErrors);
-      // Scroll to first error
+      // Scroll to step indicator / top so user sees summary
+      const summaryEl = document.querySelector('.employee-form-steps');
+      if (summaryEl) summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Scroll to first error field if found
       const firstErrorField = Object.keys(allErrors)[0];
-      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) || 
-                          document.querySelector(`input[value*="${firstErrorField}"]`)?.closest('.w-full');
-      if (errorElement) {
-        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      setTimeout(() => {
+        const errorElement = document.querySelector(`[name="${firstErrorField}"]`) ||
+                            document.querySelector(`input[id*="${firstErrorField}"]`)?.closest('.w-full') ||
+                            document.querySelector(`.border-red-500`);
+        if (errorElement) errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
       return;
     }
     
@@ -780,12 +811,52 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                   </div>
                   <div className="mb-4">
                     <label className="block font-medium mb-1">Password</label>
-                    <input type="password" className="input" placeholder="Min 8 chars, letter + number" value={userAccountFields.password} onChange={e => setUserAccountFields(f => ({ ...f, password: e.target.value }))} />
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        className="input pr-10" 
+                        placeholder="Min 8 chars, letter + number" 
+                        value={userAccountFields.password} 
+                        onChange={e => setUserAccountFields(f => ({ ...f, password: e.target.value }))} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <EyeSlashIcon className="h-5 w-5" />
+                        ) : (
+                          <EyeIcon className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
                     {userAccountFields.password === '' && <div className="text-red-500 text-xs mt-1">Required (or use Generate in form)</div>}
                   </div>
                   <div className="mb-4">
                     <label className="block font-medium mb-1">Confirm Password</label>
-                    <input type="password" className="input" placeholder="Confirm password" value={userAccountFields.passwordConfirm} onChange={e => setUserAccountFields(f => ({ ...f, passwordConfirm: e.target.value }))} />
+                    <div className="relative">
+                      <input 
+                        type={showConfirmPassword ? "text" : "password"} 
+                        className="input pr-10" 
+                        placeholder="Confirm password" 
+                        value={userAccountFields.passwordConfirm} 
+                        onChange={e => setUserAccountFields(f => ({ ...f, passwordConfirm: e.target.value }))} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeSlashIcon className="h-5 w-5" />
+                        ) : (
+                          <EyeIcon className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
                     {userAccountFields.passwordConfirm === '' && <div className="text-red-500 text-xs mt-1">Required</div>}
                   </div>
                   <div className="flex justify-end gap-2 mt-6">
@@ -826,39 +897,39 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 mb-6 px-1 sm:px-2">
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Employee Type<span className="text-red-500 ml-1">*</span></label>
-                <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.employeeType} onChange={e => handleChange('employeeType', e.target.value)}>
+                <select className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.employeeType ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} value={form.employeeType} onChange={e => handleChange('employeeType', e.target.value)}>
                   <option value="">Select employee type</option>
                   <option value="permanent">Permanent</option>
                   <option value="contract">Contract</option>
                   <option value="intern">Intern</option>
                 </select>
-                {errors.employeeType && <div className="text-red-500 text-xs">{errors.employeeType}</div>}
+                {displayErrors.employeeType && <div className="text-red-500 text-xs mt-1">{displayErrors.employeeType}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">First Name<span className="text-red-500 ml-1">*</span></label>
-                <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter first name" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} />
-                {errors.firstName && <div className="text-red-500 text-xs">{errors.firstName}</div>}
+                <input className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.firstName ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder="Enter first name" value={form.firstName} onChange={e => handleChange('firstName', e.target.value)} />
+                {displayErrors.firstName && <div className="text-red-500 text-xs mt-1">{displayErrors.firstName}</div>}
               </div>
 
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Last Name<span className="text-red-500 ml-1">*</span></label>
-                <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter last name" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} />
-                {errors.lastName && <div className="text-red-500 text-xs">{errors.lastName}</div>}
+                <input className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.lastName ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder="Enter last name" value={form.lastName} onChange={e => handleChange('lastName', e.target.value)} />
+                {displayErrors.lastName && <div className="text-red-500 text-xs mt-1">{displayErrors.lastName}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Employee ID<span className="text-red-500 ml-1">*</span></label>
-                <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter employee ID" value={form.employeeId} onChange={e => handleChange('employeeId', e.target.value)} />
-                {errors.employeeId && <div className="text-red-500 text-xs">{errors.employeeId}</div>}
+                <input className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.employeeId ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder="Enter employee ID" value={form.employeeId} onChange={e => handleChange('employeeId', e.target.value)} onBlur={handleEmployeeIdBlur} />
+                {displayErrors.employeeId && <div className="text-red-500 text-xs mt-1">{displayErrors.employeeId}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Status<span className="text-red-500 ml-1">*</span></label>
-                <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.status} onChange={e => handleChange('status', e.target.value)}>
+                <select className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.status ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} value={form.status} onChange={e => handleChange('status', e.target.value)}>
                   <option value="">Select status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="probation">Probation</option>
                 </select>
-                {errors.status && <div className="text-red-500 text-xs">{errors.status}</div>}
+                {displayErrors.status && <div className="text-red-500 text-xs mt-1">{displayErrors.status}</div>}
               </div>
 
               {/* ERP Access section */}
@@ -872,8 +943,9 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                 {form.userAccount && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
                     <div className="w-full">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Work Email (required for login) *</label>
-                      <input type="email" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="e.g. name@company.com" value={userAccountFields.workEmail} onChange={e => setUserAccountFields(f => ({ ...f, workEmail: e.target.value }))} />
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Work Email / Mobile Number (required for login) *</label>
+                      <input type="text" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="e.g. name@company.com or +971501234567" value={userAccountFields.workEmail} onChange={e => setUserAccountFields(f => ({ ...f, workEmail: e.target.value }))} />
+                      <p className="text-xs text-gray-500 mt-1">Enter email address or mobile number for ERP login</p>
                       {errors.workEmail && <div className="text-red-500 text-xs mt-1">{errors.workEmail}</div>}
                     </div>
                     <div className="w-full">
@@ -887,12 +959,58 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     </div>
                     <div className="w-full">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                      <input type="password" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder={useGeneratedPassword ? "Will be generated" : "Min 8 chars, letter + number"} value={userAccountFields.password} onChange={e => { setUserAccountFields(f => ({ ...f, password: e.target.value })); setUseGeneratedPassword(false); }} disabled={useGeneratedPassword} />
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"} 
+                          className="w-full h-[42px] px-4 py-2 pr-10 text-sm border rounded-md" 
+                          placeholder={useGeneratedPassword ? "Will be generated" : "Min 8 chars, letter + number"} 
+                          value={userAccountFields.password} 
+                          onChange={e => { setUserAccountFields(f => ({ ...f, password: e.target.value })); setUseGeneratedPassword(false); }} 
+                          disabled={useGeneratedPassword} 
+                        />
+                        {!useGeneratedPassword && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? (
+                              <EyeSlashIcon className="h-5 w-5" />
+                            ) : (
+                              <EyeIcon className="h-5 w-5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                       {errors.erpPassword && <div className="text-red-500 text-xs mt-1">{errors.erpPassword}</div>}
                     </div>
                     <div className="w-full">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                      <input type="password" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Confirm password" value={userAccountFields.passwordConfirm} onChange={e => setUserAccountFields(f => ({ ...f, passwordConfirm: e.target.value }))} disabled={useGeneratedPassword} />
+                      <div className="relative">
+                        <input 
+                          type={showConfirmPassword ? "text" : "password"} 
+                          className="w-full h-[42px] px-4 py-2 pr-10 text-sm border rounded-md" 
+                          placeholder="Confirm password" 
+                          value={userAccountFields.passwordConfirm} 
+                          onChange={e => setUserAccountFields(f => ({ ...f, passwordConfirm: e.target.value }))} 
+                          disabled={useGeneratedPassword} 
+                        />
+                        {!useGeneratedPassword && (
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                            tabIndex={-1}
+                          >
+                            {showConfirmPassword ? (
+                              <EyeSlashIcon className="h-5 w-5" />
+                            ) : (
+                              <EyeIcon className="h-5 w-5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                       {errors.erpPasswordConfirm && <div className="text-red-500 text-xs mt-1">{errors.erpPasswordConfirm}</div>}
                     </div>
                     <div className="md:col-span-2 flex items-center gap-2">
@@ -913,24 +1031,24 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6 px-2">
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Gender<span className="text-red-500 ml-1">*</span></label>
-                 <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.gender} onChange={e => handleChange('gender', e.target.value)}>
+                 <select className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.gender ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} value={form.gender} onChange={e => handleChange('gender', e.target.value)}>
                    <option value="">Select gender</option>
                    <option value="male">Male</option>
                    <option value="female">Female</option>
                    <option value="other">Other</option>
                  </select>
-                 {errors.gender && <div className="text-red-500 text-xs">{errors.gender}</div>}
+                 {displayErrors.gender && <div className="text-red-500 text-xs mt-1">{displayErrors.gender}</div>}
                </div>
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Marital Status<span className="text-red-500 ml-1">*</span></label>
-                 <select className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.maritalStatus} onChange={e => handleChange('maritalStatus', e.target.value)}>
+                 <select className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.maritalStatus ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} value={form.maritalStatus} onChange={e => handleChange('maritalStatus', e.target.value)}>
                    <option value="">Select marital status</option>
                    <option value="single">Single</option>
                    <option value="married">Married</option>
                    <option value="divorced">Divorced</option>
                    <option value="widowed">Widowed</option>
                  </select>
-                 {errors.maritalStatus && <div className="text-red-500 text-xs">{errors.maritalStatus}</div>}
+                 {displayErrors.maritalStatus && <div className="text-red-500 text-xs mt-1">{displayErrors.maritalStatus}</div>}
                </div>
                <div className="w-full">
                                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Nationality<span className="text-red-500 ml-1">*</span></label>
@@ -938,7 +1056,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                       <div className="relative">
                         <input
                           type="text"
-                          className="w-full h-[42px] px-4 py-2 pr-10 text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          className={`w-full h-[42px] px-4 py-2 pr-10 text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white ${displayErrors.nationality ? 'border-red-500' : ''}`}
                           placeholder="Type to search nationality..."
                           value={form.nationality 
                             ? nationalities.find(n => n.value === form.nationality)?.label || form.nationality 
@@ -1035,19 +1153,19 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                         </div>
                       )}
                     </div>
-                    {errors.nationality && <div className="text-red-500 text-xs">{errors.nationality}</div>}
+                    {displayErrors.nationality && <div className="text-red-500 text-xs mt-1">{displayErrors.nationality}</div>}
                </div>
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Children Count<span className="text-red-500 ml-1">*</span></label>
-                 <input type="number" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" placeholder="Enter children count" value={form.childrenCount} onChange={e => handleChange('childrenCount', e.target.value)} min="0" />
-                 {errors.childrenCount && <div className="text-red-500 text-xs">{errors.childrenCount}</div>}
+                 <input type="number" className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.childrenCount ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder="Enter children count" value={form.childrenCount} onChange={e => handleChange('childrenCount', e.target.value)} min="0" />
+                 {displayErrors.childrenCount && <div className="text-red-500 text-xs mt-1">{displayErrors.childrenCount}</div>}
                </div>
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Birthday<span className="text-red-500 ml-1">*</span></label>
                  <input 
                    type="date" 
                    className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
-                     errors.birthday ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                     displayErrors.birthday ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
                    }`}
                    value={form.birthday} 
                    onChange={e => {
@@ -1072,16 +1190,16 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                      return maxDate.toISOString().split('T')[0];
                    })()}
                  />
-                 {errors.birthday && (
+                 {displayErrors.birthday && (
                    <div className={`text-xs mt-1 ${
-                     errors.birthday.includes('at least 18 years old') 
+                     displayErrors.birthday.includes('at least 18 years old') 
                        ? 'text-red-600 font-medium' 
                        : 'text-red-500'
                    }`}>
-                     {errors.birthday}
+                     {displayErrors.birthday}
                    </div>
                  )}
-                 {form.birthday && !errors.birthday && (
+                 {form.birthday && !displayErrors.birthday && (
                    <div className="text-xs text-gray-500 mt-1">
                      Age: {calculateAge(form.birthday)} years old
                    </div>
@@ -1089,8 +1207,8 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                </div>
                <div className="w-full col-span-1 md:col-span-2">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Current Address<span className="text-red-500 ml-1">*</span></label>
-                 <textarea className="w-full h-[80px] px-4 py-2 text-sm border rounded-md" placeholder="Enter current address" value={form.currentAddress} onChange={e => handleChange('currentAddress', e.target.value)} />
-                 {errors.currentAddress && <div className="text-red-500 text-xs">{errors.currentAddress}</div>}
+                 <textarea className={`w-full h-[80px] px-4 py-2 text-sm border rounded-md ${displayErrors.currentAddress ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder="Enter current address" value={form.currentAddress} onChange={e => handleChange('currentAddress', e.target.value)} />
+                 {displayErrors.currentAddress && <div className="text-red-500 text-xs mt-1">{displayErrors.currentAddress}</div>}
                </div>
 
              </div>
@@ -1121,18 +1239,18 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                   </div>
                 ))}
                 <button type="button" className="text-blue-600" onClick={handleAddContact}>+ Add Phone</button>
-                {errors.contacts && <div className="text-red-500 text-xs">{errors.contacts}</div>}
+                {displayErrors.contacts && <div className="text-red-500 text-xs mt-1">{displayErrors.contacts}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Emails<span className="text-red-500 ml-1">*</span></label>
                 {form.emails.map((em, i) => (
                   <div key={i} className="flex gap-2 mb-2">
-                    <input className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={em} onChange={e => handleEmailChange(i, e.target.value)} placeholder="Email" />
+                    <input className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.emails && i === 0 ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} value={em} onChange={e => handleEmailChange(i, e.target.value)} placeholder="Email" />
                     {form.emails.length > 1 && <button type="button" className="text-red-500" onClick={() => handleRemoveEmail(i)}>Remove</button>}
                   </div>
                 ))}
                 <button type="button" className="text-blue-600" onClick={handleAddEmail}>+ Add Email</button>
-                {errors.emails && <div className="text-red-500 text-xs">{errors.emails}</div>}
+                {displayErrors.emails && <div className="text-red-500 text-xs mt-1">{displayErrors.emails}</div>}
               </div>
             </div>
           </div>
@@ -1167,7 +1285,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     </option>
                   ))}
                 </select>
-                {errors.company && <div className="text-red-500 text-xs">{errors.company}</div>}
+                {displayErrors.company && <div className="text-red-500 text-xs mt-1">{displayErrors.company}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
@@ -1220,7 +1338,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     No departments found for this company. You can enter a department name manually.
                   </div>
                 )}
-                {errors.department && <div className="text-red-500 text-xs">{errors.department}</div>}
+                {displayErrors.department && <div className="text-red-500 text-xs mt-1">{displayErrors.department}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Job Title<span className="text-red-500 ml-1">*</span></label>
@@ -1272,7 +1390,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     <option value="Manager">Manager</option>
                   )}
                 </select>
-                {errors.jobTitle && <div className="text-red-500 text-xs">{errors.jobTitle}</div>}
+                {displayErrors.jobTitle && <div className="text-red-500 text-xs mt-1">{displayErrors.jobTitle}</div>}
                 {process.env.NODE_ENV === 'development' && (
                   <div className="text-xs text-gray-500 mt-1">
                     Current value: {form.jobTitle || '(empty)'} | Available: {jobTitles?.length || 0} titles
@@ -1291,12 +1409,12 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     <option key={program.id} value={program.name}>{program.name}</option>
                   ))}
                 </select>
-                {errors.attendanceProgram && <div className="text-red-500 text-xs">{errors.attendanceProgram}</div>}
+                {displayErrors.attendanceProgram && <div className="text-red-500 text-xs mt-1">{displayErrors.attendanceProgram}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Joining Date<span className="text-red-500 ml-1">*</span></label>
                 <input type="date" className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" value={form.joiningDate} onChange={e => handleChange('joiningDate', e.target.value)} />
-                {errors.joiningDate && <div className="text-red-500 text-xs">{errors.joiningDate}</div>}
+                {displayErrors.joiningDate && <div className="text-red-500 text-xs mt-1">{displayErrors.joiningDate}</div>}
               </div>
               <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Exit Date</label>
@@ -1315,7 +1433,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     <option key={location} value={location}>{location}</option>
                   ))}
                 </select>
-                {errors.companyLocation && <div className="text-red-500 text-xs">{errors.companyLocation}</div>}
+                {displayErrors.companyLocation && <div className="text-red-500 text-xs mt-1">{displayErrors.companyLocation}</div>}
               </div>
               {form.jobTitle !== "Manager" && (
                 <div className="w-full">
@@ -1389,7 +1507,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                               <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
                               <input
                                 className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${
-                                  errors[field.name] ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                                  displayErrors[field.name] ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
                                 }`}
                                 type={field.type || 'text'}
                                 placeholder={field.placeholder || field.label}
@@ -1420,16 +1538,16 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                                   return minDate.toISOString().split('T')[0];
                                 })() : undefined}
                               />
-                              {errors[field.name] && (
+                              {displayErrors[field.name] && (
                                 <div className={`text-xs mt-1 ${
-                                  errors[field.name].includes('6 months') 
-                                    ? 'text-red-600 font-medium' 
+                                  displayErrors[field.name].includes('6 months')
+                                    ? 'text-red-600 font-medium'
                                     : 'text-red-500'
                                 }`}>
-                                  {errors[field.name]}
+                                  {displayErrors[field.name]}
                                 </div>
                               )}
-                              {isPassportExpiry && form[field.name] && !errors[field.name] && (() => {
+                              {isPassportExpiry && form[field.name] && !displayErrors[field.name] && (() => {
                                 const expiry = new Date(form[field.name]);
                                 const today = new Date();
                                 const monthsUntilExpiry = (expiry.getFullYear() - today.getFullYear()) * 12 + (expiry.getMonth() - today.getMonth());
@@ -1556,7 +1674,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 
   return (
     <EmployeeFormContext.Provider value={ctxValue}>
-      <div className="w-full flex flex-col items-center animate-fade-in px-1 sm:px-2 md:px-4">
+      <div className="w-full flex flex-col items-center animate-fade-in px-1 sm:px-2 md:px-4 employee-form-steps">
         {/* Mobile Stepper */}
         <div className="w-full lg:hidden mb-4 mt-2 px-1 overflow-x-auto">
           <div className="flex items-center justify-between mb-4 min-w-[400px]">
@@ -1657,6 +1775,17 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
         </div>
         
         <form onSubmit={handleSubmit} className="w-full bg-gradient-to-br from-indigo-50 to-white rounded-2xl shadow-2xl p-2 sm:p-4 lg:p-10 border border-indigo-100 mx-0">
+          {Object.keys(errors).length > 0 && step === steps.length - 1 && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg" role="alert">
+              <p className="text-sm font-semibold text-red-800 mb-2">Please fix the following before submitting:</p>
+              <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                {Object.entries(errors).slice(0, 8).map(([key, msg]) => (
+                  <li key={key}>{msg}</li>
+                ))}
+                {Object.keys(errors).length > 8 && <li>... and {Object.keys(errors).length - 8} more</li>}
+              </ul>
+            </div>
+          )}
           {renderStep()}
           <div className="flex flex-col sm:flex-row justify-between mt-6 gap-2 sm:gap-4">
             <button type="button" className="btn flex items-center justify-center gap-2 order-2 sm:order-1 w-full sm:w-auto" onClick={onBack}>
@@ -1665,7 +1794,17 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
             </button>
             <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2 w-full sm:w-auto">
               {step > 0 && <button type="button" className="btn flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handlePrev}><svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Previous</button>}
-              {step < steps.length - 1 && <button type="button" className="btn btn-primary flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handleNext}>Next <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></button>}
+              {step < steps.length - 1 && (
+                <button
+                  type="button"
+                  className={`btn flex items-center justify-center gap-2 w-full sm:w-auto ${!isCurrentStepValid ? 'btn-disabled opacity-60 cursor-not-allowed' : 'btn-primary'}`}
+                  onClick={handleNext}
+                  disabled={!isCurrentStepValid}
+                  title={!isCurrentStepValid ? 'Complete all required fields correctly to continue' : ''}
+                >
+                  Next <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+              )}
               {step === steps.length - 1 && <button type="submit" className="btn btn-success flex items-center justify-center gap-2 w-full sm:w-auto"><CheckCircleIcon className="h-5 w-5" /> Submit</button>}
             </div>
           </div>
@@ -1688,12 +1827,26 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 
 export default function Employees() {
   const location = useLocation();
+  const { user } = useAuth();
+  const { selectedCompany: selectedCompanyName } = useCompanySelection();
+  const isAdmin = user?.role === 'ADMIN';
+  
   // Get navigation state for breadcrumbs (company, department, subdepartment, position)
   const navigationState = location.state || {};
   const company = navigationState.company || null;
   const department = navigationState.department || null;
   const subDepartment = navigationState.subDepartment || null;
   const position = navigationState.position || null;
+
+  // Current company context: from navigation state (object with id, name) or from context (name only)
+  // When viewing "Onix" vs "Onix Engineering Consultancy", only that company's employees are shown
+  const effectiveCompany = company && (company.id || company.name)
+    ? { id: company.id, name: company.name || selectedCompanyName }
+    : (selectedCompanyName ? { id: null, name: selectedCompanyName } : null);
+  const companyParams = effectiveCompany
+    ? (effectiveCompany.id ? { companyId: effectiveCompany.id } : { companyName: effectiveCompany.name })
+    : {};
+
   const [showForm, setShowForm] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [statistics, setStatistics] = useState({
@@ -1716,14 +1869,16 @@ export default function Employees() {
   const [selectedEmployeeForView, setSelectedEmployeeForView] = useState(null);
   const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState(null);
   const [openLegalSection, setOpenLegalSection] = useState('');
+  const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
+  const [selectedEmployeeForPassword, setSelectedEmployeeForPassword] = useState(null);
   
-  // Fetch employees and statistics on component mount
+  // Fetch employees and statistics (filtered by company when a company is selected)
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch employees
-        const employeesResponse = await getEmployees();
+        // Fetch employees (optionally filtered by company)
+        const employeesResponse = await getEmployees(companyParams);
         if (employeesResponse.success && employeesResponse.data) {
           // Transform backend employee data to match frontend format
           const transformedEmployees = employeesResponse.data.map(emp => ({
@@ -1742,8 +1897,8 @@ export default function Employees() {
           setEmployees(transformedEmployees);
         }
 
-        // Fetch statistics
-        const statsResponse = await getEmployeeStatistics();
+        // Fetch statistics (same company filter so counts match the list)
+        const statsResponse = await getEmployeeStatistics(companyParams);
         if (statsResponse.success && statsResponse.data) {
           setStatistics(statsResponse.data);
         }
@@ -1755,7 +1910,7 @@ export default function Employees() {
     };
 
     fetchData();
-  }, []);
+  }, [effectiveCompany?.id, effectiveCompany?.name]);
 
   // Filter employees based on search term
   const filteredEmployees = employees.filter(emp => {
@@ -2090,6 +2245,16 @@ export default function Employees() {
     setShowEditModal(true);
   };
 
+  const handleSetPassword = (employee) => {
+    setSelectedEmployeeForPassword(employee);
+    setShowSetPasswordModal(true);
+  };
+
+  const handlePasswordSetSuccess = (message) => {
+    // Show success notification (you can use a toast library or alert)
+    alert(message || 'Password set successfully');
+  };
+
   const handleDeleteEmployee = async (employee) => {
     const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.name || 'this employee';
     
@@ -2100,8 +2265,8 @@ export default function Employees() {
         if (response.success) {
           alert(`Employee ${employeeName} has been deactivated successfully.`);
           
-          // Refresh employees and statistics
-          const employeesResponse = await getEmployees();
+          // Refresh employees and statistics (keep same company filter)
+          const employeesResponse = await getEmployees(companyParams);
           if (employeesResponse.success && employeesResponse.data) {
             const transformedEmployees = employeesResponse.data.map(emp => ({
               id: emp.id,
@@ -2120,7 +2285,7 @@ export default function Employees() {
           }
           
           // Refresh statistics
-          const statsResponse = await getEmployeeStatistics();
+          const statsResponse = await getEmployeeStatistics(companyParams);
           if (statsResponse.success && statsResponse.data) {
             setStatistics(statsResponse.data);
           }
@@ -2137,13 +2302,15 @@ export default function Employees() {
     
     if (window.confirm(`Are you sure you want to restore ${employeeName}? This will reactivate their account.`)) {
       try {
+        console.log('🔄 Restoring employee:', employee.id, employeeName);
         const response = await restoreEmployee(employee.id);
+        console.log('📥 Restore response:', response);
         
         if (response.success) {
           alert(`Employee ${employeeName} has been restored successfully.`);
           
-          // Refresh employees and statistics
-          const employeesResponse = await getEmployees();
+          // Refresh employees and statistics (keep same company filter)
+          const employeesResponse = await getEmployees(companyParams);
           if (employeesResponse.success && employeesResponse.data) {
             const transformedEmployees = employeesResponse.data.map(emp => ({
               id: emp.id,
@@ -2159,17 +2326,24 @@ export default function Employees() {
               ...emp
             }));
             setEmployees(transformedEmployees);
+            console.log('✅ Employees list refreshed after restore');
           }
           
           // Refresh statistics
-          const statsResponse = await getEmployeeStatistics();
+          const statsResponse = await getEmployeeStatistics(companyParams);
           if (statsResponse.success && statsResponse.data) {
             setStatistics(statsResponse.data);
+            console.log('✅ Statistics refreshed after restore');
           }
+        } else {
+          // Handle API error response
+          const errorMessage = response.message || 'Failed to restore employee';
+          console.error('❌ Restore failed:', errorMessage);
+          alert(`Failed to restore employee: ${errorMessage}`);
         }
       } catch (error) {
-        console.error('Error restoring employee:', error);
-        alert(`Failed to restore employee: ${error.message}`);
+        console.error('❌ Error restoring employee:', error);
+        alert(`Failed to restore employee: ${error.message || 'Unknown error occurred'}`);
       }
     }
   };
@@ -2181,8 +2355,8 @@ export default function Employees() {
         const response = await updateEmployee(selectedEmployeeForEdit.id, selectedEmployeeForEdit);
         
         if (response.success) {
-          // Refresh employees and statistics
-          const employeesResponse = await getEmployees();
+          // Refresh employees and statistics (keep same company filter)
+          const employeesResponse = await getEmployees(companyParams);
           if (employeesResponse.success && employeesResponse.data) {
             const transformedEmployees = employeesResponse.data.map(emp => ({
               id: emp.id,
@@ -2201,7 +2375,7 @@ export default function Employees() {
           }
 
           // Refresh statistics
-          const statsResponse = await getEmployeeStatistics();
+          const statsResponse = await getEmployeeStatistics(companyParams);
           if (statsResponse.success && statsResponse.data) {
             setStatistics(statsResponse.data);
           }
@@ -2237,8 +2411,8 @@ export default function Employees() {
       const response = await createEmployee(employeeData);
       
       if (response.success) {
-        // Refresh employees and statistics
-        const employeesResponse = await getEmployees();
+        // Refresh employees and statistics (keep same company filter)
+        const employeesResponse = await getEmployees(companyParams);
         if (employeesResponse.success && employeesResponse.data) {
           const transformedEmployees = employeesResponse.data.map(emp => ({
             id: emp.id,
@@ -2257,7 +2431,7 @@ export default function Employees() {
         }
 
         // Refresh statistics
-        const statsResponse = await getEmployeeStatistics();
+        const statsResponse = await getEmployeeStatistics(companyParams);
         if (statsResponse.success && statsResponse.data) {
           setStatistics(statsResponse.data);
         }
@@ -3020,6 +3194,18 @@ export default function Employees() {
                               >
                                 <CurrencyDollarIcon className="h-5 w-5" />
                               </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetPassword(emp);
+                                  }}
+                                  className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110 shadow-sm"
+                                  title="Set Password"
+                                >
+                                  <KeyIcon className="h-5 w-5" />
+                                </button>
+                              )}
                             </div>
                       </td>
                     </tr>
@@ -5024,6 +5210,17 @@ export default function Employees() {
           </div>
         </div>
       )}
+
+      {/* Set Password Modal */}
+      <SetPasswordModal
+        isOpen={showSetPasswordModal}
+        onClose={() => {
+          setShowSetPasswordModal(false);
+          setSelectedEmployeeForPassword(null);
+        }}
+        employee={selectedEmployeeForPassword}
+        onSuccess={handlePasswordSetSuccess}
+      />
 
     </div>
   );

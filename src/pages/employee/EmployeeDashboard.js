@@ -5,6 +5,7 @@ import "react-calendar/dist/Calendar.css";
 import "../../modules/calendar-custom.css";
 import { useAuth } from "../../contexts/AuthContext";
 import { getDashboardStats } from "../../services/dashboardAPI";
+import { getTodayAttendance, getMyAttendance } from "../../services/attendanceAPI";
 import {
   FolderIcon,
   UserCircleIcon,
@@ -12,6 +13,7 @@ import {
   CalendarDaysIcon,
   DocumentTextIcon,
   BellIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 
 function AnimatedNumber({ n }) {
@@ -105,6 +107,32 @@ export default function EmployeeDashboard() {
     loading: true,
     error: null,
   });
+  const [todayAttendance, setTodayAttendance] = useState({ checkIn: null, checkOut: null });
+  const [attendanceList, setAttendanceList] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
+
+  const fetchAttendanceData = async () => {
+    setAttendanceLoading(true);
+    try {
+      const [todayRes, listRes] = await Promise.all([
+        getTodayAttendance(),
+        getMyAttendance({ limit: 14, page: 1 }),
+      ]);
+      if (todayRes?.success && todayRes.data) {
+        setTodayAttendance({
+          checkIn: todayRes.data.checkIn?.time ?? null,
+          checkOut: todayRes.data.checkOut?.time ?? null,
+        });
+      }
+      if (listRes?.success && Array.isArray(listRes.data)) {
+        setAttendanceList(listRes.data);
+      }
+    } catch (err) {
+      console.error("Attendance fetch error:", err);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -141,6 +169,10 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+  }, []);
+
+  useEffect(() => {
+    fetchAttendanceData();
   }, []);
 
   const displayName =
@@ -211,7 +243,10 @@ export default function EmployeeDashboard() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => fetchDashboardData()}
+              onClick={() => {
+                fetchDashboardData();
+                fetchAttendanceData();
+              }}
               disabled={dashboardData.loading}
               className="bg-white bg-opacity-80 hover:bg-opacity-100 text-indigo-700 font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 disabled:opacity-50"
             >
@@ -257,22 +292,54 @@ export default function EmployeeDashboard() {
               <DashboardCard
                 title="Your Daily Attendance"
                 value={
-                  <div className="flex flex-col w-full gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-gray-600">Check-In:</span>
-                      <span className="text-base font-bold text-green-600">—</span>
+                  attendanceLoading ? (
+                    <div className="flex flex-col w-full gap-1 text-gray-500 text-sm">Loading...</div>
+                  ) : (
+                    <div className="flex flex-col w-full gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-gray-600">Check-In:</span>
+                        <span className="text-sm font-bold text-green-600">
+                          {todayAttendance.checkIn
+                            ? new Date(todayAttendance.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            : "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-gray-600">Check-Out:</span>
+                        <span className="text-sm font-bold text-red-500">
+                          {todayAttendance.checkOut
+                            ? new Date(todayAttendance.checkOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            : "—"}
+                        </span>
+                      </div>
+                      {todayAttendance.checkIn && todayAttendance.checkOut && (
+                        <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+                          <span>Hours:</span>
+                          <span>
+                            {(
+                              (new Date(todayAttendance.checkOut) - new Date(todayAttendance.checkIn)) /
+                              (1000 * 60 * 60)
+                            ).toFixed(1)}
+                            h
+                          </span>
+                        </div>
+                      )}
+                      <div className="w-full h-2 bg-gray-200 rounded-full mt-2">
+                        <div
+                          className="h-2 rounded-full bg-gradient-to-r from-green-400 to-red-400 transition-all"
+                          style={{
+                            width: todayAttendance.checkIn && todayAttendance.checkOut ? "100%" : todayAttendance.checkIn ? "50%" : "0%",
+                          }}
+                        />
+                      </div>
+                      <Link
+                        to="/employee/attendance"
+                        className="text-xs text-indigo-600 hover:underline mt-2 font-medium"
+                      >
+                        View / Mark attendance →
+                      </Link>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-gray-600">Check-Out:</span>
-                      <span className="text-base font-bold text-red-500">—</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full mt-2">
-                      <div
-                        className="h-2 rounded-full bg-gradient-to-r from-green-400 to-red-400"
-                        style={{ width: "0%" }}
-                      />
-                    </div>
-                  </div>
+                  )
                 }
                 icon={<CalendarDaysIcon className="h-9 w-9 text-green-500" />}
                 accent="Today"
@@ -293,6 +360,67 @@ export default function EmployeeDashboard() {
                 }
                 accent={dashboardData.loading ? "" : "Tasks"}
               />
+            </div>
+
+            {/* Your Daily Attendance Statistics list */}
+            <div className="glass-card bg-gradient-to-br from-green-50 via-white to-cyan-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-green-100 w-full">
+              <h3 className="flex items-center gap-2 text-lg font-bold text-green-700 mb-3">
+                <ClockIcon className="h-6 w-6 text-green-500" />
+                Your Daily Attendance Statistics
+              </h3>
+              {attendanceLoading ? (
+                <p className="text-sm text-gray-500">Loading...</p>
+              ) : attendanceList.length === 0 ? (
+                <p className="text-sm text-gray-500">No attendance records yet. Mark check-in from Attendance.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-green-200">
+                        <th className="text-left py-2 font-semibold text-gray-700">Date</th>
+                        <th className="text-left py-2 font-semibold text-gray-700">Check-In</th>
+                        <th className="text-left py-2 font-semibold text-gray-700">Check-Out</th>
+                        <th className="text-left py-2 font-semibold text-gray-700">Hours</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const byDate = {};
+                        attendanceList.forEach((r) => {
+                          const d = r.date ? new Date(r.date).toISOString().slice(0, 10) : null;
+                          if (!d) return;
+                          if (!byDate[d]) byDate[d] = { date: d, checkIn: null, checkOut: null };
+                          if (r.type === "CHECK_IN" && r.checkInTime) byDate[d].checkIn = r.checkInTime;
+                          if (r.type === "CHECK_OUT" && r.checkOutTime) byDate[d].checkOut = r.checkOutTime;
+                        });
+                        const rows = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
+                        return rows.map((row) => {
+                          const inTime = row.checkIn ? new Date(row.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+                          const outTime = row.checkOut ? new Date(row.checkOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+                          const hours =
+                            row.checkIn && row.checkOut
+                              ? ((new Date(row.checkOut) - new Date(row.checkIn)) / (1000 * 60 * 60)).toFixed(1)
+                              : "—";
+                          return (
+                            <tr key={row.date} className="border-b border-green-100 hover:bg-green-50/50">
+                              <td className="py-2 text-gray-800 font-medium">{new Date(row.date).toLocaleDateString()}</td>
+                              <td className="py-2 text-green-600">{inTime}</td>
+                              <td className="py-2 text-red-600">{outTime}</td>
+                              <td className="py-2 text-gray-700">{hours !== "—" ? `${hours}h` : "—"}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <Link
+                to="/employee/attendance"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-green-700 hover:underline mt-3"
+              >
+                View all attendance →
+              </Link>
             </div>
 
             {/* Reminders - same style as admin */}

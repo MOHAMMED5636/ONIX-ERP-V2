@@ -1,10 +1,11 @@
 import React from 'react';
 import { MapPinIcon, StarIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 import TimelineCell from './TimelineCell';
-import { statusColors } from '../utils/tableUtils';
+import { statusColors, getDeadlineClass } from '../utils/tableUtils';
+import { getTaskCategories } from '../modular/constants';
 
 const CellRenderer = {
-  renderSubtaskCell: (col, sub, task, subIdx, handleEditSubtask, isAdmin, handleSubtaskKeyDown, handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, onOpenQuestionnaireModal, onOpenQuestionnaireResponseModal, isManager) => {
+  renderSubtaskCell: (col, sub, task, subIdx, handleEditSubtask, isAdmin, handleSubtaskKeyDown, handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, onOpenQuestionnaireModal, onOpenQuestionnaireResponseModal, isManager, employees = [], categoryOptions) => {
     switch (col.key) {
       case "task":
       case "project name":
@@ -18,20 +19,22 @@ const CellRenderer = {
           />
         );
       case "category":
-      case "task category":
+      case "task category": {
+        const options = categoryOptions && categoryOptions.length > 0 ? categoryOptions : getTaskCategories();
+        const currentCategory = sub.category || options[0] || "Design";
         return (
           <select
             className="border rounded px-2 py-1 text-sm w-full"
-            value={sub.category || "Design"}
+            value={currentCategory}
             onChange={e => handleEditSubtask(task.id, sub.id, "category", e.target.value)}
             onKeyDown={handleSubtaskKeyDown}
           >
-            <option value="Design">Design</option>
-            <option value="Development">Development</option>
-            <option value="Testing">Testing</option>
-            <option value="Review">Review</option>
+            {options.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
           </select>
         );
+      }
       case "referenceNumber":
       case "reference number":
         return (
@@ -43,20 +46,41 @@ const CellRenderer = {
             placeholder="Reference number"
           />
         );
-      case "status":
+      case "status": {
+        const isWaitingForPredecessor = sub.workflowStatus === 'WAITING_FOR_PREDECESSOR';
+        const isOverdue = sub.workflowStatus === 'OVERDUE';
+        const isProjectManager = isManager || isAdmin;
+        // For employees, clarify that "Done" will open the next predecessor task
+        const doneLabel = isProjectManager ? 'Done' : 'Done – Open Next Phase';
         return (
-          <select
-            className={`border rounded px-2 py-1 text-xs font-bold w-full ${statusColors[sub.status] || 'bg-gray-200 text-gray-700'}`}
-            value={sub.status || "not started"}
-            onChange={e => handleEditSubtask(task.id, sub.id, "status", e.target.value)}
-            onKeyDown={handleSubtaskKeyDown}
-          >
-            <option value="done">Done</option>
-            <option value="working">Working</option>
-            <option value="stuck">Stuck</option>
-            <option value="not started">Not Started</option>
-          </select>
+          <div className="flex flex-col gap-1">
+            <select
+              className={`border rounded px-2 py-1 text-xs font-bold w-full ${statusColors[sub.status] || 'bg-gray-200 text-gray-700'} ${isWaitingForPredecessor ? 'opacity-60 cursor-not-allowed' : ''}`}
+              value={sub.status || "not started"}
+              onChange={e => handleEditSubtask(task.id, sub.id, "status", e.target.value)}
+              onKeyDown={handleSubtaskKeyDown}
+              disabled={isWaitingForPredecessor}
+              title={isWaitingForPredecessor ? 'Waiting for predecessor task completion' : ''}
+            >
+              <option value="done">{doneLabel}</option>
+              <option value="working">Working</option>
+              <option value="stuck">Stuck</option>
+              <option value="not started">Not Started</option>
+            </select>
+            {isWaitingForPredecessor && (
+              <span className="flex items-center gap-1 text-[10px] text-amber-600">
+                <span role="img" aria-label="locked">🔒</span>
+                Waiting for predecessor task completion
+              </span>
+            )}
+            {isOverdue && (
+              <span className="text-[10px] text-red-600 font-semibold">
+                Overdue
+              </span>
+            )}
+          </div>
         );
+      }
       case "owner":
         return (
           <button
@@ -72,20 +96,34 @@ const CellRenderer = {
             {sub.owner || "?"}
           </button>
         );
-      case "timeline":
+      case "timeline": {
         const subTimelineHasPredecessors = sub.predecessors && sub.predecessors.toString().trim() !== '';
+        const subDeadlineClass = getDeadlineClass(sub.timeline?.[0], sub.timeline?.[1], sub.status);
         return (
-          <TimelineCell 
-            value={sub.timeline} 
-            onChange={val => handleEditSubtask(task.id, sub.id, "timeline", val)} 
-            hasPredecessors={subTimelineHasPredecessors} 
+          <TimelineCell
+            value={sub.timeline}
+            onChange={val => handleEditSubtask(task.id, sub.id, "timeline", val)}
+            hasPredecessors={subTimelineHasPredecessors}
+            deadlineClass={subDeadlineClass}
           />
         );
-      case "priority":
+      }
+      case "priority": {
+        const isProjectManager = isManager || isAdmin;
+        const priorityValue = sub.priority || "Low";
+        if (!isProjectManager) {
+          // Employees: priority is read-only (set by project manager)
+          return (
+            <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
+              {priorityValue}
+            </span>
+          );
+        }
+        // Project Manager / Admin: can edit priority
         return (
           <select
             className="border rounded px-2 py-1 text-sm w-full"
-            value={sub.priority || "Low"}
+            value={priorityValue}
             onChange={e => handleEditSubtask(task.id, sub.id, "priority", e.target.value)}
             onKeyDown={handleSubtaskKeyDown}
           >
@@ -94,6 +132,7 @@ const CellRenderer = {
             <option value="High">High</option>
           </select>
         );
+      }
       case "planDays":
         return (
           <input
@@ -190,11 +229,10 @@ const CellRenderer = {
       case "plotNumber":
         return (
           <input
-            className="border rounded px-2 py-1 text-xs w-full"
+            className="border rounded px-2 py-1 text-xs w-full bg-gray-50 cursor-not-allowed"
             value={sub.plotNumber || ""}
-            onChange={e => handleEditSubtask(task.id, sub.id, "plotNumber", e.target.value)}
-            onKeyDown={handleSubtaskKeyDown}
-            placeholder="Plot #"
+            readOnly
+            placeholder="—"
           />
         );
       case "community":
@@ -373,13 +411,63 @@ const CellRenderer = {
         );
       case "client":
         return (
-          <input
-            className="border rounded px-2 py-1 text-sm w-full"
-            value={sub.client || ""}
-            onChange={e => handleEditSubtask(task.id, sub.id, "client", e.target.value)}
+          <span className="px-2 py-1 text-sm w-full block">
+            {sub.client || "—"}
+          </span>
+        );
+      case "assignedEmployee":
+        // Get assigned employee ID (could be string ID or from object)
+        const employeeId = sub.assignedEmployee || 
+                          (sub.assignedEmployeeData?.id) || 
+                          (typeof sub.assignedEmployee === 'string' ? sub.assignedEmployee : null) || 
+                          '';
+        
+        // Get assigned employee name for display
+        let employeeDisplayName = '';
+        if (sub.assignedEmployeeData) {
+          // If we have the full employee object from backend
+          employeeDisplayName = `${sub.assignedEmployeeData.firstName || ''} ${sub.assignedEmployeeData.lastName || ''}`.trim() || 
+                                sub.assignedEmployeeData.email || 
+                                '';
+        } else if (employeeId) {
+          // Try to find employee in the employees list
+          const foundEmployee = employees.find(emp => 
+            emp.id === employeeId || 
+            emp.email === employeeId
+          );
+          if (foundEmployee) {
+            employeeDisplayName = `${foundEmployee.firstName || ''} ${foundEmployee.lastName || ''}`.trim() || 
+                                 foundEmployee.email || 
+                                 '';
+          }
+        }
+        
+        // Ensure employees is an array
+        const employeesList = Array.isArray(employees) ? employees : [];
+        
+        return (
+          <select
+            className="border rounded px-2 py-1 text-xs w-full"
+            value={employeeId}
+            onChange={e => handleEditSubtask(task.id, sub.id, "assignedEmployee", e.target.value)}
             onKeyDown={handleSubtaskKeyDown}
-            placeholder="Client name"
-          />
+            title={employeeDisplayName || 'Select Employee'}
+          >
+            <option value="">{employeeDisplayName || 'Select Employee'}</option>
+            {employeesList.length > 0 ? (
+              employeesList.map(emp => {
+                const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || emp.email || 'Unknown';
+                const empId = emp.id || emp.email || empName;
+                return (
+                  <option key={empId} value={empId}>
+                    {empName}
+                  </option>
+                );
+              })
+            ) : (
+              <option value="" disabled>No employees available</option>
+            )}
+          </select>
         );
       default:
         return <span className="text-sm text-gray-600">{sub[col.key] || ''}</span>;

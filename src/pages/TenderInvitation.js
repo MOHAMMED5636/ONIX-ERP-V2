@@ -9,16 +9,19 @@ import {
   CalendarIcon,
   BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
-import { validateInvitationToken, getCurrentUser, isTenderEngineer, updateInvitationStatus, ROLES } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
+import { validateInvitationToken, updateInvitationStatus } from "../utils/auth";
 
 export default function TenderInvitation() {
   const { tenderId } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [tender, setTender] = useState(null);
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [requiresLogin, setRequiresLogin] = useState(false);
+  const isEngineer = currentUser?.role === "TENDER_ENGINEER";
 
   useEffect(() => {
     const loadTenderData = async () => {
@@ -41,12 +44,11 @@ export default function TenderInvitation() {
           
           setInvitation(foundInvitation);
           
-          // Check if user is logged in
-          const currentUser = getCurrentUser();
-          const isEngineer = isTenderEngineer();
-          
+          if (authLoading) {
+            setLoading(false);
+            return;
+          }
           if (!currentUser || !isEngineer) {
-            // Redirect to login with return path
             setRequiresLogin(true);
             navigate("/login/tender-engineer", {
               state: { from: { pathname: `/tender/invitation/${tenderId}` } },
@@ -150,12 +152,10 @@ export default function TenderInvitation() {
       setError("Invalid tender invitation link.");
       setLoading(false);
     }
-  }, [tenderId, navigate]);
+  }, [tenderId, navigate, authLoading, currentUser, isEngineer]);
 
   const handleAcceptInvitation = () => {
-    const currentUser = getCurrentUser();
-    
-    if (!currentUser || !isTenderEngineer()) {
+    if (!currentUser || !isEngineer) {
       navigate("/login/tender-engineer", {
         state: { from: { pathname: `/tender/invitation/${tenderId}` } }
       });
@@ -376,7 +376,7 @@ export default function TenderInvitation() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <button
               onClick={() => {
-                if (isTenderEngineer()) {
+                if (isEngineer) {
                   navigate("/erp/tender/dashboard");
                 } else {
                   navigate("/tender");
@@ -385,7 +385,7 @@ export default function TenderInvitation() {
               className="px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:border-indigo-200 hover:text-indigo-600 transition flex items-center gap-2"
             >
               <ArrowLeftIcon className="h-5 w-5" />
-              {isTenderEngineer() ? 'Back to Dashboard' : 'Back to Tender Page'}
+              {isEngineer ? 'Back to Dashboard' : 'Back to Tender Page'}
             </button>
             <button
               onClick={handleAcceptInvitation}

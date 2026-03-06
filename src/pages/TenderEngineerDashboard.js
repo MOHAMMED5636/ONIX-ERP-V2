@@ -9,28 +9,23 @@ import {
   BuildingOfficeIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
-import { getCurrentUser, isTenderEngineer } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function TenderEngineerDashboard() {
   const navigate = useNavigate();
+  const { user: authUser, loading: authLoading } = useAuth();
   const [assignedTenders, setAssignedTenders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
   const [filter, setFilter] = useState("all"); // all, pending, accepted, completed
 
   useEffect(() => {
-    // Check authentication
-    if (!isTenderEngineer()) {
+    if (authLoading) return;
+    if (!authUser || authUser.role !== "TENDER_ENGINEER") {
       navigate("/login/tender-engineer", { replace: true });
       return;
     }
-
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-
-    // Load assigned tenders
-    loadAssignedTenders(currentUser?.id || currentUser?.email);
-  }, [navigate]);
+    loadAssignedTenders(authUser?.id || authUser?.email);
+  }, [authLoading, authUser, navigate]);
 
   const loadAssignedTenders = (engineerId) => {
     try {
@@ -155,7 +150,7 @@ export default function TenderEngineerDashboard() {
               Tender Engineer Dashboard
             </h1>
             <p className="text-slate-600">
-              Welcome back, <span className="font-semibold text-indigo-600">{user?.name || user?.email}</span>
+              Welcome back, <span className="font-semibold text-indigo-600">{authUser?.firstName ? `${authUser.firstName} ${authUser.lastName || ''}`.trim() : authUser?.email}</span>
             </p>
           </div>
         </div>

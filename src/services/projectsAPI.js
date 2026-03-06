@@ -1,4 +1,6 @@
 // Projects API service for backend connection
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
@@ -8,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
  */
 export const createProject = async (projectData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -75,7 +77,7 @@ export const createProject = async (projectData) => {
  */
 export const getProjects = async (filters = {}) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -119,7 +121,7 @@ export const getProjects = async (filters = {}) => {
  */
 export const updateProject = async (projectId, projectData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -148,13 +150,44 @@ export const updateProject = async (projectId, projectData) => {
 };
 
 /**
+ * Update only the project name (persists in DB so it survives refresh).
+ * Use this when the user edits the project name in the Project Details / Edit modal.
+ * @param {string} projectId - Project ID
+ * @param {string} name - New project name
+ * @returns {Promise} Updated project data including name, projectName, referenceNumber
+ */
+export const updateProjectName = async (projectId, name) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found');
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}/name`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ name: name != null ? String(name).trim() : '', projectName: name != null ? String(name).trim() : '' }),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to update project name');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Update project name error:', error);
+    throw error;
+  }
+};
+
+/**
  * Delete a project
  * @param {string} projectId - Project ID
  * @returns {Promise} Deletion result
  */
 export const deleteProject = async (projectId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -185,6 +218,7 @@ export default {
   createProject,
   getProjects,
   updateProject,
+  updateProjectName,
   deleteProject,
 };
 

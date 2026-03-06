@@ -1,4 +1,6 @@
 // API service for clients management
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 class ClientsAPI {
@@ -20,7 +22,7 @@ class ClientsAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -43,7 +45,7 @@ class ClientsAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -61,7 +63,7 @@ class ClientsAPI {
   // Create a new client
   static async createClient(clientData) {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -99,7 +101,7 @@ class ClientsAPI {
   // Update an existing client (clientData can be plain object or FormData for document uploads)
   static async updateClient(id, clientData) {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -137,7 +139,7 @@ class ClientsAPI {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -164,7 +166,7 @@ class ClientsAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -186,7 +188,7 @@ class ClientsAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 

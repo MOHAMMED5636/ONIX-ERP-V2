@@ -1,27 +1,18 @@
 // Backend API Base URL
+import * as authStorage from './authStorage';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-// Helper function to get auth headers
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
+  const token = authStorage.getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 };
 
-// Helper function to handle response
 const handleResponse = async (response) => {
-  // Handle 401 Unauthorized - clear token and redirect to login
   if (response.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    // Only redirect if not already on login page
+    authStorage.clearAuth();
     if (!window.location.pathname.includes('/login')) {
       window.location.href = '/login';
     }

@@ -13,6 +13,7 @@ import {
 import ContractsAPI from '../../services/contractsAPI';
 import { useNavigate } from 'react-router-dom';
 import { getCompanies } from '../../services/companiesAPI';
+import { getToken } from '../../services/authAPI';
 import ClientsAPI from '../../services/clientsAPI';
 import { getEmployees } from '../../services/employeeAPI';
 import { usePreferences } from '../../context/PreferencesContext';
@@ -687,7 +688,7 @@ const CreateContract = () => {
     // Validate with backend
     setValidatingMakani(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const response = await fetch(
         `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/maps/validate-makani?makaniNumber=${makaniNumber}`,
         {
@@ -825,11 +826,11 @@ const CreateContract = () => {
     };
   }, [fetchClients]);
 
-  // Fetch employees for project manager dropdown
-  const fetchManagers = useCallback(async () => {
+  // Fetch managers (internal users with MANAGER role) for project manager dropdown
+  const fetchManagers = useCallback(async (companyId = '') => {
     setLoadingManagers(true);
     try {
-      const response = await getEmployees();
+      const response = await ContractsAPI.getManagers('', companyId);
       if (response && response.success && response.data) {
         const list = Array.isArray(response.data) ? response.data : [];
         setManagers(list);
@@ -844,9 +845,14 @@ const CreateContract = () => {
     }
   }, []);
 
+  // Fetch managers on mount and when company changes
   useEffect(() => {
-    fetchManagers();
-  }, [fetchManagers]);
+    if (formData.company) {
+      fetchManagers(formData.company);
+    } else {
+      fetchManagers();
+    }
+  }, [formData.company, fetchManagers]);
 
   // Handle adding new approval status
   const handleAddApprovalStatus = () => {
@@ -1130,9 +1136,12 @@ const CreateContract = () => {
           ? (typeof formData.selectedClients[0] === 'object' ? formData.selectedClients[0].id : formData.selectedClients[0])
           : null,
         
-        // Project Manager
-        projectManagerId: formData.projectManagerId || null,
+        // Project Manager (internal user selection)
         projectManagerName: formData.projectManagerName || null,
+        assignedManagerId: formData.projectManagerId || null,
+        assignedManagerEmail: formData.projectManagerId && managers.length > 0
+          ? (managers.find(m => m.id === formData.projectManagerId)?.email || null)
+          : null,
         
         // Dates
         startDate: formData.startDate || null,
@@ -1962,107 +1971,37 @@ const CreateContract = () => {
                       </div>
                     </div>
                     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200 shadow-lg">
-                      {/* Mode Toggle */}
-                      <div className="flex items-center gap-4 mb-4">
-                        <label className="block text-sm font-semibold text-gray-800">Input Mode:</label>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                projectManagerInputMode: 'dropdown',
-                                projectManagerId: '',
-                                projectManagerName: ''
-                              }));
-                            }}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              formData.projectManagerInputMode === 'dropdown'
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            Select from List
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                projectManagerInputMode: 'manual',
-                                projectManagerId: '',
-                                projectManagerName: ''
-                              }));
-                            }}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              formData.projectManagerInputMode === 'manual'
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            Enter Name Manually
-                          </button>
+                      {/* Dropdown only - no manual typing */}
+                      <label className="block text-sm font-semibold text-gray-800 mb-3">Select Project Manager</label>
+                      {loadingManagers ? (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent" />
+                          <span>Loading managers...</span>
                         </div>
-                      </div>
-
-                      {/* Dropdown Mode */}
-                      {formData.projectManagerInputMode === 'dropdown' && (
-                        <>
-                          <label className="block text-sm font-semibold text-gray-800 mb-3">Select Project Manager</label>
-                          {loadingManagers ? (
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent" />
-                              <span>Loading managers...</span>
-                            </div>
-                          ) : (
-                            <select
-                              value={formData.projectManagerId}
-                              onChange={(e) => {
-                                const id = e.target.value;
-                                const selected = managers.find(m => String(m.id) === String(id));
-                                setFormData(prev => ({
-                                  ...prev,
-                                  projectManagerId: id,
-                                  projectManagerName: selected ? (selected.fullName || selected.name || selected.email || '') : ''
-                                }));
-                              }}
-                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                            >
-                              <option value="">Select a manager (optional)</option>
-                              {managers.map((emp) => (
-                                <option key={emp.id} value={emp.id}>
-                                  {emp.fullName || emp.name || emp.employeeName || emp.email || `Employee ${emp.id}`}
-                                  {emp.email ? ` (${emp.email})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </>
-                      )}
-
-                      {/* Manual Input Mode */}
-                      {formData.projectManagerInputMode === 'manual' && (
-                        <>
-                          <label className="block text-sm font-semibold text-gray-800 mb-3">Enter Project Manager Name</label>
-                          <input
-                            type="text"
-                            value={formData.projectManagerName}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setFormData(prev => ({
-                                ...prev,
-                                projectManagerName: value,
-                                projectManagerId: '' // Clear dropdown selection when typing manually
-                              }));
-                            }}
-                            placeholder="Enter project manager name (e.g., John Doe)"
-                            maxLength={100}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Maximum 100 characters. You can enter any name, not limited to the employee list.
-                          </p>
-                        </>
+                      ) : (
+                        <select
+                          value={formData.projectManagerId}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            const selected = managers.find(m => String(m.id) === String(id));
+                            setFormData(prev => ({
+                              ...prev,
+                              projectManagerId: id,
+                              projectManagerName: selected
+                                ? `${(selected.firstName || '').trim()} ${(selected.lastName || '').trim()}`.trim() || selected.email || ''
+                                : ''
+                            }));
+                          }}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        >
+                          <option value="">— Select Project Manager —</option>
+                          {managers.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {[(m.firstName || '').trim(), (m.lastName || '').trim()].filter(Boolean).join(' ') || m.email || `Manager ${m.id}`}
+                              {m.email ? ` (${m.email})` : ''}
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </div>
                   </div>

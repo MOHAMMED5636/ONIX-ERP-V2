@@ -1,19 +1,31 @@
 // Employee API service for backend connection
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Get all employees
+ * @param {Object} params - Optional { companyId, companyName } to filter by company (for Employee Directory per company)
  * @returns {Promise} Employees data with success flag
  */
-export const getEmployees = async () => {
+export const getEmployees = async (params = {}) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
     }
 
-    const url = `${API_BASE_URL}/employees`;
+    const queryParams = new URLSearchParams();
+    if (params.companyId && String(params.companyId).trim()) queryParams.append('companyId', String(params.companyId).trim());
+    if (params.companyName && String(params.companyName).trim()) queryParams.append('companyName', String(params.companyName).trim());
+    if (params.page != null) queryParams.append('page', String(params.page));
+    if (params.limit != null) queryParams.append('limit', String(params.limit));
+    if (params.search && String(params.search).trim()) queryParams.append('search', String(params.search).trim());
+    if (params.role && String(params.role).trim()) queryParams.append('role', String(params.role).trim());
+    if (params.department && String(params.department).trim()) queryParams.append('department', String(params.department).trim());
+    if (params.forTaskAssignment === true || params.forTaskAssignment === 'true') queryParams.append('forTaskAssignment', 'true');
+    const url = `${API_BASE_URL}/employees${queryParams.toString() ? `?${queryParams}` : ''}`;
     
     console.log('📡 Fetching employees from:', url);
 
@@ -62,13 +74,43 @@ export const getEmployees = async () => {
 };
 
 /**
+ * Check availability of Employee ID and/or email (for form validation)
+ * @param {Object} params - { employeeId?: string, email?: string }
+ * @returns {Promise<{ employeeIdAvailable?: boolean, emailAvailable?: boolean }>}
+ */
+export const checkEmployeeAvailability = async (params = {}) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found.');
+    const q = new URLSearchParams();
+    if (params.employeeId != null && String(params.employeeId).trim() !== '') q.set('employeeId', String(params.employeeId).trim());
+    if (params.email != null && String(params.email).trim() !== '') q.set('email', String(params.email).trim());
+    if (q.toString() === '') return { employeeIdAvailable: true, emailAvailable: true };
+    const response = await fetch(`${API_BASE_URL}/employees/check-availability?${q.toString()}`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Check failed');
+    const data = await response.json();
+    return {
+      employeeIdAvailable: data.employeeIdAvailable !== false,
+      emailAvailable: data.emailAvailable !== false,
+    };
+  } catch (err) {
+    console.error('checkEmployeeAvailability error:', err);
+    return { employeeIdAvailable: true, emailAvailable: true }; // allow form to proceed; backend will reject if duplicate
+  }
+};
+
+/**
  * Get employee by ID
  * @param {string} employeeId - The employee ID
  * @returns {Promise} Employee data with success flag
  */
 export const getEmployeeById = async (employeeId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -125,7 +167,7 @@ export const getEmployeeById = async (employeeId) => {
  */
 export const createEmployee = async (employeeData, photoFile = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -300,7 +342,7 @@ export const createEmployee = async (employeeData, photoFile = null) => {
  */
 export const updateEmployee = async (employeeId, employeeData, photoFile = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -411,15 +453,18 @@ export const updateEmployee = async (employeeId, employeeData, photoFile = null)
  * Get employee statistics
  * @returns {Promise} Statistics data with success flag
  */
-export const getEmployeeStatistics = async () => {
+export const getEmployeeStatistics = async (params = {}) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
     }
 
-    const url = `${API_BASE_URL}/employees/statistics`;
+    const queryParams = new URLSearchParams();
+    if (params.companyId && String(params.companyId).trim()) queryParams.append('companyId', String(params.companyId).trim());
+    if (params.companyName && String(params.companyName).trim()) queryParams.append('companyName', String(params.companyName).trim());
+    const url = `${API_BASE_URL}/employees/statistics${queryParams.toString() ? `?${queryParams}` : ''}`;
     
     console.log('📊 Fetching employee statistics from:', url);
 
@@ -468,123 +513,47 @@ export const getEmployeeStatistics = async () => {
 };
 
 /**
- * Delete employee (soft delete - deactivates)
- * @param {string} employeeId - Employee ID to delete
- * @returns {Promise} Delete response with success flag
+ * Delete employee (soft delete)
+ * @param {string} employeeId - The employee ID
+ * @returns {Promise} Result with success flag
  */
 export const deleteEmployee = async (employeeId) => {
   try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('No token found. Please login again.');
-    }
-
-    const url = `${API_BASE_URL}/employees/${employeeId}`;
-    
-    console.log('🗑️ Deleting employee:', url);
-
-    const response = await fetch(url, {
+    const token = getToken();
+    if (!token) throw new Error('No token found. Please login again.');
+    const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       credentials: 'include',
     });
-
-    if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      let errorData = null;
-      try {
-        errorData = await response.json();
-        console.error('❌ Backend error response:', errorData);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-        if (errorData.errorCode) {
-          errorMessage += ` (Error Code: ${errorData.errorCode})`;
-        }
-        if (errorData.details) {
-          console.error('❌ Error details:', errorData.details);
-        }
-      } catch (e) {
-        console.error('❌ Failed to parse error response:', e);
-        errorMessage = `Server error: ${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
     const data = await response.json();
-    
-    console.log('✅ Employee deleted successfully:', data);
-    
-    return {
-      success: true,
-      data: data.data,
-      message: data.message || 'Employee deleted successfully'
-    };
+    if (!response.ok) throw new Error(data.message || 'Failed to delete employee');
+    return { success: true, data: data.data, message: data.message };
   } catch (error) {
-    console.error('❌ Error deleting employee:', error);
-    throw error;
+    console.error('Delete employee error:', error);
+    return { success: false, message: error.message || 'Failed to delete employee' };
   }
 };
 
 /**
- * Restore employee (reactivate)
- * @param {string} employeeId - Employee ID to restore
- * @returns {Promise} Restore response with success flag
+ * Restore soft-deleted employee
+ * @param {string} employeeId - The employee ID
+ * @returns {Promise} Result with success flag
  */
 export const restoreEmployee = async (employeeId) => {
   try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      throw new Error('No token found. Please login again.');
-    }
-
-    const url = `${API_BASE_URL}/employees/${employeeId}/restore`;
-    
-    console.log('♻️ Restoring employee:', url);
-
-    const response = await fetch(url, {
+    const token = getToken();
+    if (!token) throw new Error('No token found. Please login again.');
+    const response = await fetch(`${API_BASE_URL}/employees/${employeeId}/restore`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       credentials: 'include',
     });
-
-    if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      let errorData = null;
-      try {
-        errorData = await response.json();
-        console.error('❌ Backend error response:', errorData);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-        if (errorData.errorCode) {
-          errorMessage += ` (Error Code: ${errorData.errorCode})`;
-        }
-        if (errorData.details) {
-          console.error('❌ Error details:', errorData.details);
-        }
-      } catch (e) {
-        console.error('❌ Failed to parse error response:', e);
-        errorMessage = `Server error: ${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
     const data = await response.json();
-    
-    console.log('✅ Employee restored successfully:', data);
-    
-    return {
-      success: true,
-      data: data.data,
-      message: data.message || 'Employee restored successfully'
-    };
+    if (!response.ok) throw new Error(data.message || 'Failed to restore employee');
+    return { success: true, data: data.data, message: data.message };
   } catch (error) {
-    console.error('❌ Error restoring employee:', error);
-    throw error;
+    console.error('Restore employee error:', error);
+    return { success: false, message: error.message || 'Failed to restore employee' };
   }
 };

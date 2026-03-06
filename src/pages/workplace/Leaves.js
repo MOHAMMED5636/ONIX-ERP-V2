@@ -4,12 +4,12 @@ import {
   PlusIcon,
   EyeIcon,
   XMarkIcon,
-  TrashIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   ClockIcon,
   CheckCircleIcon,
   ChartBarIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -18,12 +18,25 @@ import {
   createLeave,
   approveLeave,
   rejectLeave,
+  rescheduleLeave,
+  uploadLeaveDocuments,
+  getLeaveDocuments,
+  downloadLeaveDocument,
+  listCertificatesForHR,
+  getLeaveReportsSummary,
+  getHRDashboard,
+  getEmployeeBalances,
+  getLeaveReportExport,
 } from "../../services/leaveAPI";
 
 const LEAVE_TYPES = [
   { value: "ANNUAL", label: "Annual Leave" },
   { value: "SICK", label: "Sick Leave" },
   { value: "UNPAID", label: "Unpaid Leave" },
+  { value: "EMERGENCY", label: "Emergency Leave" },
+  { value: "BEREAVEMENT", label: "Bereavement Leave" },
+  { value: "PATERNITY", label: "Paternity Leave" },
+  { value: "MATERNITY", label: "Maternity Leave" },
 ];
 
 export default function Leaves() {
@@ -32,9 +45,13 @@ export default function Leaves() {
 
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState({
-    annual: { total: 25, used: 0, remaining: 25 },
-    sick: { used: 0, note: "" },
+    annual: { total: 30, used: 0, remaining: 30, fromCarryForward: 0, display: "0/30" },
+    sick: { total: 90, used: 0, remaining: 90, display: "0/90", note: "" },
     unpaid: { note: "" },
+    emergency: { used: 0, note: "" },
+    bereavement: { note: "" },
+    paternity: { note: "" },
+    maternity: { note: "" },
   });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -52,21 +69,48 @@ export default function Leaves() {
     fromDate: "",
     toDate: "",
     reason: "",
+    relationOrContext: "",
   });
   const [toast, setToast] = useState(null);
+  const [leaveDocuments, setLeaveDocuments] = useState([]);
+  const [uploadDocLoading, setUploadDocLoading] = useState(false);
+  const [hrView, setHrView] = useState("list"); // "list" | "certificates" | "reports"
+  const [certificatesList, setCertificatesList] = useState([]);
+  const [reportsData, setReportsData] = useState(null);
+  const [reportYear, setReportYear] = useState(new Date().getFullYear());
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [hrDashboard, setHrDashboard] = useState(null);
+  const [employeeBalances, setEmployeeBalances] = useState([]);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleDates, setRescheduleDates] = useState({ startDate: "", endDate: "" });
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const params = {
+        page: 1,
+        limit: 100,
+        ...(filterStatus !== "all" && { status: filterStatus }),
+        ...(filterType !== "all" && { type: filterType }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
+        ...(isAdminOrManager && employeeSearch?.trim() && { search: employeeSearch.trim() }),
+      };
       const [balanceRes, listRes] = await Promise.all([
         getLeaveBalance(),
-        listLeaves({ page: 1, limit: 100, status: filterStatus !== "all" ? filterStatus : undefined, type: filterType !== "all" ? filterType : undefined }),
+        listLeaves(params),
       ]);
       if (balanceRes?.success && balanceRes.data) {
         setLeaveBalance({
-          annual: balanceRes.data.annual || { total: 25, used: 0, remaining: 25 },
-          sick: balanceRes.data.sick || { used: 0, note: "" },
+          annual: balanceRes.data.annual || { total: 30, used: 0, remaining: 30, fromCarryForward: 0, display: "0/30" },
+          sick: balanceRes.data.sick || { total: 90, used: 0, remaining: 90, display: "0/90", note: "" },
           unpaid: balanceRes.data.unpaid || { note: "" },
+          emergency: balanceRes.data.emergency || { used: 0, note: "" },
+          bereavement: balanceRes.data.bereavement || { note: "" },
+          paternity: balanceRes.data.paternity || { note: "" },
+          maternity: balanceRes.data.maternity || { note: "" },
         });
       }
       if (listRes?.success && Array.isArray(listRes.data)) {
@@ -77,15 +121,30 @@ export default function Leaves() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterType]);
+  }, [filterStatus, filterType, dateFrom, dateTo, employeeSearch, isAdminOrManager]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (isAdminOrManager) {
+      getHRDashboard().then((res) => {
+        if (res?.success && res.data) {
+          setHrDashboard(res.data);
+          setEmployeeBalances(res.data.employeeBalances || []);
+        }
+      });
+    }
+  }, [isAdminOrManager]);
+
   const handleRequestLeave = async () => {
     if (!newRequest.type || !newRequest.fromDate || !newRequest.toDate || !newRequest.reason?.trim()) {
       setToast({ message: "Please fill in all required fields", type: "error" });
+      return;
+    }
+    if (newRequest.type === "BEREAVEMENT" && !newRequest.relationOrContext) {
+      setToast({ message: "Please select relation for bereavement leave", type: "error" });
       return;
     }
     setActionLoading(true);
@@ -96,9 +155,10 @@ export default function Leaves() {
         startDate: newRequest.fromDate,
         endDate: newRequest.toDate,
         reason: newRequest.reason.trim(),
+        ...(newRequest.relationOrContext ? { relationOrContext: newRequest.relationOrContext } : {}),
       });
       if (res?.success) {
-        setNewRequest({ type: "", fromDate: "", toDate: "", reason: "" });
+        setNewRequest({ type: "", fromDate: "", toDate: "", reason: "", relationOrContext: "" });
         setShowRequestModal(false);
         setToast({ message: "Leave request submitted successfully", type: "success" });
         loadData();
@@ -112,9 +172,93 @@ export default function Leaves() {
     }
   };
 
-  const handleViewDetails = (request) => {
+  const handleViewDetails = async (request) => {
     setSelectedRequest(request);
     setShowDetailsModal(true);
+    setLeaveDocuments([]);
+    try {
+      const res = await getLeaveDocuments(request.id);
+      if (res?.success && res.data?.documents) setLeaveDocuments(res.data.documents);
+    } catch (_) {}
+  };
+
+  const handleUploadDocuments = async (leaveId, files) => {
+    if (!files?.length) return;
+    setUploadDocLoading(true);
+    setToast(null);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((f) => formData.append("documents", f));
+      const res = await uploadLeaveDocuments(leaveId, formData);
+      if (res?.success) {
+        setToast({ message: "Documents uploaded successfully", type: "success" });
+        if (selectedRequest?.id === leaveId) setLeaveDocuments(res.data?.documents || []);
+        loadData();
+      } else setToast({ message: res?.message || "Upload failed", type: "error" });
+    } catch (err) {
+      setToast({ message: err.message || "Upload failed", type: "error" });
+    } finally {
+      setUploadDocLoading(false);
+    }
+  };
+
+  const handleDownloadDoc = async (leaveId, filename, displayName) => {
+    try {
+      await downloadLeaveDocument(leaveId, filename, displayName);
+    } catch (err) {
+      setToast({ message: err.message || "Download failed", type: "error" });
+    }
+  };
+
+  const loadCertificates = async () => {
+    const res = await listCertificatesForHR();
+    if (res?.success && Array.isArray(res.data)) setCertificatesList(res.data);
+  };
+
+  const loadReports = async () => {
+    const res = await getLeaveReportsSummary(reportYear);
+    if (res?.success) setReportsData(res.data);
+  };
+
+  const handleRescheduleOpen = (request) => {
+    setSelectedRequest(request);
+    setRescheduleDates({
+      startDate: request.startDate ? new Date(request.startDate).toISOString().slice(0, 10) : "",
+      endDate: request.endDate ? new Date(request.endDate).toISOString().slice(0, 10) : "",
+    });
+    setShowRescheduleModal(true);
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!selectedRequest || !rescheduleDates.startDate || !rescheduleDates.endDate) {
+      setToast({ message: "Please select both start and end dates", type: "error" });
+      return;
+    }
+    setActionLoading(true);
+    setToast(null);
+    try {
+      const res = await rescheduleLeave(selectedRequest.id, rescheduleDates.startDate, rescheduleDates.endDate);
+      if (res?.success) {
+        setShowRescheduleModal(false);
+        setToast({ message: "Leave rescheduled successfully", type: "success" });
+        loadData();
+        if (showDetailsModal) setSelectedRequest(res.data);
+      } else setToast({ message: res?.message || "Reschedule failed", type: "error" });
+    } catch (err) {
+      setToast({ message: err.message || "Reschedule failed", type: "error" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    setToast(null);
+    try {
+      await getLeaveReportExport(reportYear, "csv");
+      setToast({ message: "Report downloaded", type: "success" });
+    } catch (err) {
+      setToast({ message: err.message || "Download failed", type: "error" });
+    }
   };
 
   const handleApprove = async (request) => {
@@ -192,14 +336,14 @@ export default function Leaves() {
 
   const getTypeColor = (type) => {
     switch (type) {
-      case "ANNUAL":
-        return "bg-blue-100 text-blue-800";
-      case "SICK":
-        return "bg-red-100 text-red-800";
-      case "UNPAID":
-        return "bg-purple-100 text-purple-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      case "ANNUAL": return "bg-blue-100 text-blue-800";
+      case "SICK": return "bg-red-100 text-red-800";
+      case "UNPAID": return "bg-purple-100 text-purple-800";
+      case "EMERGENCY": return "bg-amber-100 text-amber-800";
+      case "BEREAVEMENT": return "bg-slate-100 text-slate-800";
+      case "PATERNITY": return "bg-cyan-100 text-cyan-800";
+      case "MATERNITY": return "bg-pink-100 text-pink-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -237,6 +381,19 @@ export default function Leaves() {
           
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            {isAdminOrManager && hrDashboard?.totalEmployees != null && (
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Employees</p>
+                    <p className="text-2xl font-bold text-gray-900">{hrDashboard.totalEmployees}</p>
+                  </div>
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <ChartBarIcon className="h-6 w-6 text-slate-600" />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -298,11 +455,11 @@ export default function Leaves() {
         </div>
 
         {/* Leave Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-900">Annual Leave</h3>
-              <span className="text-xs text-gray-500">{leaveBalance.annual?.used ?? 0}/{leaveBalance.annual?.total ?? 25}</span>
+              <span className="text-xs text-gray-500">{leaveBalance.annual?.display ?? `${leaveBalance.annual?.used ?? 0}/${leaveBalance.annual?.total ?? 30}`} days</span>
             </div>
             <div className="mb-2">
               <div className="flex justify-between text-sm mb-1">
@@ -316,18 +473,64 @@ export default function Leaves() {
                 />
               </div>
             </div>
+            {leaveBalance.annual?.fromCarryForward > 0 && (
+              <p className="text-xs text-indigo-600 mt-1">Incl. {leaveBalance.annual.fromCarryForward} days carry-forward</p>
+            )}
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">Sick Leave</h3>
-            <p className="text-sm text-gray-600">Used this year: {leaveBalance.sick?.used ?? 0} days</p>
+            <p className="text-sm text-gray-600">{leaveBalance.sick?.display ?? `${leaveBalance.sick?.used ?? 0}/90`} days</p>
+            <p className="text-xs text-gray-500 mt-1">Remaining: {leaveBalance.sick?.remaining ?? 90} days</p>
             {leaveBalance.sick?.note && <p className="text-xs text-gray-500 mt-1">{leaveBalance.sick.note}</p>}
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">Unpaid Leave</h3>
-            <p className="text-sm text-gray-600">No balance limit</p>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Emergency Leave</h3>
+            <p className="text-sm text-gray-600">Used this year: {leaveBalance.emergency?.used ?? 0} days</p>
+            {leaveBalance.emergency?.note && <p className="text-xs text-gray-500 mt-1">{leaveBalance.emergency.note}</p>}
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Unpaid / Other</h3>
+            <p className="text-sm text-gray-600">Unpaid: no limit</p>
             {leaveBalance.unpaid?.note && <p className="text-xs text-gray-500 mt-1">{leaveBalance.unpaid.note}</p>}
           </div>
         </div>
+        {/* HR: Leave statistics and per-employee balance summary */}
+        {isAdminOrManager && hrDashboard?.stats && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">HR Leave Statistics ({hrDashboard.year})</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+              <div><span className="text-gray-600">Annual Leave taken (total):</span> <strong>{hrDashboard.stats.totalAnnualTaken}</strong> days</div>
+              <div><span className="text-gray-600">Sick Leave taken:</span> <strong>{hrDashboard.stats.totalSickTaken}</strong> days</div>
+              <div><span className="text-gray-600">Emergency taken:</span> <strong>{hrDashboard.stats.totalEmergencyTaken}</strong> days</div>
+              <div><span className="text-gray-600">Special (Bereavement/Paternity/Maternity):</span> <strong>{hrDashboard.stats.totalBereavementTaken + hrDashboard.stats.totalPaternityTaken + hrDashboard.stats.totalMaternityTaken}</strong> days</div>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">{hrDashboard.stats.sickBreakdown}</p>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Leave balance per employee (sample)</h3>
+            <div className="overflow-x-auto max-h-64">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2">Employee</th>
+                    <th className="text-left py-2">Annual (used/remaining/total)</th>
+                    <th className="text-left py-2">Sick (used/remaining)</th>
+                    <th className="text-left py-2">Emergency used</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(employeeBalances || []).map((row) => (
+                    <tr key={row.user?.id} className="border-b border-gray-100">
+                      <td className="py-2">{row.user ? `${row.user.firstName} ${row.user.lastName}` : "-"}</td>
+                      <td className="py-2">{row.annual?.used ?? 0} / {row.annual?.remaining ?? 0} / {row.annual?.total ?? 30}</td>
+                      <td className="py-2">{row.sick?.used ?? 0} / {row.sick?.remaining ?? 90}</td>
+                      <td className="py-2">{row.emergencyUsed ?? 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {toast && (
           <div className={`mb-4 p-3 rounded-lg ${toast.type === "error" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
             {toast.message}
@@ -374,15 +577,57 @@ export default function Leaves() {
                   className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
                 >
                   <option value="all">All Types</option>
-                  <option value="ANNUAL">Annual Leave</option>
-                  <option value="SICK">Sick Leave</option>
-                  <option value="UNPAID">Unpaid Leave</option>
+                  {LEAVE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              {/* Request Leave Button */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {isAdminOrManager && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search by employee name..."
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-48"
+                  />
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    title="From date"
+                  />
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    title="To date"
+                  />
+                  <button
+                    onClick={() => { setHrView(hrView === "certificates" ? "list" : "certificates"); if (hrView !== "certificates") loadCertificates(); }}
+                    className={`inline-flex items-center px-4 py-2 rounded-lg font-medium ${hrView === "certificates" ? "bg-indigo-700 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                  >
+                    View Certificates
+                  </button>
+                  <button
+                    onClick={() => { setHrView(hrView === "reports" ? "list" : "reports"); if (hrView !== "reports") loadReports(); }}
+                    className={`inline-flex items-center px-4 py-2 rounded-lg font-medium ${hrView === "reports" ? "bg-indigo-700 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                  >
+                    Leave Report
+                  </button>
+                  <button
+                    onClick={handleDownloadReport}
+                    className="inline-flex items-center px-4 py-2 rounded-lg font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+                  >
+                    Download Report
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setShowRequestModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -393,6 +638,94 @@ export default function Leaves() {
             </div>
           </div>
         </div>
+
+        {/* HR: Certificates view */}
+        {isAdminOrManager && hrView === "certificates" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">All leave documents (certificates / proofs)</h2>
+            {certificatesList.length === 0 ? (
+              <p className="text-gray-500">No leave requests with documents yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2">Employee</th>
+                      <th className="text-left py-2">Type</th>
+                      <th className="text-left py-2">Status</th>
+                      <th className="text-left py-2">Dates</th>
+                      <th className="text-left py-2">Submitted</th>
+                      <th className="text-left py-2">Documents</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {certificatesList.map((row) => (
+                      <tr key={row.id} className="border-b border-gray-100">
+                        <td className="py-2">{row.user ? `${row.user.firstName} ${row.user.lastName}` : "-"}</td>
+                        <td className="py-2">{getTypeLabel(row.type)}</td>
+                        <td className="py-2">{row.status}</td>
+                        <td className="py-2">{row.startDate && new Date(row.startDate).toLocaleDateString()} – {row.endDate && new Date(row.endDate).toLocaleDateString()}</td>
+                        <td className="py-2">{row.createdAt ? new Date(row.createdAt).toLocaleString() : "-"}</td>
+                        <td className="py-2">
+                          {(row.documents || []).map((d, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => handleDownloadDoc(row.id, d.path?.split("/").pop(), d.fileName)}
+                              className="text-indigo-600 hover:underline mr-2"
+                            >
+                              {d.fileName || "Document"}
+                            </button>
+                          ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* HR: Reports view */}
+        {isAdminOrManager && hrView === "reports" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Leave report</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <label className="text-sm text-gray-700">Year</label>
+              <select
+                value={reportYear}
+                onChange={(e) => { setReportYear(Number(e.target.value)); setReportsData(null); }}
+                className="border rounded px-2 py-1"
+              >
+                {[new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button onClick={loadReports} className="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Load</button>
+            </div>
+            {reportsData && (
+              <div className="space-y-4">
+                <p><strong>Total requests:</strong> {reportsData.totalRequests}</p>
+                <p><strong>By type:</strong></p>
+                <ul className="list-disc pl-6">
+                  {reportsData.byType?.map((t) => (
+                    <li key={t.type}>{t.type}: {t._count?.id ?? 0} requests, {t._sum?.days ?? 0} days</li>
+                  ))}
+                </ul>
+                <p><strong>By status:</strong></p>
+                <ul className="list-disc pl-6">
+                  {reportsData.byStatus?.map((s) => (
+                    <li key={s.status}>{s.status}: {s._count?.id ?? 0}</li>
+                  ))}
+                </ul>
+                {reportsData.pendingRequiringDocs?.length > 0 && (
+                  <p className="text-amber-700"><strong>Pending without documents:</strong> {reportsData.pendingRequiringDocs.length} (Sick/Maternity/Bereavement)</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Leave Requests Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -496,6 +829,14 @@ export default function Leaves() {
                                 >
                                   <XMarkIcon className="h-4 w-4" />
                                 </button>
+                                <button
+                                  onClick={() => handleRescheduleOpen(request)}
+                                  disabled={actionLoading}
+                                  className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                  title="Reschedule"
+                                >
+                                  <ArrowPathIcon className="h-4 w-4" />
+                                </button>
                               </>
                             )}
                           </div>
@@ -592,6 +933,20 @@ export default function Leaves() {
                 </div>
               </div>
               
+              {newRequest.type === "BEREAVEMENT" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Relation *</label>
+                  <select
+                    value={newRequest.relationOrContext}
+                    onChange={(e) => setNewRequest(prev => ({ ...prev, relationOrContext: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">Select relation</option>
+                    <option value="spouse">Spouse (5 days)</option>
+                    <option value="first_degree">First-degree relative (3 days)</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Reason *
@@ -604,6 +959,11 @@ export default function Leaves() {
                   placeholder="Please provide a reason for your leave request..."
                 />
               </div>
+              {["SICK", "MATERNITY", "BEREAVEMENT"].includes(newRequest.type) && (
+                <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                  After submitting, upload your medical certificate or supporting document in the leave details. Approval requires at least one document.
+                </p>
+              )}
             </div>
             
             <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
@@ -669,6 +1029,51 @@ export default function Leaves() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Submitted</label>
                 <p className="text-sm text-gray-900">{selectedRequest.createdAt && new Date(selectedRequest.createdAt).toLocaleDateString()}</p>
+              </div>
+              {selectedRequest.relationOrContext && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Relation / Context</label>
+                  <p className="text-sm text-gray-900">{selectedRequest.relationOrContext}</p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Documents</label>
+                {leaveDocuments.length > 0 ? (
+                  <ul className="space-y-1">
+                    {leaveDocuments.map((d, i) => (
+                      <li key={i} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700 truncate">{d.fileName || d.path?.split("/").pop()}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDoc(selectedRequest.id, d.path?.split("/").pop() || d.fileName, d.fileName)}
+                          className="ml-2 text-indigo-600 hover:underline"
+                        >
+                          Download
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">No documents uploaded</p>
+                )}
+                {(selectedRequest.status || "").toUpperCase() === "PENDING" && ["SICK", "MATERNITY", "BEREAVEMENT"].includes(selectedRequest.type) && (
+                  <div className="mt-2">
+                    <label className="block text-xs text-gray-600 mb-1">Upload medical certificate / proof (required for approval)</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      multiple
+                      disabled={uploadDocLoading}
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files?.length) handleUploadDocuments(selectedRequest.id, files);
+                        e.target.value = "";
+                      }}
+                      className="text-sm"
+                    />
+                    {uploadDocLoading && <span className="text-xs text-gray-500">Uploading...</span>}
+                  </div>
+                )}
               </div>
               {(selectedRequest.status || "").toUpperCase() === "APPROVED" && selectedRequest.approvedBy && (
                 <div className="bg-green-50 p-3 rounded-lg">
@@ -741,6 +1146,59 @@ export default function Leaves() {
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {actionLoading ? "Rejecting..." : "Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Leave Modal (HR/Admin) */}
+      {showRescheduleModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Reschedule Leave</h2>
+              <button
+                onClick={() => setShowRescheduleModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">New dates (max 3 months from original end). Working days only.</p>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">New start date *</label>
+                <input
+                  type="date"
+                  value={rescheduleDates.startDate}
+                  onChange={(e) => setRescheduleDates((prev) => ({ ...prev, startDate: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">New end date *</label>
+                <input
+                  type="date"
+                  value={rescheduleDates.endDate}
+                  onChange={(e) => setRescheduleDates((prev) => ({ ...prev, endDate: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowRescheduleModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRescheduleSubmit}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {actionLoading ? "Rescheduling..." : "Reschedule"}
               </button>
             </div>
           </div>

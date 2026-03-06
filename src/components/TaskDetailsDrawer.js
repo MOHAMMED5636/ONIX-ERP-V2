@@ -19,19 +19,9 @@ import {
 import useTaskDetails from '../hooks/useTaskDetails';
 import { formatDate, formatDateTime, getRelativeTime } from '../utils/formatDate';
 import SubtaskDetailModal from './SubtaskDetailModal';
+import { updateProjectName } from '../services/projectsAPI';
 
-// API function to update project name
-const updateProjectNameAPI = async (projectId, newName) => {
-  // Simulate API call - replace with actual API endpoint
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      console.log(`Updating project ${projectId} name to: ${newName}`);
-      resolve({ success: true });
-    }, 500);
-  });
-};
-
-const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
+const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate, onProjectNameSaved }) => {
   const [expandedSubtasks, setExpandedSubtasks] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isAddingComment, setIsAddingComment] = useState(false);
@@ -322,25 +312,16 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
     console.log('Subtask updated from modal:', updatedSubtask);
   };
 
-  // Handle updating project name
+  // Handle updating project name (persists to DB so it survives refresh)
   const handleUpdateProjectName = async (projectId, newName) => {
     try {
-      // Update the main task name
-      const updatedTask = {
-        ...task,
-        name: newName
-      };
-      
-      // Call the backend API
-      await updateProjectNameAPI(projectId, newName);
-      
-      // Update local state
-      syncToMainTable(updatedTask);
-      
-      console.log('Project name updated successfully');
+      await updateProjectName(projectId, newName != null ? String(newName).trim() : '');
+      const updatedTask = { ...task, name: newName, title: newName };
+      if (syncToMainTable) syncToMainTable(updatedTask);
+      if (onTaskUpdate) onTaskUpdate(updatedTask);
     } catch (error) {
       console.error('Failed to update project name:', error);
-      throw error; // Re-throw to let the modal handle the error
+      throw error;
     }
   };
 
@@ -355,22 +336,14 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
   const handleSaveProjectName = async () => {
     if (tempProjectName.trim() && currentTask) {
       try {
-        const updatedTask = {
-          ...currentTask,
-          name: tempProjectName.trim()
-        };
-        
-        // Call the backend API
-        await updateProjectNameAPI(currentTask.id, tempProjectName.trim());
-        
-        // Update local state
-        syncToMainTable(updatedTask);
-        
+        await updateProjectName(currentTask.id, tempProjectName.trim());
+        const updatedTask = { ...currentTask, name: tempProjectName.trim(), title: tempProjectName.trim() };
+        if (syncToMainTable) syncToMainTable(updatedTask);
+        if (onTaskUpdate) onTaskUpdate(updatedTask);
+        if (typeof onProjectNameSaved === 'function') onProjectNameSaved();
         setIsEditingProjectName(false);
-        console.log('Project name updated successfully');
       } catch (error) {
         console.error('Failed to update project name:', error);
-        // Reset to original name on error
         setTempProjectName(currentTask?.name || currentTask?.title || '');
       }
     }
@@ -389,14 +362,22 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate }) => {
     }
   };
 
-  // Save handlers for project details fields
-  const handleSaveProjectNameDetails = () => {
-    if (onTaskUpdate && currentTask) {
-      onTaskUpdate({
-        ...currentTask,
-        name: tempProjectNameDetails.trim(),
-        title: tempProjectNameDetails.trim()
-      });
+  // Save handlers for project details fields (persist project name to backend so it survives refresh)
+  const handleSaveProjectNameDetails = async () => {
+    const newName = tempProjectNameDetails != null ? String(tempProjectNameDetails).trim() : '';
+    if (!currentTask) {
+      setEditingProjectNameDetails(false);
+      return;
+    }
+    try {
+      if (newName) {
+        await updateProjectName(currentTask.id, newName);
+        const updatedTask = { ...currentTask, name: newName, title: newName };
+        if (onTaskUpdate) onTaskUpdate(updatedTask);
+        if (typeof onProjectNameSaved === 'function') onProjectNameSaved();
+      }
+    } catch (error) {
+      console.error('Failed to save project name:', error);
     }
     setEditingProjectNameDetails(false);
   };

@@ -11,10 +11,12 @@ export const statusColors = {
   "not started": "bg-gray-400 text-white"
 };
 
-// Available categories
-export const taskCategories = [
+// Available categories (default list; can be overridden by customizable list in localStorage)
+const TASK_CATEGORIES_STORAGE_KEY = 'onix_task_categories';
+
+export const defaultTaskCategories = [
   "Design",
-  "Development", 
+  "Development",
   "Testing",
   "Review",
   "Planning",
@@ -22,6 +24,30 @@ export const taskCategories = [
   "Research",
   "Analysis"
 ];
+
+export const taskCategories = defaultTaskCategories;
+
+/** Get task categories for dropdowns: from localStorage (customizable) or default list */
+export function getTaskCategories() {
+  if (typeof window === 'undefined') return defaultTaskCategories;
+  try {
+    const stored = window.localStorage.getItem(TASK_CATEGORIES_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultTaskCategories;
+    }
+  } catch (_) {}
+  return defaultTaskCategories;
+}
+
+/** Save customizable task categories (array of strings). Used by Task Category / Customizable view. */
+export function setTaskCategories(categories) {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = Array.isArray(categories) ? categories.map(c => (typeof c === 'string' ? c : c?.name ?? String(c))) : defaultTaskCategories;
+    window.localStorage.setItem(TASK_CATEGORIES_STORAGE_KEY, JSON.stringify(list));
+  } catch (_) {}
+}
 
 // Available priorities
 export const taskPriorities = [

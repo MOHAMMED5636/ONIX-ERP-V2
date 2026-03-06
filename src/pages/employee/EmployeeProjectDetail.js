@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { getToken } from "../../services/authAPI";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
@@ -12,7 +13,7 @@ export default function EmployeeProjectDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     if (!token || !id) {
       setLoading(false);
       return;

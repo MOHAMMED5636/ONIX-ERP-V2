@@ -18,7 +18,6 @@ export const AddColumnModal = ({ onClose, onAdd }) => {
     { value: 'text', label: 'Text' },
     { value: 'number', label: 'Number' },
     { value: 'textarea', label: 'Text Area' },
-    { value: 'dropdown', label: 'Dropdown' },
     { value: 'person', label: 'Person Selector' },
     { value: 'daterange', label: 'Date Range' },
     { value: 'file', label: 'File Upload' },

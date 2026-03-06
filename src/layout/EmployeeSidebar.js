@@ -11,6 +11,7 @@ import {
   CalendarDaysIcon,
   DocumentTextIcon,
   ClipboardDocumentListIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import onixLogo from "../assets/onix-logo.png";
 
@@ -19,6 +20,7 @@ const employeeNavItems = [
   { key: "my-projects", icon: FolderIcon, label: { en: "My Projects", ar: "مشاريعي" }, path: "/employee/projects" },
   { key: "my-tasks", icon: ClipboardDocumentListIcon, label: { en: "My Tasks", ar: "مهامي" }, path: "/employee/tasks" },
   { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/employee/attendance" },
+  { key: "leave-request", icon: ClockIcon, label: { en: "Leave Request", ar: "طلب إجازة" }, path: "/employee/leave-request" },
   { key: "company-policy", icon: DocumentTextIcon, label: { en: "Company Policy", ar: "سياسة الشركة" }, path: "/employee/company-policy" },
   { key: "profile", icon: UserCircleIcon, label: { en: "Profile", ar: "الملف الشخصي" }, path: "/employee/profile" },
 ];
@@ -83,10 +85,10 @@ export default function EmployeeSidebar({ collapsed, onToggle }) {
       >
         <div className="flex flex-col items-center gap-2 pt-4 pb-2">
           <div className="flex flex-col items-center justify-center mb-1 px-2">
-            <img 
-              src={onixLogo} 
-              alt="Onix Group" 
-              className={`${collapsed ? 'h-10 w-10' : 'h-12 w-12'} object-contain rounded-lg shadow-md`}
+            <img
+              src={onixLogo}
+              alt="Onix Group"
+              className={`${collapsed ? "h-10 w-10" : "h-12 w-12"} object-contain rounded-lg shadow-md`}
             />
           </div>
           <div className="sidebar-profile w-full flex flex-col items-center mb-2 relative z-50">

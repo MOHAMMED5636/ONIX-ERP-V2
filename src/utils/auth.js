@@ -1,78 +1,57 @@
 // Authentication utility for role-based access control
+// IMPORTANT: For auth/role decisions, use AuthContext (useAuth()).
+// These helpers read from per-tab sessionStorage (authStorage).
+
+import * as authStorage from './authStorage';
 
 export const ROLES = {
   ADMIN: 'ADMIN',
   TENDER_ENGINEER: 'TENDER_ENGINEER',
 };
 
-// Get current user from localStorage (DEPRECATED - Use AuthContext instead)
-// This is kept for backward compatibility with existing code
+/** DEPRECATED for auth/role: use useAuth().user. Reads from per-tab sessionStorage. */
 export const getCurrentUser = () => {
-  try {
-    const userStr = localStorage.getItem('currentUser');
-    if (userStr) {
-      return JSON.parse(userStr);
-    }
-    // Fallback: try to get from token via API if available
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Return null - AuthContext will handle fetching
-      return null;
-    }
-  } catch (error) {
-    console.error('Error parsing user data:', error);
-  }
-  return null;
+  return authStorage.getAuthItemJson('currentUser');
 };
 
-// Get current user role
+/** DEPRECATED for auth/role: use useAuth().user?.role. */
 export const getCurrentUserRole = () => {
   const user = getCurrentUser();
   return user?.role || null;
 };
 
-// Check if user is authenticated (DEPRECATED - Use AuthContext instead)
-// This checks for token existence as fallback
+/** DEPRECATED: use useAuth().isAuthenticated. */
 export const isAuthenticated = () => {
-  const token = localStorage.getItem('token');
-  return !!token; // If token exists, consider authenticated (AuthContext will validate)
+  return !!authStorage.getToken();
 };
 
-// Check if user has specific role
+/** DEPRECATED for routing/access: use useAuth().user?.role === role. */
 export const hasRole = (role) => {
   const userRole = getCurrentUserRole();
   return userRole === role;
 };
 
-// Check if user is admin
+/** DEPRECATED for routing/access: use useAuth().user?.role === 'ADMIN'. */
 export const isAdmin = () => {
   return hasRole(ROLES.ADMIN);
 };
 
-// Check if user is tender engineer
+/** DEPRECATED for routing/access: use useAuth().user?.role === 'TENDER_ENGINEER'. */
 export const isTenderEngineer = () => {
   return hasRole(ROLES.TENDER_ENGINEER);
 };
 
-// Set user authentication (DEPRECATED - Use AuthContext instead)
-// This is kept for backward compatibility but should not be used
+/** Do not use; AuthContext sets user from /auth/me only. */
 export const setAuth = (user, role) => {
-  const userData = {
-    ...user,
-    role: role,
-    loginTime: new Date().toISOString(),
-  };
-  localStorage.setItem('currentUser', JSON.stringify(userData));
-  localStorage.setItem('isAuthenticated', 'true');
-  localStorage.setItem('userRole', role);
-  // Note: Token should already be set by authAPI.login()
+  const userData = { ...user, role, loginTime: new Date().toISOString() };
+  authStorage.setAuthItem('currentUser', userData);
+  authStorage.setAuthItem('isAuthenticated', 'true');
+  authStorage.setAuthItem('userRole', role);
 };
 
-// Clear authentication
+/** Clear per-tab auth (sessionStorage). */
 export const clearAuth = () => {
-  localStorage.removeItem('currentUser');
-  localStorage.removeItem('isAuthenticated');
-  localStorage.removeItem('userRole');
+  authStorage.clearAuth();
 };
 
 // Get redirect path based on role (unified login: Admin ERP vs Employee ERP)

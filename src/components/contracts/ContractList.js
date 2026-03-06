@@ -551,6 +551,7 @@ export default function ContractList() {
             <thead>
               <tr className="text-left text-gray-600 border-b">
                 <th className="py-2 px-2">Reference</th>
+                <th className="py-2 px-2">Project Manager</th>
                 <th className="py-2 px-2">Start Date</th>
                 <th className="py-2 px-2">End Date</th>
                 <th className="py-2 px-2">Contract Category</th>
@@ -562,6 +563,11 @@ export default function ContractList() {
                 <tr key={c.id || idx} className={`even:bg-gray-50 ${c.amendmentHistory && c.amendmentHistory.length > 0 ? 'bg-green-50' : ''}`}>
                   <td className="py-2 px-2 whitespace-nowrap">
                     <span className="font-semibold text-gray-800">{c.ref || c.referenceNumber || 'N/A'}</span>
+                  </td>
+                  <td className="py-2 px-2 whitespace-nowrap text-gray-700">
+                    {c.assignedManager
+                      ? `${(c.assignedManager.firstName || '').trim()} ${(c.assignedManager.lastName || '').trim()}`.trim() || c.assignedManager.email
+                      : c.projectManager || '—'}
                   </td>
                   <td className="py-2 px-2 whitespace-nowrap">
                     <div className="flex items-center gap-2">

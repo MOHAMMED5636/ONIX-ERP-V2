@@ -69,6 +69,35 @@ export default function EmployeeProfile() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const savePhotoOnly = async () => {
+    if (!photo) return;
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("photo", photo);
+      const response = await updateProfile(formDataToSend);
+      if (response && response.success && response.data) {
+        setSuccess(true);
+        if (updateUserData) updateUserData(response.data);
+        setPhoto(null);
+        setPhotoUpdateKey((prev) => prev + 1);
+        if (refreshUser) {
+          await refreshUser();
+        }
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        throw new Error(response?.message || "Failed to save photo");
+      }
+    } catch (err) {
+      console.error("Photo save error:", err);
+      setError(err.message || "Failed to save photo");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -78,12 +107,12 @@ export default function EmployeeProfile() {
     try {
       const formDataToSend = new FormData();
       
-      // Add photo if selected
+      // Add photo if selected (must use field name "photo" for backend multer)
       if (photo) {
         formDataToSend.append("photo", photo);
       }
       
-      // Add editable fields
+      // Add editable fields so backend receives them
       if (formData.jobTitle !== undefined) {
         formDataToSend.append("jobTitle", formData.jobTitle);
       }
@@ -118,7 +147,7 @@ export default function EmployeeProfile() {
         if (refreshUser) {
           setTimeout(async () => {
             await refreshUser();
-          }, 1000);
+          }, 500);
         }
         
         setTimeout(() => {
@@ -201,13 +230,24 @@ export default function EmployeeProfile() {
                   size="lg"
                   shape="circle"
                 />
-                {isEditing && (
-                  <div className="mt-2 text-center">
-                    <p className="text-xs text-slate-600">
-                      Click photo to change
-                    </p>
-                  </div>
-                )}
+                <div className="mt-2 text-center">
+                  <p className="text-xs text-slate-600">
+                    {isEditing ? "Click photo or choose file to change" : "Click Edit Profile to change photo"}
+                  </p>
+                  {photo && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm font-medium text-green-700">Photo selected — save to update</p>
+                      <button
+                        type="button"
+                        onClick={savePhotoOnly}
+                        disabled={loading}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50"
+                      >
+                        {loading ? "Saving..." : "Save photo"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h2 className="text-2xl font-bold text-slate-800 mb-1">

@@ -1,4 +1,6 @@
 // Document Management API service
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
@@ -8,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
  */
 export const getDocuments = async (userId = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
       throw new Error('No token found');
     }
@@ -83,7 +85,7 @@ export const getDocuments = async (userId = null) => {
  */
 export const uploadDocument = async (formData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
       throw new Error('No token found');
     }
@@ -179,7 +181,7 @@ export const uploadDocument = async (formData) => {
  */
 export const replaceDocument = async (documentId, formData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
       throw new Error('No token found');
     }
@@ -213,7 +215,7 @@ export const replaceDocument = async (documentId, formData) => {
  */
 export const deleteDocument = async (documentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
       throw new Error('No token found');
     }
@@ -247,7 +249,7 @@ export const deleteDocument = async (documentId) => {
  */
 export const downloadDocument = async (documentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
       throw new Error('No token found');
     }

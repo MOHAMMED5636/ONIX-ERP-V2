@@ -27,16 +27,27 @@ export const getMyAttendance = (params = {}) => {
 };
 
 /**
- * Mark attendance (check-in or check-out) with coordinates
+ * Mark attendance (check-in or check-out) with optional coordinates
  * @param {string} type - 'CHECK_IN' or 'CHECK_OUT'
- * @param {number} latitude
- * @param {number} longitude
- * @param {number} [accuracy] - GPS accuracy in meters
+ * @param {number|null} latitude - Optional latitude (location-based attendance is optional)
+ * @param {number|null} longitude - Optional longitude (location-based attendance is optional)
+ * @param {number|null} [accuracy] - Optional GPS accuracy in meters
  */
 export const markAttendance = (type, latitude, longitude, accuracy) =>
   apiClient.post('/attendance', {
     type,
-    latitude,
-    longitude,
-    accuracy: accuracy ?? null,
+    ...(latitude !== null && latitude !== undefined && { latitude }),
+    ...(longitude !== null && longitude !== undefined && { longitude }),
+    ...(accuracy !== null && accuracy !== undefined && { accuracy }),
   });
+
+/**
+ * Get all employees' attendance for Admin (date filter, working hours).
+ * @param {string|null} date - Optional date in YYYY-MM-DD format. If omitted, returns all dates.
+ * @returns {Promise<{ success: boolean, data: Array }>}
+ */
+export const getAllAttendanceForAdmin = (date = null) => {
+  const params = date ? { date } : {};
+  const query = new URLSearchParams(params).toString();
+  return apiClient.get(`/attendance/all${query ? `?${query}` : ''}`);
+};

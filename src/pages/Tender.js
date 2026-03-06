@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowRightIcon, ChartBarIcon, CloudArrowUpIcon, XMarkIcon, PaperClipIcon, ArrowUpTrayIcon, DocumentTextIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import TenderEngineerAssignment from "../components/TenderEngineerAssignment";
-import { isAdmin } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 const lifecycleSteps = [
   {
@@ -47,6 +47,7 @@ const tenderYearlyData = [
 export default function TenderPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [selectedTenderId, setSelectedTenderId] = useState(null);
   const [assignmentMessage, setAssignmentMessage] = useState("");
@@ -675,7 +676,7 @@ export default function TenderPage() {
                         View
                       </Link>
                       {/* Show Assign button - check if admin or if no role is set (for testing) */}
-                      {(isAdmin() || !localStorage.getItem('userRole')) && (
+                      {user?.role === 'ADMIN' && (
                         <button
                           onClick={() => {
                             // Find the full project data

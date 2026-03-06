@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 const CustomCalendar = ({ value, onChange, min, className = '' }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : null);
   const [isOpen, setIsOpen] = useState(false);
   const calendarRef = useRef(null);

@@ -1,7 +1,34 @@
 // API service for contracts management
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 class ContractsAPI {
+  // Get managers for project manager dropdown (internal users with MANAGER role)
+  static async getManagers(search = '', companyId = '') {
+    try {
+      const queryParams = new URLSearchParams();
+      if (search && String(search).trim()) queryParams.append('search', search.trim());
+      if (companyId && String(companyId).trim()) queryParams.append('companyId', companyId.trim());
+      const url = `${API_BASE_URL}/contracts/managers${queryParams.toString() ? `?${queryParams}` : ''}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      throw error;
+    }
+  }
+
   // Get all contracts with optional filters and pagination
   static async getContracts(params = {}) {
     try {
@@ -16,12 +43,13 @@ class ContractsAPI {
       if (params.limit) queryParams.append('limit', params.limit);
       if (params.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      if (params.forLoadOut) queryParams.append('forLoadOut', params.forLoadOut);
       
       const response = await fetch(`${API_BASE_URL}/contracts?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -44,7 +72,7 @@ class ContractsAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -71,14 +99,14 @@ class ContractsAPI {
       const refNum = referenceNumber.trim();
       const url = `${API_BASE_URL}/contracts/by-reference?referenceNumber=${encodeURIComponent(refNum)}`;
       console.log('📡 Fetching contract from:', url);
-      console.log('🔑 Token exists:', !!localStorage.getItem('token'));
+      console.log('🔑 Token exists:', !!getToken());
 
       // Use the dedicated /by-reference endpoint for exact matching
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -110,7 +138,7 @@ class ContractsAPI {
   // Create a new contract
   static async createContract(contractData, contractDocument = null, attachmentFiles = []) {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -228,7 +256,7 @@ class ContractsAPI {
   // Update an existing contract
   static async updateContract(id, contractData, contractDocument = null) {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -291,7 +319,7 @@ class ContractsAPI {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -314,7 +342,7 @@ class ContractsAPI {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -337,7 +365,7 @@ class ContractsAPI {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 
@@ -360,7 +388,7 @@ class ContractsAPI {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
         body: JSON.stringify({ contractIds }),
       });
@@ -384,7 +412,7 @@ class ContractsAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
       });
 

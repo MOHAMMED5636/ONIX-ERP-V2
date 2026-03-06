@@ -1,4 +1,6 @@
 // Dashboard API service for backend connection
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 // Helper function to add timeout to fetch requests
@@ -17,7 +19,7 @@ const fetchWithTimeout = (url, options, timeout = 10000) => {
  */
 export const getDashboardSummary = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -63,7 +65,7 @@ export const getDashboardSummary = async () => {
  */
 export const getDashboardStats = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -105,7 +107,7 @@ export const getDashboardStats = async () => {
  */
 export const getDashboardProjects = async (status, limit = 10) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -142,7 +144,7 @@ export const getDashboardProjects = async (status, limit = 10) => {
  */
 export const getDashboardTasks = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -175,7 +177,7 @@ export const getDashboardTasks = async () => {
  */
 export const getDashboardTeam = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');
@@ -210,7 +212,7 @@ export const getDashboardTeam = async () => {
  */
 export const getDashboardCalendar = async (month, year) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found');

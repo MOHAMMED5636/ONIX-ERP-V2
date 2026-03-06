@@ -134,17 +134,16 @@ const BulkActionBar = ({
               </>
             )}
             
-            {/* Delete Button - Hidden for employees */}
-            {!isEmployee && (
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
-                title="Delete selected items"
-              >
-                <TrashIcon className="w-4 h-4" />
-                Delete
-              </button>
-            )}
+            {/* Delete Button - available for all roles.
+                Backend and per-row rules still enforce who can actually delete. */}
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
+              title="Delete selected items"
+            >
+              <TrashIcon className="w-4 h-4" />
+              Delete
+            </button>
 
             {/* Undo Button */}
             <button

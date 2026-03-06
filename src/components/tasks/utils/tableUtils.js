@@ -13,11 +13,47 @@ export const statusColors = {
   "not started": "bg-gray-400 text-white"
 };
 
+/**
+ * Normalize to start-of-day for date comparison (no time).
+ */
+function toStartOfDay(d) {
+  if (!d) return null;
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/**
+ * Returns CSS border class for timeline box / task row based on deadline and status.
+ * - Overdue: current date > endDate AND status is not "Finished" → red border
+ * - Due today: current date === endDate AND not finished → orange border
+ * - Otherwise: no extra class
+ */
+export function getDeadlineClass(startDate, endDate, status) {
+  const end = toStartOfDay(endDate);
+  if (!end) return '';
+
+  const today = toStartOfDay(new Date());
+  const s = (status || '').toLowerCase();
+  const isFinished = s === 'finished' || s === 'done' || s === 'completed' || s === 'completed task';
+
+  if (isFinished) return '';
+  if (today > end) return 'border-2 border-red-500';   // overdue: red outline
+  if (today.getTime() === end.getTime()) return 'border-2 border-orange-400'; // due today: orange outline
+  return '';
+}
+
 // Columns hidden in subtask table (project manager, client, and reference not needed for subtasks)
+// Note: assignedEmployee is ONLY for subtasks/child tasks, so it's hidden for main tasks
 export const SUBTASK_HIDDEN_COLUMNS = ['owner', 'client', 'referenceNumber'];
+export const MAIN_TASK_HIDDEN_COLUMNS = ['assignedEmployee']; // Hide assignedEmployee from main tasks
 
 export function getSubtaskColumnOrder(columnOrder) {
   return columnOrder.filter(colKey => !SUBTASK_HIDDEN_COLUMNS.includes(colKey));
+}
+
+export function getMainTaskColumnOrder(columnOrder) {
+  return columnOrder.filter(colKey => !MAIN_TASK_HIDDEN_COLUMNS.includes(colKey));
 }
 
 /**
@@ -43,6 +79,7 @@ export const INITIAL_COLUMNS = [
   { key: 'category', label: 'TASK CATEGORY' },
   { key: 'status', label: 'STATUS' },
   { key: 'owner', label: 'PROJECT MANAGER' },
+  { key: 'assignedEmployee', label: 'ASSIGNED EMPLOYEE' },
   { key: 'timeline', label: 'TIMELINE' },
   { key: 'planDays', label: 'PLAN DAYS' },
   { key: 'remarks', label: 'REMARKS' },
@@ -362,6 +399,7 @@ export function createNewTask(tasks, projectStartDate) {
       category: "General",
       status: "not started",
       owner: "AL",
+      assignedEmployee: "",
       timeline: [null, null],
       planDays: 0,
       remarks: "",
@@ -435,6 +473,7 @@ export function createNewSubtask(parentReference = null) {
     category: "Design",
     status: "not started",
     owner: "",
+    assignedEmployee: "",
     timeline: [null, null],
     planDays: 0,
     remarks: "",
@@ -460,13 +499,41 @@ export function createNewSubtask(parentReference = null) {
 // Progress calculation utilities
 export function calculateTaskProgress(subtasks) {
   if (!subtasks || subtasks.length === 0) return 0;
+
+  // If every subtask is done/completed, overall progress is 100%
+  const allDone =
+    subtasks.length > 0 &&
+    subtasks.every(
+      (s) =>
+        s.status === 'done' ||
+        s.status === 'DONE' ||
+        s.status === 'Finished' ||
+        s.status === 'FINISHED' ||
+        s.status === 'COMPLETED'
+    );
+
+  if (allDone) {
+    return 100;
+  }
   
-  const total = subtasks.reduce((sum, s) => sum + (typeof s.progress === 'number' ? s.progress : 0), 0);
+  const total = subtasks.reduce(
+    (sum, s) => sum + (typeof s.progress === 'number' ? s.progress : 0),
+    0
+  );
   return Math.round(total / subtasks.length);
 }
 
 export function areAllSubtasksComplete(subtasks) {
-  return subtasks.length > 0 && subtasks.every(s => s.status === 'done');
+  if (!subtasks || subtasks.length === 0) return false;
+  return subtasks.every(
+    (s) =>
+      s.status === 'done' ||
+      s.status === 'DONE' ||
+      s.status === 'Finished' ||
+      s.status === 'FINISHED' ||
+      s.status === 'completed' ||
+      s.status === 'COMPLETED'
+  );
 }
 
 // Column utilities

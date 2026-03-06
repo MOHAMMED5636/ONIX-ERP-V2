@@ -30,6 +30,7 @@ import CellRenderer from "./MainTable/CellRenderer";
 import Modals from "./MainTable/Modals";
 import CheckboxWithPopup from "./MainTable/CheckboxWithPopup";
 import MultiSelectCheckbox from "./MainTable/MultiSelectCheckbox";
+import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 import SubtaskCheckbox from "./MainTable/SubtaskCheckbox";
 import BulkActionBar from "./MainTable/BulkActionBar";
 import BulkEditDrawer from "./MainTable/BulkEditDrawer";
@@ -43,7 +44,6 @@ import QuestionnaireResponseModal from "./modals/QuestionnaireResponseModal";
 import AttachmentsModal from "./modals/AttachmentsModal";
 import ContractLoadOutModal from "./modals/ContractLoadOutModal";
 import Toast from "./MainTable/Toast";
-import ColumnSettingsDropdown from "./MainTable/ColumnSettingsDropdown";
 import TaskDetailsDrawer from "../TaskDetailsDrawer";
 import ChatDrawer from "./ChatDrawer";
 import useSocket from "../../hooks/useSocket";
@@ -51,6 +51,7 @@ import { MessageCircle } from 'lucide-react';
 import EngineerInviteModal from "./MainTable/EngineerInviteModal";
 import { sendTenderInvitations } from "../../services/tenderAPI";
 import { createProject, getProjects, deleteProject, updateProject } from "../../services/projectsAPI";
+import { getEmployees } from "../../services/employeeAPI";
 
 
 // Import utilities
@@ -60,6 +61,7 @@ import {
   filterCompletedTasks,
   getDefaultColumnOrder,
   getSubtaskColumnOrder,
+  getMainTaskColumnOrder,
   getHierarchicalAutoNumber,
   loadColumnOrderFromStorage,
   saveColumnOrderToStorage,
@@ -79,6 +81,8 @@ import {
   resetReferenceTracker,
   calculateTotalPlanDaysFromSubtasks
 } from "./utils/tableUtils";
+import { getTaskCategories } from "./modular/constants";
+import { deleteTask as deleteTaskApi } from "../../services/tasksAPI";
 
 // Import shared search and filter hook
 import { useSearchAndFilters } from './hooks/useSearchAndFilters';
@@ -243,6 +247,7 @@ export default function MainTable() {
     return task.subtasks
       .filter(sub => !sub.is_deleted) // Filter out deleted subtasks
       .map(subtask => {
+        const subAssigneeId = subtask.assignedEmployeeId || (subtask.assignedEmployee?.id) || (typeof subtask.assignedEmployee === 'string' ? subtask.assignedEmployee : null) || null;
         const formattedSubtask = {
           id: subtask.id,
           name: subtask.name || '',
@@ -254,6 +259,9 @@ export default function MainTable() {
           planDays: subtask.planDays || null,
           remarks: subtask.remarks || null,
           assigneeNotes: subtask.assigneeNotes || null,
+          assignedEmployee: subAssigneeId,
+          assignedEmployeeId: subAssigneeId,
+          assignedEmployeeData: subtask.assignedEmployee || null, // Store full employee object for display
           location: subtask.location || null,
           makaniNumber: subtask.makaniNumber || null,
           plotNumber: subtask.plotNumber || null,
@@ -263,6 +271,8 @@ export default function MainTable() {
           developerProject: subtask.developerProject || null,
           description: subtask.description || subtask.remarks || null,
           tags: Array.isArray(subtask.tags) ? subtask.tags : [],
+          createdBy: subtask.createdBy || null,
+          predecessors: subtask.predecessors || null,
         };
 
         // Handle timeline/dates
@@ -280,6 +290,7 @@ export default function MainTable() {
           formattedSubtask.childSubtasks = subtask.childSubtasks
             .filter(child => !child.is_deleted)
             .map(childSubtask => {
+                const assigneeId = childSubtask.assignedEmployeeId || (childSubtask.assignedEmployee?.id) || (typeof childSubtask.assignedEmployee === 'string' ? childSubtask.assignedEmployee : null) || null;
               const formattedChild = {
                 id: childSubtask.id,
                 name: childSubtask.name || '',
@@ -291,6 +302,9 @@ export default function MainTable() {
                 planDays: childSubtask.planDays || null,
                 remarks: childSubtask.remarks || null,
                 assigneeNotes: childSubtask.assigneeNotes || null,
+                assignedEmployee: assigneeId,
+                assignedEmployeeId: assigneeId,
+                assignedEmployeeData: childSubtask.assignedEmployee || null, // Store full employee object for display
                 location: childSubtask.location || null,
                 makaniNumber: childSubtask.makaniNumber || null,
                 plotNumber: childSubtask.plotNumber || null,
@@ -300,6 +314,8 @@ export default function MainTable() {
                 developerProject: childSubtask.developerProject || null,
                 description: childSubtask.description || childSubtask.remarks || null,
                 tags: Array.isArray(childSubtask.tags) ? childSubtask.tags : [],
+                createdBy: childSubtask.createdBy || null,
+                predecessors: childSubtask.predecessors || null,
               };
 
               // Handle timeline/dates for child subtasks
@@ -868,6 +884,7 @@ export default function MainTable() {
   // Load projects from backend API
   const [tasks, setTasks] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [employees, setEmployees] = useState([]);
   
   // Ref to hold latest tasks state for async persistence
   const tasksRef = useRef(tasks);
@@ -878,7 +895,35 @@ export default function MainTable() {
   // Fetch projects from backend API on component mount
   useEffect(() => {
     loadProjectsFromAPI();
+    loadEmployees();
   }, []);
+
+  // Fetch employees for assigned employee dropdown
+  const loadEmployees = async () => {
+    try {
+      console.log('📡 Loading employees for assignment dropdown...');
+      // Pass forTaskAssignment=true so managers only see their team members
+      const response = await getEmployees({ forTaskAssignment: true });
+      console.log('📥 Employees API response:', response);
+      
+      if (response.success && response.data) {
+        // Ensure response.data is an array
+        const employeesList = Array.isArray(response.data) ? response.data : [];
+        setEmployees(employeesList);
+        console.log(`✅ Loaded ${employeesList.length} employees for assignment dropdown`);
+        
+        if (employeesList.length === 0) {
+          console.warn('⚠️  No employees found. The dropdown will be empty.');
+        }
+      } else {
+        console.error('❌ Failed to load employees:', response.message || 'Unknown error');
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading employees:', error);
+      setEmployees([]);
+    }
+  };
 
   const loadProjectsFromAPI = async () => {
     try {
@@ -906,6 +951,8 @@ export default function MainTable() {
                     t.priority === 'MEDIUM' ? 'Medium' :
                     t.priority === 'URGENT' ? 'Urgent' : 'Medium',
           owner: '',
+          assignedEmployee: t.assignedEmployeeId || (t.assignedEmployee?.id) || (typeof t.assignedEmployee === 'string' ? t.assignedEmployee : null) || null,
+          assignedEmployeeData: t.assignedEmployee || null, // Store full employee object for display
           timeline: [
             t.startDate ? new Date(t.startDate) : null,
             t.dueDate ? new Date(t.dueDate) : null
@@ -923,7 +970,9 @@ export default function MainTable() {
           developerProject: t.developerProject || null,
           description: t.description || '',
           notes: t.description || '',
-          predecessors: '',
+          predecessors: t.predecessors || '',
+          predecessorId: t.predecessorId || null,
+          workflowStatus: t.workflowStatus || 'NOT_STARTED',
           checklist: false,
           checklistItems: [],
           link: '',
@@ -980,7 +1029,7 @@ export default function MainTable() {
             contracts: project.contracts || [], // Store all contracts
             notes: project.description || '',
             autoNumber: 0,
-            predecessors: '',
+            predecessors: project.predecessors || '',
             checklist: false,
             checklistItems: [],
             link: '',
@@ -1357,7 +1406,8 @@ export default function MainTable() {
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
-      handleCreateTask();
+      // Do NOT auto-create task on Enter; only the explicit
+      // "Save" / "Create Task" button should trigger creation.
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -1370,7 +1420,7 @@ export default function MainTable() {
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
-      handleAddSubtask(taskId);
+      // Do NOT auto-create subtask on Enter; require clicking the button.
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -1383,7 +1433,7 @@ export default function MainTable() {
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
-      handleAddChildSubtask(taskId, parentSubtaskId);
+      // Do NOT auto-create child task on Enter; require clicking the button.
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -1394,6 +1444,7 @@ export default function MainTable() {
         category: "Design",
         status: "not started",
         owner: "",
+        assignedEmployee: "",
         timeline: [null, null],
         planDays: 0,
         remarks: "",
@@ -1500,15 +1551,44 @@ export default function MainTable() {
     let deletedItems = [];
     let itemType = '';
     let message = '';
+
+    // --- Permission guard for EMPLOYEES ---
+    if (isEmployee) {
+      // Employees must never delete whole projects
+      if (selectedTasks.length > 0) {
+        showToast('Employees cannot delete projects. Please contact a project manager.', 'error');
+        return;
+      }
+
+      // Filter subtasks/child tasks to only those the employee is allowed to delete
+      const permittedSubtasks = selectedSubtasks.filter(sub => {
+        const isChildTask = !!sub.parentSubtaskId;
+
+        // Employees can ALWAYS delete CHILD tasks (indented rows)
+        if (isChildTask) return true;
+
+        // For SUBTASKS (non-indented), keep strict rules
+        return (
+          sub.createdBy === user?.id ||
+          (!sub.createdBy && sub.assignedEmployeeId === user?.id)
+        );
+      });
+
+      if (permittedSubtasks.length === 0) {
+        showToast('You do not have permission to delete the selected subtasks.', 'error');
+        return;
+      }
+
+      // Use only the permitted subset for deletion
+      selectedSubtasks = permittedSubtasks;
+    }
     
-    // Delete selected tasks from backend
+    // Delete selected tasks from backend (only managers/admins reach this block for projects)
     if (selectedTasks.length > 0) {
-      // Delete all projects from backend API
       const deletePromises = selectedTasks.map(task => deleteProject(task.id));
       
       Promise.all(deletePromises)
         .then(() => {
-          // Remove from local state after successful deletion
           setTasks(tasks => {
             const taskIdsToDelete = new Set(selectedTasks.map(t => t.id));
             const updatedTasks = tasks.filter(t => !taskIdsToDelete.has(t.id));
@@ -1529,40 +1609,51 @@ export default function MainTable() {
       return; // Exit early since we're handling deletion asynchronously
     }
     
-    // Soft delete selected subtasks
+    // Soft delete selected subtasks (including child tasks) and persist to backend
     if (selectedSubtasks.length > 0) {
-      setTasks(tasks => {
-        const updatedTasks = tasks.map(task => {
-          if (task.subtasks) {
-            const timestamp = Date.now();
-            const updatedSubtasks = task.subtasks.map(subtask => {
-              if (selectedSubtasks.some(selected => selected.id === subtask.id)) {
-                return { ...subtask, is_deleted: true, deleted_at: timestamp };
-              }
-              return subtask;
-            });
-            return { ...task, subtasks: updatedSubtasks };
-          }
-          return task;
+      const timestamp = Date.now();
+      const selectedIds = new Set(selectedSubtasks.map(s => s.id));
+
+      const applySoftDelete = (taskList) =>
+        taskList.map(task => {
+          if (!task.subtasks) return task;
+          const updatedSubtasks = task.subtasks.map(subtask => {
+            const isSubtaskSelected = selectedSubtasks.some(s => s.id === subtask.id && !s.parentSubtaskId);
+            const updatedChildSubtasks = (subtask.childSubtasks || []).map(child =>
+              selectedIds.has(child.id) ? { ...child, is_deleted: true, deleted_at: timestamp } : child
+            );
+            const withChildren = updatedChildSubtasks.length ? { ...subtask, childSubtasks: updatedChildSubtasks } : subtask;
+            return isSubtaskSelected ? { ...withChildren, is_deleted: true, deleted_at: timestamp } : withChildren;
+          });
+          return { ...task, subtasks: updatedSubtasks };
         });
-        return calculateTaskTimelines(updatedTasks, projectStartDate);
+
+      setTasks(tasks => calculateTaskTimelines(applySoftDelete(tasks), projectStartDate));
+
+      const taskIdsToPersist = [...new Set(selectedSubtasks.map(s => s.parentTaskId).filter(Boolean))];
+      const updatedTasksForPayload = applySoftDelete(tasks);
+      taskIdsToPersist.forEach(taskId => {
+        const task = updatedTasksForPayload.find(t => t.id === taskId);
+        if (task) {
+          const payload = { subtasks: formatSubtasksForBackend(task) };
+          updateProject(taskId, payload)
+            .then(() => loadProjectsFromAPI())
+            .catch((err) => {
+              console.error('Failed to persist bulk subtask/child deletion:', err);
+              setToast({ type: 'error', message: err?.message || 'Failed to delete.' });
+            });
+        }
       });
-      // Add subtaskId to identify subtasks for undo functionality
-      const subtasksWithId = selectedSubtasks.map(subtask => ({ ...subtask, subtaskId: true }));
-      deletedItems = [...deletedItems, ...subtasksWithId];
-      itemType = selectedTasks.length > 0 ? 'item' : 'subtask';
-      if (selectedTasks.length > 0) {
-        message = `${deletedItems.length} item${deletedItems.length > 1 ? 's' : ''} deleted`;
-      } else {
-        message = `${selectedSubtasks.length} subtask${selectedSubtasks.length > 1 ? 's' : ''} deleted`;
-      }
+
+      deletedItems = selectedSubtasks.map(s => ({ ...s, subtaskId: true, parentTaskId: s.parentTaskId, parentSubtaskId: s.parentSubtaskId }));
+      itemType = 'subtask';
+      message = `${selectedSubtasks.length} item${selectedSubtasks.length > 1 ? 's' : ''} deleted`;
     }
-    
-    // Show undo toast
+
     if (deletedItems.length > 0) {
       undoManager.showUndoToast(deletedItems, itemType, message);
     }
-    
+
     setSelectedTaskIds(new Set());
     setSelectedSubtaskIds(new Set());
   };
@@ -1756,9 +1847,10 @@ export default function MainTable() {
             }
             return { ...updatedSubtasks[idx], planDays: value };
           } else if (col === 'category') {
-            // Auto-update reference number when category changes
+            // Apply category value, then auto-update reference number when category changes
+            const withCategory = { ...updatedSubtasks[idx], category: value };
             const parentTask = tasks.find(t => t.id === taskId);
-            const updatedSubtask = updateSubtaskReferenceNumber(updatedSubtasks[idx], parentTask.referenceNumber, t.subtasks);
+            const updatedSubtask = updateSubtaskReferenceNumber(withCategory, parentTask?.referenceNumber, t.subtasks);
             return updatedSubtask;
           } else {
             return { ...updatedSubtasks[idx], [col]: value };
@@ -1767,9 +1859,14 @@ export default function MainTable() {
         
         // If all subtasks are done, set main task status to 'done'
         const allDone = areAllSubtasksComplete(updatedSubtasks);
-        // Calculate average progress of subtasks
+        // Calculate progress of subtasks (forces 100% when all done)
         const avgProgress = calculateTaskProgress(updatedSubtasks);
-        return { ...t, subtasks: updatedSubtasks, status: allDone ? 'done' : t.status, progress: avgProgress };
+        return {
+          ...t,
+          subtasks: updatedSubtasks,
+          status: allDone ? 'done' : t.status,
+          progress: allDone ? 100 : avgProgress,
+        };
       });
       
       // If predecessors, timeline, or planDays changed, recalculate all timelines
@@ -1801,6 +1898,39 @@ export default function MainTable() {
           console.error('Error details:', err.response?.data || err.message);
         });
     }, 200);
+  }
+
+  function handleSaveSubtaskRow(subId, taskId) {
+    try {
+      const currentTasks = tasksRef.current;
+      const updatedTask = currentTasks.find(t => t.id === taskId);
+      if (!updatedTask) {
+        console.error('❌ Task not found for manual subtask save:', taskId);
+        return;
+      }
+
+      const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+      console.log('💾 Manually saving subtask row to backend:', { taskId, subId, payload });
+
+      updateProject(taskId, payload)
+        .then((response) => {
+          console.log('✅ Subtask row manually saved successfully:', response);
+          setToast({
+            type: 'success',
+            message: 'Subtask changes saved.',
+          });
+        })
+        .catch((err) => {
+          console.error('❌ Failed to manually save subtask row:', err);
+          console.error('Error details:', err.response?.data || err.message);
+          setToast({
+            type: 'error',
+            message: err?.response?.data?.message || err?.message || 'Failed to save subtask. Please try again.',
+          });
+        });
+    } catch (error) {
+      console.error('❌ Unexpected error in handleSaveSubtaskRow:', error);
+    }
   }
 
   function startEditSubtask(subId, colKey, value) {
@@ -2227,7 +2357,6 @@ export default function MainTable() {
     { key: 'text', label: 'Text', icon: '🔤' },
     { key: 'date', label: 'Date', icon: '📅' },
     { key: 'number', label: 'Number', icon: '🔢' },
-    { key: 'dropdown', label: 'Dropdown', icon: '⬇️' },
     { key: 'files', label: 'Files', icon: '📎' },
     { key: 'priority', label: 'Priority', icon: '⚡' },
     { key: 'color', label: 'Color Picker', icon: '🎨' },
@@ -2303,6 +2432,7 @@ export default function MainTable() {
     category: "Design",
     status: "not started",
     owner: "",
+    assignedEmployee: "",
     timeline: [null, null],
     planDays: 0,
     remarks: "",
@@ -2660,27 +2790,26 @@ export default function MainTable() {
       const childSubtaskWithId = { ...childSubtask, subtaskId: true, parentTaskId: taskId, parentSubtaskId };
       undoManager.showUndoToast([childSubtaskWithId], 'subtask', `Child subtask "${childSubtask.name}" deleted`);
 
-      // CRITICAL: Persist deletion to backend
-      setTimeout(() => {
-        const currentTasks = tasksRef.current;
-        const updatedTask = currentTasks.find(t => t.id === taskId);
-        if (!updatedTask) {
-          console.error('❌ Task not found for child subtask deletion persistence:', taskId);
-          return;
-        }
-        
-        const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
-        console.log('💾 Persisting child subtask deletion to backend:', { taskId, parentSubtaskId, childSubtaskId, payload });
-        
-        updateProject(taskId, payload)
-          .then((response) => {
-            console.log('✅ Child subtask deletion saved successfully:', response);
-          })
-          .catch((err) => {
-            console.error('❌ Failed to save child subtask deletion:', err);
-            console.error('Error details:', err.response?.data || err.message);
+      // CRITICAL: Persist deletion to backend using dedicated task delete API
+      console.log('💾 Deleting child subtask from backend via /tasks/:id', {
+        childSubtaskId,
+        taskId,
+        parentSubtaskId,
+      });
+
+      deleteTaskApi(childSubtaskId)
+        .then((response) => {
+          console.log('✅ Child subtask deletion saved successfully:', response);
+          // Reload from API to ensure local state matches backend
+          loadProjectsFromAPI();
+        })
+        .catch((err) => {
+          console.error('❌ Failed to delete child subtask from backend:', err);
+          setToast({
+            type: 'error',
+            message: err?.message || 'Failed to delete child task.',
           });
-      }, 200);
+        });
     }
   }
 
@@ -2725,19 +2854,19 @@ export default function MainTable() {
           </div>
         );
       case "category":
-      case "task category":
+      case "task category": {
+        const catOpts = getTaskCategories();
+        const val = childSub.category || catOpts[0] || "Design";
         return (
           <select
             className="border rounded px-1 py-1 text-xs w-full"
-            value={childSub.category || "Design"}
+            value={val}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "category", e.target.value)}
           >
-            <option value="Design">Design</option>
-            <option value="Development">Development</option>
-            <option value="Testing">Testing</option>
-            <option value="Review">Review</option>
+            {catOpts.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
           </select>
         );
+      }
       case "referenceNumber":
       case "reference number":
         return (
@@ -2790,11 +2919,20 @@ export default function MainTable() {
             hasPredecessors={childTimelineHasPredecessors} 
           />
         );
-      case "priority":
+      case "priority": {
+        const isProjectManager = isManager; // employees see read-only priority
+        const priorityValue = childSub.priority || "Low";
+        if (!isProjectManager) {
+          return (
+            <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
+              {priorityValue}
+            </span>
+          );
+        }
         return (
           <select
             className="border rounded px-1 py-1 text-xs w-full"
-            value={childSub.priority}
+            value={priorityValue}
             onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "priority", e.target.value)}
           >
             <option value="Low">Low</option>
@@ -2802,6 +2940,7 @@ export default function MainTable() {
             <option value="High">High</option>
           </select>
         );
+      }
       case "planDays":
         // Display child subtask's own planDays (will be summed in parent task)
         return (
@@ -2837,6 +2976,60 @@ export default function MainTable() {
             placeholder="Assignee notes"
             rows={2}
           />
+        );
+      case "assignedEmployee":
+        // Get assigned employee ID (could be string ID or from object)
+        const childEmployeeId = childSub.assignedEmployee || 
+                               (childSub.assignedEmployeeData?.id) || 
+                               (typeof childSub.assignedEmployee === 'string' ? childSub.assignedEmployee : null) || 
+                               '';
+        
+        // Ensure employees is an array (from component state)
+        const employeesListForChild = Array.isArray(employees) ? employees : [];
+        
+        // Get assigned employee name for display
+        let childEmployeeDisplayName = '';
+        if (childSub.assignedEmployeeData) {
+          // If we have the full employee object from backend
+          childEmployeeDisplayName = `${childSub.assignedEmployeeData.firstName || ''} ${childSub.assignedEmployeeData.lastName || ''}`.trim() || 
+                                     childSub.assignedEmployeeData.email || 
+                                     '';
+        } else if (childEmployeeId) {
+          // Try to find employee in the employees list
+          const foundEmployee = employeesListForChild.find(emp => 
+            emp.id === childEmployeeId || 
+            emp.email === childEmployeeId
+          );
+          if (foundEmployee) {
+            childEmployeeDisplayName = `${foundEmployee.firstName || ''} ${foundEmployee.lastName || ''}`.trim() || 
+                                       foundEmployee.email || 
+                                       '';
+          }
+        }
+        
+        return (
+          <select
+            className="border rounded px-1 py-1 text-xs w-full"
+            value={childEmployeeId}
+            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "assignedEmployee", e.target.value)}
+            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
+            title={childEmployeeDisplayName || 'Select Employee'}
+          >
+            <option value="">{childEmployeeDisplayName || 'Select Employee'}</option>
+            {employeesListForChild.length > 0 ? (
+              employeesListForChild.map(emp => {
+                const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || emp.email || 'Unknown';
+                const empId = emp.id || emp.email || empName;
+                return (
+                  <option key={empId} value={empId}>
+                    {empName}
+                  </option>
+                );
+              })
+            ) : (
+              <option value="" disabled>No employees available</option>
+            )}
+          </select>
         );
       case "attachments":
         return (
@@ -2888,11 +3081,10 @@ export default function MainTable() {
       case "plotNumber":
         return (
           <input
-            className="border rounded px-1 py-1 text-xs w-full"
+            className="border rounded px-1 py-1 text-xs w-full bg-gray-50 cursor-not-allowed"
             value={childSub.plotNumber || ""}
-            onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "plotNumber", e.target.value)}
-            onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
-            placeholder="Plot #"
+            readOnly
+            placeholder="—"
           />
         );
       case "community":
@@ -2955,20 +3147,9 @@ export default function MainTable() {
           ? getHierarchicalAutoNumber(projectIndex, subtaskIndex, childIdx)
           : (childSub.autoNumber || childSub.id)}</span>;
       case "predecessors":
-        const childPredecessorsHasValue = childSub.predecessors && childSub.predecessors.toString().trim() !== '';
+        // For child tasks we do not use predecessors; show read-only placeholder
         return (
-          <div className="relative">
-            <input
-              className={`border rounded px-1 py-1 text-xs pr-4 w-24 ${childPredecessorsHasValue ? 'border-green-300 bg-green-50' : ''}`}
-              value={childSub.predecessors || ""}
-              onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "predecessors", e.target.value)}
-              onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
-              placeholder="Task IDs"
-            />
-            {childPredecessorsHasValue && (
-              <span className="absolute right-1 top-1/2 -translate-y-1/2 text-xs text-green-600">🔗</span>
-            )}
-          </div>
+          <span className="text-xs text-gray-400">—</span>
         );
       case "checklist":
         const childChecklistItems = childSub.checklistItems || [];
@@ -3222,23 +3403,13 @@ export default function MainTable() {
                               if (!col) return null;
                               return <DraggableHeader key={col.key} col={col} colKey={col.key} onRemoveColumn={handleToggleColumn} />;
                             })}
-                          <th key="column-settings" className="px-3 py-3 text-center border border-gray-200 bg-gray-50 w-12">
+                          <th key="column-settings" className="px-3 py-3 text-center border border-gray-200 bg-gray-50 min-w-[3.5rem] w-14">
                             <ColumnSettingsDropdown
                               columns={columns}
                               visibleColumns={visibleColumns}
                               onToggleColumn={handleToggleColumn}
                               onResetColumns={handleResetColumns}
                             />
-                          </th>
-                          <th key="add-column" className="px-3 py-3 text-center border border-gray-200 bg-gray-50 w-12">
-                            <button
-                              className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                              onClick={handleShowAddColumnMenu}
-                              title="Add column"
-                              type="button"
-                            >
-                              +
-                            </button>
                           </th>
                         </tr>
                       </thead>
@@ -3249,7 +3420,7 @@ export default function MainTable() {
                   {/* No Results Message */}
                   {filteredTasks.length === 0 && !newTask && (
                     <tr>
-                                              <td colSpan={columnOrder.length + 5} className="px-6 py-12 text-center border border-gray-200">
+                                              <td colSpan={columnOrder.length + 4} className="px-6 py-12 text-center border border-gray-200">
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                             <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
@@ -3335,24 +3506,17 @@ export default function MainTable() {
                                 required
                               />
                             ) : col.key === "client" ? (
-                              <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-                                value={newTask.client || ""}
-                                onChange={e => setNewTask({ ...newTask, client: e.target.value })}
-                                onKeyDown={handleNewTaskKeyDown}
-                                placeholder="Enter client name"
-                              />
+                              <span className="px-3 py-2 text-sm w-full block text-gray-700">
+                                {newTask.client || "—"}
+                              </span>
                             ) : col.key === "category" ? (
                               <select
                                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                value={newTask.category}
+                                value={newTask.category || getTaskCategories()[0]}
                                 onChange={e => setNewTask({ ...newTask, category: e.target.value })}
                                 onKeyDown={handleNewTaskKeyDown}
                               >
-                                <option value="Design">Design</option>
-                                <option value="Development">Development</option>
-                                <option value="Testing">Testing</option>
-                                <option value="Review">Review</option>
+                                {getTaskCategories().map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                               </select>
                             ) : col.key === "status" ? (
                               <select
@@ -3467,11 +3631,10 @@ export default function MainTable() {
                               </div>
                             ) : col.key === "plotNumber" ? (
                               <input
-                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full bg-gray-50 cursor-not-allowed"
                                 value={newTask.plotNumber || ""}
-                                onChange={e => setNewTask(nt => ({ ...nt, plotNumber: e.target.value }))}
-                                onKeyDown={handleNewTaskKeyDown}
-                                placeholder="Enter plot number"
+                                readOnly
+                                placeholder="—"
                               />
                             ) : col.key === "community" ? (
                               <input
@@ -3554,27 +3717,29 @@ export default function MainTable() {
                                 ))}
                               </span>
                             ) : null}
+                            {idx === columnOrder.filter(colKey => visibleColumns.includes(colKey)).length - 1 && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <button
+                                  type="button"
+                                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm rounded-lg font-medium"
+                                  onClick={handleCreateTask}
+                                  title="Save new project"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  className="px-4 py-2 bg-red-600 text-gray-700 text-sm rounded-lg hover:bg-gray-100"
+                                  onClick={() => setNewTask(null)}
+                                  title="Cancel new project"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
                           </td>
                         );
                                                                       })}
-                      <td key="add-column" className="px-4 py-3 align-middle">
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm rounded-lg hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 font-medium"
-                            onClick={handleCreateTask}
-                            title="Save new project"
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="px-4 py-2 bg-red-600 text-gray-700 text-sm rounded-lg hover:bg-gray-100 transition-all duration-200"
-                            onClick={() => setNewTask(null)}
-                            title="Cancel new project"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
                     </tr>
                   )}
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
@@ -3586,7 +3751,7 @@ export default function MainTable() {
                             key={task.id}
                             task={task}
                             projectIndex={taskIdx}
-                            columnOrder={columnOrder.filter(colKey => visibleColumns.includes(colKey))}
+                            columnOrder={getMainTaskColumnOrder(columnOrder.filter(colKey => visibleColumns.includes(colKey)))}
                             columns={columns}
                             expandedActive={expandedActive}
                             editingTaskId={editingTaskId}
@@ -3676,15 +3841,8 @@ export default function MainTable() {
                                       })}
                                     </SortableContext>
                                   </DndContext>
-                                  <th key="add-column" className="px-3 py-2 text-xs font-bold text-gray-600 uppercase text-center w-12 border border-gray-200 bg-gray-50">
-                                    <button
-                                      className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
-                                      onClick={handleShowAddColumnMenu}
-                                      title="Add column"
-                                      type="button"
-                                    >
-                                      +
-                                    </button>
+                                  <th className="px-2 py-2 text-xs font-bold text-gray-600 uppercase text-center w-20 min-w-[5rem] border border-gray-200 bg-gray-50">
+                                    Delete
                                   </th>
                                 </tr>
                               </thead>
@@ -3723,18 +3881,39 @@ export default function MainTable() {
                                               }`}>
                                                 {col.key === 'autoNumber'
                                                   ? <span className="text-sm text-gray-600 font-medium">{getHierarchicalAutoNumber(taskIdx, subIdx, null)}</span>
-                                                  : CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireModalOpen(true); }, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireResponseModalOpen(true); }, isManager)}
+                                                  : CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireModalOpen(true); }, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireResponseModalOpen(true); }, isManager, employees, getTaskCategories())}
                                               </td>
                                             );
                                           })}
-                                          <td className="w-12 text-center border border-gray-200">
-                                            <button
-                                              onClick={() => handleDeleteRow(sub.id, task.id)}
-                                              className="text-red-500 hover:text-red-700"
-                                              title="Delete subtask"
-                                            >
-                                              ×
-                                            </button>
+                                          <td className="px-2 py-2 text-center border border-gray-200 w-32 min-w-[7rem] align-middle">
+                                            <div className="flex items-center justify-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => handleSaveSubtaskRow(sub.id, task.id)}
+                                                className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 hover:text-green-800 transition-colors"
+                                                title="Save subtask changes"
+                                              >
+                                                Save
+                                              </button>
+                                              {(
+                                                // Managers/admins: always can delete
+                                                !isEmployee ||
+                                                // Employees: can delete if they are the creator
+                                                sub.createdBy === user?.id ||
+                                                // Backward-compatibility: for older records where createdBy is null,
+                                                // allow delete only if the task is assigned to the current employee
+                                                (!sub.createdBy && sub.assignedEmployeeId === user?.id)
+                                              ) && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDeleteRow(sub.id, task.id)}
+                                                  className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:text-red-700 transition-colors"
+                                                  title="Delete subtask"
+                                                >
+                                                  <span aria-hidden>×</span> Delete
+                                                </button>
+                                              )}
+                                            </div>
                                           </td>
                                         </SortableSubtaskRow>
                                     
@@ -3778,13 +3957,15 @@ export default function MainTable() {
                                             </td>
                                           );
                                         })}
-                                        <td className="w-12 text-center border border-gray-200">
+                                        <td className="px-2 py-2 text-center border border-gray-200 w-20 min-w-[5rem] align-middle">
+                                          {/* All roles (including employees) can delete child tasks */}
                                           <button
+                                            type="button"
                                             onClick={() => handleDeleteChildSubtask(task.id, sub.id, childSub.id)}
-                                            className="text-red-500 hover:text-red-700 text-xs"
-                                            title="Delete child subtask"
+                                            className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:text-red-700 transition-colors"
+                                            title="Delete child task"
                                           >
-                                            ×
+                                            <span aria-hidden>×</span> Delete
                                           </button>
                                         </td>
                                       </tr>
@@ -3804,7 +3985,7 @@ export default function MainTable() {
                                             >
                                               {getSubtaskColumnOrder(columnOrder)
                                                 .filter(colKey => visibleColumns.includes(colKey))
-                                                .slice(0, 4)
+                                                .filter(colKey => ['task', 'category', 'status', 'assignedEmployee', 'priority'].includes(colKey))
                                                 .map(colKey => {
                                                 const col = columns.find(c => c.key === colKey);
                                                 if (!col) return null;
@@ -3826,14 +4007,11 @@ export default function MainTable() {
                                                     ) : col.key === "category" ? (
                                                       <select
                                                         className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                        value={newChildSubtask.category}
+                                                        value={newChildSubtask.category || getTaskCategories()[0]}
                                                         onChange={e => setNewChildSubtask({ ...newChildSubtask, category: e.target.value })}
                                                         onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
                                                       >
-                                                        <option value="Design">Design</option>
-                                                        <option value="Development">Development</option>
-                                                        <option value="Testing">Testing</option>
-                                                        <option value="Review">Review</option>
+                                                        {getTaskCategories().map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                                                       </select>
                                                     ) : col.key === "status" ? (
                                                       <select
@@ -3847,18 +4025,27 @@ export default function MainTable() {
                                                         <option value="done">done</option>
                                                         <option value="stuck">stuck</option>
                                                       </select>
-                                                    ) : col.key === "owner" ? (
+                                                    ) : col.key === "assignedEmployee" ? (
                                                       <select
                                                         className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200 w-full"
-                                                        value={newChildSubtask.owner}
-                                                        onChange={e => setNewChildSubtask({ ...newChildSubtask, owner: e.target.value })}
+                                                        value={newChildSubtask.assignedEmployee || ""}
+                                                        onChange={e => setNewChildSubtask({ ...newChildSubtask, assignedEmployee: e.target.value })}
                                                         onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, sub.id)}
                                                       >
-                                                        <option value="">Select employee</option>
-                                                        <option value="MN">MN</option>
-                                                        <option value="SA">SA</option>
-                                                        <option value="AH">AH</option>
-                                                        <option value="MA">MA</option>
+                                                        <option value="">Select Employee</option>
+                                                        {Array.isArray(employees) && employees.length > 0 ? (
+                                                          employees.map(emp => {
+                                                            const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || emp.email || 'Unknown';
+                                                            const empId = emp.id || emp.email || empName;
+                                                            return (
+                                                              <option key={empId} value={empId}>
+                                                                {empName}
+                                                              </option>
+                                                            );
+                                                          })
+                                                        ) : (
+                                                          <option value="" disabled>Loading employees...</option>
+                                                        )}
                                                       </select>
                                                     ) : col.key === "priority" ? (
                                                       <select
@@ -4081,15 +4268,12 @@ export default function MainTable() {
         task={drawerTask}
         onClose={() => setDrawerTask(null)}
         onTaskUpdate={(updatedTask) => {
-          // Update the task in the main table's tasks array
-          setTasks(prevTasks => 
-            prevTasks.map(task => 
-              task.id === updatedTask.id ? updatedTask : task
-            )
+          setTasks(prevTasks =>
+            prevTasks.map(task => (task.id === updatedTask.id ? updatedTask : task))
           );
-          // Update the drawer task to reflect changes
           setDrawerTask(updatedTask);
         }}
+        onProjectNameSaved={loadProjectsFromAPI}
       />
 
       {/* Chat Drawer */}

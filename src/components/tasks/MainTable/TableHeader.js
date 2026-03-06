@@ -27,9 +27,6 @@ const TableHeader = ({
               .filter(key => key !== 'category')
               .map(key => {
                 const col = columns.find(c => c.key === key);
-                if (!col) return null;
-                return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
-              })}
             <th key="add-column" className="px-3 py-4 text-center">
               <button
                 className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
@@ -40,6 +37,9 @@ const TableHeader = ({
                 +
               </button>
             </th>
+                if (!col) return null;
+                return <DraggableHeader key={col.key} col={col} colKey={col.key} />;
+              })}
           </tr>
         </thead>
       </SortableContext>

@@ -35,7 +35,7 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
 const RADIUS_METERS = 200;
 
 export default function MyAttendance() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockInTime, setClockInTime] = useState(null);
@@ -69,7 +69,7 @@ export default function MyAttendance() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch office location
+  // Fetch office location - optional, fails silently if not available
   const fetchOfficeLocation = useCallback(async () => {
     try {
       const res = await getOfficeLocation();
@@ -82,23 +82,23 @@ export default function MyAttendance() {
         return res.data;
       }
     } catch (err) {
-      console.error("Office location error:", err);
-      setLocationStatus("error");
-      setLocationError(err.message || "Could not load office location. Contact administrator.");
+      // Office location failed - silently fail, don't set error states
+      // Location is optional, so we don't show errors
+      console.error("Office location error (silent):", err);
     }
     return null;
   }, []);
 
-  // Get user's position (GPS)
+  // Get user's position (GPS) - optional, fails silently if not available
   const fetchUserLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationStatus("unsupported");
-      setLocationError("Location is not supported by your browser.");
+      // Location not supported - silently fail, don't set error states
       return Promise.resolve(null);
     }
 
-    setLocationStatus("loading");
-    setLocationError("");
+    // Don't set loading status to avoid showing loading messages
+    // setLocationStatus("loading");
+    // setLocationError("");
 
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
@@ -114,12 +114,8 @@ export default function MyAttendance() {
           resolve(coords);
         },
         (err) => {
-          let msg = "Could not get your location.";
-          if (err.code === 1) msg = "Location permission denied. Enable location access to mark attendance.";
-          else if (err.code === 2) msg = "Location unavailable. Check your GPS/network.";
-          else if (err.code === 3) msg = "Location request timed out. Please try again.";
-          setLocationError(msg);
-          setLocationStatus("denied");
+          // Location failed - silently fail without setting error messages
+          // Location is optional, so we don't show errors
           resolve(null);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -220,15 +216,15 @@ export default function MyAttendance() {
   }, [loadAttendanceData]);
 
   const handleClockIn = async () => {
-    if (!userCoords || !isWithinRadius) return;
     setActionLoading(true);
     setToast(null);
     try {
+      // Location is now optional - use if available, otherwise send null
       const res = await markAttendance(
         "CHECK_IN",
-        userCoords.latitude,
-        userCoords.longitude,
-        userCoords.accuracy
+        userCoords?.latitude || null,
+        userCoords?.longitude || null,
+        userCoords?.accuracy || null
       );
       if (res.success) {
         setIsClockedIn(true);
@@ -246,15 +242,15 @@ export default function MyAttendance() {
   };
 
   const handleClockOut = async () => {
-    if (!userCoords || !isWithinRadius) return;
     setActionLoading(true);
     setToast(null);
     try {
+      // Location is now optional - use if available, otherwise send null
       const res = await markAttendance(
         "CHECK_OUT",
-        userCoords.latitude,
-        userCoords.longitude,
-        userCoords.accuracy
+        userCoords?.latitude || null,
+        userCoords?.longitude || null,
+        userCoords?.accuracy || null
       );
       if (res.success) {
         setIsClockedIn(false);
@@ -313,17 +309,16 @@ export default function MyAttendance() {
   const { daysInMonth, startingDay } = getDaysInMonth(currentDate);
   const monthName = currentDate.toLocaleString("default", { month: "long", year: "numeric" });
 
-  const canMarkAttendance =
-    locationStatus === "allowed" &&
-    isWithinRadius &&
-    userCoords &&
-    !actionLoading;
+  // Location is now optional - allow attendance marking without location
+  const canMarkAttendance = !actionLoading;
 
-  const proximityMessage =
-    locationStatus === "allowed" &&
-    !isWithinRadius &&
-    distanceFromOffice != null &&
-    `You must be within ${officeLocation?.radius ?? RADIUS_METERS} meters of the office to mark attendance. You are ${distanceFromOffice.toFixed(0)} m away.`;
+  // Check-out allowed only after 2 minutes from check-in (frontend guard; backend enforces 5 min)
+  const CHECKOUT_COOLDOWN_MINUTES = 2;
+  const minutesSinceCheckIn = clockInTime
+    ? (Date.now() - clockInTime.getTime()) / (60 * 1000)
+    : 0;
+  const canCheckOutNow = minutesSinceCheckIn >= CHECKOUT_COOLDOWN_MINUTES;
+  const checkoutDisabled = isClockedIn && !canCheckOutNow;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6">
@@ -342,51 +337,7 @@ export default function MyAttendance() {
             </div>
           </div>
 
-          {/* Proximity / Location status */}
-          {locationStatus === "loading" && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
-              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full" />
-              <span className="text-blue-800">Checking your location...</span>
-            </div>
-          )}
-          {(locationStatus === "denied" || locationStatus === "error" || locationStatus === "unsupported") && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-red-800 font-medium">{locationError}</p>
-                {(locationStatus === "denied" || locationStatus === "error") && (
-                  <button
-                    type="button"
-                    onClick={handleRetryLocation}
-                    className="mt-2 text-sm text-red-600 hover:underline"
-                  >
-                    Retry location
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          {proximityMessage && (
-            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-              <MapPinIcon className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-amber-800">{proximityMessage}</p>
-              <button
-                type="button"
-                onClick={checkProximity}
-                className="ml-auto text-sm text-amber-700 hover:underline"
-              >
-                Recheck
-              </button>
-            </div>
-          )}
-          {locationStatus === "allowed" && isWithinRadius && distanceFromOffice != null && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
-              <CheckCircleIcon className="h-5 w-5 text-green-600" />
-              <span className="text-green-800">
-                Within office range ({distanceFromOffice.toFixed(0)} m). You can mark attendance.
-              </span>
-            </div>
-          )}
+          {/* Location status messages removed - location is now optional */}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -485,33 +436,23 @@ export default function MyAttendance() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              {canMarkAttendance ? (
-                <button
-                  onClick={isClockedIn ? handleClockOut : handleClockIn}
-                  disabled={actionLoading}
-                  className={`inline-flex items-center px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 ${
-                    isClockedIn
-                      ? "bg-red-600 text-white hover:bg-red-700"
-                      : "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700"
-                  }`}
-                >
-                  <ClockIcon className="h-5 w-5 mr-2" />
-                  {actionLoading ? "..." : isClockedIn ? "Check Out" : "Check In"}
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="inline-flex items-center px-6 py-3 rounded-lg font-medium bg-gray-300 text-gray-500 cursor-not-allowed"
-                  title={
-                    !isWithinRadius
-                      ? "You must be within 200 meters of the office to mark attendance."
-                      : "Enable location and allow access to mark attendance."
-                  }
-                >
-                  <ClockIcon className="h-5 w-5 mr-2" />
-                  {isClockedIn ? "Check Out" : "Check In"}
-                </button>
+            <div className="flex flex-col items-end gap-2">
+              <button
+                onClick={isClockedIn ? handleClockOut : handleClockIn}
+                disabled={actionLoading || checkoutDisabled}
+                className={`inline-flex items-center px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isClockedIn
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700"
+                }`}
+              >
+                <ClockIcon className="h-5 w-5 mr-2" />
+                {actionLoading ? "..." : isClockedIn ? "Check Out" : "Check In"}
+              </button>
+              {checkoutDisabled && (
+                <p className="text-sm text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                  Check out is available {CHECKOUT_COOLDOWN_MINUTES} minutes after check-in. Please wait.
+                </p>
               )}
             </div>
           </div>

@@ -1,12 +1,7 @@
 // Questionnaire API service
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { getToken } from './authAPI';
 
-/**
- * Get authentication token
- */
-const getToken = () => {
-  return localStorage.getItem('token');
-};
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Get all questionnaire templates

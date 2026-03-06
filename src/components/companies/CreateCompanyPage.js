@@ -28,8 +28,97 @@ export default function CreateCompanyPage() {
     trnNumber: "",
     officeLatitude: "",
     officeLongitude: "",
-    attendanceRadius: "200"
+    attendanceRadius: "200",
+    // Personal & Representative
+    fullNameEn: "",
+    fullNameAr: "",
+    delegatedCardNumber: "",
+    businessPartnerNumber: "",
+    emiratesId: "",
+    emiratesIdExpiry: "",
+    passportNumber: "",
+    nationality: "",
+    dateOfBirth: "",
+    gender: "",
+    mobileNumber: "",
+    phoneNumber: "",
+    email: "",
+    representativeTitleEn: "",
+    representativeTitleAr: "",
+    // Company
+    nameAr: "",
+    businessName: "",
+    branchName: "",
+    companyCategory: "",
+    companyType: "",
+    clientRole: "",
+    websiteUrl: "",
+    // Licensing
+    establishmentCode: "",
+    establishmentFileNumber: "",
+    licenseAuthority: "",
+    licenseNumber: "",
+    licenseType: "",
+    licenseIssueDate: "",
+    unifiedDedFileNumber: "",
+    dedLicenseNumber: "",
+    prequalificationSubmitted: false,
+    prequalificationExpiry: "",
+    commercialRegisterNumber: "",
+    commercialRegisterDate: "",
+    membershipNumber: "",
+    membershipIssueDate: "",
+    membershipExpiry: "",
+    membershipLegalStatus: "",
+    trakheesId: "",
+    practiceRegisterNumber: "",
+    practiceRegisterIssueDate: "",
+    practiceRegisterExpiry: "",
+    municipalityClassification: "",
+    establishmentMolNumber: "",
+    molCardIssueDate: "",
+    molCardExpiry: "",
+    sponsorName: "",
+    establishmentLocation: "",
+    subscriptionStartDate: "",
+    subscriptionEndDate: "",
+    // Tax
+    vatRegistrationNumber: "",
+    vatEffectiveRegistrationDate: "",
+    vatReturnPeriod: "",
+    vatReturnDueDate: "",
+    vatTaxPeriodCycle: "",
+    vatCertificateIssueDate: "",
+    corporateTaxRegistrationNumber: "",
+    corporateTaxEffectiveRegistrationDate: "",
+    firstCorporateTaxPeriodStart: "",
+    firstCorporateTaxPeriodEnd: "",
+    firstCorporateTaxFilingDeadline: "",
+    // Contact & Address
+    officePhone: "",
+    telephone2: "",
+    faxNumber: "",
+    companyEmail: "",
+    contactPersonName: "",
+    contactMobile: "",
+    poBox: "",
+    city: "",
+    region: "",
+    street: "",
+    addressDetails: "",
+    makaniNumber: "",
+    parcelId: "",
+    buildingNumber: "",
+    floorNumber: "",
+    subscriptionExpiryDate: "",
+    // Ownership
+    ownerName: "",
+    // Notes
+    licenseRemarks: "",
+    connectionType: "",
   });
+  const [partners, setPartners] = useState([]);
+  const [activities, setActivities] = useState([]);
   
   const [contacts, setContacts] = useState([]);
 
@@ -135,7 +224,7 @@ export default function CreateCompanyPage() {
         tag: isEditMode.tag || "",
         address: isEditMode.address || "",
         contact: isEditMode.contact || isEditMode.contactName || "",
-        logo: isEditMode.logo || null, // Keep as string URL for existing images
+        logo: isEditMode.logo || null,
         header: isEditMode.header || null,
         footer: isEditMode.footer || null,
         licenseCategory: isEditMode.licenseCategory || "",
@@ -149,8 +238,90 @@ export default function CreateCompanyPage() {
         trnNumber: isEditMode.trnNumber || "",
         officeLatitude: isEditMode.officeLatitude != null ? String(isEditMode.officeLatitude) : "",
         officeLongitude: isEditMode.officeLongitude != null ? String(isEditMode.officeLongitude) : "",
-        attendanceRadius: isEditMode.attendanceRadius != null ? String(isEditMode.attendanceRadius) : "200"
+        attendanceRadius: isEditMode.attendanceRadius != null ? String(isEditMode.attendanceRadius) : "200",
+        fullNameEn: isEditMode.fullNameEn || "",
+        fullNameAr: isEditMode.fullNameAr || "",
+        delegatedCardNumber: isEditMode.delegatedCardNumber || "",
+        businessPartnerNumber: isEditMode.businessPartnerNumber || "",
+        emiratesId: isEditMode.emiratesId || "",
+        emiratesIdExpiry: formatDate(isEditMode.emiratesIdExpiry),
+        passportNumber: isEditMode.passportNumber || "",
+        nationality: isEditMode.nationality || "",
+        dateOfBirth: formatDate(isEditMode.dateOfBirth),
+        gender: isEditMode.gender || "",
+        mobileNumber: isEditMode.mobileNumber || "",
+        phoneNumber: isEditMode.phoneNumber || "",
+        email: isEditMode.email || "",
+        representativeTitleEn: isEditMode.representativeTitleEn || "",
+        representativeTitleAr: isEditMode.representativeTitleAr || "",
+        nameAr: isEditMode.nameAr || "",
+        businessName: isEditMode.businessName || "",
+        branchName: isEditMode.branchName || "",
+        companyCategory: isEditMode.companyCategory || "",
+        companyType: isEditMode.companyType || "",
+        clientRole: isEditMode.clientRole || "",
+        websiteUrl: isEditMode.websiteUrl || "",
+        establishmentCode: isEditMode.establishmentCode || "",
+        establishmentFileNumber: isEditMode.establishmentFileNumber || "",
+        licenseAuthority: isEditMode.licenseAuthority || "",
+        licenseNumber: isEditMode.licenseNumber || "",
+        licenseType: isEditMode.licenseType || "",
+        licenseIssueDate: formatDate(isEditMode.licenseIssueDate),
+        unifiedDedFileNumber: isEditMode.unifiedDedFileNumber || "",
+        dedLicenseNumber: isEditMode.dedLicenseNumber || "",
+        prequalificationSubmitted: !!isEditMode.prequalificationSubmitted,
+        prequalificationExpiry: formatDate(isEditMode.prequalificationExpiry),
+        commercialRegisterNumber: isEditMode.commercialRegisterNumber || "",
+        commercialRegisterDate: formatDate(isEditMode.commercialRegisterDate),
+        membershipNumber: isEditMode.membershipNumber || "",
+        membershipIssueDate: formatDate(isEditMode.membershipIssueDate),
+        membershipExpiry: formatDate(isEditMode.membershipExpiry),
+        membershipLegalStatus: isEditMode.membershipLegalStatus || "",
+        trakheesId: isEditMode.trakheesId || "",
+        practiceRegisterNumber: isEditMode.practiceRegisterNumber || "",
+        practiceRegisterIssueDate: formatDate(isEditMode.practiceRegisterIssueDate),
+        practiceRegisterExpiry: formatDate(isEditMode.practiceRegisterExpiry),
+        municipalityClassification: isEditMode.municipalityClassification || "",
+        establishmentMolNumber: isEditMode.establishmentMolNumber || "",
+        molCardIssueDate: formatDate(isEditMode.molCardIssueDate),
+        molCardExpiry: formatDate(isEditMode.molCardExpiry),
+        sponsorName: isEditMode.sponsorName || "",
+        establishmentLocation: isEditMode.establishmentLocation || "",
+        subscriptionStartDate: formatDate(isEditMode.subscriptionStartDate),
+        subscriptionEndDate: formatDate(isEditMode.subscriptionEndDate),
+        vatRegistrationNumber: isEditMode.vatRegistrationNumber || "",
+        vatEffectiveRegistrationDate: formatDate(isEditMode.vatEffectiveRegistrationDate),
+        vatReturnPeriod: isEditMode.vatReturnPeriod || "",
+        vatReturnDueDate: isEditMode.vatReturnDueDate || "",
+        vatTaxPeriodCycle: isEditMode.vatTaxPeriodCycle || "",
+        vatCertificateIssueDate: formatDate(isEditMode.vatCertificateIssueDate),
+        corporateTaxRegistrationNumber: isEditMode.corporateTaxRegistrationNumber || "",
+        corporateTaxEffectiveRegistrationDate: formatDate(isEditMode.corporateTaxEffectiveRegistrationDate),
+        firstCorporateTaxPeriodStart: formatDate(isEditMode.firstCorporateTaxPeriodStart),
+        firstCorporateTaxPeriodEnd: formatDate(isEditMode.firstCorporateTaxPeriodEnd),
+        firstCorporateTaxFilingDeadline: formatDate(isEditMode.firstCorporateTaxFilingDeadline),
+        officePhone: isEditMode.officePhone || "",
+        telephone2: isEditMode.telephone2 || "",
+        faxNumber: isEditMode.faxNumber || "",
+        companyEmail: isEditMode.companyEmail || "",
+        contactPersonName: isEditMode.contactPersonName || "",
+        contactMobile: isEditMode.contactMobile || "",
+        poBox: isEditMode.poBox || "",
+        city: isEditMode.city || "",
+        region: isEditMode.region || "",
+        street: isEditMode.street || "",
+        addressDetails: isEditMode.addressDetails || "",
+        makaniNumber: isEditMode.makaniNumber || "",
+        parcelId: isEditMode.parcelId || "",
+        buildingNumber: isEditMode.buildingNumber || "",
+        floorNumber: isEditMode.floorNumber || "",
+        subscriptionExpiryDate: formatDate(isEditMode.subscriptionExpiryDate),
+        ownerName: isEditMode.ownerName || "",
+        licenseRemarks: isEditMode.licenseRemarks || "",
+        connectionType: isEditMode.connectionType || "",
       };
+      setPartners(Array.isArray(isEditMode.partnersInfo) ? [...isEditMode.partnersInfo] : []);
+      setActivities(Array.isArray(isEditMode.activitiesInfo) ? [...isEditMode.activitiesInfo] : []);
 
       console.log('📝 Setting form data:', formData);
       setForm(formData);
@@ -238,7 +409,7 @@ export default function CreateCompanyPage() {
         address: form.address?.trim() || null,
         industry: form.industry?.trim() || null,
         founded: form.founded || null,
-        status: 'ACTIVE', // Default to active
+        status: 'ACTIVE',
         contactName: form.contact?.trim() || contacts[0]?.name || null,
         contactEmail: contacts[0]?.email || null,
         contactPhone: contacts[0]?.phone || null,
@@ -253,13 +424,95 @@ export default function CreateCompanyPage() {
         mainLicenseNo: form.mainLicenseNo || null,
         dcciNo: form.dcciNo || null,
         trnNumber: form.trnNumber || null,
-        logo: getFileValue(form.logo), // Returns File object or string URL
+        logo: getFileValue(form.logo),
         header: getFileValue(form.header),
         footer: getFileValue(form.footer),
-        employees: 0, // Default, can be updated later
+        employees: 0,
         officeLatitude: form.officeLatitude ? parseFloat(form.officeLatitude) : null,
         officeLongitude: form.officeLongitude ? parseFloat(form.officeLongitude) : null,
         attendanceRadius: form.attendanceRadius ? parseInt(form.attendanceRadius, 10) : null,
+        fullNameEn: form.fullNameEn?.trim() || null,
+        fullNameAr: form.fullNameAr?.trim() || null,
+        delegatedCardNumber: form.delegatedCardNumber?.trim() || null,
+        businessPartnerNumber: form.businessPartnerNumber?.trim() || null,
+        emiratesId: form.emiratesId?.trim() || null,
+        emiratesIdExpiry: form.emiratesIdExpiry || null,
+        passportNumber: form.passportNumber?.trim() || null,
+        nationality: form.nationality?.trim() || null,
+        dateOfBirth: form.dateOfBirth || null,
+        gender: form.gender?.trim() || null,
+        mobileNumber: form.mobileNumber?.trim() || null,
+        phoneNumber: form.phoneNumber?.trim() || null,
+        email: form.email?.trim() || null,
+        representativeTitleEn: form.representativeTitleEn?.trim() || null,
+        representativeTitleAr: form.representativeTitleAr?.trim() || null,
+        nameAr: form.nameAr?.trim() || null,
+        businessName: form.businessName?.trim() || null,
+        branchName: form.branchName?.trim() || null,
+        companyCategory: form.companyCategory?.trim() || null,
+        companyType: form.companyType?.trim() || null,
+        clientRole: form.clientRole?.trim() || null,
+        websiteUrl: form.websiteUrl?.trim() || null,
+        establishmentCode: form.establishmentCode?.trim() || null,
+        establishmentFileNumber: form.establishmentFileNumber?.trim() || null,
+        licenseAuthority: form.licenseAuthority?.trim() || null,
+        licenseNumber: form.licenseNumber?.trim() || null,
+        licenseType: form.licenseType?.trim() || null,
+        licenseIssueDate: form.licenseIssueDate || null,
+        unifiedDedFileNumber: form.unifiedDedFileNumber?.trim() || null,
+        dedLicenseNumber: form.dedLicenseNumber?.trim() || null,
+        prequalificationSubmitted: form.prequalificationSubmitted,
+        prequalificationExpiry: form.prequalificationExpiry || null,
+        commercialRegisterNumber: form.commercialRegisterNumber?.trim() || null,
+        commercialRegisterDate: form.commercialRegisterDate || null,
+        membershipNumber: form.membershipNumber?.trim() || null,
+        membershipIssueDate: form.membershipIssueDate || null,
+        membershipExpiry: form.membershipExpiry || null,
+        membershipLegalStatus: form.membershipLegalStatus?.trim() || null,
+        trakheesId: form.trakheesId?.trim() || null,
+        practiceRegisterNumber: form.practiceRegisterNumber?.trim() || null,
+        practiceRegisterIssueDate: form.practiceRegisterIssueDate || null,
+        practiceRegisterExpiry: form.practiceRegisterExpiry || null,
+        municipalityClassification: form.municipalityClassification?.trim() || null,
+        establishmentMolNumber: form.establishmentMolNumber?.trim() || null,
+        molCardIssueDate: form.molCardIssueDate || null,
+        molCardExpiry: form.molCardExpiry || null,
+        sponsorName: form.sponsorName?.trim() || null,
+        establishmentLocation: form.establishmentLocation?.trim() || null,
+        subscriptionStartDate: form.subscriptionStartDate || null,
+        subscriptionEndDate: form.subscriptionEndDate || null,
+        vatRegistrationNumber: form.vatRegistrationNumber?.trim() || null,
+        vatEffectiveRegistrationDate: form.vatEffectiveRegistrationDate || null,
+        vatReturnPeriod: form.vatReturnPeriod?.trim() || null,
+        vatReturnDueDate: form.vatReturnDueDate || null,
+        vatTaxPeriodCycle: form.vatTaxPeriodCycle?.trim() || null,
+        vatCertificateIssueDate: form.vatCertificateIssueDate || null,
+        corporateTaxRegistrationNumber: form.corporateTaxRegistrationNumber?.trim() || null,
+        corporateTaxEffectiveRegistrationDate: form.corporateTaxEffectiveRegistrationDate || null,
+        firstCorporateTaxPeriodStart: form.firstCorporateTaxPeriodStart || null,
+        firstCorporateTaxPeriodEnd: form.firstCorporateTaxPeriodEnd || null,
+        firstCorporateTaxFilingDeadline: form.firstCorporateTaxFilingDeadline || null,
+        officePhone: form.officePhone?.trim() || null,
+        telephone2: form.telephone2?.trim() || null,
+        faxNumber: form.faxNumber?.trim() || null,
+        companyEmail: form.companyEmail?.trim() || null,
+        contactPersonName: form.contactPersonName?.trim() || null,
+        contactMobile: form.contactMobile?.trim() || null,
+        poBox: form.poBox?.trim() || null,
+        city: form.city?.trim() || null,
+        region: form.region?.trim() || null,
+        street: form.street?.trim() || null,
+        addressDetails: form.addressDetails?.trim() || null,
+        makaniNumber: form.makaniNumber?.trim() || null,
+        parcelId: form.parcelId?.trim() || null,
+        buildingNumber: form.buildingNumber?.trim() || null,
+        floorNumber: form.floorNumber?.trim() || null,
+        subscriptionExpiryDate: form.subscriptionExpiryDate || null,
+        ownerName: form.ownerName?.trim() || null,
+        partnersInfo: partners.length ? partners : null,
+        activitiesInfo: activities.length ? activities : null,
+        licenseRemarks: form.licenseRemarks?.trim() || null,
+        connectionType: form.connectionType?.trim() || null,
       };
       
       console.log('📝 Submitting company data:', {
@@ -594,6 +847,127 @@ export default function CreateCompanyPage() {
               </div>
             </div>
 
+            {/* Personal & Representative Info */}
+            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-cyan-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Personal & Representative Info</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (English)</label>
+                  <input type="text" value={form.fullNameEn} onChange={(e) => setForm(prev => ({ ...prev, fullNameEn: e.target.value }))} placeholder="Full name in English" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (Arabic)</label>
+                  <input type="text" value={form.fullNameAr} onChange={(e) => setForm(prev => ({ ...prev, fullNameAr: e.target.value }))} placeholder="الاسم الكامل" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" dir="rtl" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Delegated Card Number</label>
+                  <input type="text" value={form.delegatedCardNumber} onChange={(e) => setForm(prev => ({ ...prev, delegatedCardNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Partner Number</label>
+                  <input type="text" value={form.businessPartnerNumber} onChange={(e) => setForm(prev => ({ ...prev, businessPartnerNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Emirates ID</label>
+                  <input type="text" value={form.emiratesId} onChange={(e) => setForm(prev => ({ ...prev, emiratesId: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Emirates ID Expiry</label>
+                  <input type="date" value={form.emiratesIdExpiry} onChange={(e) => setForm(prev => ({ ...prev, emiratesIdExpiry: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
+                  <input type="text" value={form.passportNumber} onChange={(e) => setForm(prev => ({ ...prev, passportNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                  <input type="text" value={form.nationality} onChange={(e) => setForm(prev => ({ ...prev, nationality: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <input type="date" value={form.dateOfBirth} onChange={(e) => setForm(prev => ({ ...prev, dateOfBirth: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select value={form.gender} onChange={(e) => setForm(prev => ({ ...prev, gender: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+                  <input type="tel" value={form.mobileNumber} onChange={(e) => setForm(prev => ({ ...prev, mobileNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input type="tel" value={form.phoneNumber} onChange={(e) => setForm(prev => ({ ...prev, phoneNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Representative Title (English)</label>
+                  <input type="text" value={form.representativeTitleEn} onChange={(e) => setForm(prev => ({ ...prev, representativeTitleEn: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Representative Title (Arabic)</label>
+                  <input type="text" value={form.representativeTitleAr} onChange={(e) => setForm(prev => ({ ...prev, representativeTitleAr: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" dir="rtl" />
+                </div>
+              </div>
+            </div>
+
+            {/* Company Info (extended) */}
+            <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl p-6 border border-slate-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-slate-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Company Info</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name (Arabic)</label>
+                  <input type="text" value={form.nameAr} onChange={(e) => setForm(prev => ({ ...prev, nameAr: e.target.value }))} placeholder="اسم الشركة" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" dir="rtl" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                  <input type="text" value={form.businessName} onChange={(e) => setForm(prev => ({ ...prev, businessName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
+                  <input type="text" value={form.branchName} onChange={(e) => setForm(prev => ({ ...prev, branchName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Category</label>
+                  <input type="text" value={form.companyCategory} onChange={(e) => setForm(prev => ({ ...prev, companyCategory: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Type</label>
+                  <input type="text" value={form.companyType} onChange={(e) => setForm(prev => ({ ...prev, companyType: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Client Role</label>
+                  <input type="text" value={form.clientRole} onChange={(e) => setForm(prev => ({ ...prev, clientRole: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                  <input type="url" value={form.websiteUrl} onChange={(e) => setForm(prev => ({ ...prev, websiteUrl: e.target.value }))} placeholder="https://" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </div>
+
             {/* License Information Section */}
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
               <div className="flex items-center gap-3 mb-6">
@@ -738,6 +1112,334 @@ export default function CreateCompanyPage() {
                      placeholder="Enter TRN (Tax Registration Number) / ESBN"
                      title="Enter your Tax Registration Number (TRN) or Economic Substance Business Number (ESBN). This is a unique identifier issued by the tax authority for VAT and tax purposes. It's mandatory for companies registered for VAT."
                    />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Establishment Code</label>
+                  <input type="text" value={form.establishmentCode} onChange={(e) => setForm(prev => ({ ...prev, establishmentCode: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Establishment File Number</label>
+                  <input type="text" value={form.establishmentFileNumber} onChange={(e) => setForm(prev => ({ ...prev, establishmentFileNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">License Authority</label>
+                  <input type="text" value={form.licenseAuthority} onChange={(e) => setForm(prev => ({ ...prev, licenseAuthority: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">License Number</label>
+                  <input type="text" value={form.licenseNumber} onChange={(e) => setForm(prev => ({ ...prev, licenseNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">License Type</label>
+                  <input type="text" value={form.licenseType} onChange={(e) => setForm(prev => ({ ...prev, licenseType: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">License Issue Date</label>
+                  <input type="date" value={form.licenseIssueDate} onChange={(e) => setForm(prev => ({ ...prev, licenseIssueDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Unified DED File Number</label>
+                  <input type="text" value={form.unifiedDedFileNumber} onChange={(e) => setForm(prev => ({ ...prev, unifiedDedFileNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">DED License Number</label>
+                  <input type="text" value={form.dedLicenseNumber} onChange={(e) => setForm(prev => ({ ...prev, dedLicenseNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="prequal" checked={form.prequalificationSubmitted} onChange={(e) => setForm(prev => ({ ...prev, prequalificationSubmitted: e.target.checked }))} className="rounded border-gray-300" />
+                  <label htmlFor="prequal" className="text-sm font-medium text-gray-700">Prequalification Submitted</label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prequalification Expiry</label>
+                  <input type="date" value={form.prequalificationExpiry} onChange={(e) => setForm(prev => ({ ...prev, prequalificationExpiry: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Commercial Register Number</label>
+                  <input type="text" value={form.commercialRegisterNumber} onChange={(e) => setForm(prev => ({ ...prev, commercialRegisterNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Commercial Register Date</label>
+                  <input type="date" value={form.commercialRegisterDate} onChange={(e) => setForm(prev => ({ ...prev, commercialRegisterDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Membership Number</label>
+                  <input type="text" value={form.membershipNumber} onChange={(e) => setForm(prev => ({ ...prev, membershipNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Membership Issue Date</label>
+                  <input type="date" value={form.membershipIssueDate} onChange={(e) => setForm(prev => ({ ...prev, membershipIssueDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Membership Expiry</label>
+                  <input type="date" value={form.membershipExpiry} onChange={(e) => setForm(prev => ({ ...prev, membershipExpiry: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Membership Legal Status</label>
+                  <input type="text" value={form.membershipLegalStatus} onChange={(e) => setForm(prev => ({ ...prev, membershipLegalStatus: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Trakhees ID</label>
+                  <input type="text" value={form.trakheesId} onChange={(e) => setForm(prev => ({ ...prev, trakheesId: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Practice Register Number</label>
+                  <input type="text" value={form.practiceRegisterNumber} onChange={(e) => setForm(prev => ({ ...prev, practiceRegisterNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Practice Register Issue Date</label>
+                  <input type="date" value={form.practiceRegisterIssueDate} onChange={(e) => setForm(prev => ({ ...prev, practiceRegisterIssueDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Practice Register Expiry</label>
+                  <input type="date" value={form.practiceRegisterExpiry} onChange={(e) => setForm(prev => ({ ...prev, practiceRegisterExpiry: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Municipality Classification</label>
+                  <input type="text" value={form.municipalityClassification} onChange={(e) => setForm(prev => ({ ...prev, municipalityClassification: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Establishment MOL Number</label>
+                  <input type="text" value={form.establishmentMolNumber} onChange={(e) => setForm(prev => ({ ...prev, establishmentMolNumber: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">MOL Card Issue Date</label>
+                  <input type="date" value={form.molCardIssueDate} onChange={(e) => setForm(prev => ({ ...prev, molCardIssueDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">MOL Card Expiry</label>
+                  <input type="date" value={form.molCardExpiry} onChange={(e) => setForm(prev => ({ ...prev, molCardExpiry: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sponsor Name</label>
+                  <input type="text" value={form.sponsorName} onChange={(e) => setForm(prev => ({ ...prev, sponsorName: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Establishment Location</label>
+                  <textarea value={form.establishmentLocation} onChange={(e) => setForm(prev => ({ ...prev, establishmentLocation: e.target.value }))} rows={2} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subscription Start Date</label>
+                  <input type="date" value={form.subscriptionStartDate} onChange={(e) => setForm(prev => ({ ...prev, subscriptionStartDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subscription End Date</label>
+                  <input type="date" value={form.subscriptionEndDate} onChange={(e) => setForm(prev => ({ ...prev, subscriptionEndDate: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Tax Info */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-amber-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Tax Info</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT Registration Number</label>
+                  <input type="text" value={form.vatRegistrationNumber} onChange={(e) => setForm(prev => ({ ...prev, vatRegistrationNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT Effective Registration Date</label>
+                  <input type="date" value={form.vatEffectiveRegistrationDate} onChange={(e) => setForm(prev => ({ ...prev, vatEffectiveRegistrationDate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT Return Period</label>
+                  <input type="text" value={form.vatReturnPeriod} onChange={(e) => setForm(prev => ({ ...prev, vatReturnPeriod: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT Return Due Date</label>
+                  <input type="date" value={form.vatReturnDueDate} onChange={(e) => setForm(prev => ({ ...prev, vatReturnDueDate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT Tax Period Cycle</label>
+                  <input type="text" value={form.vatTaxPeriodCycle} onChange={(e) => setForm(prev => ({ ...prev, vatTaxPeriodCycle: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT Certificate Issue Date</label>
+                  <input type="date" value={form.vatCertificateIssueDate} onChange={(e) => setForm(prev => ({ ...prev, vatCertificateIssueDate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Corporate Tax Registration Number</label>
+                  <input type="text" value={form.corporateTaxRegistrationNumber} onChange={(e) => setForm(prev => ({ ...prev, corporateTaxRegistrationNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Corporate Tax Effective Registration Date</label>
+                  <input type="date" value={form.corporateTaxEffectiveRegistrationDate} onChange={(e) => setForm(prev => ({ ...prev, corporateTaxEffectiveRegistrationDate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Corporate Tax Period Start</label>
+                  <input type="date" value={form.firstCorporateTaxPeriodStart} onChange={(e) => setForm(prev => ({ ...prev, firstCorporateTaxPeriodStart: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Corporate Tax Period End</label>
+                  <input type="date" value={form.firstCorporateTaxPeriodEnd} onChange={(e) => setForm(prev => ({ ...prev, firstCorporateTaxPeriodEnd: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Corporate Tax Filing Deadline</label>
+                  <input type="date" value={form.firstCorporateTaxFilingDeadline} onChange={(e) => setForm(prev => ({ ...prev, firstCorporateTaxFilingDeadline: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Contact & Address Info */}
+            <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl p-6 border border-teal-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-teal-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Contact & Address Info</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Office Phone</label>
+                  <input type="tel" value={form.officePhone} onChange={(e) => setForm(prev => ({ ...prev, officePhone: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telephone 2</label>
+                  <input type="tel" value={form.telephone2} onChange={(e) => setForm(prev => ({ ...prev, telephone2: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fax Number</label>
+                  <input type="tel" value={form.faxNumber} onChange={(e) => setForm(prev => ({ ...prev, faxNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Email</label>
+                  <input type="email" value={form.companyEmail} onChange={(e) => setForm(prev => ({ ...prev, companyEmail: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person Name</label>
+                  <input type="text" value={form.contactPersonName} onChange={(e) => setForm(prev => ({ ...prev, contactPersonName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Mobile</label>
+                  <input type="tel" value={form.contactMobile} onChange={(e) => setForm(prev => ({ ...prev, contactMobile: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PO Box</label>
+                  <input type="text" value={form.poBox} onChange={(e) => setForm(prev => ({ ...prev, poBox: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input type="text" value={form.city} onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                  <input type="text" value={form.region} onChange={(e) => setForm(prev => ({ ...prev, region: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Street</label>
+                  <input type="text" value={form.street} onChange={(e) => setForm(prev => ({ ...prev, street: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address Details</label>
+                  <textarea value={form.addressDetails} onChange={(e) => setForm(prev => ({ ...prev, addressDetails: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Makani Number</label>
+                  <input type="text" value={form.makaniNumber} onChange={(e) => setForm(prev => ({ ...prev, makaniNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Parcel ID</label>
+                  <input type="text" value={form.parcelId} onChange={(e) => setForm(prev => ({ ...prev, parcelId: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Building Number</label>
+                  <input type="text" value={form.buildingNumber} onChange={(e) => setForm(prev => ({ ...prev, buildingNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Floor Number</label>
+                  <input type="text" value={form.floorNumber} onChange={(e) => setForm(prev => ({ ...prev, floorNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subscription Expiry Date</label>
+                  <input type="date" value={form.subscriptionExpiryDate} onChange={(e) => setForm(prev => ({ ...prev, subscriptionExpiryDate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Ownership */}
+            <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-6 border border-violet-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-violet-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Ownership</h3>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name</label>
+                  <input type="text" value={form.ownerName} onChange={(e) => setForm(prev => ({ ...prev, ownerName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Partners</label>
+                    <button type="button" onClick={() => setPartners(prev => [...prev, { partnerName: "", partnerId: "", partnerNationality: "", partnerRole: "", sharePercentage: "" }])} className="text-sm text-violet-600 hover:text-violet-800 font-medium">+ Add Partner</button>
+                  </div>
+                  {partners.map((p, i) => (
+                    <div key={i} className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-2 p-2 bg-white rounded border">
+                      <input placeholder="Name" value={p.partnerName || ""} onChange={(e) => setPartners(prev => prev.map((x, j) => j === i ? { ...x, partnerName: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                      <input placeholder="ID" value={p.partnerId || ""} onChange={(e) => setPartners(prev => prev.map((x, j) => j === i ? { ...x, partnerId: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                      <input placeholder="Nationality" value={p.partnerNationality || ""} onChange={(e) => setPartners(prev => prev.map((x, j) => j === i ? { ...x, partnerNationality: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                      <input placeholder="Role" value={p.partnerRole || ""} onChange={(e) => setPartners(prev => prev.map((x, j) => j === i ? { ...x, partnerRole: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                      <input placeholder="Share %" type="number" min="0" max="100" value={p.sharePercentage ?? ""} onChange={(e) => setPartners(prev => prev.map((x, j) => j === i ? { ...x, sharePercentage: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                      <button type="button" onClick={() => setPartners(prev => prev.filter((_, j) => j !== i))} className="text-red-600 text-sm">Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Activities */}
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-6 border border-emerald-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-emerald-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Activities</h3>
+                <button type="button" onClick={() => setActivities(prev => [...prev, { activityCode: "", activityName: "", activityDescription: "", activityStatus: "" }])} className="ml-auto text-sm text-emerald-600 hover:text-emerald-800 font-medium">+ Add Activity</button>
+              </div>
+              {activities.map((a, i) => (
+                <div key={i} className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2 p-2 bg-white rounded border">
+                  <input placeholder="Activity Code" value={a.activityCode || ""} onChange={(e) => setActivities(prev => prev.map((x, j) => j === i ? { ...x, activityCode: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                  <input placeholder="Activity Name" value={a.activityName || ""} onChange={(e) => setActivities(prev => prev.map((x, j) => j === i ? { ...x, activityName: e.target.value } : x))} className="px-2 py-1 border rounded text-sm" />
+                  <input placeholder="Description" value={a.activityDescription || ""} onChange={(e) => setActivities(prev => prev.map((x, j) => j === i ? { ...x, activityDescription: e.target.value } : x))} className="px-2 py-1 border rounded text-sm md:col-span-2" />
+                  <div className="flex gap-2">
+                    <input placeholder="Status" value={a.activityStatus || ""} onChange={(e) => setActivities(prev => prev.map((x, j) => j === i ? { ...x, activityStatus: e.target.value } : x))} className="px-2 py-1 border rounded text-sm flex-1" />
+                    <button type="button" onClick={() => setActivities(prev => prev.filter((_, j) => j !== i))} className="text-red-600 text-sm shrink-0">Remove</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Notes & Telecom */}
+            <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gray-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Notes & Telecom</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">License Remarks</label>
+                  <textarea value={form.licenseRemarks} onChange={(e) => setForm(prev => ({ ...prev, licenseRemarks: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Connection Type</label>
+                  <input type="text" value={form.connectionType} onChange={(e) => setForm(prev => ({ ...prev, connectionType: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
             </div>

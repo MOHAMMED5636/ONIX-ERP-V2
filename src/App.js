@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Bars3Icon } from "@heroicons/react/24/outline";
 import Dashboard from "./modules/Dashboard";
 import ChatRoom from "./modules/ChatRoom";
 import Sidebar from "./layout/Sidebar";
@@ -21,6 +22,7 @@ import EmployeeProjectDetail from "./pages/employee/EmployeeProjectDetail";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import TaskList from "./components/tasks/TaskList";
 import MyAttendance from "./pages/workplace/MyAttendance";
+import AdminAttendance from "./pages/AdminAttendance";
 import CompanyPolicy from "./pages/workplace/CompanyPolicy";
 import ProjectChatApp from "./modules/ProjectChatApp";
 import Employees from "./modules/Employees";
@@ -37,6 +39,7 @@ import TenderFees from "./pages/TenderFees";
 import TenderInvitation from "./pages/TenderInvitation";
 import TenderContractorEvaluation from "./pages/TenderContractorEvaluation";
 import Contracts from "./pages/Contracts";
+import Payroll from "./pages/Payroll";
 import ContractorsPage from "./pages/Contractors";
 import TaskCategoryList from "./components/tasks/TaskCategoryList";
 import CompaniesPage from "./components/companies/CompaniesPage";
@@ -83,8 +86,8 @@ function MainLayout() {
       <div className={`flex-1 flex flex-col transition-all duration-300 w-full
         ${
         sidebarCollapsed 
-          ? 'lg:ml-8 xl:ml-8' 
-          : 'lg:ml-28 xl:ml-28'
+          ? 'ml-0 lg:ml-8 xl:ml-8' 
+          : 'ml-0 lg:ml-28 xl:ml-28'
         }
       `}>
         {!hideNavbar && <Navbar onMenuToggle={() => setSidebarCollapsed((c) => !c)} />}
@@ -117,10 +120,17 @@ function MainLayout() {
             <Route path="/tender/invitation/:tenderId" element={<TenderInvitation />} />
             <Route path="/tender/evaluation" element={<TenderContractorEvaluation />} />
             <Route path="/contracts/*" element={<Contracts />} />
+            <Route path="/payroll/*" element={
+              <PrivateRoute requiredRole={['ADMIN', 'HR']}>
+                <Payroll />
+              </PrivateRoute>
+            } />
             <Route path="/task-categories" element={<TaskCategoryList />} />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/companies/create" element={<CreateCompanyPage />} />
             <Route path="/contractors" element={<ContractorsPage />} />
+            {/* Admin: all employees attendance (date filter, right-side panel) */}
+            <Route path="/attendance" element={<AdminAttendance />} />
             {/* Workplace Hub routes */}
             <Route path="/workplace/company-policy" element={<CompanyPolicy />} />
             <Route path="/workplace/my-attendance" element={<MyAttendance />} />
@@ -223,7 +233,7 @@ function EmployeeBlock({ children }) {
   return children;
 }
 
-// Employee ERP layout (limited features)
+// Employee ERP layout (limited features) — mobile: sidebar toggled via hamburger
 function EmployeeLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1024);
   React.useEffect(() => {
@@ -231,10 +241,31 @@ function EmployeeLayout() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+  const toggleSidebar = () => setSidebarCollapsed((c) => !c);
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <EmployeeSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
+      <EmployeeSidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      {/* Mobile overlay: tap to close sidebar when open on small screens */}
+      {!sidebarCollapsed && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          aria-hidden
+          onClick={toggleSidebar}
+        />
+      )}
       <div className={`flex-1 flex flex-col transition-all duration-300 w-full ${sidebarCollapsed ? 'lg:ml-8' : 'lg:ml-28'}`}>
+        {/* Mobile header with menu button so sidebar can be opened on mobile */}
+        <header className="sticky top-0 z-30 lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 shadow-sm">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600"
+            aria-label="Open menu"
+          >
+            <Bars3Icon className="h-6 w-6" />
+          </button>
+          <span className="font-semibold text-slate-800">ERP</span>
+        </header>
         <main className="flex-1 w-full p-4">
           <Routes>
             <Route path="dashboard" element={<EmployeeDashboard />} />
@@ -242,6 +273,7 @@ function EmployeeLayout() {
             <Route path="projects/:id" element={<EmployeeProjectDetail />} />
             <Route path="tasks/*" element={<TaskList />} />
             <Route path="attendance" element={<MyAttendance />} />
+            <Route path="leave-request" element={<Leaves />} />
             <Route path="company-policy" element={<CompanyPolicy />} />
             <Route path="profile" element={<EmployeeProfile />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />

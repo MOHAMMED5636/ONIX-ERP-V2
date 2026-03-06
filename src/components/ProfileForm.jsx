@@ -35,11 +35,37 @@ const ProfileForm = ({ onUpdate }) => {
 
     try {
       const formData = new FormData();
+      
+      // Log photo details before appending
+      console.log('📸 Preparing FormData for profile update:', {
+        hasPhoto: !!photo,
+        photoType: photo?.constructor?.name,
+        photoName: photo?.name,
+        photoSize: photo?.size,
+        jobTitle: jobTitle
+      });
+      
       if (photo) {
-        formData.append('photo', photo);
+        if (photo instanceof File) {
+          formData.append('photo', photo);
+          console.log('✅ Photo file appended to FormData:', photo.name, `(${photo.size} bytes)`);
+        } else {
+          console.error('❌ Photo is not a File object:', typeof photo, photo);
+          throw new Error('Invalid photo file. Please select a valid image file.');
+        }
+      } else {
+        console.log('ℹ️  No photo file selected for upload');
       }
-      if (jobTitle !== undefined) {
+      
+      if (jobTitle !== undefined && jobTitle !== null && jobTitle !== '') {
         formData.append('jobTitle', jobTitle);
+        console.log('✅ Job title appended:', jobTitle);
+      }
+
+      // Log FormData contents (for debugging)
+      console.log('📦 FormData contents:');
+      for (let pair of formData.entries()) {
+        console.log(`   ${pair[0]}:`, pair[1] instanceof File ? `${pair[1].name} (${pair[1].size} bytes, ${pair[1].type})` : pair[1]);
       }
 
       const response = await updateProfile(formData);
@@ -48,70 +74,57 @@ const ProfileForm = ({ onUpdate }) => {
       
       if (response && response.success) {
         setSuccess(true);
+        console.log('✅ Profile update successful!');
+        console.log('📸 Response data:', JSON.stringify(response.data, null, 2));
         
-        // Update user data immediately from response (before refresh)
-        // This ensures the photo shows up right away without waiting for API call
-        if (response.data) {
-          console.log('Profile update response data:', JSON.stringify(response.data, null, 2));
+        // Check if photo is in response
+        if (response.data && response.data.photo) {
+          console.log('✅ New photo URL received:', response.data.photo);
+          console.log('   Old photo was:', user?.photo);
+          console.log('   Photo changed:', user?.photo !== response.data.photo);
           
-          // Check if photo is in response
-          if (response.data.photo) {
-            console.log('✅ New photo path received from backend:', response.data.photo);
-            console.log('✅ Old photo was:', user?.photo);
-            console.log('✅ Photo path changed:', user?.photo !== response.data.photo);
-          } else {
-            console.warn('⚠️ WARNING: Response does not include photo path!');
-            console.warn('Backend response structure:', Object.keys(response.data));
-            console.warn('This means the backend is NOT returning the updated photo path.');
-            console.warn('Please check backend implementation - it should return data.photo with the new photo path.');
-          }
-          
+          // Update user data immediately with the new photo URL
           if (updateUserData) {
-            console.log('Calling updateUserData with:', response.data);
-            updateUserData(response.data);
-            console.log('User data updated in context');
+            console.log('📝 Updating user data in context with new photo...');
+            updateUserData({
+              ...response.data,
+              photo: response.data.photo // Ensure photo URL is included
+            });
             
             // Force PhotoUploadEnhanced to re-render with new photo
-            if (response.data.photo) {
-              setPhotoUpdateKey(prev => prev + 1);
-              console.log('Photo update key incremented to force re-render');
-            }
-            
-            // Force a re-render by updating a state that triggers useEffect
-            // The PhotoUploadEnhanced component should pick up the new user.photo
-            setTimeout(() => {
-              console.log('Verifying user photo after update:', user?.photo);
-              console.log('Expected photo:', response.data.photo);
-            }, 200);
+            setPhotoUpdateKey(prev => prev + 1);
+            console.log('✅ Photo component will re-render with new photo');
           } else {
-            console.error('updateUserData function not available!');
+            console.error('❌ updateUserData function not available in AuthContext!');
           }
         } else {
-          console.error('Response does not include data field!', response);
+          console.warn('⚠️ WARNING: Response does not include photo URL!');
+          console.warn('   Response structure:', Object.keys(response.data || {}));
+          if (photo) {
+            console.warn('   ⚠️ Photo was uploaded but not returned in response!');
+            console.warn('   This indicates a backend issue - check backend logs.');
+          }
         }
         
         // Clear photo file after successful upload
         setPhoto(null);
         
-        // Also refresh from server to ensure we have the latest data
+        // Refresh user data from server to ensure consistency
         if (refreshUser) {
-          // Wait a bit for the file to be fully saved on server
           setTimeout(async () => {
-            console.log('Refreshing user data from server...');
-            await refreshUser();
-            console.log('User refreshed, new photo:', user?.photo);
-          }, 1000);
+            console.log('🔄 Refreshing user data from server...');
+            try {
+              await refreshUser();
+              console.log('✅ User data refreshed');
+            } catch (refreshError) {
+              console.error('❌ Error refreshing user:', refreshError);
+            }
+          }, 500); // Reduced delay - 500ms should be enough
         }
         
         if (onUpdate) {
           onUpdate(response.data);
         }
-        
-        // Force page refresh after 3 seconds to ensure photo displays everywhere
-        setTimeout(() => {
-          console.log('Reloading page to show updated photo...');
-          window.location.reload();
-        }, 3000);
       } else {
         const errorMsg = response?.message || 'Failed to update profile';
         console.error('Profile update failed:', errorMsg, response);

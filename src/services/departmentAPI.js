@@ -1,4 +1,6 @@
 // Department API service for backend connection
+import { getToken } from './authAPI';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
@@ -8,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
  */
 export const getCompanyDepartments = async (companyId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -65,7 +67,7 @@ export const getCompanyDepartments = async (companyId) => {
  */
 export const createDepartment = async (companyId, departmentData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -122,7 +124,7 @@ export const createDepartment = async (companyId, departmentData) => {
  */
 export const updateDepartment = async (departmentId, departmentData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -178,7 +180,7 @@ export const updateDepartment = async (departmentId, departmentData) => {
  */
 export const getDepartmentById = async (departmentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -234,7 +236,7 @@ export const getDepartmentById = async (departmentId) => {
  */
 export const deleteDepartment = async (departmentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -292,7 +294,7 @@ export const deleteDepartment = async (departmentId) => {
  */
 export const getDepartmentSubDepartments = async (departmentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -348,7 +350,7 @@ export const getDepartmentSubDepartments = async (departmentId) => {
  */
 export const getSubDepartmentById = async (subDepartmentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -405,7 +407,7 @@ export const getSubDepartmentById = async (subDepartmentId) => {
  */
 export const createSubDepartment = async (departmentId, subDepartmentData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -462,7 +464,7 @@ export const createSubDepartment = async (departmentId, subDepartmentData) => {
  */
 export const updateSubDepartment = async (subDepartmentId, subDepartmentData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -518,7 +520,7 @@ export const updateSubDepartment = async (subDepartmentId, subDepartmentData) =>
  */
 export const deleteSubDepartment = async (subDepartmentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -576,7 +578,7 @@ export const deleteSubDepartment = async (subDepartmentId) => {
  */
 export const getSubDepartmentPositions = async (subDepartmentId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -632,7 +634,7 @@ export const getSubDepartmentPositions = async (subDepartmentId) => {
  */
 export const getPositionById = async (positionId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -689,7 +691,7 @@ export const getPositionById = async (positionId) => {
  */
 export const createPosition = async (subDepartmentId, positionData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -746,7 +748,7 @@ export const createPosition = async (subDepartmentId, positionData) => {
  */
 export const updatePosition = async (positionId, positionData) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');
@@ -802,7 +804,7 @@ export const updatePosition = async (positionId, positionData) => {
  */
 export const deletePosition = async (positionId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     
     if (!token) {
       throw new Error('No token found. Please login again.');

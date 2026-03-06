@@ -41,20 +41,25 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
 
   useEffect(() => {
     console.log('[PhotoUploadEnhanced] currentPhoto changed:', currentPhoto);
+    console.log('[PhotoUploadEnhanced] currentPhoto type:', typeof currentPhoto);
+    console.log('[PhotoUploadEnhanced] currentPhoto is File:', currentPhoto instanceof File);
     setImageError(false);
-    
-    // Reset preview first to force reload
-    setPreview(null);
     
     if (currentPhoto) {
       if (currentPhoto instanceof File) {
         // If it's a File object, show it directly
+        console.log('[PhotoUploadEnhanced] Loading File object as preview');
         const reader = new FileReader();
         reader.onloadend = () => {
+          console.log('[PhotoUploadEnhanced] File preview loaded');
           setPreview(reader.result);
         };
+        reader.onerror = () => {
+          console.error('[PhotoUploadEnhanced] Error reading file');
+          setImageError(true);
+        };
         reader.readAsDataURL(currentPhoto);
-      } else {
+      } else if (typeof currentPhoto === 'string') {
         // If it's a string (URL/path), get the URL with cache busting
         const photoUrl = getPhotoUrl(currentPhoto);
         if (photoUrl) {
@@ -63,18 +68,26 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
           const timestamp = Date.now();
           const cacheBustedUrl = `${photoUrl}${separator}t=${timestamp}`;
           console.log('[PhotoUploadEnhanced] Setting preview URL:', cacheBustedUrl);
-          console.log('[PhotoUploadEnhanced] Photo key updated to force re-render');
+          console.log('[PhotoUploadEnhanced] Original photo:', currentPhoto);
           
           // Force component to re-render by updating key
           setPhotoKey(timestamp);
-          setPreview(cacheBustedUrl);
+          
+          // Reset preview first, then set new URL to force reload
+          setPreview(null);
+          setTimeout(() => {
+            setPreview(cacheBustedUrl);
+          }, 50);
         } else {
-          console.log('[PhotoUploadEnhanced] No photo URL generated from:', currentPhoto);
+          console.warn('[PhotoUploadEnhanced] No photo URL generated from:', currentPhoto);
           setPreview(null);
         }
+      } else {
+        console.warn('[PhotoUploadEnhanced] Unexpected photo type:', typeof currentPhoto, currentPhoto);
+        setPreview(null);
       }
     } else {
-      console.log('[PhotoUploadEnhanced] No currentPhoto provided');
+      console.log('[PhotoUploadEnhanced] No currentPhoto provided - showing placeholder');
       setPreview(null);
     }
   }, [currentPhoto]);
@@ -92,7 +105,15 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
         return;
       }
 
-      // Load image for cropping
+      // Notify parent immediately so "Save photo" appears even before crop
+      if (onPhotoChange) {
+        onPhotoChange(selectedFile);
+      }
+      setFile(selectedFile);
+      const previewUrl = URL.createObjectURL(selectedFile);
+      setPreview(previewUrl);
+
+      // Load image for cropping (user can optionally crop, or just save as-is)
       const reader = new FileReader();
       reader.onloadend = () => {
         setCropImage(reader.result);
@@ -100,6 +121,7 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
       };
       reader.readAsDataURL(selectedFile);
     }
+    e.target.value = '';
   };
 
   const initializeCropArea = () => {

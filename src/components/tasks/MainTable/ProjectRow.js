@@ -255,10 +255,10 @@ const ProjectRow = ({
       case "plotNumber":
         return (
           <input
-            className="border rounded px-2 py-1 text-sm w-full"
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-50 cursor-not-allowed"
             value={row.plotNumber || ""}
-            onChange={e => onEdit("plotNumber", e.target.value)}
-            placeholder="Enter plot number"
+            readOnly
+            placeholder="—"
           />
         );
       case "community":

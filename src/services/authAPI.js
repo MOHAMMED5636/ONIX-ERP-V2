@@ -1,4 +1,6 @@
 // Authentication API service for backend connection
+import * as authStorage from '../utils/authStorage';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 // Helper function to add timeout to fetch requests
@@ -12,17 +14,15 @@ const fetchWithTimeout = (url, options, timeout = 10000) => {
 };
 
 /**
- * Login user with email and password (single login for Admin and Employee).
- * Backend returns user role; no role required in request.
- * @param {string} email - User email
+ * Unified login for all users (Admin, Employee, etc.).
+ * Backend automatically determines user role from email/password.
+ * @param {string} email - User email or mobile number
  * @param {string} password - User password
- * @param {string} [role] - Optional: if provided, backend validates user has this role
  * @returns {Promise} Login response with token, user (id, role, employeeId, permissions)
  */
-export const login = async (email, password, role) => {
+export const login = async (email, password) => {
   try {
-    const body = { email, password };
-    if (role) body.role = role;
+    const body = { email, password }; // 'email' field accepts email or mobile number
     const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -46,14 +46,10 @@ export const login = async (email, password, role) => {
 
     const data = await response.json();
 
-    // Store only token in localStorage (user profile will be fetched via /auth/me)
+    // Per-tab: store token in sessionStorage
     if (data.success && data.data && data.data.token) {
-      localStorage.setItem('token', data.data.token);
-      // Remove any existing user data to ensure fresh fetch
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userRole');
+      authStorage.clearAuth();
+      authStorage.setToken(data.data.token);
     }
 
     return data;
@@ -74,18 +70,18 @@ export const login = async (email, password, role) => {
  * Get current authenticated user from backend
  * @returns {Promise} User data
  */
-export const getCurrentUser = async () => {
+export const getCurrentUser = async (token = null) => {
   try {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
+    const authToken = token !== null && token !== undefined ? token : authStorage.getToken();
+
+    if (!authToken) {
       throw new Error('No token found');
     }
 
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
       credentials: 'include',
@@ -94,12 +90,7 @@ export const getCurrentUser = async () => {
     const data = await response.json();
 
     if (!response.ok) {
-      // Token invalid, clear storage
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userRole');
+      authStorage.clearAuth();
       throw new Error(data.message || 'Failed to get current user');
     }
 
@@ -114,13 +105,12 @@ export const getCurrentUser = async () => {
 };
 
 /**
- * Logout user (calls backend endpoint and clears localStorage)
+ * Logout user (calls backend endpoint and clears per-tab sessionStorage)
  */
 export const logout = async () => {
   try {
-    const token = localStorage.getItem('token');
-    
-    // Call backend logout endpoint if token exists
+    const token = authStorage.getToken();
+
     if (token) {
       try {
         await fetchWithTimeout(`${API_BASE_URL}/auth/logout`, {
@@ -130,30 +120,17 @@ export const logout = async () => {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-        }, 5000); // 5 second timeout for logout
+        }, 5000);
       } catch (error) {
-        // Even if backend call fails, still clear local storage
         console.error('Logout API error:', error);
       }
     }
-    
-    // Clear all local storage items
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userRole');
-    
-    // Redirect to login page
+
+    authStorage.clearAuth();
     window.location.href = '/login';
   } catch (error) {
     console.error('Logout error:', error);
-    // Still clear storage and redirect even if there's an error
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userRole');
+    authStorage.clearAuth();
     window.location.href = '/login';
   }
 };
@@ -163,24 +140,23 @@ export const logout = async () => {
  * @returns {boolean}
  */
 export const isAuthenticated = () => {
-  return !!localStorage.getItem('token');
+  return !!authStorage.getToken();
 };
 
 /**
- * Get stored token
+ * Get stored token (per-tab from sessionStorage)
  * @returns {string|null}
  */
 export const getToken = () => {
-  return localStorage.getItem('token');
+  return authStorage.getToken();
 };
 
 /**
- * Get stored user
+ * Get stored user (per-tab)
  * @returns {object|null}
  */
 export const getStoredUser = () => {
-  const user = localStorage.getItem('user');
-  return user ? JSON.parse(user) : null;
+  return authStorage.getAuthItemJson('user');
 };
 
 /**
@@ -190,7 +166,7 @@ export const getStoredUser = () => {
  * @returns {Promise}
  */
 export const apiRequest = async (endpoint, options = {}) => {
-  const token = localStorage.getItem('token');
+  const token = authStorage.getToken();
   
   const defaultOptions = {
     headers: {
@@ -288,6 +264,42 @@ export const resetPassword = async (userId, newPassword) => {
     return data;
   } catch (error) {
     console.error('Reset password error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Set password for employee (Admin only)
+ * @param {string} employeeId - Employee ID whose password is being set
+ * @param {string} newPassword - New password
+ * @returns {Promise}
+ */
+export const setPassword = async (employeeId, newPassword) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/admin/set-password`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ employeeId, newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to set password');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Set password error:', error);
     throw error;
   }
 };
@@ -499,6 +511,99 @@ export const updatePreferences = async (preferences) => {
 };
 
 /**
+ * Request login OTP
+ * @param {string} email - User email address
+ * @returns {Promise} Response with success message
+ */
+export const requestLoginOtp = async (email) => {
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/request-login-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    }, 10000); // 10 second timeout
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to send OTP';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Request login OTP error:', error);
+    if (error.message.includes('timeout')) {
+      throw new Error('Connection timeout - please check if backend is running');
+    } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Verify login OTP and login user (unified for all roles).
+ * Backend automatically determines user role from email.
+ * @param {string} email - User email address
+ * @param {string} otp - 6-digit OTP code
+ * @returns {Promise} Login response with token, user (id, role, employeeId, permissions)
+ */
+export const verifyLoginOtp = async (email, otp) => {
+  try {
+    const body = { email: email.trim().toLowerCase(), otp: otp.trim() };
+    
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/verify-login-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    }, 10000); // 10 second timeout
+
+    if (!response.ok) {
+      let errorMessage = 'Invalid OTP';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+
+    // Per-tab: store token in sessionStorage
+    if (data.success && data.data && data.data.token) {
+      authStorage.clearAuth();
+      authStorage.setToken(data.data.token);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Verify login OTP error:', error);
+    if (error.message.includes('timeout')) {
+      throw new Error('Connection timeout - please check if backend is running');
+    } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
+    }
+    throw error;
+  }
+};
+
+/**
  * Create employee with photo upload
  * @param {FormData} formData - FormData containing employee data and optional photo
  * @returns {Promise}
@@ -535,6 +640,8 @@ export const createEmployeeWithPhoto = async (formData) => {
 
 export default {
   login,
+  requestLoginOtp,
+  verifyLoginOtp,
   getCurrentUser,
   logout,
   isAuthenticated,
@@ -552,6 +659,7 @@ export default {
   updateProfile,
   getPreferences,
   updatePreferences,
+  setPassword,
 };
 
 

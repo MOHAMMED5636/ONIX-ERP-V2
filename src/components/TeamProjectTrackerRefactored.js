@@ -106,7 +106,6 @@ export default function TeamProjectTracker() {
     { key: 'text', label: 'Text', icon: '🔤' },
     { key: 'date', label: 'Date', icon: '📅' },
     { key: 'number', label: 'Number', icon: '🔢' },
-    { key: 'dropdown', label: 'Dropdown', icon: '⬇️' },
     { key: 'files', label: 'Files', icon: '📎' },
     { key: 'priority', label: 'Priority', icon: '⚡' },
     { key: 'color', label: 'Color Picker', icon: '🎨' },

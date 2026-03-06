@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import ContractsAPI from '../../../services/contractsAPI';
+import { getToken } from '../../../services/authAPI';
 
 const ContractLoadOutModal = ({ 
   open, 
@@ -32,6 +33,7 @@ const ContractLoadOutModal = ({
         limit: 1000, // Get all contracts
         sortBy: 'createdAt',
         sortOrder: 'desc',
+        forLoadOut: 'true', // Indicate this is for Load Out modal - filter by assigned manager
       });
       
       if (response.success) {
@@ -106,7 +108,7 @@ const ContractLoadOutModal = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${getToken()}`,
         },
         body: JSON.stringify({ contractIds }),
       });
@@ -286,6 +288,9 @@ const ContractLoadOutModal = ({
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Client
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">
+                      Project Manager
+                    </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
                       Actions
                     </th>
@@ -333,6 +338,11 @@ const ContractLoadOutModal = ({
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {contract.client?.name || contract.clientName || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {contract.assignedManager
+                            ? `${(contract.assignedManager.firstName || '').trim()} ${(contract.assignedManager.lastName || '').trim()}`.trim() || contract.assignedManager.email
+                            : contract.projectManager || '—'}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {contract.project?.referenceNumber ? (

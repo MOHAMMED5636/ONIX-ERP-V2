@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FolderIcon } from "@heroicons/react/24/outline";
+import { getToken } from "../../services/authAPI";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
@@ -10,7 +11,7 @@ export default function EmployeeProjects() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     if (!token) {
       setError("Not authenticated");
       setLoading(false);
