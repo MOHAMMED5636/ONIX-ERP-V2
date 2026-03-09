@@ -46,9 +46,12 @@ const CellRenderer = {
             placeholder="Reference number"
           />
         );
-      case "status":
+      case "status": {
         const isWaitingForPredecessor = sub.workflowStatus === 'WAITING_FOR_PREDECESSOR';
         const isOverdue = sub.workflowStatus === 'OVERDUE';
+        const isProjectManager = isManager || isAdmin;
+        // For employees, clarify that "Done" will open the next predecessor task
+        const doneLabel = isProjectManager ? 'Done' : 'Done – Open Next Phase';
         return (
           <div className="flex flex-col gap-1">
             <select
@@ -59,7 +62,7 @@ const CellRenderer = {
               disabled={isWaitingForPredecessor}
               title={isWaitingForPredecessor ? 'Waiting for predecessor task completion' : ''}
             >
-              <option value="done">Done</option>
+              <option value="done">{doneLabel}</option>
               <option value="working">Working</option>
               <option value="stuck">Stuck</option>
               <option value="not started">Not Started</option>
@@ -77,6 +80,7 @@ const CellRenderer = {
             )}
           </div>
         );
+      }
       case "owner":
         return (
           <button

@@ -1041,12 +1041,75 @@ export default function MainTable() {
             createdAt: project.createdAt ? new Date(project.createdAt) : new Date(),
           };
         });
-        
-        setTasks(mappedTasks);
-        
+
+        // Derive workflowStatus for subtasks based on predecessors and auto-number sequence.
+        // This ensures that when a predecessor row (e.g. 1-1) is marked "done",
+        // its dependents (e.g. 1-2) move from WAITING_FOR_PREDECESSOR to NOT_STARTED/IN_PROGRESS
+        // for the next employee.
+        const tasksWithWorkflow = mappedTasks.map((projectTask, projectIndex) => {
+          const subtasks = Array.isArray(projectTask.subtasks) ? projectTask.subtasks : [];
+          if (subtasks.length === 0) {
+            return projectTask;
+          }
+
+          // Build lookup of predecessor auto numbers → completion status
+          const statusByAutoKey = new Map();
+          subtasks.forEach((sub, subIndex) => {
+            const autoKey = getHierarchicalAutoNumber(projectIndex, subIndex, null);
+            const statusLower = (sub.status || '').toString().toLowerCase();
+            const isDone = statusLower === 'done' || statusLower === 'completed';
+            statusByAutoKey.set(autoKey, isDone);
+          });
+
+          const updatedSubtasks = subtasks.map((sub, subIndex) => {
+            const autoKey = getHierarchicalAutoNumber(projectIndex, subIndex, null);
+            const rawPredecessors = sub.predecessors != null ? String(sub.predecessors) : '';
+            const tokens = rawPredecessors
+              .split(/[,\s]+/)
+              .map(t => t.trim())
+              .filter(Boolean);
+
+            let isWaitingForPredecessor = false;
+            if (tokens.length > 0) {
+              for (const token of tokens) {
+                const predIsDone = statusByAutoKey.get(token);
+                if (predIsDone === false) {
+                  isWaitingForPredecessor = true;
+                  break;
+                }
+              }
+            }
+
+            const statusLower = (sub.status || '').toString().toLowerCase();
+            let workflowStatus;
+            if (isWaitingForPredecessor) {
+              workflowStatus = 'WAITING_FOR_PREDECESSOR';
+            } else if (statusLower === 'done' || statusLower === 'completed') {
+              workflowStatus = 'COMPLETED';
+            } else if (statusLower === 'working' || statusLower === 'in progress') {
+              workflowStatus = 'IN_PROGRESS';
+            } else {
+              workflowStatus = 'NOT_STARTED';
+            }
+
+            return {
+              ...sub,
+              autoNumber: autoKey,
+              workflowStatus,
+            };
+          });
+
+          return {
+            ...projectTask,
+            subtasks: updatedSubtasks,
+          };
+        });
+
+        setTasks(tasksWithWorkflow);
+
         // Also save to localStorage for backward compatibility
         try {
-          localStorage.setItem('projectTasks', JSON.stringify(mappedTasks));
+          localStorage.setItem('projectTasks', JSON.stringify(tasksWithWorkflow));
         } catch (error) {
           console.error('Error saving to localStorage:', error);
         }
