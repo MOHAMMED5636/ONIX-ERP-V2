@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CalendarIcon,
   ArrowLeftIcon,
@@ -10,6 +10,8 @@ import PayrollAPI from '../../services/payrollAPI';
 
 const CreatePayrollRun = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/employee/payroll') ? '/employee/payroll' : '/payroll';
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
     periodMonth: new Date().getMonth() + 1,
@@ -66,7 +68,7 @@ const CreatePayrollRun = () => {
 
       if (response?.success) {
         alert('Payroll run created successfully!');
-        navigate(`/payroll/runs/${response.data.id}`);
+        navigate(`${basePath}/runs/${response.data.id}`);
       } else {
         alert('Error creating payroll run: ' + (response?.message || 'Unknown error'));
       }
@@ -86,7 +88,7 @@ const CreatePayrollRun = () => {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-4 mb-4">
             <button
-              onClick={() => navigate('/payroll')}
+              onClick={() => navigate(basePath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeftIcon className="h-6 w-6 text-gray-600" />

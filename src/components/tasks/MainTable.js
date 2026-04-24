@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   PlusIcon,
   MapPinIcon,
@@ -103,8 +103,9 @@ export default function MainTable() {
   const { user } = useAuth();
   const isEmployee = user?.role === 'EMPLOYEE';
   const isAdmin = !isEmployee; // Admin is anyone who is not an employee
-  const isManager = ['ADMIN', 'PROJECT_MANAGER', 'HR'].includes(user?.role);
+  const isManager = ['ADMIN', 'PROJECT_MANAGER', 'HR', 'MANAGER'].includes(user?.role);
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Inline edit state and handlers for Project Name (move to top)
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -239,14 +240,52 @@ export default function MainTable() {
   const closeProjectSummary = () => setSelectedProjectForSummary(null);
   
   // Helper function to format subtasks for backend
-  const formatSubtasksForBackend = (task) => {
+  // Also injects a simple execution order (taskOrder) based on current row position
+  // IMPORTANT: resolves predecessors like "1-1" into real predecessorId UUIDs.
+  const formatSubtasksForBackend = (task, projectIndex) => {
     if (!task.subtasks || task.subtasks.length === 0) {
       return [];
     }
 
+    // Use DB-backed projectNumber when available to keep predecessor mapping stable
+    // even if the visible list is filtered/sorted.
+    const stableProjectIndex =
+      Number.isFinite(Number(task?.projectNumber)) && Number(task.projectNumber) > 0
+        ? Number(task.projectNumber) - 1
+        : projectIndex;
+
+    // Build a lookup from UI auto-number (e.g. "1-1", "1-2-1") -> DB task id
+    const idByAuto = new Map();
+    task.subtasks
+      .filter(sub => !sub.is_deleted)
+      .forEach((subtask, subIndex) => {
+        const key = getHierarchicalAutoNumber(stableProjectIndex, subIndex, null);
+        if (subtask?.id) idByAuto.set(key, subtask.id);
+        (subtask.childSubtasks || [])
+          .filter(child => !child.is_deleted)
+          .forEach((child, childIndex) => {
+            const childKey = getHierarchicalAutoNumber(stableProjectIndex, subIndex, childIndex);
+            if (child?.id) idByAuto.set(childKey, child.id);
+          });
+      });
+
+    const resolvePredecessorId = (row) => {
+      // If already set, keep it
+      if (row.predecessorId) return row.predecessorId;
+      const raw = row.predecessors != null ? String(row.predecessors) : '';
+      const tokens = raw
+        .split(/[,\s]+/)
+        .map(t => t.trim())
+        .filter(Boolean);
+      if (tokens.length === 0) return null;
+      // For strict sequential workflow we use the first predecessor token
+      const token = tokens[0];
+      return idByAuto.get(token) || null;
+    };
+
     return task.subtasks
       .filter(sub => !sub.is_deleted) // Filter out deleted subtasks
-      .map(subtask => {
+      .map((subtask, subIndex) => {
         const subAssigneeId = subtask.assignedEmployeeId || (subtask.assignedEmployee?.id) || (typeof subtask.assignedEmployee === 'string' ? subtask.assignedEmployee : null) || null;
         const formattedSubtask = {
           id: subtask.id,
@@ -273,6 +312,11 @@ export default function MainTable() {
           tags: Array.isArray(subtask.tags) ? subtask.tags : [],
           createdBy: subtask.createdBy || null,
           predecessors: subtask.predecessors || null,
+          predecessorId: resolvePredecessorId(subtask),
+          // Simple execution order for this subtask within its parent project row
+          taskOrder: typeof subtask.taskOrder === 'number'
+            ? subtask.taskOrder
+            : subIndex + 1,
         };
 
         // Handle timeline/dates
@@ -289,7 +333,7 @@ export default function MainTable() {
         if (subtask.childSubtasks && subtask.childSubtasks.length > 0) {
           formattedSubtask.childSubtasks = subtask.childSubtasks
             .filter(child => !child.is_deleted)
-            .map(childSubtask => {
+            .map((childSubtask, childIndex) => {
                 const assigneeId = childSubtask.assignedEmployeeId || (childSubtask.assignedEmployee?.id) || (typeof childSubtask.assignedEmployee === 'string' ? childSubtask.assignedEmployee : null) || null;
               const formattedChild = {
                 id: childSubtask.id,
@@ -316,6 +360,11 @@ export default function MainTable() {
                 tags: Array.isArray(childSubtask.tags) ? childSubtask.tags : [],
                 createdBy: childSubtask.createdBy || null,
                 predecessors: childSubtask.predecessors || null,
+                predecessorId: resolvePredecessorId(childSubtask),
+                // Simple execution order for child tasks within their subtask
+                taskOrder: typeof childSubtask.taskOrder === 'number'
+                  ? childSubtask.taskOrder
+                  : childIndex + 1,
               };
 
               // Handle timeline/dates for child subtasks
@@ -892,9 +941,12 @@ export default function MainTable() {
     tasksRef.current = tasks;
   }, [tasks]);
   
-  // Fetch projects from backend API on component mount
+  // Fetch projects from backend API on mount and when employee deep-links ?projectId= (My Projects → My Tasks)
   useEffect(() => {
     loadProjectsFromAPI();
+  }, [location.search, location.pathname]);
+
+  useEffect(() => {
     loadEmployees();
   }, []);
 
@@ -904,8 +956,6 @@ export default function MainTable() {
       console.log('📡 Loading employees for assignment dropdown...');
       // Pass forTaskAssignment=true so managers only see their team members
       const response = await getEmployees({ forTaskAssignment: true });
-      console.log('📥 Employees API response:', response);
-      
       if (response.success && response.data) {
         // Ensure response.data is an array
         const employeesList = Array.isArray(response.data) ? response.data : [];
@@ -994,6 +1044,7 @@ export default function MainTable() {
           
           return {
             id: project.id,
+            projectNumber: project.projectNumber ?? null,
             name: project.name || 'Untitled Project',
             // Use contract reference number if available (from Load Out), otherwise use project reference number
             referenceNumber: primaryContract?.referenceNumber || project.referenceNumber || '',
@@ -1042,6 +1093,17 @@ export default function MainTable() {
           };
         });
 
+        // Keep projects in stable numeric order so "AUTO #" doesn't swap
+        // when a new project is added (newest-first ordering causes index-based numbering to shift).
+        mappedTasks.sort((a, b) => {
+          const ap = Number.isFinite(Number(a.projectNumber)) ? Number(a.projectNumber) : null;
+          const bp = Number.isFinite(Number(b.projectNumber)) ? Number(b.projectNumber) : null;
+          if (ap != null && bp != null) return ap - bp;
+          if (ap != null) return -1;
+          if (bp != null) return 1;
+          return (a.createdAt?.getTime?.() ?? 0) - (b.createdAt?.getTime?.() ?? 0);
+        });
+
         // Derive workflowStatus for subtasks based on predecessors and auto-number sequence.
         // This ensures that when a predecessor row (e.g. 1-1) is marked "done",
         // its dependents (e.g. 1-2) move from WAITING_FOR_PREDECESSOR to NOT_STARTED/IN_PROGRESS
@@ -1052,17 +1114,23 @@ export default function MainTable() {
             return projectTask;
           }
 
+          // Prefer DB-backed projectNumber for stable hierarchical keys.
+          const stableProjectIndex =
+            Number.isFinite(Number(projectTask.projectNumber)) && Number(projectTask.projectNumber) > 0
+              ? Number(projectTask.projectNumber) - 1
+              : projectIndex;
+
           // Build lookup of predecessor auto numbers → completion status
           const statusByAutoKey = new Map();
           subtasks.forEach((sub, subIndex) => {
-            const autoKey = getHierarchicalAutoNumber(projectIndex, subIndex, null);
+            const autoKey = getHierarchicalAutoNumber(stableProjectIndex, subIndex, null);
             const statusLower = (sub.status || '').toString().toLowerCase();
             const isDone = statusLower === 'done' || statusLower === 'completed';
             statusByAutoKey.set(autoKey, isDone);
           });
 
           const updatedSubtasks = subtasks.map((sub, subIndex) => {
-            const autoKey = getHierarchicalAutoNumber(projectIndex, subIndex, null);
+            const autoKey = getHierarchicalAutoNumber(stableProjectIndex, subIndex, null);
             const rawPredecessors = sub.predecessors != null ? String(sub.predecessors) : '';
             const tokens = rawPredecessors
               .split(/[,\s]+/)
@@ -1105,11 +1173,19 @@ export default function MainTable() {
           };
         });
 
-        setTasks(tasksWithWorkflow);
+        // Employee ERP: My Projects → /employee/tasks?projectId=… shows only that project
+        const qs = new URLSearchParams(location.search || "");
+        const filterProjectId = isEmployee ? qs.get("projectId") : null;
+        const finalTasks =
+          filterProjectId
+            ? tasksWithWorkflow.filter((t) => String(t.id) === String(filterProjectId))
+            : tasksWithWorkflow;
+
+        setTasks(finalTasks);
 
         // Also save to localStorage for backward compatibility
         try {
-          localStorage.setItem('projectTasks', JSON.stringify(tasksWithWorkflow));
+          localStorage.setItem("projectTasks", JSON.stringify(finalTasks));
         } catch (error) {
           console.error('Error saving to localStorage:', error);
         }
@@ -1403,7 +1479,8 @@ export default function MainTable() {
       
       // Include subtasks and childSubtasks in the payload
       if (newTask.subtasks && newTask.subtasks.length > 0) {
-        projectData.subtasks = formatSubtasksForBackend(newTask);
+        const projectIndex = tasks.findIndex(t => t.id === newTask.id);
+        projectData.subtasks = formatSubtasksForBackend(newTask, projectIndex);
       }
       
       console.log('📝 Creating project via API:', projectData);
@@ -1481,9 +1558,22 @@ export default function MainTable() {
 
   const handleSubtaskKeyDown = (e, taskId) => {
     if (e.key === "Enter") {
+      const tag = (e.target && e.target.tagName) ? String(e.target.tagName).toLowerCase() : '';
+      // Allow multiline entry in textareas with normal Enter/Shift+Enter
+      if (tag === 'textarea') {
+        return;
+      }
+      // Shift+Enter should not submit/add (keeps future multiline patterns safe)
+      if (e.shiftKey) {
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
-      // Do NOT auto-create subtask on Enter; require clicking the button.
+      // When the "new subtask" row is open, Enter should add/save it.
+      if (showSubtaskForm === taskId) {
+        handleAddSubtask(taskId);
+      }
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -1494,9 +1584,19 @@ export default function MainTable() {
 
   const handleChildSubtaskKeyDown = (e, taskId, parentSubtaskId) => {
     if (e.key === "Enter") {
+      const tag = (e.target && e.target.tagName) ? String(e.target.tagName).toLowerCase() : '';
+      if (tag === 'textarea') {
+        return;
+      }
+      if (e.shiftKey) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
-      // Do NOT auto-create child task on Enter; require clicking the button.
+      // When the "new child task" row is open, Enter should add/save it.
+      if (showChildSubtaskForm === parentSubtaskId) {
+        handleAddChildSubtask(taskId, parentSubtaskId);
+      }
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -1632,7 +1732,7 @@ export default function MainTable() {
 
         // For SUBTASKS (non-indented), keep strict rules
         return (
-          sub.createdBy === user?.id ||
+          getCreatorId(sub.createdBy) === String(user?.id ?? '') ||
           (!sub.createdBy && sub.assignedEmployeeId === user?.id)
         );
       });
@@ -1698,7 +1798,8 @@ export default function MainTable() {
       taskIdsToPersist.forEach(taskId => {
         const task = updatedTasksForPayload.find(t => t.id === taskId);
         if (task) {
-          const payload = { subtasks: formatSubtasksForBackend(task) };
+          const projectIndex = tasks.findIndex(t => t.id === task.id);
+          const payload = { subtasks: formatSubtasksForBackend(task, projectIndex) };
           updateProject(taskId, payload)
             .then(() => loadProjectsFromAPI())
             .catch((err) => {
@@ -1820,7 +1921,8 @@ export default function MainTable() {
     setNewSubtask(createNewSubtask());
 
     // CRITICAL: Persist to backend immediately
-    const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+    const projectIndex = tasks.findIndex(t => t.id === updatedTask.id);
+    const payload = { subtasks: formatSubtasksForBackend(updatedTask, projectIndex) };
     console.log('💾 Saving subtask to backend:', { 
       taskId, 
       subtaskName: newSubtaskData.name,
@@ -1915,6 +2017,15 @@ export default function MainTable() {
             const parentTask = tasks.find(t => t.id === taskId);
             const updatedSubtask = updateSubtaskReferenceNumber(withCategory, parentTask?.referenceNumber, t.subtasks);
             return updatedSubtask;
+          } else if (col === 'status') {
+            // When status is changed to done by employee, force progress to 100%
+            const isDone = value === 'done' || value === 'Done' || value === 'DONE';
+            const nextProgress = isDone ? 100 : (updatedSubtasks[idx].progress ?? 0);
+            return {
+              ...updatedSubtasks[idx],
+              status: value,
+              progress: nextProgress,
+            };
           } else {
             return { ...updatedSubtasks[idx], [col]: value };
           }
@@ -1949,7 +2060,8 @@ export default function MainTable() {
         return;
       }
       
-      const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+      const projectIndex = tasks.findIndex(t => t.id === updatedTask.id);
+      const payload = { subtasks: formatSubtasksForBackend(updatedTask, projectIndex) };
       console.log('💾 Persisting subtask edit to backend:', { taskId, subId, col, value, payload });
       
       updateProject(taskId, payload)
@@ -1972,7 +2084,8 @@ export default function MainTable() {
         return;
       }
 
-      const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+      const projectIndex = tasks.findIndex(t => t.id === updatedTask.id);
+      const payload = { subtasks: formatSubtasksForBackend(updatedTask, projectIndex) };
       console.log('💾 Manually saving subtask row to backend:', { taskId, subId, payload });
 
       updateProject(taskId, payload)
@@ -2057,7 +2170,8 @@ export default function MainTable() {
             return;
           }
           
-          const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+          const projectIndex = tasks.findIndex(t => t.id === updatedTask.id);
+          const payload = { subtasks: formatSubtasksForBackend(updatedTask, projectIndex) };
           console.log('💾 Persisting subtask deletion to backend:', { parentTaskId, subtaskId: id, payload });
           
           updateProject(parentTaskId, payload)
@@ -2225,7 +2339,8 @@ export default function MainTable() {
       // Include subtasks and childSubtasks in the payload
       const updatedTask = tasks.find(t => t.id === task.id);
       if (updatedTask) {
-        backendPayload.subtasks = formatSubtasksForBackend(updatedTask);
+        const projectIndex = tasks.findIndex(t => t.id === task.id);
+        backendPayload.subtasks = formatSubtasksForBackend(updatedTask, projectIndex);
       }
       
       // Save to backend
@@ -2587,7 +2702,8 @@ export default function MainTable() {
     });
 
     // CRITICAL: Persist to backend immediately
-    const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+    const projectIndex = tasks.findIndex(t => t.id === updatedTask.id);
+    const payload = { subtasks: formatSubtasksForBackend(updatedTask, projectIndex) };
     console.log('💾 Saving child subtask to backend:', { 
       taskId, 
       parentSubtaskId,
@@ -2697,7 +2813,8 @@ export default function MainTable() {
         return;
       }
       
-      const payload = { subtasks: formatSubtasksForBackend(updatedTask) };
+      const projectIndex = tasks.findIndex(t => t.id === updatedTask.id);
+      const payload = { subtasks: formatSubtasksForBackend(updatedTask, projectIndex) };
       console.log('💾 Persisting child subtask edit to backend:', { taskId, parentSubtaskId, childSubtaskId, col, value, payload });
       
       updateProject(taskId, payload)
@@ -2876,6 +2993,16 @@ export default function MainTable() {
     }
   }
 
+  const getCreatorId = (createdBy) => {
+    if (!createdBy) return null;
+    if (typeof createdBy === 'string' || typeof createdBy === 'number') return String(createdBy);
+    // common backend shapes
+    if (createdBy.id != null) return String(createdBy.id);
+    if (createdBy._id != null) return String(createdBy._id);
+    if (createdBy.userId != null) return String(createdBy.userId);
+    return null;
+  };
+
   // Create a context-aware wrapper for child subtasks
   const createChildSubtaskEditHandler = (parentSubtaskId) => {
     return (taskId, childSubtaskId, col, value) => {
@@ -2894,9 +3021,25 @@ export default function MainTable() {
 
   // Custom cell renderer for child subtasks (projectIndex, subtaskIndex used for hierarchical auto-number)
   const renderChildSubtaskCell = (col, childSub, task, parentSubtaskId, childIdx, projectIndex, subtaskIndex) => {
+    const isPrivileged = ['ADMIN', 'PROJECT_MANAGER', 'HR', 'MANAGER'].includes(user?.role);
+    const isCreator = getCreatorId(childSub.createdBy) === String(user?.id ?? '');
+    const assigneeId = childSub.assignedEmployeeId ?? childSub.assignedEmployee ?? (childSub.assignedEmployeeData?.id);
+    const isAssignee = !!assigneeId && assigneeId === user?.id;
+    const canEditMainFields = isPrivileged || isCreator;
+    const canEditAssigneeFields = isPrivileged || isCreator || isAssignee;
+
     switch (col.key) {
       case "task":
       case "project name":
+        if (!canEditMainFields) {
+          return (
+            <div className="flex items-center gap-1">
+              <span className="text-gray-400 text-xs">└─</span>
+              <span className="text-xs font-bold text-gray-900 flex-1">{childSub.name || "—"}</span>
+              <button onClick={() => handleOpenChat(childSub, 'child-task')} className="p-1 rounded-full hover:bg-gray-200" title="Open Chat">💬</button>
+            </div>
+          );
+        }
         return (
           <div className="flex items-center gap-1">
             <span className="text-gray-400 text-xs">└─</span>
@@ -2907,19 +3050,14 @@ export default function MainTable() {
               onKeyDown={(e) => handleChildSubtaskKeyDown(e, task.id, parentSubtaskId)}
               placeholder="Task Name"
             />
-            <button
-              onClick={() => handleOpenChat(childSub, 'child-task')}
-              className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center"
-              title="Open Chat"
-            >
-              💬
-            </button>
+            <button onClick={() => handleOpenChat(childSub, 'child-task')} className="p-1 rounded-full hover:bg-gray-200 transition-all duration-200 flex items-center justify-center" title="Open Chat">💬</button>
           </div>
         );
       case "category":
       case "task category": {
         const catOpts = getTaskCategories();
         const val = childSub.category || catOpts[0] || "Design";
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{val}</span>;
         return (
           <select
             className="border rounded px-1 py-1 text-xs w-full"
@@ -2932,6 +3070,7 @@ export default function MainTable() {
       }
       case "referenceNumber":
       case "reference number":
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{childSub.referenceNumber || "—"}</span>;
         return (
           <input
             className="border rounded px-1 py-1 text-xs w-full"
@@ -2940,6 +3079,10 @@ export default function MainTable() {
           />
         );
       case "status":
+        if (!canEditAssigneeFields) {
+          const statusLabel = childSub.status === 'done' ? 'Done' : childSub.status === 'working' ? 'Working' : childSub.status === 'stuck' ? 'Stuck' : 'Not Started';
+          return <span className={`inline-flex px-1 py-1 text-xs font-bold rounded ${statusColors[childSub.status] || 'bg-gray-200 text-gray-700'}`}>{statusLabel}</span>;
+        }
         return (
           <select
             className={`border rounded px-1 py-1 text-xs font-bold w-full ${statusColors[childSub.status] || 'bg-gray-200 text-gray-700'}`}
@@ -2975,6 +3118,11 @@ export default function MainTable() {
         );
       case "timeline":
         const childTimelineHasPredecessors = childSub.predecessors && childSub.predecessors.toString().trim() !== '';
+        if (!canEditMainFields) {
+          const tl = childSub.timeline;
+          const text = Array.isArray(tl) && tl.length >= 2 ? `${tl[0] ? new Date(tl[0]).toLocaleDateString() : '—'} – ${tl[1] ? new Date(tl[1]).toLocaleDateString() : '—'}` : '—';
+          return <span className="text-xs text-gray-700">{text}</span>;
+        }
         return (
           <TimelineCell 
             value={childSub.timeline} 
@@ -2983,14 +3131,9 @@ export default function MainTable() {
           />
         );
       case "priority": {
-        const isProjectManager = isManager; // employees see read-only priority
         const priorityValue = childSub.priority || "Low";
-        if (!isProjectManager) {
-          return (
-            <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
-              {priorityValue}
-            </span>
-          );
+        if (!canEditMainFields) {
+          return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">{priorityValue}</span>;
         }
         return (
           <select
@@ -3019,6 +3162,7 @@ export default function MainTable() {
           />
         );
       case "remarks":
+        if (!canEditAssigneeFields) return <span className="text-xs text-gray-700 block px-1 py-1 whitespace-pre-wrap">{childSub.remarks || "—"}</span>;
         return (
           <textarea
             className="border rounded px-1 py-1 text-xs w-full resize-none"
@@ -3030,6 +3174,7 @@ export default function MainTable() {
           />
         );
       case "assigneeNotes":
+        if (!canEditAssigneeFields) return <span className="text-xs text-gray-700 block px-1 py-1 whitespace-pre-wrap">{childSub.assigneeNotes || "—"}</span>;
         return (
           <textarea
             className="border rounded px-1 py-1 text-xs w-full resize-none"
@@ -3040,36 +3185,25 @@ export default function MainTable() {
             rows={2}
           />
         );
-      case "assignedEmployee":
-        // Get assigned employee ID (could be string ID or from object)
-        const childEmployeeId = childSub.assignedEmployee || 
-                               (childSub.assignedEmployeeData?.id) || 
-                               (typeof childSub.assignedEmployee === 'string' ? childSub.assignedEmployee : null) || 
-                               '';
-        
-        // Ensure employees is an array (from component state)
+      case "assignedEmployee": {
+        const rawChildAssignee =
+          (childSub.assignedEmployeeId ?? childSub.assignedEmployee) ||
+          (childSub.assignedEmployeeData?.id) ||
+          (typeof childSub.assignedEmployee === 'string' ? childSub.assignedEmployee : null) ||
+          '';
         const employeesListForChild = Array.isArray(employees) ? employees : [];
-        
-        // Get assigned employee name for display
+        const resolvedChildAssigneeId =
+          employeesListForChild.find((emp) => emp?.id && (emp.id === rawChildAssignee || emp.email === rawChildAssignee))?.id ||
+          (typeof rawChildAssignee === 'string' ? rawChildAssignee : '');
+        const childEmployeeId = resolvedChildAssigneeId;
         let childEmployeeDisplayName = '';
         if (childSub.assignedEmployeeData) {
-          // If we have the full employee object from backend
-          childEmployeeDisplayName = `${childSub.assignedEmployeeData.firstName || ''} ${childSub.assignedEmployeeData.lastName || ''}`.trim() || 
-                                     childSub.assignedEmployeeData.email || 
-                                     '';
+          childEmployeeDisplayName = `${childSub.assignedEmployeeData.firstName || ''} ${childSub.assignedEmployeeData.lastName || ''}`.trim() || childSub.assignedEmployeeData.email || '';
         } else if (childEmployeeId) {
-          // Try to find employee in the employees list
-          const foundEmployee = employeesListForChild.find(emp => 
-            emp.id === childEmployeeId || 
-            emp.email === childEmployeeId
-          );
-          if (foundEmployee) {
-            childEmployeeDisplayName = `${foundEmployee.firstName || ''} ${foundEmployee.lastName || ''}`.trim() || 
-                                       foundEmployee.email || 
-                                       '';
-          }
+          const foundEmployee = employeesListForChild.find(emp => emp.id === childEmployeeId || emp.email === childEmployeeId);
+          if (foundEmployee) childEmployeeDisplayName = `${foundEmployee.firstName || ''} ${foundEmployee.lastName || ''}`.trim() || foundEmployee.email || '';
         }
-        
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1" title={childEmployeeDisplayName}>{childEmployeeDisplayName || "—"}</span>;
         return (
           <select
             className="border rounded px-1 py-1 text-xs w-full"
@@ -3082,19 +3216,23 @@ export default function MainTable() {
             {employeesListForChild.length > 0 ? (
               employeesListForChild.map(emp => {
                 const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || emp.email || 'Unknown';
-                const empId = emp.id || emp.email || empName;
-                return (
-                  <option key={empId} value={empId}>
-                    {empName}
-                  </option>
-                );
+                if (!emp.id) return null;
+                return <option key={emp.id} value={emp.id}>{empName}</option>;
               })
             ) : (
               <option value="" disabled>No employees available</option>
             )}
           </select>
         );
+      }
       case "attachments":
+        if (!canEditAssigneeFields) {
+          return (
+            <div className="text-xs text-gray-600">
+              {childSub.attachments && childSub.attachments.length > 0 ? `${childSub.attachments.length} file(s)` : "—"}
+            </div>
+          );
+        }
         return (
           <div>
             <button
@@ -3123,6 +3261,7 @@ export default function MainTable() {
           </div>
         );
       case "location":
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{childSub.location || "—"}</span>;
         return (
           <div className="flex items-center gap-1">
             <input
@@ -3131,12 +3270,7 @@ export default function MainTable() {
               onChange={e => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "location", e.target.value)}
               placeholder="Location"
             />
-            <button 
-              type="button" 
-              onClick={() => handleOpenMapPicker('child', task.id, childSub.id, childSub.location)} 
-              title="Pick on map"
-              className="text-blue-500 hover:text-blue-700"
-            >
+            <button type="button" onClick={() => handleOpenMapPicker('child', task.id, childSub.id, childSub.location)} title="Pick on map" className="text-blue-500 hover:text-blue-700">
               <MapPinIcon className="w-4 h-4" />
             </button>
           </div>
@@ -3151,6 +3285,7 @@ export default function MainTable() {
           />
         );
       case "community":
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{childSub.community || "—"}</span>;
         return (
           <input
             className="border rounded px-1 py-1 text-xs w-full"
@@ -3161,6 +3296,7 @@ export default function MainTable() {
           />
         );
       case "projectType":
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{childSub.projectType || "—"}</span>;
         return (
           <select
             className="border rounded px-1 py-1 text-xs w-full"
@@ -3176,6 +3312,7 @@ export default function MainTable() {
           </select>
         );
       case "projectFloor":
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{childSub.projectFloor || "—"}</span>;
         return (
           <input
             className="border rounded px-1 py-1 text-xs w-full"
@@ -3186,6 +3323,7 @@ export default function MainTable() {
           />
         );
       case "developerProject":
+        if (!canEditMainFields) return <span className="text-xs text-gray-700 block px-1 py-1">{childSub.developerProject || "—"}</span>;
         return (
           <input
             className="border rounded px-1 py-1 text-xs w-full"
@@ -3279,15 +3417,30 @@ export default function MainTable() {
           />
         );
       case "rating":
-        // Child task rating: always editable so user can rate stars
         const childRating = childSub.rating || 0;
+        if (!canEditAssigneeFields) {
+          return (
+            <span className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <StarIcon
+                  key={i}
+                  className={`w-4 h-4 ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                  fill={i <= childRating ? '#facc15' : 'none'}
+                />
+              ))}
+            </span>
+          );
+        }
         return (
           <span className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map(i => (
               <StarIcon
                 key={i}
                 className={`w-4 h-4 cursor-pointer transition ${i <= childRating ? 'text-yellow-400' : 'text-gray-300'}`}
-                onClick={() => handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", i)}
+                onClick={() => {
+                  const next = childRating === i ? 0 : i;
+                  handleEditChildSubtask(task.id, parentSubtaskId, childSub.id, "rating", next);
+                }}
                 fill={i <= childRating ? '#facc15' : 'none'}
               />
             ))}
@@ -3403,6 +3556,7 @@ export default function MainTable() {
             handleShowAddColumnMenu={handleShowAddColumnMenu}
             selectedTaskIds={selectedTaskIds}
             tasks={tasks}
+            employees={employees}
           />
           
           {/* Search Results Counter */}
@@ -3911,77 +4065,135 @@ export default function MainTable() {
                               </thead>
                               <tbody className="bg-white">
                                 <DndContext onDragEnd={event => handleSubtaskDragEnd(event, task.id)}>
-                                  <SortableContext items={filterActiveItems(task.subtasks).map(sub => sub.id)} strategy={verticalListSortingStrategy}>
-                                    {filterActiveItems(task.subtasks).map((sub, subIdx) => (
-                                      <React.Fragment key={sub.id}>
-                                        <SortableSubtaskRow sub={sub} subIdx={subIdx} task={task}>
-                                          {/* Checkbox Column for Subtask */}
-                                          <td className="px-3 py-2 align-middle text-center w-12 border border-gray-200">
-                                            <div className="flex items-center justify-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={selectedSubtaskIds.has(sub.id)}
-                                                onChange={(e) => handleSubtaskSelection(sub.id, e.target.checked)}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                                                title={`Select ${sub.name || 'task'}`}
-                                              />
-                                            </div>
-                                          </td>
-                                          {getSubtaskColumnOrder(columnOrder)
-                                            .filter(colKey => visibleColumns.includes(colKey))
-                                            .map(colKey => {
-                                            const col = columns.find(c => c.key === colKey);
-                                            if (!col) return null;
-                                            return (
-                                              <td key={col.key} className={`px-3 py-2 align-middle border border-gray-200${col.key === 'delete' ? ' text-center w-12' : ''} ${
-                                                col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
-                                              } ${
-                                                col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
-                                              } ${
-                                                col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
-                                              } ${
-                                                col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
-                                              }`}>
-                                                {col.key === 'autoNumber'
-                                                  ? <span className="text-sm text-gray-600 font-medium">{getHierarchicalAutoNumber(taskIdx, subIdx, null)}</span>
-                                                  : CellRenderer.renderSubtaskCell(col, sub, task, subIdx, handleEditSubtask, isAdmin, (e) => handleSubtaskKeyDown(e, task.id), handleEditTask, handleDeleteTask, handleOpenChat, setAttachmentsModalTarget, handleOpenMapPicker, setAttachmentsModalItems, setAttachmentsModalOpen, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireModalOpen(true); }, (target) => { setQuestionnaireModalTarget(target); setQuestionnaireResponseModalOpen(true); }, isManager, employees, getTaskCategories())}
+                                  {(() => {
+                                    const activeSubtasks = filterActiveItems(task.subtasks);
+                                    // Determine next executable subtask based on visual order and completion
+                                    let nextExecutableId = null;
+                                    for (let i = 0; i < activeSubtasks.length; i++) {
+                                      const s = activeSubtasks[i];
+                                      const statusLower = (s.status || '').toString().toLowerCase();
+                                      const allPrevDone = activeSubtasks
+                                        .slice(0, i)
+                                        .every(prev => {
+                                          const sl = (prev.status || '').toString().toLowerCase();
+                                          return sl === 'done' || sl === 'completed';
+                                        });
+                                      if (allPrevDone && statusLower !== 'done' && statusLower !== 'completed') {
+                                        nextExecutableId = s.id;
+                                        break;
+                                      }
+                                    }
+
+                                    return (
+                                      <SortableContext items={activeSubtasks.map(sub => sub.id)} strategy={verticalListSortingStrategy}>
+                                        {activeSubtasks.map((sub, subIdx) => (
+                                          <React.Fragment key={sub.id}>
+                                            <SortableSubtaskRow sub={sub} subIdx={subIdx} task={task} isNextExecutable={sub.id === nextExecutableId}>
+                                              {/* Checkbox Column for Subtask */}
+                                              <td className="px-3 py-2 align-middle text-center w-12 border border-gray-200">
+                                                <div className="flex items-center justify-center">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={selectedSubtaskIds.has(sub.id)}
+                                                    onChange={(e) => handleSubtaskSelection(sub.id, e.target.checked)}
+                                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                                                    title={`Select ${sub.name || 'task'}`}
+                                                  />
+                                                </div>
                                               </td>
-                                            );
-                                          })}
-                                          <td className="px-2 py-2 text-center border border-gray-200 w-32 min-w-[7rem] align-middle">
-                                            <div className="flex items-center justify-center gap-2">
-                                              <button
-                                                type="button"
-                                                onClick={() => handleSaveSubtaskRow(sub.id, task.id)}
-                                                className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 hover:text-green-800 transition-colors"
-                                                title="Save subtask changes"
-                                              >
-                                                Save
-                                              </button>
-                                              {(
-                                                // Managers/admins: always can delete
-                                                !isEmployee ||
-                                                // Employees: can delete if they are the creator
-                                                sub.createdBy === user?.id ||
-                                                // Backward-compatibility: for older records where createdBy is null,
-                                                // allow delete only if the task is assigned to the current employee
-                                                (!sub.createdBy && sub.assignedEmployeeId === user?.id)
-                                              ) && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleDeleteRow(sub.id, task.id)}
-                                                  className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:text-red-700 transition-colors"
-                                                  title="Delete subtask"
-                                                >
-                                                  <span aria-hidden>×</span> Delete
-                                                </button>
-                                              )}
-                                            </div>
-                                          </td>
-                                        </SortableSubtaskRow>
-                                    
+                                              {getSubtaskColumnOrder(columnOrder)
+                                                .filter(colKey => visibleColumns.includes(colKey))
+                                                .map(colKey => {
+                                                  const col = columns.find(c => c.key === colKey);
+                                                  if (!col) return null;
+                                                  return (
+                                                    <td
+                                                      key={col.key}
+                                                      className={`px-3 py-2 align-middle border border-gray-200${col.key === 'delete' ? ' text-center w-12' : ''} ${
+                                                        col.key === 'referenceNumber' ? 'w-32 min-w-32' : ''
+                                                      } ${
+                                                        col.key === 'remarks' || col.key === 'assigneeNotes' ? 'w-48 min-w-48' : ''
+                                                      } ${
+                                                        col.key === 'plotNumber' || col.key === 'community' || col.key === 'projectType' ? 'w-40 min-w-40' : ''
+                                                      } ${
+                                                        col.key === 'projectFloor' || col.key === 'developerProject' ? 'w-40 min-w-40' : ''
+                                                      }`}
+                                                    >
+                                                      {col.key === 'autoNumber'
+                                                        ? (
+                                                          <span className="text-sm text-gray-600 font-medium">
+                                                            {getHierarchicalAutoNumber(taskIdx, subIdx, null)}
+                                                          </span>
+                                                        )
+                                                        : (() => {
+                                                            const isPrivileged = ['ADMIN', 'PROJECT_MANAGER', 'HR', 'MANAGER'].includes(user?.role);
+                                                            const isCreator = getCreatorId(sub.createdBy) === String(user?.id ?? '');
+                                                            const assigneeId = sub.assignedEmployeeId ?? sub.assignedEmployee ?? (sub.assignedEmployeeData?.id);
+                                                            const isAssignee = !!assigneeId && assigneeId === user?.id;
+                                                            const canEditMainFields = isPrivileged || isCreator;
+                                                            const canEditAssigneeFields = isPrivileged || isCreator || isAssignee;
+                                                            return CellRenderer.renderSubtaskCell(
+                                                              col,
+                                                              sub,
+                                                              task,
+                                                              subIdx,
+                                                              handleEditSubtask,
+                                                              isAdmin,
+                                                              (e) => handleSubtaskKeyDown(e, task.id),
+                                                              handleEditTask,
+                                                              handleDeleteTask,
+                                                              handleOpenChat,
+                                                              setAttachmentsModalTarget,
+                                                              handleOpenMapPicker,
+                                                              setAttachmentsModalItems,
+                                                              setAttachmentsModalOpen,
+                                                              (target) => { setQuestionnaireModalTarget(target); setQuestionnaireModalOpen(true); },
+                                                              (target) => { setQuestionnaireModalTarget(target); setQuestionnaireResponseModalOpen(true); },
+                                                              isManager,
+                                                              employees,
+                                                              getTaskCategories(),
+                                                              user,
+                                                              isEmployee,
+                                                              canEditMainFields,
+                                                              canEditAssigneeFields
+                                                            );
+                                                          })()}
+                                                    </td>
+                                                  );
+                                                })}
+                                              <td className="px-2 py-2 text-center border border-gray-200 w-32 min-w-[7rem] align-middle">
+                                                <div className="flex items-center justify-center gap-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleSaveSubtaskRow(sub.id, task.id)}
+                                                    className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 hover:text-green-800 transition-colors"
+                                                    title="Save subtask changes"
+                                                  >
+                                                    Save
+                                                  </button>
+                                                  {(
+                                                    // Managers/admins: always can delete
+                                                    !isEmployee ||
+                                                    // Employees: can delete if they are the creator
+                                                    sub.createdBy === user?.id ||
+                                                    // Backward-compatibility: for older records where createdBy is null,
+                                                    // allow delete only if the task is assigned to the current employee
+                                                    (!sub.createdBy && sub.assignedEmployeeId === user?.id)
+                                                  ) && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleDeleteRow(sub.id, task.id)}
+                                                      className="inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:text-red-700 transition-colors"
+                                                      title="Delete subtask"
+                                                    >
+                                                      <span aria-hidden>×</span> Delete
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </td>
+                                            </SortableSubtaskRow>
                                                                          {/* Child Subtasks */}
-                                     {sub.childSubtasks && filterActiveItems(sub.childSubtasks).map((childSub, childIdx) => (
+                                            {sub.childSubtasks && filterActiveItems(sub.childSubtasks).map((childSub, childIdx) => (
                                        <tr key={childSub.id} className="childtask-row bg-gray-50/50 hover:bg-gray-50 transition-all duration-200">
                                          {/* Drag Handle Column for Child Subtask */}
                                          <td className="px-2 py-2 align-middle text-center w-16 border border-gray-200">
@@ -4153,9 +4365,11 @@ export default function MainTable() {
                                         )}
                                       </td>
                                     </tr>
-                                  </React.Fragment>
-                                    ))}
-                                  </SortableContext>
+                                          </React.Fragment>
+                                        ))}
+                                      </SortableContext>
+                                    );
+                                  })()}
                                 </DndContext>
                               </tbody>
                             </table>

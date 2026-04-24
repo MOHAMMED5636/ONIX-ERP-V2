@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useCompanySelection } from "../../context/CompanySelectionContext";
+import { getEmployees } from "../../services/employeeAPI";
+import ClientsAPI from "../../services/clientsAPI";
+import * as feedbackSurveyAPI from "../../services/feedbackSurveyAPI";
 import { 
   ChatBubbleLeftRightIcon, 
   PlusIcon, 
@@ -14,52 +20,18 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function FeedbacksSurvey() {
-  const [surveys, setSurveys] = useState([
-    {
-      id: 1,
-      title: "Employee Satisfaction Survey 2024",
-      description: "Annual survey to measure employee satisfaction and identify areas for improvement",
-      questions: 15,
-      dueDate: "2024-03-15",
-      responses: 45,
-      totalEmployees: 60,
-      status: "active",
-      completed: false
-    },
-    {
-      id: 2,
-      title: "Workplace Environment Feedback",
-      description: "Gather feedback about the workplace environment and facilities",
-      questions: 8,
-      dueDate: "2024-02-28",
-      responses: 52,
-      totalEmployees: 60,
-      status: "completed",
-      completed: true
-    },
-    {
-      id: 3,
-      title: "Training Program Evaluation",
-      description: "Evaluate the effectiveness of recent training programs",
-      questions: 12,
-      dueDate: "2024-03-20",
-      responses: 28,
-      totalEmployees: 60,
-      status: "active",
-      completed: false
-    },
-    {
-      id: 4,
-      title: "Remote Work Experience",
-      description: "Survey about remote work experience and preferences",
-      questions: 10,
-      dueDate: "2024-02-15",
-      responses: 60,
-      totalEmployees: 60,
-      status: "completed",
-      completed: true
-    }
-  ]);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { selectedCompany } = useCompanySelection();
+  /** Only Admin/HR can create or delete (matches backend). */
+  const canManageSurveys = Boolean(user?.role) && ["ADMIN", "HR"].includes(user.role);
+
+  const [surveys, setSurveys] = useState([]);
+  const [activeQuestions, setActiveQuestions] = useState([]);
+  const [loadingSurveys, setLoadingSurveys] = useState(true);
+  const [surveyLoadError, setSurveyLoadError] = useState(null);
+  const [statsSummary, setStatsSummary] = useState(null);
+  const [savingSurvey, setSavingSurvey] = useState(false);
 
   const [currentSurvey, setCurrentSurvey] = useState(null);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
@@ -67,6 +39,7 @@ export default function FeedbacksSurvey() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSurveyForDelete, setSelectedSurveyForDelete] = useState(null);
+  const [postCreateFormPrompt, setPostCreateFormPrompt] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showThankYou, setShowThankYou] = useState(false);
@@ -110,99 +83,195 @@ export default function FeedbacksSurvey() {
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
 
-  // Mock employees data for recipient selection
-  const [employees] = useState([
-    { id: 'emp_1', name: 'Ahmed Ali', email: 'ahmed.ali@email.com', whatsapp: '+971501234567', type: 'Employee', department: 'HR', position: 'Manager' },
-    { id: 'emp_2', name: 'Sara Youssef', email: 'sara.y@email.com', whatsapp: '+971509876543', type: 'Employee', department: 'Finance', position: 'Accountant' },
-    { id: 'emp_3', name: 'John Smith', email: 'john.smith@email.com', whatsapp: '+971505555555', type: 'Employee', department: 'IT', position: 'Developer' },
-    { id: 'emp_4', name: 'Fatima Noor', email: 'fatima.noor@email.com', whatsapp: '+971506666666', type: 'Employee', department: 'Sales', position: 'Sales Rep' },
-    { id: 'emp_5', name: 'Michael Brown', email: 'michael.brown@company.com', whatsapp: '+971507777777', type: 'Employee', department: 'IT', position: 'Team Lead' },
-    { id: 'emp_6', name: 'Emily Davis', email: 'emily.davis@company.com', whatsapp: '+971508888888', type: 'Employee', department: 'HR', position: 'HR Specialist' },
-    { id: 'emp_7', name: 'David Wilson', email: 'david.wilson@company.com', whatsapp: '+971509999999', type: 'Employee', department: 'Finance', position: 'Senior Accountant' },
-    { id: 'emp_8', name: 'Lisa Anderson', email: 'lisa.anderson@company.com', whatsapp: '+971500000000', type: 'Employee', department: 'IT', position: 'Project Manager' }
-  ]);
+  // Employee directory for recipient selection (loaded from backend by selected company)
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-  // Mock clients data for recipient selection
-  const [clients] = useState([
-    { id: 'client_1', name: 'John Smith', email: 'john.smith@example.com', whatsapp: '+1234567890', type: 'Client', company: 'ABC Corp' },
-    { id: 'client_2', name: 'Sarah Johnson', email: 'sarah.johnson@example.com', whatsapp: '+1234567891', type: 'Client', company: 'XYZ Ltd' },
-    { id: 'client_3', name: 'Mike Davis', email: 'mike.davis@example.com', whatsapp: '+1234567892', type: 'Client', company: 'Tech Solutions' },
-    { id: 'client_4', name: 'Lisa Wilson', email: 'lisa.wilson@example.com', whatsapp: '+1234567893', type: 'Client', company: 'Global Engineering' },
-    { id: 'client_5', name: 'Robert Taylor', email: 'robert.taylor@example.com', whatsapp: '+1234567894', type: 'Client', company: 'Innovation Inc' },
-    { id: 'client_6', name: 'Jennifer Martinez', email: 'jennifer.martinez@example.com', whatsapp: '+1234567895', type: 'Client', company: 'Future Systems' }
-  ]);
+  // Real clients for recipient selection (loaded from backend)
+  const [clients, setClients] = useState([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [clientsLoadError, setClientsLoadError] = useState("");
 
-  const isAdmin = true; // Mock admin status
+  useEffect(() => {
+    let cancelled = false;
 
-  const sampleQuestions = [
-    {
-      id: 1,
-      question: "How satisfied are you with your current role?",
-      type: "rating",
-      required: true
-    },
-    {
-      id: 2,
-      question: "Which department do you work in?",
-      type: "multiple_choice",
-      options: ["Engineering", "Marketing", "Sales", "HR", "Finance"],
-      required: true
-    },
-    {
-      id: 3,
-      question: "What would you like to see improved in the workplace?",
-      type: "text",
-      placeholder: "Please share your suggestions...",
-      required: false
-    },
-    {
-      id: 4,
-      question: "How likely are you to recommend this company to others?",
-      type: "rating",
-      required: true
+    async function loadClients() {
+      try {
+        setLoadingClients(true);
+        setClientsLoadError("");
+
+        const res = await ClientsAPI.getClients({ limit: 500 });
+        const list =
+          (res && res.success && res.data && Array.isArray(res.data.clients) ? res.data.clients : null) ||
+          (res && Array.isArray(res.data) ? res.data : null) ||
+          (res && Array.isArray(res.clients) ? res.clients : null) ||
+          [];
+
+        if (!cancelled) setClients(list);
+      } catch (e) {
+        if (cancelled) return;
+        setClients([]);
+        setClientsLoadError("Unable to load clients from the server.");
+        console.error("Error loading clients:", e);
+      } finally {
+        if (!cancelled) setLoadingClients(false);
+      }
     }
-  ];
+
+    loadClients();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load employee directory from backend, filtered by the currently selected company
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEmployees() {
+      try {
+        setLoadingEmployees(true);
+
+        // Employee directory is stored server-side; we filter by the selected company
+        // CompanySelectionContext stores selectedCompany as a string (typically company name).
+        const res = await getEmployees({
+          // If no company is selected, fall back to "all active employees" (still real backend data).
+          ...(selectedCompany ? { companyName: selectedCompany } : {}),
+          page: 1,
+          limit: 500,
+        });
+
+        if (!cancelled && res.success) {
+          const mapped = (res.data || []).map((emp) => ({
+            id: emp.id,
+            name:
+              [emp.firstName, emp.lastName].filter(Boolean).join(" ").trim() ||
+              emp.email ||
+              emp.employeeId ||
+              emp.id,
+            email: emp.email || "",
+            whatsapp: emp.phone || "",
+            type: "Employee",
+            department: emp.department || "",
+            position: emp.position || emp.jobTitle || "",
+          }));
+          setEmployees(mapped);
+        }
+      } catch (e) {
+        if (!cancelled) setEmployees([]);
+      } finally {
+        if (!cancelled) setLoadingEmployees(false);
+      }
+    }
+
+    loadEmployees();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCompany]);
+
+  const loadData = useCallback(async () => {
+    if (!user?.id) {
+      setLoadingSurveys(false);
+      return;
+    }
+    setSurveyLoadError(null);
+    setLoadingSurveys(true);
+    try {
+      const listRes = await feedbackSurveyAPI.listFeedbackSurveys();
+      const rows = listRes.data || [];
+      const enriched = rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description || "",
+        questions: row.questionCount ?? 0,
+        dueDate: row.dueDate,
+        responses: row.completedCount ?? 0,
+        totalEmployees: row.totalRecipients ?? 0,
+        status:
+          row.status === "PUBLISHED" || row.status === "ACTIVE"
+            ? "active"
+            : row.status === "DRAFT"
+              ? "draft"
+              : "completed",
+        completed: !canManageSurveys && Boolean(row.myAssignment?.completedAt),
+        completionRatePercent: row.completionRatePercent,
+      }));
+      setSurveys(enriched);
+      if (canManageSurveys) {
+        try {
+          const st = await feedbackSurveyAPI.getFeedbackSurveyStats();
+          setStatsSummary(st.data);
+        } catch {
+          setStatsSummary(null);
+        }
+      } else {
+        setStatsSummary(null);
+      }
+    } catch (e) {
+      setSurveyLoadError(e.message || "Failed to load surveys");
+      setSurveys([]);
+    } finally {
+      setLoadingSurveys(false);
+    }
+  }, [user?.id, canManageSurveys]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleStartSurvey = (survey) => {
-    setCurrentSurvey(survey);
-    setCurrentQuestion(0);
-    setAnswers({});
-    setShowSurveyModal(true);
+    navigate(`/workplace/forms/${encodeURIComponent(survey.id)}/fill`);
   };
 
   const handleAnswerChange = (questionId, answer) => {
-    setAnswers(prev => ({
+    setAnswers((prev) => ({
       ...prev,
-      [questionId]: answer
+      [questionId]: answer,
     }));
   };
 
-  const handleNextQuestion = () => {
-    if (currentQuestion < sampleQuestions.length - 1) {
-      setCurrentQuestion(prev => prev + 1);
-    } else {
-      // Survey completed
+  const handleNextQuestion = async () => {
+    if (!activeQuestions.length || !currentSurvey) return;
+    const q = activeQuestions[currentQuestion];
+    if (q.required) {
+      const a = answers[q.id];
+      if (a === undefined || a === null || String(a).trim() === "") {
+        alert("Please answer this question.");
+        return;
+      }
+    }
+    if (currentQuestion < activeQuestions.length - 1) {
+      setCurrentQuestion((prev) => prev + 1);
+      return;
+    }
+    try {
+      const answersPayload = {};
+      for (const qq of activeQuestions) {
+        const v = answers[qq.id];
+        if (v !== undefined && v !== null && String(v).trim() !== "") {
+          answersPayload[qq.id] = String(v).trim();
+        }
+      }
+      await feedbackSurveyAPI.submitFeedbackResponses(currentSurvey.id, answersPayload);
       setShowThankYou(true);
-      setTimeout(() => {
+      setTimeout(async () => {
         setShowSurveyModal(false);
         setShowThankYou(false);
         setCurrentSurvey(null);
         setCurrentQuestion(0);
         setAnswers({});
-        
-        // Mark survey as completed
-        setSurveys(prev => prev.map(survey => 
-          survey.id === currentSurvey.id 
-            ? { ...survey, completed: true, responses: survey.responses + 1 }
-            : survey
-        ));
-      }, 3000);
+        setActiveQuestions([]);
+        await loadData();
+      }, 2000);
+    } catch (e) {
+      alert(e.message || "Submit failed");
     }
   };
 
   const handlePreviousQuestion = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion(prev => prev - 1);
+      setCurrentQuestion((prev) => prev - 1);
     }
   };
 
@@ -212,107 +281,82 @@ export default function FeedbacksSurvey() {
       return;
     }
 
-    // Validate delivery options if any are selected
     const hasEmployeeDelivery = deliveryOptions.employeeSendViaEmail || deliveryOptions.employeeSendViaWhatsApp;
     const hasClientDelivery = deliveryOptions.clientSendViaEmail || deliveryOptions.clientSendViaWhatsApp;
-    
-    if (hasEmployeeDelivery && selectedEmployeeRecipients.length === 0) {
-      alert("Please select at least one employee when choosing employee delivery methods");
+
+    const due = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const questionsPayload = newSurvey.questions.map((q, index) => {
+      let questionType = "SHORT_TEXT";
+      if (q.type === "multiple_choice") questionType = "MULTIPLE_CHOICE";
+      else if (q.type === "rating") questionType = "RATING";
+      return {
+        questionText: q.question,
+        description: q.placeholder ? String(q.placeholder) : null,
+        order: index,
+        questionType,
+        options: q.type === "multiple_choice" ? q.options.filter((opt) => opt.trim()) : null,
+        isRequired: q.required !== false,
+      };
+    });
+
+    let createdId;
+    try {
+      setSavingSurvey(true);
+      const created = await feedbackSurveyAPI.createFeedbackSurvey({
+        title: newSurvey.title.trim(),
+        description: newSurvey.description.trim(),
+        dueDate: due.toISOString(),
+        questions: questionsPayload,
+      });
+      createdId = created.data?.id;
+      await loadData();
+    } catch (e) {
+      alert(e.message || "Failed to save survey");
+      setSavingSurvey(false);
       return;
-    }
-    
-    if (hasClientDelivery && selectedClientRecipients.length === 0) {
-      alert("Please select at least one client when choosing client delivery methods");
-      return;
+    } finally {
+      setSavingSurvey(false);
     }
 
-    const survey = {
-      id: Date.now(),
-      title: newSurvey.title,
-      description: newSurvey.description,
-      questions: newSurvey.questions.length,
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-      responses: 0,
-      totalEmployees: 60,
-      status: "active",
-      completed: false
-    };
-
-    setSurveys(prev => [survey, ...prev]);
-
-    // Handle delivery if options are selected
-    
     if (hasEmployeeDelivery || hasClientDelivery) {
-      const surveyLink = generateSurveyLink(survey.id);
-      let deliveryResults = [];
-      let deliverySummary = [];
-
-      // Handle employee delivery
-      if (hasEmployeeDelivery && selectedEmployeeRecipients.length > 0) {
-        const selectedEmployeeDetails = employees.filter(employee => 
-          selectedEmployeeRecipients.includes(employee.id)
-        );
-
-        // Send to employees via email if selected
-        if (deliveryOptions.employeeSendViaEmail) {
-          const employeeEmails = selectedEmployeeDetails.map(employee => employee.email);
-          for (const email of employeeEmails) {
-            const emailResult = await sendSurveyViaEmail(surveyLink, email);
-            deliveryResults.push(emailResult);
+      const surveyLink = generateSurveyLink(createdId || "new");
+      try {
+        if (hasEmployeeDelivery && selectedEmployeeRecipients.length > 0) {
+          const selectedEmployeeDetails = employees.filter((employee) =>
+            selectedEmployeeRecipients.includes(employee.id)
+          );
+          if (deliveryOptions.employeeSendViaEmail) {
+            for (const email of selectedEmployeeDetails.map((e) => e.email)) {
+              await sendSurveyViaEmail(surveyLink, email);
+            }
           }
-          deliverySummary.push(`Email to ${selectedEmployeeDetails.length} employee(s)`);
-        }
-
-        // Send to employees via WhatsApp if selected
-        if (deliveryOptions.employeeSendViaWhatsApp) {
-          const employeeWhatsApps = selectedEmployeeDetails.map(employee => employee.whatsapp);
-          for (const whatsapp of employeeWhatsApps) {
-            const whatsappResult = await sendSurveyViaWhatsApp(surveyLink, whatsapp);
-            deliveryResults.push(whatsappResult);
+          if (deliveryOptions.employeeSendViaWhatsApp) {
+            for (const w of selectedEmployeeDetails.map((e) => e.whatsapp)) {
+              await sendSurveyViaWhatsApp(surveyLink, w);
+            }
           }
-          deliverySummary.push(`WhatsApp to ${selectedEmployeeDetails.length} employee(s)`);
         }
+        if (hasClientDelivery && selectedClientRecipients.length > 0) {
+          const selectedClientDetails = clients.filter((client) =>
+            selectedClientRecipients.includes(client.id)
+          );
+          if (deliveryOptions.clientSendViaEmail) {
+            for (const email of selectedClientDetails.map((c) => c.email)) {
+              await sendSurveyViaEmail(surveyLink, email);
+            }
+          }
+          if (deliveryOptions.clientSendViaWhatsApp) {
+            for (const w of selectedClientDetails.map((c) => c.whatsapp)) {
+              await sendSurveyViaWhatsApp(surveyLink, w);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Optional delivery step failed:", e);
       }
-
-      // Handle client delivery
-      if (hasClientDelivery && selectedClientRecipients.length > 0) {
-        const selectedClientDetails = clients.filter(client => 
-          selectedClientRecipients.includes(client.id)
-        );
-
-        // Send to clients via email if selected
-        if (deliveryOptions.clientSendViaEmail) {
-          const clientEmails = selectedClientDetails.map(client => client.email);
-          for (const email of clientEmails) {
-            const emailResult = await sendSurveyViaEmail(surveyLink, email);
-            deliveryResults.push(emailResult);
-          }
-          deliverySummary.push(`Email to ${selectedClientDetails.length} client(s)`);
-        }
-
-        // Send to clients via WhatsApp if selected
-        if (deliveryOptions.clientSendViaWhatsApp) {
-          const clientWhatsApps = selectedClientDetails.map(client => client.whatsapp);
-          for (const whatsapp of clientWhatsApps) {
-            const whatsappResult = await sendSurveyViaWhatsApp(surveyLink, whatsapp);
-            deliveryResults.push(whatsappResult);
-          }
-          deliverySummary.push(`WhatsApp to ${selectedClientDetails.length} client(s)`);
-        }
-      }
-
-      // Show delivery results
-      const successCount = deliveryResults.filter(result => result.success).length;
-      const totalCount = deliveryResults.length;
-      
-      if (successCount === totalCount) {
-        alert(`Survey created successfully! Survey sent via: ${deliverySummary.join(', ')}.`);
-      } else {
-        alert(`Survey created successfully! ${successCount}/${totalCount} delivery methods succeeded.`);
-      }
-    } else {
-      alert("Survey created successfully!");
     }
+
+    setPostCreateFormPrompt({ id: createdId, title: newSurvey.title.trim() });
 
     // Reset form
     setNewSurvey({ title: '', description: '', questions: [] });
@@ -397,33 +441,23 @@ export default function FeedbacksSurvey() {
     }));
   };
 
-  const handleDeleteSurvey = () => {
-    if (selectedSurveyForDelete) {
-      setSurveys(prev => prev.filter(survey => survey.id !== selectedSurveyForDelete.id));
+  const handleDeleteSurvey = async () => {
+    if (!selectedSurveyForDelete) return;
+    try {
+      await feedbackSurveyAPI.deleteFeedbackSurvey(selectedSurveyForDelete.id);
       setShowDeleteModal(false);
       setSelectedSurveyForDelete(null);
+      await loadData();
+      alert("Survey deleted.");
+    } catch (e) {
+      alert(e.message || "Failed to delete survey");
     }
   };
 
   const handleClientSurvey = () => {
-    // Create a new client survey
-    const clientSurvey = {
-      id: Date.now(),
-      title: "Client Satisfaction Survey",
-      description: "Gather feedback from clients about our services and support",
-      questions: 8,
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days from now
-      responses: 0,
-      totalEmployees: 60,
-      status: "active",
-      completed: false,
-      type: "client"
-    };
-
-    setSurveys(prev => [clientSurvey, ...prev]);
-    
-    // Show success message
-    alert("Client Survey created successfully! It will be available for clients to complete.");
+    alert(
+      "Client-only surveys are not stored yet. Use Create Survey for org-wide surveys (saved to the server)."
+    );
   };
 
   // Delivery option handlers
@@ -599,11 +633,24 @@ export default function FeedbacksSurvey() {
     return completed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
   };
 
-  const activeCount = surveys.filter(s => s.status === 'active').length;
-  const completedCount = surveys.filter(s => s.status === 'completed').length;
-  const totalSurveys = surveys.length;
-  const totalResponses = surveys.reduce((sum, s) => sum + s.responses, 0);
-  const averageCompletionRate = surveys.length > 0 ? Math.round(surveys.reduce((sum, s) => sum + (s.responses / s.totalEmployees * 100), 0) / surveys.length) : 0;
+  const activeCount = statsSummary?.activeSurveys ?? surveys.filter((s) => s.status === "active").length;
+  const completedCount = statsSummary?.closedSurveys ?? surveys.filter((s) => s.status === "completed").length;
+  const totalSurveys = statsSummary?.totalSurveys ?? surveys.length;
+  const totalResponses =
+    statsSummary?.totalCompletedSubmissions ??
+    surveys.reduce((sum, s) => sum + (s.responses || 0), 0);
+  const averageCompletionRate =
+    statsSummary?.avgCompletionPercent ??
+    (surveys.length > 0
+      ? Math.round(
+          surveys.reduce(
+            (sum, s) =>
+              sum +
+              (s.totalEmployees > 0 ? (s.responses / s.totalEmployees) * 100 : 0),
+            0
+          ) / surveys.length
+        )
+      : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6">
@@ -622,6 +669,15 @@ export default function FeedbacksSurvey() {
             </div>
           </div>
           
+          {surveyLoadError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {surveyLoadError}
+            </div>
+          )}
+          {loadingSurveys && (
+            <div className="mb-4 text-sm text-gray-600">Loading surveys…</div>
+          )}
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -715,26 +771,29 @@ export default function FeedbacksSurvey() {
             </div>
             
             <div className="flex items-center gap-3">
-              {/* View Stats Button */}
-              <button
-                onClick={() => setShowStatsModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <ChartBarIcon className="h-5 w-5 mr-2" />
-                View Stats
-              </button>
-              
-              {/* Client Survey Button */}
-              <button
-                onClick={() => handleClientSurvey()}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <UserGroupIcon className="h-5 w-5 mr-2" />
-                Client Survey
-              </button>
-              
-              {/* Create Survey Button (Admin Only) */}
-              {isAdmin && (
+              {/* View Stats and Client Survey are admin/HR only */}
+              {canManageSurveys && (
+                <>
+                  <button
+                    onClick={() => setShowStatsModal(true)}
+                    className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <ChartBarIcon className="h-5 w-5 mr-2" />
+                    View Stats
+                  </button>
+
+                  <button
+                    onClick={() => handleClientSurvey()}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <UserGroupIcon className="h-5 w-5 mr-2" />
+                    Client Survey
+                  </button>
+                </>
+              )}
+
+              {/* Create Survey — admin/HR only (already matches backend) */}
+              {canManageSurveys && (
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -761,13 +820,15 @@ export default function FeedbacksSurvey() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
                       {survey.title}
                     </h3>
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(survey.status)}`}>
                         {survey.status}
                       </span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCompletionColor(survey.completed)}`}>
-                        {survey.completed ? 'Completed' : 'Pending'}
-                      </span>
+                      {!canManageSurveys && (
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCompletionColor(survey.completed)}`}>
+                          {survey.completed ? "Completed" : "Pending"}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 line-clamp-2">{survey.description}</p>
                   </div>
@@ -785,7 +846,11 @@ export default function FeedbacksSurvey() {
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <p className="text-sm font-bold text-gray-900">
-                      {Math.round((survey.responses / survey.totalEmployees) * 100)}%
+                      {survey.completionRatePercent != null && survey.completionRatePercent !== undefined
+                        ? `${survey.completionRatePercent}%`
+                        : survey.totalEmployees > 0
+                          ? `${Math.round((survey.responses / survey.totalEmployees) * 100)}%`
+                          : "0%"}
                     </p>
                     <p className="text-xs text-gray-600">Completion</p>
                   </div>
@@ -797,7 +862,9 @@ export default function FeedbacksSurvey() {
                     <div>
                       <p className="text-xs font-medium text-gray-600">Due Date</p>
                       <p className="text-sm font-semibold text-gray-900">
-                        {new Date(survey.dueDate).toLocaleDateString()}
+                        {survey.dueDate
+                          ? new Date(survey.dueDate).toLocaleDateString()
+                          : "—"}
                       </p>
                     </div>
                     <ClockIcon className="h-5 w-5 text-blue-600" />
@@ -810,22 +877,52 @@ export default function FeedbacksSurvey() {
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2">
-                    {!survey.completed ? (
-                      <button 
+                    {!canManageSurveys && !survey.completed && (
+                      <button
+                        type="button"
                         onClick={() => handleStartSurvey(survey)}
                         className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-200 transition-colors"
                       >
                         Start Survey
                       </button>
-                    ) : (
+                    )}
+                    {!canManageSurveys && survey.completed && (
                       <div className="flex items-center gap-1 text-green-600">
                         <CheckCircleIcon className="h-4 w-4" />
                         <span className="text-sm font-medium">Completed</span>
                       </div>
                     )}
+                    {canManageSurveys && (
+                      <div className="flex flex-wrap gap-2">
+                        {survey.status === "draft" && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/workplace/forms/${encodeURIComponent(survey.id)}/edit`)}
+                            className="px-3 py-1 bg-purple-100 text-purple-800 rounded-md text-sm font-medium hover:bg-purple-200"
+                          >
+                            Edit form
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/workplace/forms/${encodeURIComponent(survey.id)}/insights`)}
+                          className="px-3 py-1 bg-gray-100 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-200"
+                        >
+                          Insights
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/workplace/forms/${encodeURIComponent(survey.id)}/fill`)}
+                          className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-md text-sm font-medium hover:bg-indigo-200"
+                        >
+                          Preview
+                        </button>
+                        <span className="text-xs text-gray-500 self-center">Publish from editor when ready.</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {isAdmin && (
+                    {canManageSurveys && (
                       <button 
                         onClick={() => {
                           setSelectedSurveyForDelete(survey);
@@ -857,7 +954,7 @@ export default function FeedbacksSurvey() {
                 : "No surveys are currently available."
               }
             </p>
-            {isAdmin && !searchTerm && filterStatus === "all" && (
+            {canManageSurveys && !searchTerm && filterStatus === "all" && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -871,50 +968,62 @@ export default function FeedbacksSurvey() {
       </div>
 
       {/* Survey Modal */}
-      {showSurveyModal && currentSurvey && !showThankYou && (
+      {showSurveyModal && currentSurvey && !showThankYou && activeQuestions.length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{currentSurvey.title}</h2>
-                <p className="text-sm text-gray-600">Question {currentQuestion + 1} of {sampleQuestions.length}</p>
+                <p className="text-sm text-gray-600">
+                  Question {currentQuestion + 1} of {activeQuestions.length}
+                </p>
               </div>
               <button
-                onClick={() => setShowSurveyModal(false)}
+                type="button"
+                onClick={() => {
+                  setShowSurveyModal(false);
+                  setActiveQuestions([]);
+                  setAnswers({});
+                  setCurrentQuestion(0);
+                }}
                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
               >
                 ×
               </button>
             </div>
-            
-            {/* Progress Bar */}
+
             <div className="mb-6">
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((currentQuestion + 1) / sampleQuestions.length) * 100}%` }}
-                ></div>
+                  style={{
+                    width: `${((currentQuestion + 1) / activeQuestions.length) * 100}%`,
+                  }}
+                />
               </div>
             </div>
-            
-            {/* Current Question */}
+
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {sampleQuestions[currentQuestion].question}
-                {sampleQuestions[currentQuestion].required && <span className="text-red-500 ml-1">*</span>}
+                {activeQuestions[currentQuestion].question}
+                {activeQuestions[currentQuestion].required && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
               </h3>
-              
-              {/* Question Input */}
-              {sampleQuestions[currentQuestion].type === 'rating' && (
-                <div className="flex items-center gap-4">
+
+              {activeQuestions[currentQuestion].type === "rating" && (
+                <div className="flex items-center gap-4 flex-wrap">
                   {[1, 2, 3, 4, 5].map((rating) => (
                     <button
+                      type="button"
                       key={rating}
-                      onClick={() => handleAnswerChange(sampleQuestions[currentQuestion].id, rating)}
+                      onClick={() =>
+                        handleAnswerChange(activeQuestions[currentQuestion].id, String(rating))
+                      }
                       className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-semibold transition-all duration-200 ${
-                        answers[sampleQuestions[currentQuestion].id] === rating
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                        String(answers[activeQuestions[currentQuestion].id]) === String(rating)
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-gray-600 border-gray-300 hover:border-indigo-300"
                       }`}
                     >
                       {rating}
@@ -922,17 +1031,22 @@ export default function FeedbacksSurvey() {
                   ))}
                 </div>
               )}
-              
-              {sampleQuestions[currentQuestion].type === 'multiple_choice' && (
+
+              {activeQuestions[currentQuestion].type === "multiple_choice" && (
                 <div className="space-y-3">
-                  {sampleQuestions[currentQuestion].options.map((option, index) => (
-                    <label key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  {(activeQuestions[currentQuestion].options || []).map((option, index) => (
+                    <label
+                      key={index}
+                      className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
                       <input
                         type="radio"
-                        name={`question-${sampleQuestions[currentQuestion].id}`}
+                        name={`question-${activeQuestions[currentQuestion].id}`}
                         value={option}
-                        checked={answers[sampleQuestions[currentQuestion].id] === option}
-                        onChange={(e) => handleAnswerChange(sampleQuestions[currentQuestion].id, e.target.value)}
+                        checked={answers[activeQuestions[currentQuestion].id] === option}
+                        onChange={(e) =>
+                          handleAnswerChange(activeQuestions[currentQuestion].id, e.target.value)
+                        }
                         className="text-indigo-600 focus:ring-indigo-500"
                       />
                       <span className="text-gray-900">{option}</span>
@@ -940,37 +1054,40 @@ export default function FeedbacksSurvey() {
                   ))}
                 </div>
               )}
-              
-              {sampleQuestions[currentQuestion].type === 'text' && (
+
+              {activeQuestions[currentQuestion].type === "text" && (
                 <textarea
-                  value={answers[sampleQuestions[currentQuestion].id] || ''}
-                  onChange={(e) => handleAnswerChange(sampleQuestions[currentQuestion].id, e.target.value)}
-                  placeholder={sampleQuestions[currentQuestion].placeholder}
+                  value={answers[activeQuestions[currentQuestion].id] || ""}
+                  onChange={(e) =>
+                    handleAnswerChange(activeQuestions[currentQuestion].id, e.target.value)
+                  }
+                  placeholder={activeQuestions[currentQuestion].placeholder}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                 />
               )}
             </div>
-            
-            {/* Navigation Buttons */}
+
             <div className="flex justify-between">
               <button
+                type="button"
                 onClick={handlePreviousQuestion}
                 disabled={currentQuestion === 0}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   currentQuestion === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
                 Previous
               </button>
-              
+
               <button
-                onClick={handleNextQuestion}
+                type="button"
+                onClick={() => handleNextQuestion()}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
-                {currentQuestion === sampleQuestions.length - 1 ? 'Submit' : 'Next'}
+                {currentQuestion === activeQuestions.length - 1 ? "Submit" : "Next"}
               </button>
             </div>
           </div>
@@ -991,7 +1108,7 @@ export default function FeedbacksSurvey() {
       )}
 
       {/* Create Survey Modal */}
-      {showCreateModal && (
+      {showCreateModal && canManageSurveys && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
@@ -1342,7 +1459,11 @@ export default function FeedbacksSurvey() {
 
                         {/* Clients Checklist */}
                         <div className="max-h-40 overflow-y-auto border border-green-300 rounded-lg p-2 bg-white">
-                          {filteredClients.length > 0 ? (
+                          {loadingClients ? (
+                            <div className="text-center py-4 text-gray-500">Loading clients...</div>
+                          ) : clientsLoadError ? (
+                            <div className="text-center py-4 text-red-600">{clientsLoadError}</div>
+                          ) : filteredClients.length > 0 ? (
                             <div className="space-y-2">
                               {filteredClients.map((client) => (
                                 <label
@@ -1459,10 +1580,12 @@ export default function FeedbacksSurvey() {
                 Cancel
               </button>
               <button
+                type="button"
+                disabled={savingSurvey}
                 onClick={handleCreateSurvey}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Survey
+                {savingSurvey ? "Saving…" : "Create Survey"}
               </button>
             </div>
           </div>
@@ -1526,8 +1649,64 @@ export default function FeedbacksSurvey() {
         </div>
       )}
 
+      {postCreateFormPrompt && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setPostCreateFormPrompt(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Form created successfully</h2>
+            <p className="text-gray-600 mb-4">
+              Next step? The form is saved as <strong>Draft</strong>. Publish from the editor when it is ready.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                className="w-full py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+                onClick={() => {
+                  const id = postCreateFormPrompt.id;
+                  setPostCreateFormPrompt(null);
+                  navigate(`/workplace/forms/${encodeURIComponent(id)}/edit`);
+                }}
+              >
+                Create Questions
+              </button>
+              <button
+                type="button"
+                className="w-full py-2 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50"
+                onClick={() => {
+                  const id = postCreateFormPrompt.id;
+                  setPostCreateFormPrompt(null);
+                  navigate(`/workplace/forms/${encodeURIComponent(id)}/fill`);
+                }}
+              >
+                Preview Form
+              </button>
+              <button
+                type="button"
+                disabled
+                className="w-full py-2 rounded-lg bg-gray-100 text-gray-400 font-medium cursor-not-allowed"
+                title="Create a share link from the form editor (Phase 4)"
+              >
+                Share Form (after publish — share link in editor)
+              </button>
+              <button
+                type="button"
+                className="w-full py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setPostCreateFormPrompt(null)}
+              >
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedSurveyForDelete && (
+      {showDeleteModal && canManageSurveys && selectedSurveyForDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-6">

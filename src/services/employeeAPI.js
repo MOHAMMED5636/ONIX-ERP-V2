@@ -1,7 +1,6 @@
 // Employee API service for backend connection
 import { getToken } from './authAPI';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { API_BASE_URL } from '../utils/apiClient';
 
 /**
  * Get all employees
@@ -160,6 +159,208 @@ export const getEmployeeById = async (employeeId) => {
 };
 
 /**
+ * HR/Admin: audit log for employee profile updates (Employee History modal).
+ * @param {string} employeeId
+ */
+export const getEmployeeChangeHistory = async (employeeId) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No token found. Please login again.');
+    }
+    const url = `${API_BASE_URL}/employees/${employeeId}/change-history`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    const data = await response.json();
+    return {
+      success: true,
+      data: Array.isArray(data.data) ? data.data : [],
+      message: data.message,
+    };
+  } catch (error) {
+    console.error('❌ Error fetching employee change history:', error);
+    return {
+      success: false,
+      data: [],
+      message: error.message || 'Failed to fetch change history',
+    };
+  }
+};
+
+/**
+ * HR/Admin: rename attendance program label on all users using the old value (User.attendanceProgram).
+ * @param {string} from - current program name
+ * @param {string} to - new program name
+ */
+export const renameAttendanceProgram = async (from, to) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No token found. Please login again.');
+    }
+    const url = `${API_BASE_URL}/employees/rename-attendance-program`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ from: String(from).trim(), to: String(to).trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    return {
+      success: true,
+      updatedCount: typeof data.updatedCount === 'number' ? data.updatedCount : 0,
+      message: data.message,
+    };
+  } catch (error) {
+    console.error('❌ Error renaming attendance program:', error);
+    return {
+      success: false,
+      updatedCount: 0,
+      message: error.message || 'Failed to rename attendance program',
+    };
+  }
+};
+
+/**
+ * List saved attendance programs for a company (weekly schedule templates).
+ * @param {Object} params - { companyId?, companyName? }
+ */
+export const getAttendancePrograms = async (params = {}) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found. Please login again.');
+    const q = new URLSearchParams();
+    if (params.companyId && String(params.companyId).trim()) q.set('companyId', String(params.companyId).trim());
+    if (params.companyName && String(params.companyName).trim()) q.set('companyName', String(params.companyName).trim());
+    const url = `${API_BASE_URL}/employees/attendance-programs${q.toString() ? `?${q}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    return {
+      success: true,
+      data: Array.isArray(data.data) ? data.data : [],
+      message: data.message,
+    };
+  } catch (error) {
+    console.error('❌ Error loading attendance programs:', error);
+    return { success: false, data: [], message: error.message || 'Failed to load attendance programs' };
+  }
+};
+
+/**
+ * @param {Object} body - { companyId?, companyName?, name, description?, weeklySchedule }
+ */
+export const createAttendanceProgram = async (body) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found. Please login again.');
+    const response = await fetch(`${API_BASE_URL}/employees/attendance-programs`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body || {}),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    return { success: true, data: data.data, message: data.message };
+  } catch (error) {
+    console.error('❌ Error creating attendance program:', error);
+    return { success: false, data: null, message: error.message || 'Failed to create attendance program' };
+  }
+};
+
+/**
+ * @param {string} programId
+ * @param {Object} body - { companyId?, companyName?, name?, description?, weeklySchedule? }
+ */
+export const updateAttendanceProgram = async (programId, body) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found. Please login again.');
+    const id = String(programId || '').trim();
+    if (!id) throw new Error('Program id is required.');
+    const response = await fetch(`${API_BASE_URL}/employees/attendance-programs/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body || {}),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    return {
+      success: true,
+      data: data.data,
+      message: data.message,
+    };
+  } catch (error) {
+    console.error('❌ Error updating attendance program:', error);
+    return { success: false, data: null, message: error.message || 'Failed to update attendance program' };
+  }
+};
+
+/**
+ * @param {string} programId
+ * @param {Object} params - { companyId?, companyName? }
+ */
+export const deleteAttendanceProgram = async (programId, params = {}) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No token found. Please login again.');
+    const id = String(programId || '').trim();
+    if (!id) throw new Error('Program id is required.');
+    const q = new URLSearchParams();
+    if (params.companyId && String(params.companyId).trim()) q.set('companyId', String(params.companyId).trim());
+    if (params.companyName && String(params.companyName).trim()) q.set('companyName', String(params.companyName).trim());
+    const url = `${API_BASE_URL}/employees/attendance-programs/${encodeURIComponent(id)}${q.toString() ? `?${q}` : ''}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+    return { success: true, message: data.message };
+  } catch (error) {
+    console.error('❌ Error deleting attendance program:', error);
+    return { success: false, message: error.message || 'Failed to delete attendance program' };
+  }
+};
+
+/**
  * Create employee with full Employee Directory data
  * @param {Object} employeeData - Complete employee data from form (includes file attachments)
  * @param {File} photoFile - Optional photo file (can also be in employeeData.personalImage)
@@ -207,6 +408,12 @@ export const createEmployee = async (employeeData, photoFile = null) => {
       
       // Skip undefined values completely
       if (value === undefined) {
+        return;
+      }
+
+      // Send contact/email lists as one JSON field so the API receives `contacts` / `emails` (not only `contacts[0]`, which multer often leaves off `req.body.contacts`).
+      if ((key === 'contacts' || key === 'emails') && Array.isArray(value) && value.length > 0) {
+        formData.append(key, JSON.stringify(value));
         return;
       }
       
@@ -358,31 +565,58 @@ export const updateEmployee = async (employeeId, employeeData, photoFile = null)
     // File field names to skip (will be appended separately)
     const fileFields = ['photo', 'personalImage', 'passportAttachment', 'nationalIdAttachment', 
                         'residencyAttachment', 'insuranceAttachment', 'drivingLicenseAttachment', 'labourIdAttachment'];
+
+    // UI / nested blobs — do not send as JSON (breaks multipart parsing / overwrites scalars)
+    // changeReason / updateReason: append once below — duplicating in FormData makes multer expose
+    // req.body.changeReason as an array, and the API only treated strings as valid.
+    const skipTopLevelKeys = new Set([
+      'name',
+      'legal',
+      'legalDocuments',
+      'userAccount',
+      'documents',
+      'assignedProjects',
+      'changeReason',
+      'updateReason',
+    ]);
     
     // Append all employee data fields (excluding file fields)
     Object.keys(employeeData).forEach(key => {
       // Skip file fields - they'll be appended separately
-      if (fileFields.includes(key)) {
+      if (fileFields.includes(key) || skipTopLevelKeys.has(key)) {
+        return;
+      }
+
+      const val = employeeData[key];
+      if (key === 'manager' && val !== null && typeof val === 'object' && !(val instanceof File)) {
         return;
       }
       
-      if (employeeData[key] !== null && employeeData[key] !== undefined && employeeData[key] !== '') {
-        if (Array.isArray(employeeData[key])) {
+      if (val !== null && val !== undefined && val !== '') {
+        if ((key === 'contacts' || key === 'emails') && Array.isArray(val) && val.length > 0) {
+          formData.append(key, JSON.stringify(val));
+        } else if (Array.isArray(val)) {
           // Handle arrays (contacts, emails)
-          employeeData[key].forEach((item, index) => {
+          val.forEach((item, index) => {
             if (typeof item === 'object') {
               formData.append(`${key}[${index}]`, JSON.stringify(item));
             } else {
               formData.append(`${key}[${index}]`, item);
             }
           });
-        } else if (typeof employeeData[key] === 'object' && !(employeeData[key] instanceof File)) {
-          formData.append(key, JSON.stringify(employeeData[key]));
-        } else if (!(employeeData[key] instanceof File)) {
-          formData.append(key, employeeData[key]);
+        } else if (typeof val === 'object' && !(val instanceof File)) {
+          // Skip nested relation objects (e.g. stale payload from list GET)
+          return;
+        } else if (!(val instanceof File)) {
+          formData.append(key, val);
         }
       }
     });
+
+    // Clear line manager: FormData skips null; send empty string so API can disconnect managerId
+    if (Object.prototype.hasOwnProperty.call(employeeData, 'managerId') && employeeData.managerId === null) {
+      formData.append('managerId', '');
+    }
 
     // Append photo if provided (from parameter or employeeData)
     const photoToUpload = photoFile || employeeData.personalImage || employeeData.photo;
@@ -408,6 +642,13 @@ export const updateEmployee = async (employeeId, employeeData, photoFile = null)
     }
     if (employeeData.labourIdAttachment && employeeData.labourIdAttachment instanceof File) {
       formData.append('labourIdAttachment', employeeData.labourIdAttachment);
+    }
+
+    if (
+      employeeData.changeReason != null &&
+      String(employeeData.changeReason).trim() !== ''
+    ) {
+      formData.append('changeReason', String(employeeData.changeReason).trim());
     }
 
     const response = await fetch(url, {
@@ -445,6 +686,82 @@ export const updateEmployee = async (employeeId, employeeData, photoFile = null)
     return {
       success: false,
       message: error.message || 'Failed to update employee'
+    };
+  }
+};
+
+/**
+ * Add org-chart placement without changing primary department/position/jobTitle (multi-assignment).
+ * @param {string} employeeId
+ * @param {string} positionId - UUID from org Position
+ * @param {{ reason?: string }} [opts]
+ */
+export const assignEmployeeToOrgPosition = async (employeeId, positionId, opts = {}) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No token found. Please login again.');
+    }
+    const url = `${API_BASE_URL}/employees/${employeeId}/position-assignments`;
+    const body = { positionId: String(positionId).trim() };
+    if (opts.reason && String(opts.reason).trim()) {
+      body.reason = String(opts.reason).trim();
+    }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP ${response.status}`);
+    }
+    return {
+      success: true,
+      data: data.data,
+      message: data.message || 'Assigned to position',
+    };
+  } catch (error) {
+    console.error('assignEmployeeToOrgPosition error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to assign to position',
+    };
+  }
+};
+
+/**
+ * Remove an additional org-chart assignment only (primary directory fields unchanged).
+ */
+export const removeEmployeeOrgPositionAssignment = async (employeeId, positionId) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No token found. Please login again.');
+    }
+    const url = `${API_BASE_URL}/employees/${employeeId}/position-assignments/${encodeURIComponent(String(positionId).trim())}`;
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP ${response.status}`);
+    }
+    return { success: true, message: data.message || 'Removed' };
+  } catch (error) {
+    console.error('removeEmployeeOrgPositionAssignment error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to remove assignment',
     };
   }
 };
@@ -513,15 +830,17 @@ export const getEmployeeStatistics = async (params = {}) => {
 };
 
 /**
- * Delete employee (soft delete)
- * @param {string} employeeId - The employee ID
+ * Delete employee from directory.
+ * @param {string} employeeId - The employee UUID
+ * @param {{ permanent?: boolean }} [options] - permanent=true removes the user row and related data so work email / employee ID can be reused (no restore).
  * @returns {Promise} Result with success flag
  */
-export const deleteEmployee = async (employeeId) => {
+export const deleteEmployee = async (employeeId, options = {}) => {
   try {
     const token = getToken();
     if (!token) throw new Error('No token found. Please login again.');
-    const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
+    const qs = options.permanent === true ? '?permanent=true' : '';
+    const response = await fetch(`${API_BASE_URL}/employees/${employeeId}${qs}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -556,4 +875,47 @@ export const restoreEmployee = async (employeeId) => {
     console.error('Restore employee error:', error);
     return { success: false, message: error.message || 'Failed to restore employee' };
   }
+};
+
+// -------- Employee Import/Export (Excel) --------
+export const downloadEmployeeTemplate = async () => {
+  const token = getToken();
+  if (!token) throw new Error('No token found. Please login again.');
+  const response = await fetch(`${API_BASE_URL}/employees/import/template`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` },
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.blob();
+};
+
+export const importEmployeesExcel = async (file) => {
+  const token = getToken();
+  if (!token) throw new Error('No token found. Please login again.');
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/employees/import`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: form,
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
+};
+
+export const exportEmployeesExcel = async () => {
+  const token = getToken();
+  if (!token) throw new Error('No token found. Please login again.');
+  const response = await fetch(`${API_BASE_URL}/employees/export`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` },
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.blob();
 };

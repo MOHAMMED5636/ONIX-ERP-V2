@@ -1,14 +1,26 @@
 import { apiClient } from '../utils/apiClient';
 
+/** Browser local calendar date — must match check-in/out POST body so server finds the same row */
+export function getLocalDateYYYYMMDD() {
+  const y = new Date();
+  const yyyy = y.getFullYear();
+  const mm = String(y.getMonth() + 1).padStart(2, '0');
+  const dd = String(y.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /**
  * Get office location (for proximity check)
  */
 export const getOfficeLocation = () => apiClient.get('/attendance/office-location');
 
 /**
- * Get today's attendance status
+ * Get today's attendance status (uses your local calendar day so Check In/Out matches the UI)
  */
-export const getTodayAttendance = () => apiClient.get('/attendance/today');
+export const getTodayAttendance = () => {
+  const date = getLocalDateYYYYMMDD();
+  return apiClient.get(`/attendance/today?date=${encodeURIComponent(date)}`);
+};
 
 /**
  * Get attendance statistics
@@ -36,6 +48,7 @@ export const getMyAttendance = (params = {}) => {
 export const markAttendance = (type, latitude, longitude, accuracy) =>
   apiClient.post('/attendance', {
     type,
+    date: getLocalDateYYYYMMDD(),
     ...(latitude !== null && latitude !== undefined && { latitude }),
     ...(longitude !== null && longitude !== undefined && { longitude }),
     ...(accuracy !== null && accuracy !== undefined && { accuracy }),

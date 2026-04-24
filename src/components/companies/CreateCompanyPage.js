@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { createCompany, updateCompany, getCompanyById } from "../../services/companiesAPI";
+import { resolvePublicUploadUrl } from "../../utils/publicUploadUrl";
 
 export default function CreateCompanyPage() {
   const navigate = useNavigate();
@@ -370,20 +371,12 @@ export default function CreateCompanyPage() {
     return null;
   };
 
-  // Helper function to get image URL for display
+  // Helper function to get image URL for display (paths like /uploads/companies/... live on API host, not under /api)
   const getImageUrl = (file) => {
     if (!file) return null;
-    // If it's a string (URL), return it
     if (typeof file === 'string') {
-      // If it's already a full URL, return as is
-      if (file.startsWith('http://') || file.startsWith('https://')) {
-        return file;
-      }
-      // If it's a relative path, construct full URL
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      return `${baseUrl}${file}`;
+      return resolvePublicUploadUrl(file);
     }
-    // If it's a File object, create object URL for preview
     if (file instanceof File) {
       return URL.createObjectURL(file);
     }

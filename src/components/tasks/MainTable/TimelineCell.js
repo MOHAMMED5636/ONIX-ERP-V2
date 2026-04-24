@@ -1,219 +1,44 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { DateRange } from 'react-date-range';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import 'react-date-range/dist/styles.css';
-import 'react-date-range/dist/theme/default.css';
 
 const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const buttonRef = useRef(null);
-  const modalRef = useRef(null);
-  const navigate = useNavigate();
-  
-  
+  const [fromDate, setFromDate] = useState(
+    value?.[0] ? new Date(value[0]).toISOString().slice(0, 10) : ''
+  );
+  const [toDate, setToDate] = useState(
+    value?.[1] ? new Date(value[1]).toISOString().slice(0, 10) : ''
+  );
+
   const start = value?.[0] ? new Date(value[0]) : null;
   const end = value?.[1] ? new Date(value[1]) : null;
-  
-  // Safety check for onChange function
-  const handleChange = (newValue) => {
-    if (typeof onChange === 'function') {
-      onChange(newValue);
-    }
-  };
-  
-  // Handle button click
-  const handleButtonClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowPicker(true);
-  };
-  
-  // Handle backdrop click
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      setShowPicker(false);
-    }
-  };
-  
-  // Handle escape key and keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && showPicker) {
-        setShowPicker(false);
-      }
-      
-      // Ctrl+K to focus search when modal is open
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && showPicker) {
-        e.preventDefault();
-        const searchInput = document.querySelector('input[placeholder*="Search tasks"]');
-        if (searchInput) {
-          searchInput.focus();
-        }
-      }
-    };
-    
-    if (showPicker) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [showPicker]);
-  
-  // Handle click outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showPicker && 
-          modalRef.current && 
-          !modalRef.current.contains(event.target) && 
-          buttonRef.current && 
-          !buttonRef.current.contains(event.target)) {
-        setShowPicker(false);
-      }
-    };
-    
-    if (showPicker) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [showPicker]);
-  
-  // Render modal using portal
-  const renderModal = () => {
-    if (!showPicker) return null;
-    
-    return createPortal(
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-fadeIn">
-        {/* Backdrop */}
-        <div 
-          className="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm"
-          onClick={handleBackdropClick}
-        />
-        
-        {/* Modal */}
-        <div 
-          ref={modalRef}
-          className="relative bg-white border-0 rounded-2xl shadow-2xl max-w-sm w-full mx-4 transform transition-all duration-300 animate-scaleIn"
-          style={{
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)'
-          }}
-        >
-          {/* Header */}
-          <div 
-            className="p-4 rounded-t-2xl border-b border-gray-100"
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                <span className="font-semibold text-white text-sm">
-                  Timeline
-                </span>
-              </div>
-              <button 
-                onClick={() => setShowPicker(false)}
-                className="text-white hover:text-gray-200 text-xl font-bold transition-all duration-200 hover:scale-110 hover:bg-white hover:bg-opacity-20 rounded-full w-6 h-6 flex items-center justify-center"
-                type="button"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-          
-          {/* Date Range Section */}
-          <div className="p-4 border-b border-gray-100">
 
-          </div>
-          
-          {/* Calendar */}
-          <div className="p-4">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
-              <DateRange
-                ranges={[{
-                  startDate: start || new Date(),
-                  endDate: end || new Date(),
-                  key: 'selection'
-                }]}
-                onChange={ranges => {
-                  const { startDate, endDate } = ranges.selection;
-                  handleChange([startDate, endDate]);
-                }}
-                moveRangeOnFirstSelection={false}
-                rangeColors={['#667eea']}
-                showMonthAndYearPickers={true}
-                editableDateInputs={false}
-                preventSnapRefocus={true}
-                calendarFocus="forwards"
-                dragSelectionEnabled={true}
-                className="custom-date-range"
-              />
-            </div>
-          </div>
-          
-          {/* Footer */}
-          <div 
-            className="p-4 rounded-b-2xl"
-            style={{
-              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-            }}
-          >
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                <span className="text-xs text-gray-600 font-medium">
-                  Click and drag to select a date range
-                </span>
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-              </div>
-              
-              {start && end && (
-                <div 
-                  className="bg-white rounded-xl p-3 border-0 shadow-lg transform transition-all duration-300 hover:scale-105"
-                  style={{
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
-                    boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.05)'
-                  }}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="text-blue-600 font-semibold text-sm">
-                      {format(start, 'MMM d, yyyy')} – {format(end, 'MMM d, yyyy')}
-                    </div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
+  const handleSave = () => {
+    if (!fromDate || !toDate) {
+      setShowPicker(false);
+      return;
+    }
+    const startDate = new Date(fromDate);
+    const endDate = new Date(toDate);
+    if (typeof onChange === 'function') {
+      onChange([startDate, endDate]);
+    }
+    setShowPicker(false);
   };
   
   return (
     <div className="relative inline-block">
       <button
-        ref={buttonRef}
         className={`inline-block px-3 py-1 rounded-full text-xs font-bold transition ${
           hasPredecessors 
             ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300' 
             : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
         }`}
-        onClick={handleButtonClick}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowPicker(true);
+        }}
         title={hasPredecessors ? 'Timeline calculated from predecessors' : 'Open timeline & filters'}
       >
         {start && end
@@ -223,8 +48,70 @@ const TimelineCell = ({ value, onChange, hasPredecessors = false }) => {
           <span className="ml-1 text-xs">🔗</span>
         )}
       </button>
-      
-      {renderModal()}
+      {showPicker && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-semibold text-gray-800">Timeline</h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600 text-xl"
+                onClick={() => setShowPicker(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                />
+              </div>
+            </div>
+            {fromDate && toDate && (
+              <div className="mb-4 text-xs text-gray-600">
+                Selected:&nbsp;
+                <span className="font-semibold">
+                  {format(new Date(fromDate), 'MMM d, yyyy')} – {format(new Date(toDate), 'MMM d, yyyy')}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-3 py-1 text-xs rounded-md border border-gray-300 text-gray-700"
+                onClick={() => setShowPicker(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                onClick={handleSave}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -23,6 +23,15 @@ const demoSubDepartments = {
   ]
 };
 
+/** Map UI or API status to Prisma enum for create/update. */
+function toSubDepartmentStatusApi(value) {
+  const s = String(value ?? '').trim();
+  const u = s.toUpperCase();
+  if (u === 'ACTIVE' || s === 'Active') return 'ACTIVE';
+  if (u === 'INACTIVE' || s === 'Inactive') return 'INACTIVE';
+  return 'ACTIVE';
+}
+
 // Department names mapping
 const departmentNames = {
   "board-of-directors": "Board of Directors",
@@ -165,7 +174,7 @@ export default function SubDepartmentsPage() {
         const subDeptData = {
           name: newSubDepartment.name,
           description: newSubDepartment.description,
-          status: newSubDepartment.status === 'Active' ? 'ACTIVE' : 'INACTIVE',
+          status: toSubDepartmentStatusApi(newSubDepartment.status),
           managerId: newSubDepartment.managerId || null,
           location: newSubDepartment.location || null,
           budget: newSubDepartment.budget || null,
@@ -244,7 +253,7 @@ export default function SubDepartmentsPage() {
         const subDeptData = {
           name: editSubDepartment.name,
           description: editSubDepartment.description,
-          status: editSubDepartment.status === 'Active' ? 'ACTIVE' : 'INACTIVE',
+          status: toSubDepartmentStatusApi(editSubDepartment.status),
           managerId: editSubDepartment.managerId || null,
           location: editSubDepartment.location || null,
           budget: editSubDepartment.budget || null,
@@ -920,7 +929,20 @@ export default function SubDepartmentsPage() {
                   </div>
                 </div>
 
-                
+                <div className="group">
+                  <label className="block font-semibold mb-2 text-gray-800 text-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-emerald-600 rounded-full"></div>
+                    Status
+                  </label>
+                  <select
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 transition-all duration-200 text-sm bg-white shadow-sm appearance-none"
+                    value={newSubDepartment.status}
+                    onChange={(e) => setNewSubDepartment((f) => ({ ...f, status: e.target.value }))}
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
 
               {/* Enhanced Action Buttons */}

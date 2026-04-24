@@ -4,7 +4,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useCompanySelection } from '../context/CompanySelectionContext';
 import { getCompanyDepartments, createDepartment, updateDepartment, deleteDepartment } from '../services/departmentAPI';
-import { getEmployees } from '../services/employeeAPI';
+import { getEmployees, getEmployeeStatistics } from '../services/employeeAPI';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Departments() {
@@ -27,6 +27,11 @@ export default function Departments() {
   const [error, setError] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  /** Company-wide active employee total (DB); not affected by department search filter */
+  const [companyEmployeeTotal, setCompanyEmployeeTotal] = useState(null);
+  const [companyEmployeeCountError, setCompanyEmployeeCountError] = useState(false);
+  /** Optional Active / Inactive from statistics API */
+  const [employeeBreakdown, setEmployeeBreakdown] = useState(null);
   const { selectedDepartment: contextSelectedDepartment, selectDepartment } = useCompanySelection();
 
   // Get selected company from navigation state or URL params
@@ -78,6 +83,10 @@ export default function Departments() {
   useEffect(() => {
     if (selectedCompany?.id) {
       loadDepartments();
+    } else {
+      setCompanyEmployeeTotal(null);
+      setCompanyEmployeeCountError(false);
+      setEmployeeBreakdown(null);
     }
   }, [selectedCompany?.id]);
 
@@ -91,11 +100,44 @@ export default function Departments() {
     try {
       setLoading(true);
       setError(null);
+      setCompanyEmployeeCountError(false);
       console.log('📡 Loading departments for company:', selectedCompany.id);
       
       const response = await getCompanyDepartments(selectedCompany.id);
       
       if (response.success && response.data) {
+        // Total active employees for this company (same rules as Employee Directory)
+        let total = null;
+        if (
+          response.companyEmployeeSummary &&
+          typeof response.companyEmployeeSummary.activeTotal === 'number'
+        ) {
+          total = response.companyEmployeeSummary.activeTotal;
+        } else {
+          const empRes = await getEmployees({ companyId: selectedCompany.id, limit: 1 });
+          if (
+            empRes.success &&
+            empRes.pagination &&
+            typeof empRes.pagination.total === 'number'
+          ) {
+            total = empRes.pagination.total;
+          }
+        }
+        setCompanyEmployeeTotal(total);
+        setCompanyEmployeeCountError(total === null);
+
+        // Optional Active / Inactive breakdown (non-blocking)
+        getEmployeeStatistics({ companyId: selectedCompany.id }).then((statsRes) => {
+          if (statsRes.success && statsRes.data) {
+            setEmployeeBreakdown({
+              active: statsRes.data.activeEmployees ?? statsRes.data.totalEmployees ?? 0,
+              inactive: statsRes.data.inactiveEmployees ?? 0,
+            });
+          } else {
+            setEmployeeBreakdown(null);
+          }
+        });
+
         // Extract company information from the first department's response (all departments belong to same company)
         // This ensures company data comes from the database, not localStorage
         if (response.data.length > 0 && response.data[0].company) {
@@ -136,7 +178,10 @@ export default function Departments() {
             name: dept.name,
             description: dept.description || '',
             manager: managerName,
-            employees: dept.employees?.length || 0,
+            employees:
+              typeof dept.activeEmployeeCount === 'number'
+                ? dept.activeEmployeeCount
+                : dept.employees?.length || 0,
             departmentId: dept.id, // Use department ID for navigation
             status: dept.status,
             managerId: dept.managerId,
@@ -149,11 +194,17 @@ export default function Departments() {
         console.log('✅ Departments with managers:', transformedDepartments.filter(d => d.manager !== 'No Manager'));
       } else {
         setDepartments([]);
+        setCompanyEmployeeTotal(null);
+        setCompanyEmployeeCountError(true);
+        setEmployeeBreakdown(null);
       }
     } catch (err) {
       console.error('❌ Error loading departments:', err);
       setError(err.message || 'Failed to load departments');
       setDepartments([]);
+      setCompanyEmployeeTotal(null);
+      setCompanyEmployeeCountError(true);
+      setEmployeeBreakdown(null);
     } finally {
       setLoading(false);
     }
@@ -406,8 +457,23 @@ export default function Departments() {
                 </div>
               </div>
               <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
-                <div className="text-white text-2xl font-bold">{filteredDepartments.reduce((sum, dept) => sum + dept.employees, 0)}</div>
+                <div className="text-white text-2xl font-bold min-h-[2rem] flex flex-col justify-center">
+                  {companyEmployeeCountError ? (
+                    <span className="text-sm font-semibold text-blue-100 leading-snug">
+                      Unable to load employee count
+                    </span>
+                  ) : loading && companyEmployeeTotal === null ? (
+                    <span className="text-lg opacity-80">…</span>
+                  ) : (
+                    companyEmployeeTotal ?? '—'
+                  )}
+                </div>
                 <div className="text-blue-100 text-sm">Total Employees</div>
+                {!companyEmployeeCountError && employeeBreakdown != null && (
+                  <div className="text-blue-200 text-xs mt-1 opacity-90">
+                    Active {employeeBreakdown.active} · Inactive {employeeBreakdown.inactive}
+                  </div>
+                )}
               </div>
               <div className="bg-white bg-opacity-10 rounded-2xl p-4 backdrop-blur-sm">
                 <div className="text-white text-2xl font-bold">{filteredDepartments.length}</div>

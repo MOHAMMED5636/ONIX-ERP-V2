@@ -73,12 +73,9 @@ const ProjectRow = ({
       case "task":
         return (
           <input
-            className={`border rounded px-2 py-1 text-sm font-bold text-gray-900 border-b-4 border-blue-500 ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className="border rounded px-2 py-1 text-sm font-bold text-gray-900 border-b-4 border-blue-500"
             value={row.name}
-            onChange={e => !isEmployee && onEdit("name", e.target.value)}
-            disabled={isEmployee}
-            readOnly={isEmployee}
-            title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : ""}
+            onChange={e => onEdit("name", e.target.value)}
           />
         );
       case "referenceNumber":
@@ -87,23 +84,20 @@ const ProjectRow = ({
         return (
           <div className="flex flex-col">
             <input
-              className={`border rounded px-2 py-1 text-sm w-full ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
               value={displayRef}
-              onChange={e => !isEmployee && onEdit("referenceNumber", e.target.value)}
-              disabled={isEmployee}
-              readOnly={isEmployee}
-              title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : `Reference: ${displayRef || 'N/A'}`}
+              readOnly={true}
+              disabled={true}
+              title="Reference number is not editable"
             />
           </div>
         );
       case "category":
         return (
           <select
-            className={`border rounded px-2 py-1 text-sm ${isEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+            className="border rounded px-2 py-1 text-sm"
             value={row.category || "Design"}
-            onChange={e => !isEmployee && onEdit("category", e.target.value)}
-            disabled={isEmployee}
-            title={isEmployee ? "You can only view tasks assigned to you. Contact your project manager to modify." : ""}
+            onChange={e => onEdit("category", e.target.value)}
           >
             <option value="Design">Design</option>
             <option value="Development">Development</option>

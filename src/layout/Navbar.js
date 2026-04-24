@@ -1,17 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
-import { UserCircleIcon, GlobeAltIcon, MagnifyingGlassIcon, ArrowRightOnRectangleIcon, ChatBubbleLeftRightIcon, Bars3Icon, BellIcon, XMarkIcon, UserPlusIcon, ExclamationCircleIcon, CogIcon, UsersIcon, DocumentTextIcon, CalendarIcon, BoltIcon } from "@heroicons/react/24/outline";
+import { UserCircleIcon, GlobeAltIcon, MagnifyingGlassIcon, ArrowRightOnRectangleIcon, ChatBubbleLeftRightIcon, Bars3Icon, BellIcon, XMarkIcon, UserPlusIcon, ExclamationCircleIcon, CogIcon, UsersIcon, DocumentTextIcon, CalendarIcon, BoltIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
 import NotificationDropdown from "../components/NotificationDropdown";
 import { useAuth } from "../contexts/AuthContext";
+import { useWelcomeBannerExtras } from "../context/WelcomeBannerExtrasContext";
+import { resolveProfilePhotoUrl } from "../utils/profilePhotoUrl";
 
 export default function Navbar({ onMenuToggle }) {
   const { lang, toggleLanguage, t } = useLanguage();
   const navigate = useNavigate();
   const { user, logout: handleLogout } = useAuth();
+  const { welcomeBannerDismissed, restoreWelcomeBanner } = useWelcomeBannerExtras();
   const [showSearch, setShowSearch] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const showNavbarSearch = user?.role !== "MANAGER" && user?.role !== "PROJECT_MANAGER";
 
   // Enhanced notifications data
   const notifications = [];
@@ -75,29 +79,9 @@ export default function Navbar({ onMenuToggle }) {
     return roleMap[user.role] || user.role;
   };
 
-  // Helper function to get photo URL with cache busting
-  const getPhotoUrl = (photo) => {
-    if (!photo) return null;
-    let fullUrl;
-    if (photo.startsWith('http://') || photo.startsWith('https://')) {
-      fullUrl = photo;
-    } else if (photo.startsWith('/uploads/')) {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
-      fullUrl = `${backendUrl}${photo}`;
-    } else {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
-      fullUrl = `${backendUrl}/uploads/photos/${photo}`;
-    }
-    // Add cache busting timestamp to force browser to reload image
-    const separator = fullUrl.includes('?') ? '&' : '?';
-    return `${fullUrl}${separator}t=${Date.now()}`;
-  };
+  const userPhotoUrl = user?.photo ? resolveProfilePhotoUrl(user.photo) : null;
 
   // Dynamic user profile data (fallback to defaults if user not loaded)
-  console.log('[Navbar] user object:', user);
-  console.log('[Navbar] user?.photo:', user?.photo);
-  const userPhotoUrl = user?.photo ? getPhotoUrl(user.photo) : null;
-  console.log('[Navbar] Final userPhotoUrl:', userPhotoUrl);
   const admin = user ? {
     name: getUserDisplayName(),
     jobTitle: user.jobTitle || getRoleDisplayName(),
@@ -189,50 +173,65 @@ export default function Navbar({ onMenuToggle }) {
         >
           <Bars3Icon className="h-6 w-6 text-indigo-500" />
         </button>
+        {/* Mobile title (match Employee ERP header) */}
+        <span className="lg:hidden font-semibold text-slate-800">ERP</span>
+        {welcomeBannerDismissed && (
+          <button
+            type="button"
+            onClick={restoreWelcomeBanner}
+            className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 whitespace-nowrap ml-1 px-2 py-1 rounded-lg hover:bg-indigo-50"
+            title={lang === "ar" ? "إظهار شريط الترحيب" : "Show welcome banner again"}
+          >
+            <SparklesIcon className="h-4 w-4 shrink-0" aria-hidden />
+            {lang === "ar" ? "الترحيب" : "Welcome bar"}
+          </button>
+        )}
       </div>
 
-      {/* Center section: Search bar */}
-      <div className="flex-1 min-w-0 flex justify-center items-center max-w-md mx-4">
-        {/* Mobile search toggle */}
-        <button
-          onClick={() => setShowSearch(!showSearch)}
-          className="lg:hidden p-2 focus:outline-none hover:bg-indigo-50 rounded-lg"
-          aria-label="Toggle search"
-        >
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-500" />
-        </button>
-        {/* Desktop search */}
-        <div className="hidden lg:flex relative w-full max-w-sm">
-          <div className="relative w-full">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center bg-gradient-to-br from-indigo-400 to-cyan-400 text-white rounded-full h-8 w-8 shadow search-pop">
-              <MagnifyingGlassIcon className="h-5 w-5" />
-            </span>
-            <input
-              type="text"
-              placeholder={lang === "ar" ? "بحث..." : "Search..."}
-              className="w-full pl-12 pr-4 py-2 rounded-2xl glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 border border-indigo-100 focus:ring-2 focus:ring-indigo-300 focus:outline-none text-sm shadow search-pop transition-all duration-200 focus:border-cyan-400 hover:shadow-lg"
-              dir={lang}
-            />
-          </div>
-        </div>
-        {/* Mobile search dropdown */}
-        {showSearch && (
-          <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 p-4 lg:hidden z-50">
-            <div className="relative">
+      {/* Center section: Search bar (hide for Manager/PM as requested) */}
+      {showNavbarSearch && (
+        <div className="flex-1 min-w-0 flex justify-center items-center max-w-md mx-4">
+          {/* Mobile search toggle */}
+          <button
+            onClick={() => setShowSearch(!showSearch)}
+            className="lg:hidden p-2 focus:outline-none hover:bg-indigo-50 rounded-lg"
+            aria-label="Toggle search"
+          >
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-500" />
+          </button>
+          {/* Desktop search */}
+          <div className="hidden lg:flex relative w-full max-w-sm">
+            <div className="relative w-full">
               <span className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center bg-gradient-to-br from-indigo-400 to-cyan-400 text-white rounded-full h-8 w-8 shadow search-pop">
                 <MagnifyingGlassIcon className="h-5 w-5" />
               </span>
               <input
                 type="text"
                 placeholder={lang === "ar" ? "بحث..." : "Search..."}
-                className="w-full pl-12 pr-4 py-3 rounded-2xl glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 border border-indigo-100 focus:ring-2 focus:ring-indigo-300 focus:outline-none text-sm shadow search-pop transition-all duration-200 focus:border-cyan-400 hover:shadow-lg"
+                className="w-full pl-12 pr-4 py-2 rounded-2xl glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 border border-indigo-100 focus:ring-2 focus:ring-indigo-300 focus:outline-none text-sm shadow search-pop transition-all duration-200 focus:border-cyan-400 hover:shadow-lg"
                 dir={lang}
-                autoFocus
               />
             </div>
           </div>
-        )}
-      </div>
+          {/* Mobile search dropdown */}
+          {showSearch && (
+            <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 p-4 lg:hidden z-50">
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center bg-gradient-to-br from-indigo-400 to-cyan-400 text-white rounded-full h-8 w-8 shadow search-pop">
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                </span>
+                <input
+                  type="text"
+                  placeholder={lang === "ar" ? "بحث..." : "Search..."}
+                  className="w-full pl-12 pr-4 py-3 rounded-2xl glass-card bg-gradient-to-br from-indigo-50 via-white to-cyan-50 border border-indigo-100 focus:ring-2 focus:ring-indigo-300 focus:outline-none text-sm shadow search-pop transition-all duration-200 focus:border-cyan-400 hover:shadow-lg"
+                  dir={lang}
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <style>{`
         .search-pop { transition: box-shadow 0.3s, border 0.3s, background 0.3s; }
         .search-pop:focus-within, .search-pop:focus, .search-pop:hover { box-shadow: 0 0 0 2px #38bdf8, 0 2px 8px 0 #a5b4fc33; }
@@ -337,10 +336,7 @@ export default function Navbar({ onMenuToggle }) {
                     src={userPhotoUrl} 
                     alt={admin.name} 
                     className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-indigo-200 shadow object-cover"
-                    onLoad={() => console.log('[Navbar Admin Modal] Photo loaded successfully:', userPhotoUrl)}
                     onError={(e) => {
-                      console.error('[Navbar Admin Modal] Photo failed to load:', userPhotoUrl);
-                      // Fallback to avatar generator if image fails
                       e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=6366f1&color=fff`;
                     }}
                   />

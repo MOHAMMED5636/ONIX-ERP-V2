@@ -1,15 +1,209 @@
-import React, { useState, createContext, useContext, useEffect } from "react";
-import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon, TrashIcon, ArrowPathIcon, KeyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import React, { useState, createContext, useContext, useEffect, useMemo, useCallback } from "react";
+import { UserIcon, EnvelopeIcon, PhoneIcon, BriefcaseIcon, MapPinIcon, IdentificationIcon, DocumentPlusIcon, CheckCircleIcon, CalendarIcon, AcademicCapIcon, UsersIcon, ClipboardDocumentListIcon, ArrowLeftIcon, CheckIcon, Cog6ToothIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ClockIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon, CalculatorIcon, TrashIcon, ArrowPathIcon, KeyIcon, EyeIcon, EyeSlashIcon, PencilSquareIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useCompanySelection } from '../context/CompanySelectionContext';
 import { useAuth } from '../contexts/AuthContext';
-import { getEmployees, getEmployeeStatistics, createEmployee, updateEmployee, deleteEmployee, restoreEmployee, checkEmployeeAvailability } from '../services/employeeAPI';
+import { getEmployees, getEmployeeById, getEmployeeChangeHistory, getEmployeeStatistics, createEmployee, updateEmployee, deleteEmployee, restoreEmployee, checkEmployeeAvailability, getAttendancePrograms, createAttendanceProgram, updateAttendanceProgram, deleteAttendanceProgram, assignEmployeeToOrgPosition, downloadEmployeeTemplate, importEmployeesExcel, exportEmployeesExcel } from '../services/employeeAPI';
 import { getCompanies } from '../services/companiesAPI';
-import { getCompanyDepartments } from '../services/departmentAPI';
+import { getCompanyDepartments, getAllPositions, updatePosition } from '../services/departmentAPI';
 import SetPasswordModal from '../components/SetPasswordModal';
+import { API_BASE_URL } from '../utils/apiClient';
+
+/** When the API has no positions yet, or the user lacks HR access — local-only rows use string ids starting with "local-". */
+const FALLBACK_JOB_TITLE_ROWS = [
+  { title: 'Manager', department: 'All', description: 'Management role' },
+  { title: 'Developer', department: 'IT', description: 'Software development' },
+  { title: 'Accountant', department: 'Finance', description: 'Financial management' },
+  { title: 'Sales Rep', department: 'Sales', description: 'Sales and marketing' },
+];
+
+function buildFallbackJobTitlesList() {
+  return FALLBACK_JOB_TITLE_ROWS.map((x, i) => ({
+    ...x,
+    id: `local-fallback-${i + 1}`,
+    fromApi: false,
+  }));
+}
+
+/** Job title is assignable only when position + sub-department + parent department are ACTIVE (API rows). */
+function isAssignableOrgPosition(job) {
+  if (!job || !job.fromApi) return true;
+  return (
+    job.positionStatus === 'ACTIVE' &&
+    job.subDepartmentStatus === 'ACTIVE' &&
+    job.departmentStatus === 'ACTIVE'
+  );
+}
+
+/**
+ * Options for employee job-title selects: active org path only, plus current value if it sits on an inactive path
+ * (disabled) or is a legacy free-text title not in the catalog.
+ */
+function buildJobTitlePickerOptions(jobTitles, currentValue) {
+  const list = Array.isArray(jobTitles) ? jobTitles : [];
+  const cur = (currentValue || '').trim();
+  const assignable = list.filter(isAssignableOrgPosition);
+  const assignableValues = new Set(
+    assignable.map((j) => (j.title || j.name || '').trim()).filter(Boolean)
+  );
+  const out = [];
+  if (cur && !assignableValues.has(cur)) {
+    const apiRow = list.find((j) => (j.title || j.name || '').trim() === cur);
+    if (apiRow && !isAssignableOrgPosition(apiRow)) {
+      out.push({ ...apiRow, _inactiveOrgPath: true });
+    } else if (!apiRow) {
+      out.push({ id: `legacy-title-${cur}`, title: cur, name: cur, fromApi: false });
+    }
+  }
+  out.push(...assignable);
+  return out;
+}
+
+/** Attendance program: Mon–Sun schedule; templates are stored per company on the server; employees keep program name on their record. */
+const ATT_WEEKDAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const ATT_WEEKDAY_LABELS = {
+  mon: 'Monday',
+  tue: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+  sun: 'Sunday',
+};
+
+function attWeekRow(enabled, clockIn = '09:00', clockOut = '17:00') {
+  return { enabled: Boolean(enabled), clockIn, clockOut };
+}
+
+function createDefaultWeeklySchedule() {
+  return {
+    mon: attWeekRow(true),
+    tue: attWeekRow(true),
+    wed: attWeekRow(true),
+    thu: attWeekRow(true),
+    fri: attWeekRow(true),
+    sat: attWeekRow(false),
+    sun: attWeekRow(false),
+  };
+}
+
+function mergeWeeklySchedule(raw) {
+  const base = createDefaultWeeklySchedule();
+  if (!raw || typeof raw !== 'object') return base;
+  const out = { ...base };
+  for (const k of ATT_WEEKDAY_ORDER) {
+    const r = raw[k];
+    if (r && typeof r === 'object') {
+      out[k] = {
+        enabled: Boolean(r.enabled),
+        clockIn: String(r.clockIn ?? '09:00').slice(0, 5),
+        clockOut: String(r.clockOut ?? '17:00').slice(0, 5),
+      };
+    }
+  }
+  return out;
+}
+
+function formatWeeklyScheduleSummary(schedule) {
+  const s = mergeWeeklySchedule(schedule);
+  return ATT_WEEKDAY_ORDER.map((key) => {
+    const d = s[key];
+    const short = ATT_WEEKDAY_LABELS[key].slice(0, 3);
+    if (!d.enabled) return `${short} off`;
+    return `${short} ${d.clockIn}–${d.clockOut}`;
+  }).join(' · ');
+}
+
+function validateWeeklySchedule(schedule) {
+  const s = mergeWeeklySchedule(schedule);
+  let workDays = 0;
+  for (const key of ATT_WEEKDAY_ORDER) {
+    const d = s[key];
+    if (d.enabled) {
+      workDays += 1;
+      const cin = (d.clockIn || '').trim();
+      const cout = (d.clockOut || '').trim();
+      if (!cin || !cout) {
+        return {
+          ok: false,
+          message: `Set clock-in and clock-out for ${ATT_WEEKDAY_LABELS[key]} (or turn that day OFF).`,
+        };
+      }
+    }
+  }
+  if (workDays === 0) {
+    return { ok: false, message: 'Turn at least one day ON and set its clock-in and clock-out times.' };
+  }
+  return { ok: true };
+}
+
+function attendanceProgramSearchText(p) {
+  const sched = formatWeeklyScheduleSummary(p.weeklySchedule);
+  return [p.name, p.hours, p.description, sched].filter(Boolean).join(' ').toLowerCase();
+}
+
+function AttendanceWeeklyScheduleEditor({ value, onChange, disabled }) {
+  const s = mergeWeeklySchedule(value);
+  const setDay = (key, patch) => {
+    if (disabled) return;
+    onChange({ ...s, [key]: { ...s[key], ...patch } });
+  };
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/40 overflow-hidden">
+      <div className="px-3 py-2 border-b border-slate-200 bg-slate-100/80">
+        <p className="text-xs font-medium text-slate-700">Weekly schedule</p>
+        <p className="text-[11px] text-slate-500 mt-0.5">OFF = non-working day. ON = required clock-in / clock-out.</p>
+      </div>
+      <ul className="divide-y divide-slate-100 list-none m-0 p-0 max-h-[min(52vh,340px)] overflow-y-auto">
+        {ATT_WEEKDAY_ORDER.map((key) => {
+          const d = s[key];
+          const on = d.enabled;
+          return (
+            <li key={key} className="px-2.5 py-2 sm:px-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[7.5rem_4rem_1fr_1fr] gap-2 sm:gap-2 sm:items-center">
+                <span className="text-xs font-medium text-slate-800 sm:pt-0 pt-1">{ATT_WEEKDAY_LABELS[key]}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  disabled={disabled}
+                  onClick={() => setDay(key, { enabled: !on })}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 disabled:opacity-50 ${
+                    on ? 'bg-emerald-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                      on ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                  <span className="sr-only">{on ? 'ON' : 'OFF'}</span>
+                </button>
+                <input
+                  type="time"
+                  value={d.clockIn}
+                  disabled={disabled || !on}
+                  onChange={(e) => setDay(key, { clockIn: e.target.value })}
+                  className="w-full min-w-0 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white disabled:opacity-45 disabled:cursor-not-allowed"
+                />
+                <input
+                  type="time"
+                  value={d.clockOut}
+                  disabled={disabled || !on}
+                  onChange={(e) => setDay(key, { clockOut: e.target.value })}
+                  className="w-full min-w-0 px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white disabled:opacity-45 disabled:cursor-not-allowed"
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 // Custom styles for PhoneInput integration
 const phoneInputStyles = `
@@ -59,6 +253,327 @@ const phoneInputStyles = `
     color: white !important;
   }
 `;
+
+/** ISO or Date → yyyy-mm-dd for <input type="date" /> */
+function toDateInputString(value) {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'string') {
+    const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+function normalizeGenderSelectValue(raw) {
+  if (!raw) return '';
+  const s = String(raw).toLowerCase();
+  return GENDER_OPTIONS.find((o) => o.toLowerCase() === s) || raw;
+}
+
+const MARITAL_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed'];
+function normalizeMaritalSelectValue(raw) {
+  if (!raw) return '';
+  const s = String(raw).toLowerCase();
+  return MARITAL_OPTIONS.find((o) => o.toLowerCase() === s) || raw;
+}
+
+const STATUS_OPTIONS = ['Active', 'Inactive', 'On Leave', 'Terminated'];
+function normalizeStatusSelectValue(raw, isActive) {
+  if (raw && raw !== 'N/A') {
+    const s = String(raw).toLowerCase();
+    const found = STATUS_OPTIONS.find((o) => o.toLowerCase() === s);
+    if (found) return found;
+    if (s === 'active') return 'Active';
+    if (s === 'inactive') return 'Inactive';
+  }
+  if (isActive === false) return 'Inactive';
+  return 'Active';
+}
+
+const EMPLOYEE_TYPE_EDIT_OPTIONS = [
+  { value: 'permanent', label: 'Permanent' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'intern', label: 'Intern' },
+];
+function normalizeEmployeeTypeSelectValue(raw) {
+  if (!raw || raw === 'N/A') return '';
+  const s = String(raw).toLowerCase();
+  const legacy = { 'full-time': 'permanent', 'part-time': 'contract' };
+  const v = legacy[s] || s;
+  if (EMPLOYEE_TYPE_EDIT_OPTIONS.some((o) => o.value === v)) return v;
+  return raw;
+}
+
+function backendOriginForUploads() {
+  const explicit =
+    typeof process !== 'undefined' && process.env.REACT_APP_BACKEND_URL
+      ? String(process.env.REACT_APP_BACKEND_URL).trim()
+      : '';
+  if (explicit) return explicit.replace(/\/$/, '');
+  const base = String(API_BASE_URL || 'http://localhost:3001/api').replace(/\/$/, '');
+  const stripped = base.replace(/\/api(\/v\d+)?$/i, '');
+  return stripped || 'http://localhost:3001';
+}
+
+/**
+ * Employee JSON often has `/uploads/documents/...` (relative to API server).
+ * Opening that path on the React dev server 404s — prefix the API host.
+ */
+function resolveEmployeeAttachmentUrl(url) {
+  if (url == null || typeof url !== 'string') return null;
+  const t = url.trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) return t;
+  const origin = backendOriginForUploads();
+  if (t.startsWith('/')) return `${origin}${t}`;
+  return `${origin}/uploads/${t.replace(/^\/+/, '')}`;
+}
+
+function fileBasenameFromStored(pathOrUrl) {
+  if (!pathOrUrl || typeof pathOrUrl !== 'string') return null;
+  const noQuery = pathOrUrl.split('?')[0];
+  const parts = noQuery.replace(/\\/g, '/').split('/');
+  return parts[parts.length - 1] || pathOrUrl;
+}
+
+function formatDocExpiryDisplay(expiry) {
+  if (expiry === null || expiry === undefined || expiry === '') return null;
+  if (typeof expiry === 'string') {
+    const m = expiry.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : expiry;
+  }
+  try {
+    const d = new Date(expiry);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+}
+
+/** Legal / profile files returned by GET employee (attachment filename + public URL). */
+function buildDirectoryDocumentsFromEmployee(emp) {
+  if (!emp) return [];
+  const entries = [
+    {
+      key: 'profile_photo',
+      label: 'Profile photo',
+      file: emp.photo,
+      url: emp.photoUrl,
+      expiry: null,
+    },
+    {
+      key: 'passport',
+      label: 'Passport',
+      file: emp.passportAttachment,
+      url: emp.passportAttachmentUrl,
+      expiry: emp.passportExpiryDate,
+    },
+    {
+      key: 'national_id',
+      label: 'National ID',
+      file: emp.nationalIdAttachment,
+      url: emp.nationalIdAttachmentUrl,
+      expiry: emp.nationalIdExpiryDate,
+    },
+    {
+      key: 'residency',
+      label: 'Residency / visa',
+      file: emp.residencyAttachment,
+      url: emp.residencyAttachmentUrl,
+      expiry: emp.residencyExpiryDate,
+    },
+    {
+      key: 'insurance',
+      label: 'Insurance',
+      file: emp.insuranceAttachment,
+      url: emp.insuranceAttachmentUrl,
+      expiry: emp.insuranceExpiryDate,
+    },
+    {
+      key: 'driving_license',
+      label: 'Driving licence',
+      file: emp.drivingLicenseAttachment,
+      url: emp.drivingLicenseAttachmentUrl,
+      expiry: emp.drivingLicenseExpiryDate,
+    },
+    {
+      key: 'labour_id',
+      label: 'Labour card',
+      file: emp.labourIdAttachment,
+      url: emp.labourIdAttachmentUrl,
+      expiry: emp.labourIdExpiryDate,
+    },
+  ];
+
+  return entries
+    .filter((e) => e.file && String(e.file).trim() !== '')
+    .map((e) => {
+      const exp = formatDocExpiryDisplay(e.expiry);
+      return {
+        id: `directory-${e.key}`,
+        source: 'directory',
+        name: fileBasenameFromStored(e.file) || `${e.label} (file)`,
+        type: e.label,
+        uploadDate: 'On record',
+        expiryDate: exp,
+        fileSize: null,
+        url: resolveEmployeeAttachmentUrl(e.url) || e.url || null,
+        status: 'uploaded',
+      };
+    });
+}
+
+function mergeEmployeeDocumentsList(emp, sessionList) {
+  const fromApi = buildDirectoryDocumentsFromEmployee(emp);
+  const local = Array.isArray(sessionList) ? sessionList : [];
+  return [...fromApi, ...local];
+}
+
+/** Canonical directory date key → short alias on shaped API payloads (see backend employee-response). */
+const DIRECTORY_DATE_SHORT = {
+  birthday: 'birthDate',
+  passportIssueDate: 'passportIssue',
+  passportExpiryDate: 'passportExpiry',
+  nationalIdExpiryDate: 'nationalIdExpiry',
+  residencyExpiryDate: 'residencyExpiry',
+  insuranceExpiryDate: 'insuranceExpiry',
+  drivingLicenseExpiryDate: 'drivingLicenseExpiry',
+  labourIdExpiryDate: 'labourCardExpiry',
+};
+
+function isoOrRawToDdMmYyyy(raw) {
+  if (raw == null || raw === '') return null;
+  const s0 = typeof raw === 'string' ? raw.trim() : String(raw);
+  const m = s0.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const iso = toDateInputString(raw);
+  if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, mo, d] = iso.split('-');
+    return `${d}/${mo}/${y}`;
+  }
+  return s0 || null;
+}
+
+/** dd/mm/yyyy when API sends Formatted variants; else YYYY-MM-DD / ISO → dd/mm/yyyy. */
+function getEmployeeDirectoryDateDisplay(emp, canonicalKey) {
+  if (!emp) return null;
+  const fmt =
+    emp[`${canonicalKey}Formatted`] ?? emp[`${canonicalKey}_dd_mm_yyyy`];
+  if (fmt != null && String(fmt).trim() !== '') return String(fmt).trim();
+
+  const short = DIRECTORY_DATE_SHORT[canonicalKey];
+  const fmtShort = short ? emp[`${short}Formatted`] : null;
+  if (fmtShort != null && String(fmtShort).trim() !== '') return String(fmtShort).trim();
+
+  const fromLabourLegacy = canonicalKey === 'labourIdExpiryDate' ? emp.labourExpiry : null;
+  const keyVal = emp[canonicalKey];
+  const shortVal = short ? emp[short] : null;
+  for (const raw of [keyVal, shortVal, fromLabourLegacy]) {
+    const dd = isoOrRawToDdMmYyyy(raw);
+    if (dd) return dd;
+  }
+
+  const legal = emp.legal;
+  if (legal && typeof legal === 'object') {
+    const lFmt = legal[`${canonicalKey}Formatted`];
+    if (lFmt != null && String(lFmt).trim() !== '') return String(lFmt).trim();
+    const lDd = isoOrRawToDdMmYyyy(legal[canonicalKey]);
+    if (lDd) return lDd;
+  }
+  return null;
+}
+
+function displayDirectoryText(emp, ...keys) {
+  if (!emp) return null;
+  for (const k of keys) {
+    const v = emp[k];
+    if (v != null && String(v).trim() !== '') return String(v).trim();
+  }
+  const legal = emp.legal;
+  if (legal && typeof legal === 'object') {
+    for (const k of keys) {
+      const v = legal[k];
+      if (v != null && String(v).trim() !== '') return String(v).trim();
+    }
+  }
+  return null;
+}
+
+/** Prefer scalar `phone`, then API `phoneNumbersList`, then JSON `phoneNumbers` (handles alternate keys). */
+function getEmployeePrimaryPhoneDisplay(emp) {
+  if (!emp) return null;
+  if (emp.phone != null && String(emp.phone).trim() !== '') return String(emp.phone).trim();
+  const list = emp.phoneNumbersList;
+  if (Array.isArray(list) && list.length > 0) {
+    const first = list[0];
+    const v = first && (first.value ?? first.phone ?? first.number ?? first.mobile);
+    if (v != null && String(v).trim() !== '') return String(v).trim();
+  }
+  const raw = emp.phoneNumbers;
+  if (Array.isArray(raw) && raw.length > 0) {
+    const first = raw[0];
+    const v = first && (first.value ?? first.phone ?? first.number ?? first.mobile);
+    if (v != null && String(v).trim() !== '') return String(v).trim();
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p) && p[0]) {
+        const v = p[0].value ?? p[0].phone ?? p[0].number ?? p[0].mobile;
+        if (v != null && String(v).trim() !== '') return String(v).trim();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+/** Normalize one API employee row for directory table + modals (`...emp` first so computed `phone` / `name` win). */
+function mapEmployeeListItem(emp) {
+  if (!emp) return emp;
+  let emailDisplay = emp.email || 'No email';
+  if (!emp.email && emp.emailAddresses) {
+    try {
+      if (Array.isArray(emp.emailAddresses)) {
+        const first = emp.emailAddresses[0];
+        emailDisplay = (first && (first.value ?? first)) || emailDisplay;
+      } else if (typeof emp.emailAddresses === 'string' && emp.emailAddresses.trim()) {
+        const p = JSON.parse(emp.emailAddresses);
+        if (Array.isArray(p) && p[0]) {
+          emailDisplay = p[0].value ?? p[0] ?? emailDisplay;
+        }
+      }
+    } catch {
+      /* keep emailDisplay */
+    }
+  }
+  return {
+    ...emp,
+    name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+    department: emp.department || 'N/A',
+    email: emailDisplay,
+    jobTitle: emp.jobTitle || 'N/A',
+    employeeType: emp.employeeType || 'N/A',
+    status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
+    phone: getEmployeePrimaryPhoneDisplay(emp) || 'No phone',
+    manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
+    joiningDate: emp.joiningDate || null,
+  };
+}
+
+/** Only active directory people may be chosen as line manager (inactive/deactivated accounts excluded). */
+function isEmployeeActiveForLineManagerPicker(emp) {
+  if (!emp) return false;
+  if (emp.isActive === false) return false;
+  const st = String(emp.status || '').trim().toLowerCase();
+  if (st === 'inactive' || st === 'terminated') return false;
+  return true;
+}
 
 // Comprehensive nationality/country list with flags using Unicode
 const nationalities = [
@@ -317,9 +832,11 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     contacts: [{ type: "phone", value: "", countryCode: "ae" }],
     emails: [""],
     department: (typeof departmentFromNavigation === 'string' ? departmentFromNavigation : (departmentFromNavigation?.name || departmentFromNavigation?.title || '')) || "",
+    position: (navigationState.position && navigationState.position.name) || "",
     jobTitle: "",
     location: "",
     manager: "",
+    managerId: "",
     passport: "",
     id: "",
     visa: "",
@@ -363,6 +880,14 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
   const [openLegalSection, setOpenLegalSection] = useState('');
   const [nationalityDropdownOpen, setNationalityDropdownOpen] = useState(false);
   const [nationalitySearchTerm, setNationalitySearchTerm] = useState('');
+
+  const activeLineManagerCandidates = useMemo(
+    () =>
+      Array.isArray(employeesList)
+        ? employeesList.filter(isEmployeeActiveForLineManagerPicker)
+        : [],
+    [employeesList]
+  );
   const [companies, setCompanies] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
@@ -389,6 +914,17 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [nationalityDropdownOpen, form.nationality]);
+
+  // When adding from Company → … → Position, default job title to the position name so directory placement matches org chart.
+  useEffect(() => {
+    const posName = navigationState.position?.name;
+    if (!posName || !String(posName).trim()) return;
+    setForm((prev) => ({
+      ...prev,
+      position: (prev.position && String(prev.position).trim()) ? prev.position : posName,
+      jobTitle: (prev.jobTitle && String(prev.jobTitle).trim()) ? prev.jobTitle : posName,
+    }));
+  }, []);
 
   // Fetch companies on component mount
   useEffect(() => {
@@ -430,7 +966,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 
     setLoadingDepartments(true);
     try {
-      const response = await getCompanyDepartments(companyId);
+      const response = await getCompanyDepartments(companyId, { status: 'ACTIVE' });
       if (response.success && response.data) {
         const departmentsList = Array.isArray(response.data) ? response.data : [];
         setDepartments(departmentsList);
@@ -553,11 +1089,22 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     return null;
   };
 
+  const isMaritalSingle = (status) => String(status || '').toLowerCase() === 'single';
+
   // Handlers
   const handleChange = (field, value) => {
     // Ensure department is always stored as a string
     if (field === 'department' && typeof value !== 'string') {
       value = typeof value === 'object' && value !== null ? (value.name || value.title || String(value)) : String(value);
+    }
+    if (field === 'maritalStatus' && String(value).toLowerCase() === 'single') {
+      setForm((prev) => ({ ...prev, maritalStatus: value, childrenCount: '' }));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.childrenCount;
+        return next;
+      });
+      return;
     }
     setForm({ ...form, [field]: value });
   };
@@ -611,7 +1158,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       if (!(form.maritalStatus || '').trim()) errs.maritalStatus = "Required";
       if (!(form.nationality || '').trim()) errs.nationality = "Required";
       if (!(form.currentAddress || '').trim()) errs.currentAddress = "Required";
-      if (!(form.childrenCount || '').toString().trim()) errs.childrenCount = "Required";
+      if (!isMaritalSingle(form.maritalStatus) && !(form.childrenCount || '').toString().trim()) errs.childrenCount = "Required";
       const birthdayError = validateBirthday(form.birthday);
       if (birthdayError) errs.birthday = birthdayError;
     }
@@ -685,7 +1232,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     if (!form.maritalStatus) allErrors.maritalStatus = "Required";
     if (!form.nationality) allErrors.nationality = "Required";
     if (!form.currentAddress) allErrors.currentAddress = "Required";
-    if (!form.childrenCount) allErrors.childrenCount = "Required";
+    if (!isMaritalSingle(form.maritalStatus) && !String(form.childrenCount || '').trim()) allErrors.childrenCount = "Required";
     const birthdayError = validateBirthday(form.birthday);
     if (birthdayError) {
       allErrors.birthday = birthdayError;
@@ -759,6 +1306,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
     const passwordVal = form.userAccount && !useGeneratedPassword ? userAccountFields.password : '';
     const submissionData = {
       ...restOfForm,
+      ...(isMaritalSingle(form.maritalStatus) ? { childrenCount: '0' } : {}),
       contacts: formattedContacts,
       passportNumber: form.passportNumber || '',
       passportIssueDate: passportIssue || '',
@@ -775,6 +1323,16 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
       userAccount: !!form.userAccount,
       role: form.role || 'EMPLOYEE',
     };
+
+    const primaryPhoneDigits = formattedContacts[0]?.value
+      ? formatPhoneForSubmission(formattedContacts[0].value, formattedContacts[0].countryCode || 'ae')
+      : '';
+    if (primaryPhoneDigits) {
+      submissionData.phone = primaryPhoneDigits;
+    }
+    if (form.labourNumber != null && String(form.labourNumber).trim() !== '') {
+      submissionData.labourIdNumber = String(form.labourNumber).trim();
+    }
     
     console.log('Submitting employee data:', submissionData);
     console.log('Passport fields check:', {
@@ -1155,11 +1713,13 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                     </div>
                     {displayErrors.nationality && <div className="text-red-500 text-xs mt-1">{displayErrors.nationality}</div>}
                </div>
+               {!isMaritalSingle(form.maritalStatus) && (
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Children Count<span className="text-red-500 ml-1">*</span></label>
                  <input type="number" className={`w-full h-[42px] px-4 py-2 text-sm border rounded-md ${displayErrors.childrenCount ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`} placeholder="Enter children count" value={form.childrenCount} onChange={e => handleChange('childrenCount', e.target.value)} min="0" />
                  {displayErrors.childrenCount && <div className="text-red-500 text-xs mt-1">{displayErrors.childrenCount}</div>}
                </div>
+               )}
                <div className="w-full">
                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Birthday<span className="text-red-500 ml-1">*</span></label>
                  <input 
@@ -1358,6 +1918,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                       // Clear manager field when job title is "Manager"
                       if (newJobTitle === "Manager") {
                         updated.manager = '';
+                        updated.managerId = '';
                       }
                       return updated;
                     });
@@ -1374,15 +1935,17 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                 >
                   <option value="">Select job title</option>
                   {jobTitles && jobTitles.length > 0 ? (
-                    jobTitles.map((job, index) => {
+                    buildJobTitlePickerOptions(jobTitles, form.jobTitle).map((job, index) => {
                       const jobTitleValue = job.title || job.name || '';
                       const jobTitleDisplay = job.title || job.name || '';
+                      const inactive = job._inactiveOrgPath;
                       return (
-                        <option 
-                          key={job.id || `job-${index}`} 
+                        <option
+                          key={job.id || `job-${index}`}
                           value={jobTitleValue}
+                          disabled={!!inactive}
                         >
-                          {jobTitleDisplay}
+                          {inactive ? `${jobTitleDisplay} (inactive org — reactivate in Company)` : jobTitleDisplay}
                         </option>
                       );
                     })
@@ -1440,13 +2003,29 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Line Manager</label>
                   <select 
                     className="w-full h-[42px] px-4 py-2 text-sm border rounded-md" 
-                    value={form.manager} 
-                    onChange={e => handleChange('manager', e.target.value)}
+                    value={form.managerId || ''} 
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (!id) {
+                        setForm((prev) => ({ ...prev, managerId: '', manager: '' }));
+                        return;
+                      }
+                      const emp = activeLineManagerCandidates.find((x) => x.id === id);
+                      const label = emp
+                        ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || ''
+                        : '';
+                      setForm((prev) => ({ ...prev, managerId: id, manager: label }));
+                    }}
                   >
                     <option value="">Select line manager (Optional)</option>
-                    {employeesList && employeesList.map(emp => (
-                      <option key={emp.id} value={emp.name}>{emp.name}</option>
-                    ))}
+                    {activeLineManagerCandidates.map((emp) => {
+                      const label = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || emp.email || emp.id;
+                      return (
+                        <option key={emp.id} value={emp.id}>
+                          {label}
+                        </option>
+                      );
+                    })}
                   </select>
                   {errors.manager && <div className="text-red-500 text-xs">{errors.manager}</div>}
                 </div>
@@ -1643,10 +2222,12 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
               {form.jobTitle !== "Manager" && (
                 <div className="w-full"><b>Line Manager:</b> {form.manager}</div>
               )}
-              <div className="w-full"><b>Passport:</b> {form.passport}</div>
-              <div className="w-full"><b>ID:</b> {form.id}</div>
-              <div className="w-full"><b>Visa:</b> {form.visa}</div>
-              <div className="w-full"><b>Insurance:</b> {form.insurance}</div>
+              <div className="w-full"><b>Passport:</b> {form.passportNumber || '—'}</div>
+              <div className="w-full"><b>National ID:</b> {form.nationalIdNumber || '—'}</div>
+              <div className="w-full"><b>Residency / Visa:</b> {form.residencyNumber || '—'}</div>
+              <div className="w-full"><b>Insurance:</b> {form.insuranceNumber || '—'}</div>
+              <div className="w-full"><b>Driving licence:</b> {form.drivingNumber || '—'}</div>
+              <div className="w-full"><b>Labour ID:</b> {form.labourNumber || '—'}</div>
               <div className="w-full col-span-2">
                 <b>Legal Documents:</b>
                 <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1674,7 +2255,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 
   return (
     <EmployeeFormContext.Provider value={ctxValue}>
-      <div className="w-full flex flex-col items-center animate-fade-in px-1 sm:px-2 md:px-4 employee-form-steps">
+      <div className="w-full min-h-screen flex flex-col items-center animate-fade-in px-1 sm:px-2 md:px-4 pb-8 employee-form-steps overflow-x-hidden overflow-y-auto">
         {/* Mobile Stepper */}
         <div className="w-full lg:hidden mb-4 mt-2 px-1 overflow-x-auto">
           <div className="flex items-center justify-between mb-4 min-w-[400px]">
@@ -1716,7 +2297,7 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
                    if (!form.maritalStatus) errs.maritalStatus = 'Required';
                    if (!form.nationality) errs.nationality = 'Required';
                    if (!form.currentAddress) errs.currentAddress = 'Required';
-                   if (!form.childrenCount) errs.childrenCount = 'Required';
+                   if (!isMaritalSingle(form.maritalStatus) && !String(form.childrenCount || '').trim()) errs.childrenCount = 'Required';
                    // Validate birthday with age check
                    const birthdayError = validateBirthday(form.birthday);
                    if (birthdayError) {
@@ -1827,9 +2408,12 @@ function EmployeeForm({ onBack, onSaveEmployee, jobTitles, attendancePrograms, e
 
 export default function Employees() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { selectedCompany: selectedCompanyName } = useCompanySelection();
   const isAdmin = user?.role === 'ADMIN';
+  const isHr = user?.role === 'HR';
+  const canManageInactiveVisibility = isAdmin || isHr;
   
   // Get navigation state for breadcrumbs (company, department, subdepartment, position)
   const navigationState = location.state || {};
@@ -1837,6 +2421,70 @@ export default function Employees() {
   const department = navigationState.department || null;
   const subDepartment = navigationState.subDepartment || null;
   const position = navigationState.position || null;
+  const placementPositionId =
+    (navigationState.positionId != null && String(navigationState.positionId).trim()) ||
+    (position && position.id != null && String(position.id).trim()) ||
+    '';
+
+  /**
+   * Placement filter when drilling from org chart → position.
+   * User.department often matches the *sub-department* name (e.g. "HR") while navigation passes the
+   * parent department ("Human Resources"). Accept either parent or sub-department label.
+   * Position match uses User.position or User.jobTitle (exact or substring when label is long enough).
+   */
+  const placementDepartmentName =
+    (department && typeof department === 'object' && department !== null
+      ? department.name
+      : typeof department === 'string'
+        ? department
+        : '') || '';
+  const placementSubDepartmentName =
+    subDepartment && typeof subDepartment === 'object' && subDepartment !== null
+      ? String(subDepartment.name || '').trim()
+      : '';
+  const placementPositionName = (position && position.name) || '';
+  const placementDeptAliases = [
+    ...new Set(
+      [placementDepartmentName, placementSubDepartmentName]
+        .map((s) => String(s || '').trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+  const placementFilterActive =
+    Boolean(placementPositionName.trim()) &&
+    placementDeptAliases.length > 0;
+
+  const matchesPlacementPositionLabel = (empPos, empJob, wantRaw) => {
+    const want = String(wantRaw || '').trim().toLowerCase();
+    if (!want) return true;
+    const p = String(empPos || '').trim().toLowerCase();
+    const j = String(empJob || '').trim().toLowerCase();
+    if (p === want || j === want) return true;
+    if (want.length >= 4 && (p.includes(want) || j.includes(want))) return true;
+    return false;
+  };
+
+  const matchesPlacementFilter = (emp) => {
+    if (!placementFilterActive) return true;
+    if (
+      placementPositionId &&
+      Array.isArray(emp.additionalPositionIds) &&
+      emp.additionalPositionIds.includes(placementPositionId)
+    ) {
+      return true;
+    }
+    const dept = String(emp.department || '').trim().toLowerCase();
+    if (!placementDeptAliases.includes(dept)) return false;
+    const wantPos = placementPositionName.trim().toLowerCase();
+    return matchesPlacementPositionLabel(emp.position, emp.jobTitle, wantPos);
+  };
+
+  const clearPlacementFilter = () => {
+    navigate('/employees', {
+      replace: true,
+      state: company ? { company } : {},
+    });
+  };
 
   // Current company context: from navigation state (object with id, name) or from context (name only)
   // When viewing "Onix" vs "Onix Engineering Consultancy", only that company's employees are shown
@@ -1857,6 +2505,8 @@ export default function Employees() {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  /** When false, inactive (deactivated) rows are hidden so the directory can look empty after bulk deactivate. */
+  const [showInactiveEmployees, setShowInactiveEmployees] = useState(false);
   const [showJobTitlesModal, setShowJobTitlesModal] = useState(false);
   const [showAttendanceProgramModal, setShowAttendanceProgramModal] = useState(false);
   const [showImportExportModal, setShowImportExportModal] = useState(false);
@@ -1868,9 +2518,28 @@ export default function Employees() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmployeeForView, setSelectedEmployeeForView] = useState(null);
   const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState(null);
+  const [employeeEditChangeReason, setEmployeeEditChangeReason] = useState('');
+  const [historyDrawerLoading, setHistoryDrawerLoading] = useState(false);
+  const [historyDrawerError, setHistoryDrawerError] = useState(null);
   const [openLegalSection, setOpenLegalSection] = useState('');
   const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
   const [selectedEmployeeForPassword, setSelectedEmployeeForPassword] = useState(null);
+  const [showAssignFromDirectoryModal, setShowAssignFromDirectoryModal] = useState(false);
+  const [assignDirectorySearch, setAssignDirectorySearch] = useState('');
+  const [assigningEmployeeId, setAssigningEmployeeId] = useState(null);
+
+  const canAssignFromDirectory = (isAdmin || isHr) && placementFilterActive && Boolean(placementPositionId);
+
+  const employeesForAssignPicker = useMemo(() => {
+    const q = assignDirectorySearch.trim().toLowerCase();
+    let list = Array.isArray(employees) ? [...employees] : [];
+    list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' }));
+    if (!q) return list;
+    return list.filter((emp) => {
+      const hay = `${emp.name || ''} ${emp.email || ''} ${emp.department || ''} ${emp.jobTitle || ''} ${emp.position || ''} ${emp.employeeId != null ? String(emp.employeeId) : ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [employees, assignDirectorySearch]);
   
   // Fetch employees and statistics (filtered by company when a company is selected)
   useEffect(() => {
@@ -1881,19 +2550,7 @@ export default function Employees() {
         const employeesResponse = await getEmployees(companyParams);
         if (employeesResponse.success && employeesResponse.data) {
           // Transform backend employee data to match frontend format
-          const transformedEmployees = employeesResponse.data.map(emp => ({
-            id: emp.id,
-            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-            department: emp.department || 'N/A',
-            email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
-            jobTitle: emp.jobTitle || 'N/A',
-            employeeType: emp.employeeType || 'N/A',
-            status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
-            phone: emp.phone || (emp.phoneNumbers ? (Array.isArray(emp.phoneNumbers) ? emp.phoneNumbers[0]?.value : JSON.parse(emp.phoneNumbers || '[]')[0]?.value) : 'No phone'),
-            manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
-            joiningDate: emp.joiningDate || null,
-            ...emp // Include all backend fields
-          }));
+          const transformedEmployees = employeesResponse.data.map(mapEmployeeListItem);
           setEmployees(transformedEmployees);
         }
 
@@ -1912,8 +2569,12 @@ export default function Employees() {
     fetchData();
   }, [effectiveCompany?.id, effectiveCompany?.name]);
 
-  // Filter employees based on search term
-  const filteredEmployees = employees.filter(emp => {
+  // Filter employees: org placement (from positions drill-down) + search + optional hide inactive (Admin/HR)
+  const filteredEmployees = employees.filter((emp) => {
+    if (!matchesPlacementFilter(emp)) return false;
+    if (canManageInactiveVisibility && !showInactiveEmployees && emp.isActive === false) {
+      return false;
+    }
     const searchLower = searchTerm.toLowerCase();
     return (
       (emp.name || '').toLowerCase().includes(searchLower) ||
@@ -1924,71 +2585,132 @@ export default function Employees() {
     );
   });
   
-  const [employeeDocuments, setEmployeeDocuments] = useState({
-    1: [
-      {
-        id: 1,
-        name: "Passport.pdf",
-        type: "Passport",
-        uploadDate: "2024-01-15",
-        expiryDate: "2029-05-20",
-        fileSize: "2.3 MB",
-        status: "active"
-      },
-      {
-        id: 2,
-        name: "Employment_Contract.pdf",
-        type: "Employment Contract",
-        uploadDate: "2024-01-10",
-        expiryDate: null,
-        fileSize: "1.8 MB",
-        status: "active"
-      },
-      {
-        id: 3,
-        name: "Visa_Document.pdf",
-        type: "Visa",
-        uploadDate: "2024-01-12",
-        expiryDate: "2026-08-15",
-        fileSize: "3.1 MB",
-        status: "active"
-      }
-    ],
-    2: [
-      {
-        id: 4,
-        name: "ID_Card.jpg",
-        type: "ID Card",
-        uploadDate: "2024-01-08",
-        expiryDate: "2028-12-31",
-        fileSize: "1.2 MB",
-        status: "active"
-      },
-      {
-        id: 5,
-        name: "Labour_Card.pdf",
-        type: "Labour Card",
-        uploadDate: "2024-01-05",
-        expiryDate: "2027-03-10",
-        fileSize: "2.7 MB",
-        status: "active"
-      }
-    ]
-  });
+  /** Per-employee session uploads (mock keys removed — real IDs are UUIDs). Merged with API legal attachments in the UI. */
+  const [employeeDocuments, setEmployeeDocuments] = useState({});
+  const mergedViewDocuments = useMemo(
+    () =>
+      mergeEmployeeDocumentsList(
+        selectedEmployeeForView,
+        selectedEmployeeForView ? employeeDocuments[selectedEmployeeForView.id] : undefined
+      ),
+    [selectedEmployeeForView, employeeDocuments]
+  );
+  const mergedEditDocuments = useMemo(
+    () =>
+      mergeEmployeeDocumentsList(
+        selectedEmployeeForEdit,
+        selectedEmployeeForEdit ? employeeDocuments[selectedEmployeeForEdit.id] : undefined
+      ),
+    [selectedEmployeeForEdit, employeeDocuments]
+  );
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
   const [selectedDocumentType, setSelectedDocumentType] = useState('');
-  const [jobTitles, setJobTitles] = useState([
-    { id: 1, title: "Manager", department: "All", description: "Management role" },
-    { id: 2, title: "Developer", department: "IT", description: "Software development" },
-    { id: 3, title: "Accountant", department: "Finance", description: "Financial management" },
-    { id: 4, title: "Sales Rep", department: "Sales", description: "Sales and marketing" }
-  ]);
-  const [attendancePrograms, setAttendancePrograms] = useState([
-    { id: 1, name: "Standard 9-5", hours: "9:00 AM - 5:00 PM", description: "Regular office hours" },
-    { id: 2, name: "Flexible Hours", hours: "Flexible", description: "Flexible working hours" },
-    { id: 3, name: "Shift Work", hours: "Rotating shifts", description: "24/7 shift rotation" },
-    { id: 4, name: "Remote Work", hours: "Remote", description: "Work from home" }
-  ]);
+  const [jobTitles, setJobTitles] = useState([]);
+  const [jobTitlesLoading, setJobTitlesLoading] = useState(false);
+  const [editingJobId, setEditingJobId] = useState(null);
+  const [editJobDraft, setEditJobDraft] = useState({ title: '', department: '', description: '' });
+
+  const loadJobTitles = useCallback(async () => {
+    setJobTitlesLoading(true);
+    try {
+      const res = await getAllPositions();
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setJobTitles(
+          res.data.map((p) => ({
+            id: p.id,
+            title: p.title || p.name,
+            department: p.departmentLabel || '—',
+            description: p.description || '',
+            fromApi: true,
+            positionStatus: p.status,
+            subDepartmentStatus: p.subDepartment?.status,
+            departmentStatus: p.subDepartment?.department?.status,
+          }))
+        );
+      } else {
+        setJobTitles(buildFallbackJobTitlesList());
+      }
+    } catch (e) {
+      console.warn('Job titles load failed, using fallback list', e);
+      setJobTitles(buildFallbackJobTitlesList());
+    } finally {
+      setJobTitlesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadJobTitles();
+  }, [loadJobTitles]);
+
+  useEffect(() => {
+    if (showJobTitlesModal) {
+      setEditingJobId(null);
+      loadJobTitles();
+    }
+  }, [showJobTitlesModal, loadJobTitles]);
+
+  const [attendancePrograms, setAttendancePrograms] = useState([]);
+  const [attendanceProgramsLoading, setAttendanceProgramsLoading] = useState(false);
+  const [editingAttendanceId, setEditingAttendanceId] = useState(null);
+  const [newAttendanceProgramDraft, setNewAttendanceProgramDraft] = useState({
+    name: '',
+    description: '',
+    weeklySchedule: createDefaultWeeklySchedule(),
+  });
+  const [attendanceProgramFilter, setAttendanceProgramFilter] = useState('');
+
+  useEffect(() => {
+    if (showAttendanceProgramModal) {
+      setEditingAttendanceId(null);
+      setNewAttendanceProgramDraft({
+        name: '',
+        description: '',
+        weeklySchedule: createDefaultWeeklySchedule(),
+      });
+      setAttendanceProgramFilter('');
+    }
+  }, [showAttendanceProgramModal]);
+
+  const loadAttendancePrograms = useCallback(async () => {
+    const params =
+      effectiveCompany?.id
+        ? { companyId: effectiveCompany.id }
+        : effectiveCompany?.name
+          ? { companyName: effectiveCompany.name }
+          : {};
+    if (!params.companyId && !params.companyName) {
+      setAttendancePrograms([]);
+      setAttendanceProgramsLoading(false);
+      return;
+    }
+    setAttendanceProgramsLoading(true);
+    const res = await getAttendancePrograms(params);
+    setAttendanceProgramsLoading(false);
+    if (res.success && Array.isArray(res.data)) {
+      setAttendancePrograms(
+        res.data.map((row) => ({
+          id: row.id,
+          name: row.name || '',
+          description: row.description || '',
+          weeklySchedule: mergeWeeklySchedule(row.weeklySchedule),
+          hours: row.hours || formatWeeklyScheduleSummary(mergeWeeklySchedule(row.weeklySchedule)),
+        }))
+      );
+    } else {
+      setAttendancePrograms([]);
+      if (res.message) console.warn(res.message);
+    }
+  }, [effectiveCompany?.id, effectiveCompany?.name]);
+
+  useEffect(() => {
+    loadAttendancePrograms();
+  }, [loadAttendancePrograms]);
+
+  const filteredAttendancePrograms = useMemo(() => {
+    const q = attendanceProgramFilter.trim().toLowerCase();
+    if (!q) return attendancePrograms;
+    return attendancePrograms.filter((p) => attendanceProgramSearchText(p).includes(q));
+  }, [attendancePrograms, attendanceProgramFilter]);
 
   // Mock data for payroll information
   const [payrollData, setPayrollData] = useState({
@@ -2147,102 +2869,65 @@ export default function Employees() {
     }
   });
 
-  // Mock data for employee change logs
-  const [employeeChangeLogs, setEmployeeChangeLogs] = useState({
-    1: [
-      {
-        id: 1,
-        employeeId: 1,
-        fieldChanged: "Department",
-        oldValue: "IT",
-        newValue: "HR",
-        changedBy: "Admin User",
-        changedAt: "2024-01-15T10:30:00Z",
-        changeType: "update"
-      },
-      {
-        id: 2,
-        employeeId: 1,
-        fieldChanged: "Job Title",
-        oldValue: "Developer",
-        newValue: "Manager",
-        changedBy: "HR Manager",
-        changedAt: "2024-01-10T14:20:00Z",
-        changeType: "update"
-      },
-      {
-        id: 3,
-        employeeId: 1,
-        fieldChanged: "Email",
-        oldValue: "ahmed.ali@oldcompany.com",
-        newValue: "ahmed.ali@email.com",
-        changedBy: "System Admin",
-        changedAt: "2024-01-05T09:15:00Z",
-        changeType: "update"
-      }
-    ],
-    2: [
-      {
-        id: 4,
-        employeeId: 2,
-        fieldChanged: "Phone",
-        oldValue: "+1234567890",
-        newValue: "+1987654321",
-        changedBy: "Sara Youssef",
-        changedAt: "2024-01-12T16:45:00Z",
-        changeType: "update"
-      },
-      {
-        id: 5,
-        employeeId: 2,
-        fieldChanged: "Status",
-        oldValue: "Inactive",
-        newValue: "Active",
-        changedBy: "HR Manager",
-        changedAt: "2024-01-08T11:30:00Z",
-        changeType: "update"
-      }
-    ],
-    3: [
-      {
-        id: 6,
-        employeeId: 3,
-        fieldChanged: "Department",
-        oldValue: "Sales",
-        newValue: "IT",
-        changedBy: "John Smith",
-        changedAt: "2024-01-14T13:20:00Z",
-        changeType: "update"
-      }
-    ],
-    4: [
-      {
-        id: 7,
-        employeeId: 4,
-        fieldChanged: "Manager",
-        oldValue: "None",
-        newValue: "Ahmed Ali",
-        changedBy: "HR Manager",
-        changedAt: "2024-01-13T15:10:00Z",
-        changeType: "update"
-      }
-    ]
-  });
-  const navigate = useNavigate();
+  /** employeeId (UUID) -> change log rows from GET /employees/:id/change-history */
+  const [employeeChangeLogs, setEmployeeChangeLogs] = useState({});
 
   const handleEmployeeClick = (employee) => {
     // Open the employee view modal when employee is clicked
     handleViewEmployee(employee);
   };
 
-  const handleViewEmployee = (employee) => {
+  const handleViewEmployee = async (employee) => {
     setSelectedEmployeeForView(employee);
     setShowViewModal(true);
+    try {
+      const res = await getEmployeeById(employee.id);
+      if (res.success && res.data) {
+        const d = res.data;
+        setSelectedEmployeeForView((prev) => ({
+          ...(prev || employee),
+          ...d,
+          name: `${d.firstName || ''} ${d.lastName || ''}`.trim() || prev?.name,
+        }));
+      }
+    } catch (e) {
+      console.warn('Could not load full employee for view:', e);
+    }
   };
 
-  const handleEditEmployee = (employee) => {
+  const handleEditEmployee = async (employee) => {
     setSelectedEmployeeForEdit(employee);
+    setEmployeeEditChangeReason('');
     setShowEditModal(true);
+    try {
+      const res = await getEmployeeById(employee.id);
+      if (res.success && res.data) {
+        const d = res.data;
+        setSelectedEmployeeForEdit((prev) => {
+          const base = prev || employee;
+          const managerStr =
+            d.manager && typeof d.manager === 'object'
+              ? `${d.manager.firstName || ''} ${d.manager.lastName || ''}`.trim()
+              : typeof d.manager === 'string'
+                ? d.manager
+                : base.manager && typeof base.manager === 'object'
+                  ? `${base.manager.firstName || ''} ${base.manager.lastName || ''}`.trim()
+                  : base.manager || '';
+          const merged = { ...base, ...d };
+          return {
+            ...merged,
+            name: `${d.firstName || ''} ${d.lastName || ''}`.trim() || base.name,
+            manager: managerStr,
+            phone:
+              getEmployeePrimaryPhoneDisplay(merged) ||
+              (d.phone != null && String(d.phone).trim() !== '' ? String(d.phone).trim() : '') ||
+              (base.phone != null && String(base.phone).trim() !== '' ? String(base.phone).trim() : ''),
+          };
+        });
+      }
+    } catch (e) {
+      console.warn('Could not load full employee for edit:', e);
+    }
   };
 
   const handleSetPassword = (employee) => {
@@ -2258,29 +2943,24 @@ export default function Employees() {
   const handleDeleteEmployee = async (employee) => {
     const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.name || 'this employee';
     
-    if (window.confirm(`Are you sure you want to delete ${employeeName}? This will deactivate their account.`)) {
+    if (
+      window.confirm(
+        `Permanently remove ${employeeName} from the system?\n\n` +
+          `Their user record and related assignments will be deleted. ` +
+          `Their work email and employee ID can then be used for a new employee. ` +
+          `This cannot be undone (no restore).`
+      )
+    ) {
       try {
-        const response = await deleteEmployee(employee.id);
+        const response = await deleteEmployee(employee.id, { permanent: true });
         
         if (response.success) {
-          alert(`Employee ${employeeName} has been deactivated successfully.`);
+          alert(`Employee ${employeeName} has been removed. You can create a new employee with the same work email if needed.`);
           
           // Refresh employees and statistics (keep same company filter)
           const employeesResponse = await getEmployees(companyParams);
           if (employeesResponse.success && employeesResponse.data) {
-            const transformedEmployees = employeesResponse.data.map(emp => ({
-              id: emp.id,
-              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-              firstName: emp.firstName,
-              lastName: emp.lastName,
-              department: emp.department || 'N/A',
-              email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
-              jobTitle: emp.jobTitle || 'N/A',
-              employeeType: emp.employeeType || 'N/A',
-              status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
-              isActive: emp.isActive,
-              ...emp
-            }));
+            const transformedEmployees = employeesResponse.data.map(mapEmployeeListItem);
             setEmployees(transformedEmployees);
           }
           
@@ -2289,6 +2969,8 @@ export default function Employees() {
           if (statsResponse.success && statsResponse.data) {
             setStatistics(statsResponse.data);
           }
+        } else {
+          alert(response.message || 'Failed to remove employee');
         }
       } catch (error) {
         console.error('Error deleting employee:', error);
@@ -2312,19 +2994,7 @@ export default function Employees() {
           // Refresh employees and statistics (keep same company filter)
           const employeesResponse = await getEmployees(companyParams);
           if (employeesResponse.success && employeesResponse.data) {
-            const transformedEmployees = employeesResponse.data.map(emp => ({
-              id: emp.id,
-              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-              firstName: emp.firstName,
-              lastName: emp.lastName,
-              department: emp.department || 'N/A',
-              email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
-              jobTitle: emp.jobTitle || 'N/A',
-              employeeType: emp.employeeType || 'N/A',
-              status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
-              isActive: emp.isActive,
-              ...emp
-            }));
+            const transformedEmployees = employeesResponse.data.map(mapEmployeeListItem);
             setEmployees(transformedEmployees);
             console.log('✅ Employees list refreshed after restore');
           }
@@ -2351,26 +3021,27 @@ export default function Employees() {
   const handleUpdateEmployee = async () => {
     if (selectedEmployeeForEdit) {
       try {
-        // Update employee via API
-        const response = await updateEmployee(selectedEmployeeForEdit.id, selectedEmployeeForEdit);
+        const reason = (employeeEditChangeReason || '').trim();
+        if (!reason) {
+          alert(
+            'Fill in "Reason for this update" in the yellow box above the Update button. It is required for every save (audit trail), even when you only change Employee ID or other fields.'
+          );
+          return;
+        }
+        const payload = {
+          ...selectedEmployeeForEdit,
+          ...(selectedEmployeeForEdit.email && !selectedEmployeeForEdit.workEmail
+            ? { workEmail: selectedEmployeeForEdit.email }
+            : {}),
+          changeReason: reason,
+        };
+        const response = await updateEmployee(selectedEmployeeForEdit.id, payload);
         
         if (response.success) {
           // Refresh employees and statistics (keep same company filter)
           const employeesResponse = await getEmployees(companyParams);
           if (employeesResponse.success && employeesResponse.data) {
-            const transformedEmployees = employeesResponse.data.map(emp => ({
-              id: emp.id,
-              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-              department: emp.department || 'N/A',
-              email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
-              jobTitle: emp.jobTitle || 'N/A',
-              employeeType: emp.employeeType || 'N/A',
-              status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
-              phone: emp.phone || (emp.phoneNumbers ? (Array.isArray(emp.phoneNumbers) ? emp.phoneNumbers[0]?.value : JSON.parse(emp.phoneNumbers || '[]')[0]?.value) : 'No phone'),
-              manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
-              joiningDate: emp.joiningDate || null,
-              ...emp
-            }));
+            const transformedEmployees = employeesResponse.data.map(mapEmployeeListItem);
             setEmployees(transformedEmployees);
           }
 
@@ -2380,8 +3051,14 @@ export default function Employees() {
             setStatistics(statsResponse.data);
           }
 
+          setEmployeeChangeLogs((prev) => {
+            const next = { ...prev };
+            delete next[selectedEmployeeForEdit.id];
+            return next;
+          });
           setShowEditModal(false);
           setSelectedEmployeeForEdit(null);
+          setEmployeeEditChangeReason('');
           alert('Employee updated successfully!');
         } else {
           alert(`Failed to update employee: ${response.message}`);
@@ -2405,6 +3082,49 @@ export default function Employees() {
     navigate(-1);
   };
 
+  const handleAssignExistingEmployeeToPlacement = async (emp) => {
+    if (!emp?.id || !placementFilterActive || !placementPositionId) {
+      if (!placementPositionId) {
+        alert('Open this list by clicking a position on the org chart so the system knows which position to link.');
+      }
+      return;
+    }
+    const deptLabel = placementSubDepartmentName || placementDepartmentName || '';
+    const posLabel = placementPositionName || '';
+    const confirmMsg =
+      `Add ${emp.name || 'this employee'} to "${posLabel}"` +
+      (deptLabel ? ` under "${deptLabel}"` : '') +
+      '?\n\nTheir primary department and job title in the directory stay the same. They will also appear in this position (additional assignment).';
+    if (!window.confirm(confirmMsg)) return;
+
+    setAssigningEmployeeId(emp.id);
+    try {
+      const response = await assignEmployeeToOrgPosition(emp.id, placementPositionId, {
+        reason: `Load from Employee Directory → ${posLabel}`,
+      });
+      if (response.success) {
+        const employeesResponse = await getEmployees(companyParams);
+        if (employeesResponse.success && employeesResponse.data) {
+          setEmployees(employeesResponse.data.map(mapEmployeeListItem));
+        }
+        const statsResponse = await getEmployeeStatistics(companyParams);
+        if (statsResponse.success && statsResponse.data) {
+          setStatistics(statsResponse.data);
+        }
+        setShowAssignFromDirectoryModal(false);
+        setAssignDirectorySearch('');
+        alert(response.message || `${emp.name || 'Employee'} also appears on this position now.`);
+      } else {
+        alert(response.message || 'Failed to assign employee.');
+      }
+    } catch (error) {
+      console.error('Assign to placement error:', error);
+      alert(error.message || 'Failed to assign employee.');
+    } finally {
+      setAssigningEmployeeId(null);
+    }
+  };
+
   const handleSaveEmployee = async (employeeData) => {
     try {
       // Create employee via API
@@ -2414,19 +3134,7 @@ export default function Employees() {
         // Refresh employees and statistics (keep same company filter)
         const employeesResponse = await getEmployees(companyParams);
         if (employeesResponse.success && employeesResponse.data) {
-          const transformedEmployees = employeesResponse.data.map(emp => ({
-            id: emp.id,
-            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-            department: emp.department || 'N/A',
-            email: emp.email || emp.emailAddresses ? (Array.isArray(emp.emailAddresses) ? emp.emailAddresses[0] : JSON.parse(emp.emailAddresses || '[]')[0] || emp.email) : 'No email',
-            jobTitle: emp.jobTitle || 'N/A',
-            employeeType: emp.employeeType || 'N/A',
-            status: emp.status || (emp.isActive ? 'Active' : 'Inactive'),
-            phone: emp.phone || (emp.phoneNumbers ? (Array.isArray(emp.phoneNumbers) ? emp.phoneNumbers[0]?.value : JSON.parse(emp.phoneNumbers || '[]')[0]?.value) : 'No phone'),
-            manager: emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : 'N/A',
-            joiningDate: emp.joiningDate || null,
-            ...emp
-          }));
+          const transformedEmployees = employeesResponse.data.map(mapEmployeeListItem);
           setEmployees(transformedEmployees);
         }
 
@@ -2469,24 +3177,239 @@ export default function Employees() {
     }
     
     const jobTitle = {
-      id: jobTitles.length + 1,
+      id: `local-${Date.now()}`,
       title: newJobTitle.title.trim(),
       department: newJobTitle.department?.trim() || 'All',
-      description: newJobTitle.description?.trim() || ''
+      description: newJobTitle.description?.trim() || '',
+      fromApi: false,
     };
-    
-    setJobTitles(prev => [...prev, jobTitle]);
-    alert(`Job title "${jobTitle.title}" has been added successfully!`);
+
+    setJobTitles((prev) => [...prev, jobTitle]);
+    alert(`Job title "${jobTitle.title}" has been added to this list. To create an org position linked to sub-departments, use Company → Department → Sub-department.`);
   };
 
-  const handleAddAttendanceProgram = (newProgram) => {
-    const program = {
-      id: attendancePrograms.length + 1,
-      name: newProgram.name,
-      hours: newProgram.hours,
-      description: newProgram.description
-    };
-    setAttendancePrograms(prev => [...prev, program]);
+  const startEditJobTitle = (job) => {
+    setEditingJobId(job.id);
+    setEditJobDraft({
+      title: job.title || job.name || '',
+      department: job.department || '',
+      description: job.description || '',
+    });
+  };
+
+  const cancelJobTitleEdit = () => {
+    setEditingJobId(null);
+    setEditJobDraft({ title: '', department: '', description: '' });
+  };
+
+  const saveEditedJobTitle = async () => {
+    const job = jobTitles.find((j) => j.id === editingJobId);
+    if (!job) return;
+    const title = (editJobDraft.title || '').trim();
+    if (!title) {
+      alert('Job title name is required.');
+      return;
+    }
+    if (job.fromApi) {
+      try {
+        const res = await updatePosition(job.id, {
+          name: title,
+          description: (editJobDraft.description || '').trim() || null,
+        });
+        if (res.success) {
+          cancelJobTitleEdit();
+          await loadJobTitles();
+          const employeesResponse = await getEmployees(companyParams);
+          if (employeesResponse.success && employeesResponse.data) {
+            setEmployees(employeesResponse.data.map(mapEmployeeListItem));
+          }
+          const n = typeof res.employeesJobTitleSynced === 'number' ? res.employeesJobTitleSynced : 0;
+          alert(
+            n > 0
+              ? `Saved. ${n} employee record(s) were updated to use the new title.`
+              : 'Job title saved.'
+          );
+        } else {
+          alert(res.message || 'Failed to update job title.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Failed to update job title.');
+      }
+    } else {
+      const dept = (editJobDraft.department || '').trim() || 'All';
+      setJobTitles((prev) =>
+        prev.map((j) =>
+          j.id === job.id ? { ...j, title, department: dept, description: (editJobDraft.description || '').trim() } : j
+        )
+      );
+      cancelJobTitleEdit();
+      alert('Job title updated in this list.');
+    }
+  };
+
+  const handleAddAttendanceProgram = async (newProgram) => {
+    const params =
+      effectiveCompany?.id
+        ? { companyId: effectiveCompany.id }
+        : effectiveCompany?.name
+          ? { companyName: effectiveCompany.name }
+          : {};
+    if (!params.companyId && !params.companyName) {
+      alert('Select a company (open the directory from a company) before saving attendance programs.');
+      return false;
+    }
+    const nameTrim = (newProgram.name || '').trim();
+    const weeklySchedule = mergeWeeklySchedule(newProgram.weeklySchedule);
+    const v = validateWeeklySchedule(weeklySchedule);
+    if (!v.ok) {
+      alert(v.message);
+      return false;
+    }
+    const res = await createAttendanceProgram({
+      ...params,
+      name: nameTrim,
+      description: (newProgram.description || '').trim(),
+      weeklySchedule,
+    });
+    if (!res.success) {
+      alert(res.message || 'Could not save program.');
+      return false;
+    }
+    await loadAttendancePrograms();
+    alert(res.message || `Program "${nameTrim}" saved.`);
+    return true;
+  };
+
+  const startEditAttendanceProgram = (program) => {
+    setEditingAttendanceId(program.id);
+    setNewAttendanceProgramDraft({
+      name: program.name || '',
+      description: program.description || '',
+      weeklySchedule: mergeWeeklySchedule(program.weeklySchedule),
+    });
+  };
+
+  const cancelAttendanceProgramEdit = () => {
+    setEditingAttendanceId(null);
+    setNewAttendanceProgramDraft({
+      name: '',
+      description: '',
+      weeklySchedule: createDefaultWeeklySchedule(),
+    });
+  };
+
+  /** Create (POST) or update (PUT) using the left-hand form only — no duplicate rows. */
+  const submitAttendanceProgramForm = async () => {
+    const nameTrim = (newAttendanceProgramDraft.name || '').trim();
+    const descriptionTrim = (newAttendanceProgramDraft.description || '').trim();
+    if (!nameTrim) {
+      alert('Program name is required.');
+      return;
+    }
+    const v = validateWeeklySchedule(newAttendanceProgramDraft.weeklySchedule);
+    if (!v.ok) {
+      alert(v.message);
+      return;
+    }
+
+    const params =
+      effectiveCompany?.id
+        ? { companyId: effectiveCompany.id }
+        : effectiveCompany?.name
+          ? { companyName: effectiveCompany.name }
+          : {};
+    if (!params.companyId && !params.companyName) {
+      alert('Select a company before saving attendance programs.');
+      return;
+    }
+
+    const weeklySchedule = mergeWeeklySchedule(newAttendanceProgramDraft.weeklySchedule);
+
+    if (editingAttendanceId) {
+      const program = attendancePrograms.find((p) => p.id === editingAttendanceId);
+      if (!program) {
+        cancelAttendanceProgramEdit();
+        return;
+      }
+      const oldName = program.name;
+      const res = await updateAttendanceProgram(program.id, {
+        ...params,
+        name: nameTrim,
+        description: descriptionTrim,
+        weeklySchedule,
+      });
+      if (!res.success) {
+        alert(res.message || 'Could not save changes.');
+        return;
+      }
+      const canSync = user?.role === 'ADMIN' || user?.role === 'HR';
+      if (canSync) {
+        try {
+          const employeesResponse = await getEmployees(companyParams);
+          if (employeesResponse.success && employeesResponse.data) {
+            setEmployees(employeesResponse.data.map(mapEmployeeListItem));
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      setSelectedEmployeeForEdit((prev) =>
+        prev && prev.attendanceProgram === oldName && oldName !== nameTrim
+          ? { ...prev, attendanceProgram: nameTrim }
+          : prev
+      );
+      await loadAttendancePrograms();
+      cancelAttendanceProgramEdit();
+      alert(res.message || 'Program updated.');
+      return;
+    }
+
+    const ok = await handleAddAttendanceProgram({
+      name: nameTrim,
+      description: descriptionTrim,
+      weeklySchedule: newAttendanceProgramDraft.weeklySchedule,
+    });
+    if (ok) {
+      setNewAttendanceProgramDraft({
+        name: '',
+        description: '',
+        weeklySchedule: createDefaultWeeklySchedule(),
+      });
+    }
+  };
+
+  const canManageAttendancePrograms = user?.role === 'ADMIN' || user?.role === 'HR';
+
+  const handleDeleteAttendanceProgram = async (program) => {
+    if (!program?.id) return;
+    const params =
+      effectiveCompany?.id
+        ? { companyId: effectiveCompany.id }
+        : effectiveCompany?.name
+          ? { companyName: effectiveCompany.name }
+          : {};
+    if (!params.companyId && !params.companyName) {
+      alert('Select a company before deleting programs.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Delete attendance program "${program.name}"? This cannot be undone. If any employee still uses this program, deletion will be blocked until you reassign them.`
+      )
+    ) {
+      return;
+    }
+    const res = await deleteAttendanceProgram(program.id, params);
+    if (!res.success) {
+      alert(res.message || 'Could not delete program.');
+      return;
+    }
+    if (editingAttendanceId === program.id) {
+      cancelAttendanceProgramEdit();
+    }
+    await loadAttendancePrograms();
+    alert(res.message || 'Program deleted.');
   };
 
   const handleRuleButton = (employee) => {
@@ -2518,92 +3441,144 @@ export default function Employees() {
   };
 
   const handleDeleteDocument = (employeeId, documentId) => {
-    const document = employeeDocuments[employeeId]?.find(doc => doc.id === documentId);
+    const document = employeeDocuments[employeeId]?.find((doc) => doc.id === documentId);
     if (document && window.confirm(`Are you sure you want to delete "${document.name}"?`)) {
-      setEmployeeDocuments(prev => ({
+      setEmployeeDocuments((prev) => ({
         ...prev,
-        [employeeId]: prev[employeeId]?.filter(doc => doc.id !== documentId) || []
+        [employeeId]: prev[employeeId]?.filter((doc) => doc.id !== documentId) || [],
       }));
-      alert(`Document "${document.name}" deleted successfully!`);
+      alert(`Document "${document.name}" removed from this list.`);
     }
   };
 
-  const handleViewDocument = (document) => {
-    // In a real application, this would open the document in a viewer
-    console.log('Viewing document:', document);
-    alert(`Viewing document: ${document.name}`);
+  const handleViewDocument = (doc) => {
+    const href = resolveEmployeeAttachmentUrl(doc.url) || doc.url;
+    if (href) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    alert(`No file link for: ${doc.name}. Save the employee again with this document attached, or upload via Edit.`);
   };
 
-  const handleDownloadDocument = (document) => {
-    // In a real application, this would trigger a download
-    console.log('Downloading document:', document);
-    alert(`Downloading document: ${document.name}`);
+  const handleDownloadDocument = async (doc) => {
+    const href = resolveEmployeeAttachmentUrl(doc.url) || doc.url;
+    if (!href) {
+      alert(`No file link for: ${doc.name}. Save the employee again with this document attached, or upload via Edit.`);
+      return;
+    }
+    const safeName = (doc.name || 'document').replace(/[/\\?%*:|"<>]/g, '-');
+    try {
+      const res = await fetch(href, { method: 'GET', mode: 'cors' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const obj = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = obj;
+      a.download = safeName;
+      a.rel = 'noopener noreferrer';
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      URL.revokeObjectURL(obj);
+    } catch (err) {
+      console.warn('Direct download failed, opening in new tab:', err);
+      window.open(href, '_blank', 'noopener,noreferrer');
+    }
   };
 
-  const handleExportEmployees = () => {
-    // Create CSV content from employees data
-    const headers = ['ID', 'Name', 'Department', 'Job Title', 'Email', 'Phone', 'Status', 'Manager', 'Joining Date'];
-    const csvContent = [
-      headers.join(','),
-      ...employees.map(emp => [
-        emp.id,
-        emp.name,
-        emp.department,
-        emp.jobTitle,
-        emp.email,
-        emp.phone,
-        emp.status,
-        emp.manager || '',
-        emp.joiningDate || ''
-      ].join(','))
-    ].join('\n');
+  const [employeeImporting, setEmployeeImporting] = useState(false);
+  const [employeeImportResult, setEmployeeImportResult] = useState(null);
 
-    // Create and download file
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+  const downloadBlob = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `employees_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     window.URL.revokeObjectURL(url);
   };
 
-  const handleImportEmployees = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',');
-      
-      const importedEmployees = lines.slice(1).filter(line => line.trim()).map((line, index) => {
-        const values = line.split(',');
-        return {
-          id: employees.length + index + 1,
-          name: values[1] || '',
-          department: values[2] || '',
-          email: values[4] || '',
-          jobTitle: values[3] || '',
-          phone: values[5] || '',
-          status: values[6] || 'Active',
-          manager: values[7] || '',
-          joiningDate: values[8] || ''
-        };
-      });
-
-      setEmployees(prev => [...prev, ...importedEmployees]);
-      setShowImportExportModal(false);
-    };
-    reader.readAsText(file);
+  const handleDownloadEmployeeTemplate = async () => {
+    try {
+      const blob = await downloadEmployeeTemplate();
+      downloadBlob(blob, 'employee-import-template.xlsx');
+    } catch (e) {
+      alert(e.message || 'Failed to download template');
+    }
   };
 
-  const handleHistoryButton = (employee) => {
+  const handleExportEmployees = async () => {
+    try {
+      const blob = await exportEmployeesExcel();
+      downloadBlob(blob, 'employees-export.xlsx');
+    } catch (e) {
+      alert(e.message || 'Failed to export employees');
+    }
+  };
+
+  const handleImportEmployees = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setEmployeeImporting(true);
+      const res = await importEmployeesExcel(file);
+      setEmployeeImportResult(res?.data || null);
+      setShowImportExportModal(false);
+      // Refresh employee list + stats (same flow as initial load)
+      try {
+        setLoading(true);
+        const employeesResponse = await getEmployees(companyParams);
+        if (employeesResponse.success && employeesResponse.data) {
+          const transformedEmployees = employeesResponse.data.map(mapEmployeeListItem);
+          setEmployees(transformedEmployees);
+        }
+        const statsResponse = await getEmployeeStatistics(companyParams);
+        if (statsResponse.success && statsResponse.data) {
+          setStatistics(statsResponse.data);
+        }
+      } finally {
+        setLoading(false);
+      }
+    } catch (e) {
+      alert(e.message || 'Import failed');
+    } finally {
+      setEmployeeImporting(false);
+      event.target.value = '';
+    }
+  };
+
+  const downloadEmployeeImportErrors = () => {
+    if (!employeeImportResult?.errorReportBase64) return;
+    const byteCharacters = atob(employeeImportResult.errorReportBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    downloadBlob(blob, 'employee-import-errors.xlsx');
+  };
+
+  const handleHistoryButton = async (employee) => {
     setSelectedEmployeeForHistory(employee);
     setShowHistoryDrawer(true);
+    setHistoryDrawerError(null);
+    setHistoryDrawerLoading(true);
+    const res = await getEmployeeChangeHistory(employee.id);
+    setHistoryDrawerLoading(false);
+    if (res.success) {
+      setEmployeeChangeLogs((prev) => ({
+        ...prev,
+        [employee.id]: res.data || [],
+      }));
+    } else {
+      setHistoryDrawerError(res.message || 'Failed to load change history');
+      setEmployeeChangeLogs((prev) => ({
+        ...prev,
+        [employee.id]: [],
+      }));
+    }
   };
 
   const formatDate = (dateString) => {
@@ -2718,7 +3693,7 @@ export default function Employees() {
   const currentUserRole = "admin"; // Can be "admin", "hr", "employee"
   const canEditPayroll = currentUserRole === "admin" || currentUserRole === "hr";
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full min-h-screen flex flex-col overflow-x-hidden overflow-y-auto">
       {!showForm && <Breadcrumbs 
         names={{ 
           company: company?.name || null,
@@ -2752,6 +3727,20 @@ export default function Employees() {
             <BriefcaseIcon className="h-5 w-5" />
             Job Titles
           </button>
+          {canAssignFromDirectory && (
+            <button
+              type="button"
+              className="bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white px-4 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
+              onClick={() => {
+                setAssignDirectorySearch('');
+                setShowAssignFromDirectoryModal(true);
+              }}
+              title="Pick an existing employee and move their directory placement to this org position"
+            >
+              <UsersIcon className="h-5 w-5" />
+              Load from Employee Directory
+            </button>
+          )}
           <button
             className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
             onClick={() => setShowImportExportModal(true)}
@@ -2810,10 +3799,18 @@ export default function Employees() {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {loading ? '...' : (searchTerm ? filteredEmployees.length : statistics.totalEmployees)}
+                        {loading
+                          ? '...'
+                          : searchTerm || placementFilterActive
+                            ? filteredEmployees.length
+                            : statistics.totalEmployees}
                       </div>
                       <div className="text-indigo-100 text-sm">
-                        {searchTerm ? 'Filtered Employees' : 'Total Employees'}
+                        {searchTerm
+                          ? 'Filtered Employees'
+                          : placementFilterActive
+                            ? 'In selected position'
+                            : 'Total Employees'}
                       </div>
                     </div>
                   </div>
@@ -2838,10 +3835,18 @@ export default function Employees() {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {loading ? '...' : (searchTerm ? filteredEmployees.filter(emp => (emp.status || '').toLowerCase() === 'active').length : statistics.activeEmployees)}
+                        {loading
+                          ? '...'
+                          : searchTerm || placementFilterActive
+                            ? filteredEmployees.filter((emp) => (emp.status || '').toLowerCase() === 'active').length
+                            : statistics.activeEmployees}
                       </div>
                       <div className="text-indigo-100 text-sm">
-                        {searchTerm ? 'Filtered Active' : 'Active Employees'}
+                        {searchTerm
+                          ? 'Filtered Active'
+                          : placementFilterActive
+                            ? 'Active (this position)'
+                            : 'Active Employees'}
                       </div>
                     </div>
                   </div>
@@ -2852,6 +3857,37 @@ export default function Employees() {
         </div>
       )}
       
+      {/* Placement filter (from org structure → position) */}
+      {!showForm && placementFilterActive && (
+        <div className="w-full px-4 sm:px-6 lg:px-10 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/90 px-4 py-3 text-sm text-indigo-950 shadow-sm">
+            <span>
+              Showing staff in <strong>{placementDepartmentName}</strong>
+              {subDepartment?.name ? (
+                <>
+                  {' '}
+                  › <strong>{subDepartment.name}</strong>
+                </>
+              ) : null}
+              {placementPositionName ? (
+                <>
+                  {' '}
+                  › <strong>{placementPositionName}</strong>
+                </>
+              ) : null}{' '}
+              only.
+            </span>
+            <button
+              type="button"
+              onClick={clearPlacementFilter}
+              className="shrink-0 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow border border-indigo-200 hover:bg-indigo-100 transition-colors"
+            >
+              Show all employees
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Search Bar */}
       {!showForm && (
         <div className="w-full px-4 sm:px-6 lg:px-10 mb-6">
@@ -2871,7 +3907,18 @@ export default function Employees() {
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-gray-700 placeholder-gray-400"
                 />
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                {canManageInactiveVisibility && (
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      checked={showInactiveEmployees}
+                      onChange={(e) => setShowInactiveEmployees(e.target.checked)}
+                    />
+                    Show inactive employees
+                  </label>
+                )}
                 <div className="text-sm text-gray-500">
                   {filteredEmployees.length} of {employees.length} employees
                 </div>
@@ -3314,24 +4361,110 @@ export default function Employees() {
 
               {/* Job Titles List */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
                   <h4 className="text-lg font-semibold text-gray-900">Current Job Titles</h4>
+                  {jobTitlesLoading && (
+                    <span className="text-sm text-gray-500">Loading…</span>
+                  )}
                 </div>
+                <p className="px-6 py-2 text-xs text-gray-500 border-b border-gray-100">
+                  Rows from the org chart sync with the database. Renaming updates employees whose job title matched the old name. Local-only rows apply to this browser list until you create a position under a sub-department.
+                </p>
                 <div className="max-h-96 overflow-y-auto">
-                  {jobTitles.map(job => (
+                  {jobTitles.map((job) => (
                     <div key={job.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="font-semibold text-gray-900">{job.title}</h5>
-                          <p className="text-sm text-gray-600">Department: {job.department}</p>
-                          <p className="text-sm text-gray-500">{job.description}</p>
+                      {editingJobId === job.id ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Job title</label>
+                              <input
+                                type="text"
+                                value={editJobDraft.title}
+                                onChange={(e) => setEditJobDraft((d) => ({ ...d, title: e.target.value }))}
+                                className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Department / placement</label>
+                              {job.fromApi ? (
+                                <input
+                                  type="text"
+                                  value={editJobDraft.department}
+                                  disabled
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-600"
+                                  title="Change placement from Company → Department → Sub-department"
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={editJobDraft.department}
+                                  onChange={(e) => setEditJobDraft((d) => ({ ...d, department: e.target.value }))}
+                                  className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm"
+                                />
+                              )}
+                            </div>
+                            <div className="md:col-span-1">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={editJobDraft.description}
+                                onChange={(e) => setEditJobDraft((d) => ({ ...d, description: e.target.value }))}
+                                className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={cancelJobTitleEdit}
+                              className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={saveEditedJobTitle}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                            >
+                              Save changes
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                            ID: {job.id}
-                          </span>
+                      ) : (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <h5 className="font-semibold text-gray-900">{job.title}</h5>
+                            <p className="text-sm text-gray-600">Department: {job.department}</p>
+                            {job.description ? (
+                              <p className="text-sm text-gray-500 mt-1">{job.description}</p>
+                            ) : null}
+                            <p className="text-xs text-gray-400 mt-1">
+                              {job.fromApi
+                                ? isAssignableOrgPosition(job)
+                                  ? 'Synced position · Active for new assignments'
+                                  : 'Synced position · Inactive (not offered on new employee forms)'
+                                : 'Local list only'}
+                            </p>
+                          </div>
+                          <div className="flex flex-shrink-0 items-center gap-2">
+                            <span
+                              className="hidden sm:inline px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-mono max-w-[140px] truncate"
+                              title={String(job.id)}
+                            >
+                              {job.fromApi ? String(job.id).slice(0, 8) + '…' : job.id}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => startEditJobTitle(job)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 text-sm font-medium hover:bg-blue-50"
+                            >
+                              <PencilSquareIcon className="h-4 w-4" />
+                              Edit
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3341,93 +4474,346 @@ export default function Employees() {
         </div>
       )}
 
+      {/* Assign existing employee to current org position (no new directory record) */}
+      {showAssignFromDirectoryModal && canAssignFromDirectory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col ring-1 ring-indigo-100"
+            role="dialog"
+            aria-labelledby="assign-directory-modal-title"
+            aria-modal="true"
+          >
+            <div className="flex-shrink-0 flex items-start justify-between gap-3 px-5 py-4 bg-gradient-to-r from-sky-600 to-indigo-600 text-white">
+              <div className="min-w-0">
+                <h3 id="assign-directory-modal-title" className="text-lg font-bold">
+                  Load from Employee Directory
+                </h3>
+                <p className="text-sm text-sky-100 mt-1">
+                  Select an employee to assign to{' '}
+                  <strong className="text-white">{placementPositionName}</strong>
+                  {placementSubDepartmentName ? (
+                    <>
+                      {' '}
+                      · <span className="text-white/95">{placementSubDepartmentName}</span>
+                    </>
+                  ) : null}
+                  . Adds an extra org-chart link: their main directory department and job title stay unchanged; they also show here. No duplicate person record.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAssignFromDirectoryModal(false);
+                  setAssignDirectorySearch('');
+                }}
+                className="shrink-0 p-2 rounded-lg hover:bg-white/15 transition-colors"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-4 border-b border-gray-100">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" aria-hidden />
+                <input
+                  type="search"
+                  autoFocus
+                  placeholder="Search by name, employee ID, email, department…"
+                  value={assignDirectorySearch}
+                  onChange={(e) => setAssignDirectorySearch(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Showing {employeesForAssignPicker.length} of {employees.length} employees
+                {effectiveCompany?.name ? ` in ${effectiveCompany.name}` : ''}.
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-2">
+              {employeesForAssignPicker.length === 0 ? (
+                <div className="text-center py-10 text-gray-500 text-sm">No employees match your search.</div>
+              ) : (
+                <ul className="space-y-1">
+                  {employeesForAssignPicker.map((emp) => {
+                    const busy = assigningEmployeeId === emp.id;
+                    return (
+                      <li key={emp.id}>
+                        <button
+                          type="button"
+                          disabled={Boolean(assigningEmployeeId)}
+                          onClick={() => handleAssignExistingEmployeeToPlacement(emp)}
+                          className={`w-full text-left rounded-xl px-4 py-3 border transition-colors ${
+                            busy
+                              ? 'border-indigo-300 bg-indigo-50'
+                              : 'border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/60'
+                          } ${assigningEmployeeId && !busy ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <div className="font-semibold text-gray-900">{emp.name || '—'}</div>
+                          <div className="text-xs text-gray-600 mt-0.5 space-y-0.5">
+                            {emp.employeeId != null && String(emp.employeeId).trim() !== '' ? (
+                              <div>ID: {String(emp.employeeId)}</div>
+                            ) : null}
+                            <div className="truncate">{emp.email || '—'}</div>
+                            <div>
+                              {emp.department || '—'}
+                              {emp.jobTitle && emp.jobTitle !== 'N/A' ? ` · ${emp.jobTitle}` : ''}
+                            </div>
+                          </div>
+                          {busy ? <div className="text-xs text-indigo-600 mt-1">Assigning…</div> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Attendance Program Modal */}
       {showAttendanceProgramModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-8 w-8" />
-                <div>
-                  <h3 className="text-xl font-bold">Attendance Program Management</h3>
-                  <p className="text-green-100">Create and manage attendance programs</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+          <div
+            className="bg-white rounded-2xl shadow-[0_24px_80px_-12px_rgba(15,23,42,0.35)] w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col ring-1 ring-slate-200/80"
+            role="dialog"
+            aria-labelledby="attendance-program-modal-title"
+            aria-modal="true"
+          >
+            <div className="relative flex-shrink-0 flex items-start sm:items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 bg-slate-900 text-white">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.07]"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(circle at 20% 20%, #fbbf24 0, transparent 45%), radial-gradient(circle at 80% 0%, #38bdf8 0, transparent 40%)',
+                }}
+              />
+              <div className="relative flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20">
+                  <ClockIcon className="h-6 w-6 text-amber-300" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <h3 id="attendance-program-modal-title" className="text-lg sm:text-xl font-semibold tracking-tight">
+                    Attendance programs
+                  </h3>
+                  <p className="text-sm text-slate-300 mt-0.5">
+                    Define schedules for the employee form. Search, add, or edit entries below.
+                  </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAttendanceProgramModal(false)}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                className="relative shrink-0 p-2 rounded-lg text-slate-200 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close"
               >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            
-            <div className="p-6">
-              {/* Add New Attendance Program Form */}
-              <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-200">
-                <h4 className="text-lg font-semibold text-green-900 mb-4">Add New Attendance Program</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Program Name"
-                    className="px-4 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    id="newProgramName"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Working Hours"
-                    className="px-4 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    id="newProgramHours"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Description"
-                    className="px-4 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    id="newProgramDescription"
-                  />
-                </div>
-                <button
-                  onClick={() => {
-                    const name = document.getElementById('newProgramName').value;
-                    const hours = document.getElementById('newProgramHours').value;
-                    const description = document.getElementById('newProgramDescription').value;
-                    if (name && hours) {
-                      handleAddAttendanceProgram({ name, hours, description });
-                      document.getElementById('newProgramName').value = '';
-                      document.getElementById('newProgramHours').value = '';
-                      document.getElementById('newProgramDescription').value = '';
-                    }
-                  }}
-                  className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Add Program
-                </button>
-              </div>
 
-              {/* Attendance Programs List */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                  <h4 className="text-lg font-semibold text-gray-900">Current Attendance Programs</h4>
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 bg-slate-50/90">
+              {!effectiveCompany?.id && !effectiveCompany?.name ? (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  Select a company (header selector or open this directory from a company) to load and save programs for that organization.
                 </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {attendancePrograms.map(program => (
-                    <div key={program.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="font-semibold text-gray-900">{program.name}</h5>
-                          <p className="text-sm text-gray-600">Hours: {program.hours}</p>
-                          <p className="text-sm text-gray-500">{program.description}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                            ID: {program.id}
-                          </span>
-                        </div>
+              ) : null}
+              <div className="flex flex-col xl:flex-row gap-6 xl:gap-8 xl:items-start">
+                {/* Create */}
+                <aside className="w-full xl:w-[min(100%,420px)] shrink-0 space-y-4">
+                  <div
+                    className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ${
+                      editingAttendanceId ? 'ring-2 ring-amber-400/80 ring-offset-2 ring-offset-slate-50' : 'ring-slate-200/80'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 text-slate-900 font-semibold mb-1">
+                      {editingAttendanceId ? (
+                        <PencilSquareIcon className="h-5 w-5 text-amber-600" aria-hidden />
+                      ) : (
+                        <PlusIcon className="h-5 w-5 text-amber-600" aria-hidden />
+                      )}
+                      {editingAttendanceId ? 'Edit program' : 'New program'}
+                    </div>
+                    <p className="text-xs text-slate-500 mb-4">
+                      {editingAttendanceId
+                        ? 'Update name, weekly ON/OFF, clock-in/out, or description. Saving updates this program in the library (does not create a copy).'
+                        : 'Program name is required. Set each day to ON or OFF; when ON, pick clock-in and clock-out (24h). Description is optional.'}
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Program name</label>
+                        <input
+                          type="text"
+                          value={newAttendanceProgramDraft.name}
+                          onChange={(e) =>
+                            setNewAttendanceProgramDraft((d) => ({ ...d, name: e.target.value }))
+                          }
+                          placeholder="e.g. Standard 9–5"
+                          disabled={!effectiveCompany?.id && !effectiveCompany?.name}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <AttendanceWeeklyScheduleEditor
+                        value={newAttendanceProgramDraft.weeklySchedule}
+                        onChange={(next) =>
+                          setNewAttendanceProgramDraft((d) => ({ ...d, weeklySchedule: next }))
+                        }
+                        disabled={!effectiveCompany?.id && !effectiveCompany?.name}
+                      />
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+                        <input
+                          type="text"
+                          value={newAttendanceProgramDraft.description}
+                          onChange={(e) =>
+                            setNewAttendanceProgramDraft((d) => ({ ...d, description: e.target.value }))
+                          }
+                          placeholder="Short note for HR (optional)"
+                          disabled={!effectiveCompany?.id && !effectiveCompany?.name}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mt-1">
+                        {editingAttendanceId ? (
+                          <button
+                            type="button"
+                            onClick={cancelAttendanceProgramEdit}
+                            disabled={!effectiveCompany?.id && !effectiveCompany?.name}
+                            className="w-full px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            Cancel edit
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={submitAttendanceProgramForm}
+                          disabled={!effectiveCompany?.id && !effectiveCompany?.name}
+                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          {editingAttendanceId ? (
+                            <>
+                              <CheckIcon className="h-4 w-4" />
+                              Update program
+                            </>
+                          ) : (
+                            <>
+                              <PlusIcon className="h-4 w-4" />
+                              Add to list
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 px-4 py-3 text-xs text-slate-600 leading-relaxed">
+                    <strong className="text-slate-800 font-medium">Rename note:</strong> each employee stores the program <em>name</em>. Renaming a program (as HR/Admin) updates matching employees for this company. Weekly schedules are saved in the database per company.
+                  </div>
+                </aside>
+
+                {/* Library */}
+                <section className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h4 className="text-base font-semibold text-slate-900">Program library</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {attendanceProgramsLoading
+                          ? 'Loading…'
+                          : `${attendancePrograms.length} program${attendancePrograms.length === 1 ? '' : 's'} total`}
+                        {!attendanceProgramsLoading && attendanceProgramFilter.trim()
+                          ? ` · ${filteredAttendancePrograms.length} match${filteredAttendancePrograms.length === 1 ? '' : 'es'}`
+                          : ''}
+                      </p>
+                    </div>
+                    <div className="relative w-full sm:w-64">
+                      <MagnifyingGlassIcon
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+                        aria-hidden
+                      />
+                      <input
+                        type="search"
+                        value={attendanceProgramFilter}
+                        onChange={(e) => setAttendanceProgramFilter(e.target.value)}
+                        placeholder="Search name, schedule, description…"
+                        className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500/60"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-[280px] max-h-[min(52vh,560px)] overflow-y-auto pr-1 -mr-1">
+                    {filteredAttendancePrograms.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 px-6 text-center">
+                        <CalendarIcon className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+                        <p className="text-sm font-medium text-slate-700">No programs match your search</p>
+                        <p className="text-xs text-slate-500 mt-1">Try another term or clear the search field.</p>
+                      </div>
+                    ) : (
+                      <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 list-none p-0 m-0">
+                        {filteredAttendancePrograms.map((program) => {
+                          const programIndex = attendancePrograms.findIndex((p) => p.id === program.id);
+                          return (
+                            <li key={program.id}>
+                              <article
+                                className={`rounded-2xl border bg-white shadow-sm transition-shadow ${
+                                  editingAttendanceId === program.id
+                                    ? 'ring-2 ring-amber-500/50 border-amber-300 bg-amber-50/30'
+                                    : 'border-slate-200/90 hover:shadow-md hover:border-slate-300/80'
+                                }`}
+                              >
+                                <div className="p-4 sm:p-5 flex flex-col gap-3 h-full">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                      <h5 className="font-semibold text-slate-900 leading-snug">{program.name}</h5>
+                                      {editingAttendanceId === program.id ? (
+                                        <p className="text-xs font-medium text-amber-800 mt-1.5">
+                                          Editing in the left panel — adjust times there, then click Update program.
+                                        </p>
+                                      ) : null}
+                                      <div className="mt-2 flex gap-1.5 items-start max-w-full text-xs font-medium text-amber-950 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
+                                        <ClockIcon className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                                        <span className="min-w-0 leading-snug line-clamp-3">
+                                          {program.hours ||
+                                            formatWeeklyScheduleSummary(program.weeklySchedule)}
+                                        </span>
+                                      </div>
+                                      {program.description ? (
+                                        <p className="text-sm text-slate-500 mt-2 line-clamp-2">{program.description}</p>
+                                      ) : (
+                                        <p className="text-sm text-slate-400 mt-2 italic">No description</p>
+                                      )}
+                                    </div>
+                                    <span className="shrink-0 text-[11px] font-mono text-slate-400 tabular-nums pt-0.5">
+                                      #{programIndex + 1}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap justify-end gap-2 mt-auto pt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditAttendanceProgram(program)}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300"
+                                    >
+                                      <PencilSquareIcon className="h-4 w-4 text-slate-500" />
+                                      {editingAttendanceId === program.id ? 'Reload into form' : 'Edit'}
+                                    </button>
+                                    {canManageAttendancePrograms ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteAttendanceProgram(program)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-sm font-medium hover:bg-red-50 hover:border-red-300"
+                                        aria-label={`Delete ${program.name}`}
+                                      >
+                                        <TrashIcon className="h-4 w-4 text-red-600" />
+                                        Delete
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </article>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </section>
               </div>
             </div>
           </div>
@@ -3443,7 +4829,7 @@ export default function Employees() {
                 <ArrowDownTrayIcon className="h-8 w-8" />
                 <div>
                   <h3 className="text-xl font-bold">Import/Export Employees</h3>
-                  <p className="text-orange-100">Import or export employee data via CSV</p>
+                  <p className="text-orange-100">Import or export employee data via Excel (.xlsx)</p>
                 </div>
               </div>
               <button
@@ -3457,6 +4843,25 @@ export default function Employees() {
             </div>
             
             <div className="p-6">
+              {/* Template */}
+              <div className="mb-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <ArrowDownTrayIcon className="h-6 w-6 text-slate-700" />
+                  <h4 className="text-lg font-semibold text-slate-900">Download Employee Template</h4>
+                </div>
+                <p className="text-slate-600 mb-4 text-sm">
+                  The template mirrors the Create Employee form fields and order. Required columns are marked with <strong>*</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDownloadEmployeeTemplate}
+                  className="px-6 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors font-semibold flex items-center gap-2"
+                >
+                  <ArrowDownTrayIcon className="h-5 w-5" />
+                  Download Employee Template (.xlsx)
+                </button>
+              </div>
+
               {/* Export Section */}
               <div className="mb-8 p-6 bg-orange-50 rounded-xl border border-orange-200">
                 <div className="flex items-center gap-3 mb-4">
@@ -3464,14 +4869,14 @@ export default function Employees() {
                   <h4 className="text-lg font-semibold text-orange-900">Export Employees</h4>
                 </div>
                 <p className="text-orange-700 mb-4">
-                  Download all current employee data as a CSV file. The file will include: ID, Name, Department, Job Title, Email, Phone, Status, Manager, and Joining Date.
+                  Download all current employee data as an Excel file, using the same structure as the import template (compatible for re-upload).
                 </p>
                 <button
                   onClick={handleExportEmployees}
                   className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold flex items-center gap-2"
                 >
                   <ArrowDownTrayIcon className="h-5 w-5" />
-                  Export to CSV
+                  Export to Excel
                 </button>
               </div>
 
@@ -3482,29 +4887,72 @@ export default function Employees() {
                   <h4 className="text-lg font-semibold text-red-900">Import Employees</h4>
                 </div>
                 <p className="text-red-700 mb-4">
-                  Upload a CSV file to import new employees. The file should have columns: Name, Department, Job Title, Email, Phone, Status, Manager, Joining Date.
+                  Upload the filled Employee template (.xlsx). Invalid rows will be skipped and an error report will be generated.
                 </p>
                 <div className="mb-4">
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".xlsx"
                     onChange={handleImportEmployees}
-                    className="block w-full text-sm text-red-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700 file:cursor-pointer"
+                    disabled={employeeImporting}
+                    className="block w-full text-sm text-red-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700 file:cursor-pointer disabled:opacity-50"
                   />
                 </div>
                 <div className="text-xs text-red-600">
-                  <p><strong>Note:</strong> Imported employees will be added to the existing list. Make sure your CSV file follows the correct format.</p>
+                  <p>
+                    <strong>Note:</strong> Keep header row 1 unchanged. Row 2 contains hidden system keys.
+                  </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Sample CSV Format */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h5 className="font-semibold text-gray-900 mb-2">Sample CSV Format:</h5>
-                <div className="text-xs text-gray-600 font-mono bg-white p-2 rounded border">
-                  Name,Department,Job Title,Email,Phone,Status,Manager,Joining Date<br/>
-                  John Doe,IT,Developer,john.doe@company.com,+1234567890,Active,Manager Name,2023-01-15
+      {/* Import summary modal */}
+      {employeeImportResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+              <div className="font-bold">Employee import summary</div>
+              <button
+                type="button"
+                className="p-2 rounded-lg hover:bg-white/15"
+                onClick={() => setEmployeeImportResult(null)}
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3 text-sm">
+              <div className="flex justify-between"><span>Total processed</span><span className="font-semibold">{employeeImportResult.processed}</span></div>
+              <div className="flex justify-between"><span>Imported</span><span className="font-semibold text-green-700">{employeeImportResult.imported}</span></div>
+              <div className="flex justify-between"><span>Failed</span><span className="font-semibold text-red-700">{employeeImportResult.failed}</span></div>
+              {employeeImportResult.errorCount > 0 ? (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={downloadEmployeeImportErrors}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 font-semibold"
+                  >
+                    Download error report (.xlsx)
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Fix the failed rows and re-import using the same template.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="text-green-700 font-semibold">No errors.</div>
+              )}
+            </div>
+            <div className="p-4 border-t flex justify-end">
+              <button
+                type="button"
+                onClick={() => setEmployeeImportResult(null)}
+                className="px-4 py-2 rounded-lg bg-gray-900 text-white font-semibold hover:bg-black"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
@@ -3581,59 +5029,71 @@ export default function Employees() {
                     <div className="flex-1 h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
                   </div>
                   
-                  {employeeChangeLogs[selectedEmployeeForHistory.id] && employeeChangeLogs[selectedEmployeeForHistory.id].length > 0 ? (
+                  {historyDrawerLoading ? (
+                    <div className="text-center py-12 text-gray-600">Loading change history…</div>
+                  ) : historyDrawerError ? (
+                    <div className="text-center py-12 text-red-600 text-sm px-4">{historyDrawerError}</div>
+                  ) : (employeeChangeLogs[selectedEmployeeForHistory.id] || []).length > 0 ? (
                     <div className="space-y-4">
-                      {employeeChangeLogs[selectedEmployeeForHistory.id].map((log, index) => (
+                      {(employeeChangeLogs[selectedEmployeeForHistory.id] || []).map((log) => (
                         <div key={log.id} className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                          {/* Timeline indicator */}
                           <div className="relative">
                             <div className="absolute left-0 top-0 w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full shadow-lg"></div>
                             <div className="absolute left-1.5 top-3 w-0.5 h-full bg-gradient-to-b from-purple-500 to-transparent"></div>
                           </div>
-                          
+
                           <div className="ml-6">
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl">
+                            <div className="flex items-start justify-between mb-4 gap-2">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl flex-shrink-0">
                                   <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </div>
-                                <div>
-                                  <span className="font-bold text-gray-900 text-lg">{log.fieldChanged}</span>
-                                  <p className="text-sm text-gray-500">Field Updated</p>
+                                <div className="min-w-0">
+                                  <span className="font-bold text-gray-900 text-lg">{log.fieldChanged || log.fieldLabel}</span>
+                                  <p className="text-sm text-gray-500">Field updated</p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{formatDate(log.changedAt)}</span>
+                              <div className="text-right flex-shrink-0">
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full whitespace-nowrap">{formatDate(log.changedAt)}</span>
                               </div>
                             </div>
-                            
-                            {/* Change Details */}
+
                             <div className="grid grid-cols-1 gap-3 mb-4">
-                              <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-200">
-                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <div className="flex flex-wrap items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-200">
+                                <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
                                 <span className="text-sm font-medium text-gray-700">Previous:</span>
-                                <span className="text-sm bg-red-100 text-red-800 px-3 py-1 rounded-full font-medium">{log.oldValue}</span>
+                                <span className="text-sm bg-red-100 text-red-800 px-3 py-1 rounded-full font-medium break-all">{log.oldValue != null && log.oldValue !== '' ? log.oldValue : '—'}</span>
                               </div>
-                              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <div className="flex flex-wrap items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                                <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                                 <span className="text-sm font-medium text-gray-700">Updated to:</span>
-                                <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">{log.newValue}</span>
+                                <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium break-all">{log.newValue != null && log.newValue !== '' ? log.newValue : '—'}</span>
                               </div>
                             </div>
-                            
-                            {/* Footer */}
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
-                                  <span className="text-xs text-white font-bold">{log.changedBy.charAt(0)}</span>
+
+                            {log.reason ? (
+                              <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Reason</p>
+                                <p className="text-sm text-slate-800 whitespace-pre-wrap">{log.reason}</p>
+                              </div>
+                            ) : null}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-gray-100">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xs text-white font-bold">{(log.changedBy || '?').charAt(0)}</span>
                                 </div>
-                                <span className="text-sm text-gray-600">Changed by <span className="font-semibold text-gray-900">{log.changedBy}</span></span>
+                                <span className="text-sm text-gray-600 truncate">
+                                  <span className="font-semibold text-gray-900">{log.changedBy || 'Unknown'}</span>
+                                  {log.changedByRole ? (
+                                    <span className="text-gray-500"> · {log.changedByRole}</span>
+                                  ) : null}
+                                </span>
                               </div>
                               <span className="px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full text-xs font-medium capitalize">
-                                {log.changeType}
+                                {log.changeType || 'update'}
                               </span>
                             </div>
                           </div>
@@ -3646,7 +5106,7 @@ export default function Employees() {
                         <ClockIcon className="h-16 w-16 text-gray-400" />
                       </div>
                       <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Yet</h4>
-                      <p className="text-gray-500">This employee's record hasn't been modified yet.</p>
+                      <p className="text-gray-500">This employee&apos;s record hasn&apos;t been modified yet.</p>
                     </div>
                   )}
                 </div>
@@ -3663,7 +5123,7 @@ export default function Employees() {
                     <div className="flex items-center gap-2">
                       <span className="text-gray-600">Total Changes:</span>
                       <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 rounded-full font-bold">
-                        {employeeChangeLogs[selectedEmployeeForHistory.id]?.length || 0}
+                        {(employeeChangeLogs[selectedEmployeeForHistory.id] || []).length}
                       </span>
                     </div>
                   </div>
@@ -4074,7 +5534,11 @@ export default function Employees() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.phone || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeePrimaryPhoneDisplay(selectedEmployeeForView) ||
+                              selectedEmployeeForView.phone ||
+                              'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact</label>
@@ -4174,19 +5638,31 @@ export default function Employees() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Passport Number</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.passportNumber || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {displayDirectoryText(selectedEmployeeForView, 'passportNumber') || 'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Issue Date</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.passportIssue || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeeDirectoryDateDisplay(selectedEmployeeForView, 'passportIssueDate') ||
+                              displayDirectoryText(selectedEmployeeForView, 'passportIssue') ||
+                              'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.passportExpiry || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeeDirectoryDateDisplay(selectedEmployeeForView, 'passportExpiryDate') ||
+                              displayDirectoryText(selectedEmployeeForView, 'passportExpiry') ||
+                              'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Nationality</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.nationality || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {displayDirectoryText(selectedEmployeeForView, 'nationality') || 'Not provided'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -4199,11 +5675,17 @@ export default function Employees() {
                     onClick={() => setOpenLegalSection(openLegalSection === 'documents' ? '' : 'documents')}
                     className="w-full p-6 flex items-center justify-between bg-gradient-to-r from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 transition-all duration-200"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <h5 className="text-lg font-bold text-gray-900">Documents</h5>
+                      {mergedViewDocuments.length > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          <CheckCircleIcon className="h-4 w-4 shrink-0" aria-hidden />
+                          {mergedViewDocuments.length} on file
+                        </span>
+                      )}
                     </div>
                     <svg className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${openLegalSection === 'documents' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -4308,58 +5790,79 @@ export default function Employees() {
                         {/* Documents List */}
                         <div>
                           <div className="flex items-center justify-between mb-4">
-                            <h6 className="text-lg font-semibold text-gray-900">Uploaded Documents</h6>
+                            <h6 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                              Uploaded Documents
+                              {mergedViewDocuments.length > 0 && (
+                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                  <CheckCircleIcon className="h-4 w-4" aria-hidden />
+                                  {mergedViewDocuments.length} on file
+                                </span>
+                              )}
+                            </h6>
                             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">ID: {selectedEmployeeForView?.id}</span>
                           </div>
                           <div className="space-y-3">
-                            {employeeDocuments[selectedEmployeeForView?.id]?.length > 0 ? (
-                              employeeDocuments[selectedEmployeeForView?.id]?.map((doc, index) => (
-                                <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 rounded-lg">
+                            {mergedViewDocuments.length > 0 ? (
+                              mergedViewDocuments.map((doc) => (
+                                <div key={doc.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
                                       <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                       </svg>
                                     </div>
-                                                                         <div>
-                                       <p className="font-medium text-gray-900">{doc.name}</p>
-                                       <p className="text-sm text-gray-500">{doc.type} • {doc.uploadDate} • {doc.fileSize}</p>
-                                       {doc.expiryDate && (
-                                         <p className={`text-xs ${new Date(doc.expiryDate) < new Date() ? 'text-red-600' : 'text-orange-600'}`}>
-                                           Expires: {doc.expiryDate}
-                                         </p>
-                                       )}
-                                     </div>
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-gray-900 flex items-center gap-2">
+                                        <CheckCircleIcon className="h-5 w-5 text-emerald-500 flex-shrink-0" title="Uploaded" aria-hidden />
+                                        <span className="truncate">{doc.name}</span>
+                                      </p>
+                                      <p className="text-sm text-gray-500">
+                                        {doc.type}
+                                        {' • '}
+                                        {doc.uploadDate}
+                                        {doc.fileSize ? ` • ${doc.fileSize}` : ''}
+                                      </p>
+                                      {doc.expiryDate && (
+                                        <p className={`text-xs ${new Date(doc.expiryDate) < new Date() ? 'text-red-600' : 'text-orange-600'}`}>
+                                          Expires: {doc.expiryDate}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <button 
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                      type="button"
                                       onClick={() => handleViewDocument(doc)}
                                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                      title="View Document"
+                                      title={doc.url ? 'Open document' : 'No link available'}
                                     >
                                       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                       </svg>
                                     </button>
-                                    <button 
+                                    <button
+                                      type="button"
                                       onClick={() => handleDownloadDocument(doc)}
                                       className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                      title="Download Document"
+                                      title={doc.url ? 'Download' : 'No link available'}
                                     >
                                       <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                       </svg>
                                     </button>
-                                    <button 
-                                      onClick={() => handleDeleteDocument(selectedEmployeeForView.id, doc.id)}
-                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                      title="Delete Document"
-                                    >
-                                      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                    </button>
+                                    {doc.source !== 'directory' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteDocument(selectedEmployeeForView.id, doc.id)}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Remove from list"
+                                      >
+                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               ))
@@ -4410,7 +5913,11 @@ export default function Employees() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.birthday || 'Not specified'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeeDirectoryDateDisplay(selectedEmployeeForView, 'birthday') ||
+                              displayDirectoryText(selectedEmployeeForView, 'birthDate', 'dateOfBirth') ||
+                              'Not specified'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
@@ -4454,27 +5961,65 @@ export default function Employees() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Residency Number</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.residencyNumber || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {displayDirectoryText(selectedEmployeeForView, 'residencyNumber') || 'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Residency Expiry</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.residencyExpiry || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeeDirectoryDateDisplay(selectedEmployeeForView, 'residencyExpiryDate') ||
+                              displayDirectoryText(selectedEmployeeForView, 'residencyExpiry') ||
+                              'Not provided'}
+                          </p>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Visa Number</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.visa || 'Not provided'}</p>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Visa ID number</label>
+                          <p className="text-gray-900 font-medium">
+                            {displayDirectoryText(
+                              selectedEmployeeForView,
+                              'visaNumber',
+                              'visa',
+                              'visaId',
+                              'visa_id'
+                            ) ||
+                              displayDirectoryText(selectedEmployeeForView, 'residencyNumber') ||
+                              'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Labour Card Number</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.labourNumber || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {displayDirectoryText(
+                              selectedEmployeeForView,
+                              'labourIdNumber',
+                              'labourCardNumber',
+                              'laborCardNumber',
+                              'labourNumber'
+                            ) || 'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Labour Card Expiry</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.labourExpiry || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeeDirectoryDateDisplay(selectedEmployeeForView, 'labourIdExpiryDate') ||
+                              displayDirectoryText(selectedEmployeeForView, 'labourExpiry', 'labourCardExpiry') ||
+                              'Not provided'}
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Number</label>
-                          <p className="text-gray-900 font-medium">{selectedEmployeeForView.insuranceNumber || 'Not provided'}</p>
+                          <p className="text-gray-900 font-medium">
+                            {displayDirectoryText(selectedEmployeeForView, 'insuranceNumber') || 'Not provided'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Expiry</label>
+                          <p className="text-gray-900 font-medium">
+                            {getEmployeeDirectoryDateDisplay(selectedEmployeeForView, 'insuranceExpiryDate') ||
+                              displayDirectoryText(selectedEmployeeForView, 'insuranceExpiry') ||
+                              'Not provided'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -4619,12 +6164,30 @@ export default function Employees() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter email address"
                         />
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <div className="text-xs text-gray-600">
+                            This email is used for ERP login.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSetPassword(selectedEmployeeForEdit)}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-purple-200 text-purple-700 bg-white hover:bg-purple-50 transition-colors"
+                            title="Reset ERP password"
+                          >
+                            <KeyIcon className="h-4 w-4" />
+                            Reset Password
+                          </button>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                         <input
                           type="tel"
-                          value={selectedEmployeeForEdit.phone || ''}
+                          value={
+                            selectedEmployeeForEdit.phone ||
+                            getEmployeePrimaryPhoneDisplay(selectedEmployeeForEdit) ||
+                            ''
+                          }
                           onChange={(e) => handleEditFieldChange('phone', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter phone number"
@@ -4633,7 +6196,7 @@ export default function Employees() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                         <select
-                          value={selectedEmployeeForEdit.gender || ''}
+                          value={normalizeGenderSelectValue(selectedEmployeeForEdit.gender)}
                           onChange={(e) => handleEditFieldChange('gender', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
@@ -4646,7 +6209,7 @@ export default function Employees() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
                         <select
-                          value={selectedEmployeeForEdit.maritalStatus || ''}
+                          value={normalizeMaritalSelectValue(selectedEmployeeForEdit.maritalStatus)}
                           onChange={(e) => handleEditFieldChange('maritalStatus', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
@@ -4671,7 +6234,7 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Birthday</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.birthday || ''}
+                          value={toDateInputString(selectedEmployeeForEdit.birthday)}
                           onChange={(e) => handleEditFieldChange('birthday', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
@@ -4713,25 +6276,33 @@ export default function Employees() {
                           value={selectedEmployeeForEdit.jobTitle || ""}
                           onChange={(e) => {
                             const newJobTitle = e.target.value;
-                            handleEditFieldChange('jobTitle', newJobTitle);
-                            // Clear manager field when job title is "Manager"
-                            if (newJobTitle === "Manager") {
-                              handleEditFieldChange('manager', '');
-                            }
+                            setSelectedEmployeeForEdit((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    jobTitle: newJobTitle,
+                                    ...(newJobTitle === 'Manager'
+                                      ? { manager: '', managerId: null }
+                                      : {}),
+                                  }
+                                : prev
+                            );
                           }}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value="">Select job title</option>
                           {jobTitles && jobTitles.length > 0 ? (
-                            jobTitles.map((job, index) => {
+                            buildJobTitlePickerOptions(jobTitles, selectedEmployeeForEdit.jobTitle).map((job, index) => {
                               const jobTitleValue = job.title || job.name || '';
                               const jobTitleDisplay = job.title || job.name || '';
+                              const inactive = job._inactiveOrgPath;
                               return (
-                                <option 
-                                  key={job.id || `edit-job-${index}`} 
+                                <option
+                                  key={job.id || `edit-job-${index}`}
                                   value={jobTitleValue}
+                                  disabled={!!inactive}
                                 >
-                                  {jobTitleDisplay}
+                                  {inactive ? `${jobTitleDisplay} (inactive org — reactivate in Company)` : jobTitleDisplay}
                                 </option>
                               );
                             })
@@ -4747,37 +6318,39 @@ export default function Employees() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                        <select
-                          value={selectedEmployeeForEdit.department}
+                        <input
+                          type="text"
+                          value={
+                            typeof selectedEmployeeForEdit.department === 'string'
+                              ? selectedEmployeeForEdit.department
+                              : selectedEmployeeForEdit.department?.name ||
+                                selectedEmployeeForEdit.department?.title ||
+                                ''
+                          }
                           onChange={(e) => handleEditFieldChange('department', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Select department</option>
-                          <option value="HR">HR</option>
-                          <option value="IT">IT</option>
-                          <option value="Finance">Finance</option>
-                          <option value="Sales">Sales</option>
-                          <option value="Marketing">Marketing</option>
-                          <option value="Operations">Operations</option>
-                        </select>
+                          placeholder="Department name (must match company directory)"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Employee Type</label>
                         <select
-                          value={selectedEmployeeForEdit.employeeType || 'Full-time'}
+                          value={normalizeEmployeeTypeSelectValue(selectedEmployeeForEdit.employeeType)}
                           onChange={(e) => handleEditFieldChange('employeeType', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="Full-time">Full-time</option>
-                          <option value="Part-time">Part-time</option>
-                          <option value="Contract">Contract</option>
-                          <option value="Intern">Intern</option>
+                          <option value="">Select type</option>
+                          {EMPLOYEE_TYPE_EDIT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                         <select
-                          value={selectedEmployeeForEdit.status || 'Active'}
+                          value={normalizeStatusSelectValue(selectedEmployeeForEdit.status, selectedEmployeeForEdit.isActive)}
                           onChange={(e) => handleEditFieldChange('status', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
@@ -4790,20 +6363,64 @@ export default function Employees() {
                       {selectedEmployeeForEdit.jobTitle !== "Manager" && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Line Manager (Optional)</label>
-                          <input
-                            type="text"
-                            value={selectedEmployeeForEdit.manager || ''}
-                            onChange={(e) => handleEditFieldChange('manager', e.target.value)}
+                          <select
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter manager name (Optional)"
-                          />
+                            value={selectedEmployeeForEdit.managerId || ''}
+                            onChange={(e) => {
+                              const id = e.target.value;
+                              if (!id) {
+                                setSelectedEmployeeForEdit((prev) =>
+                                  prev ? { ...prev, managerId: null, manager: '' } : prev
+                                );
+                                return;
+                              }
+                              const emp = employees.find((x) => x.id === id);
+                              const label = emp
+                                ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name || ''
+                                : '';
+                              setSelectedEmployeeForEdit((prev) =>
+                                prev ? { ...prev, managerId: id, manager: label } : prev
+                              );
+                            }}
+                          >
+                            <option value="">Select line manager (Optional)</option>
+                            {selectedEmployeeForEdit.managerId &&
+                              !employees.some(
+                                (e) =>
+                                  e.id === selectedEmployeeForEdit.managerId &&
+                                  isEmployeeActiveForLineManagerPicker(e)
+                              ) && (
+                                <option value={selectedEmployeeForEdit.managerId} disabled>
+                                  {(selectedEmployeeForEdit.manager || 'Current line manager') +
+                                    ' (inactive — pick another or clear)'}
+                                </option>
+                              )}
+                            {employees
+                              .filter(
+                                (emp) =>
+                                  emp.id !== selectedEmployeeForEdit.id &&
+                                  isEmployeeActiveForLineManagerPicker(emp)
+                              )
+                              .map((emp) => {
+                                const label =
+                                  `${emp.firstName || ''} ${emp.lastName || ''}`.trim() ||
+                                  emp.name ||
+                                  emp.email ||
+                                  emp.id;
+                                return (
+                                  <option key={emp.id} value={emp.id}>
+                                    {label}
+                                  </option>
+                                );
+                              })}
+                          </select>
                         </div>
                       )}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Joining Date</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.joiningDate || ''}
+                          value={toDateInputString(selectedEmployeeForEdit.joiningDate)}
                           onChange={(e) => handleEditFieldChange('joiningDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
@@ -4829,10 +6446,11 @@ export default function Employees() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value="">Select program</option>
-                          <option value="Standard 9-5">Standard 9-5</option>
-                          <option value="Flexible Hours">Flexible Hours</option>
-                          <option value="Shift Work">Shift Work</option>
-                          <option value="Remote Work">Remote Work</option>
+                          {attendancePrograms.map((program) => (
+                            <option key={program.id} value={program.name}>
+                              {program.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -4862,8 +6480,10 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Passport Expiry</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.passportExpiry || ''}
-                          onChange={(e) => handleEditFieldChange('passportExpiry', e.target.value)}
+                          value={toDateInputString(
+                            selectedEmployeeForEdit.passportExpiryDate ?? selectedEmployeeForEdit.passportExpiry
+                          )}
+                          onChange={(e) => handleEditFieldChange('passportExpiryDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
@@ -4881,8 +6501,10 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">National ID Expiry</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.nationalIdExpiry || ''}
-                          onChange={(e) => handleEditFieldChange('nationalIdExpiry', e.target.value)}
+                          value={toDateInputString(
+                            selectedEmployeeForEdit.nationalIdExpiryDate ?? selectedEmployeeForEdit.nationalIdExpiry
+                          )}
+                          onChange={(e) => handleEditFieldChange('nationalIdExpiryDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
@@ -4900,8 +6522,10 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Residency Expiry</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.residencyExpiry || ''}
-                          onChange={(e) => handleEditFieldChange('residencyExpiry', e.target.value)}
+                          value={toDateInputString(
+                            selectedEmployeeForEdit.residencyExpiryDate ?? selectedEmployeeForEdit.residencyExpiry
+                          )}
+                          onChange={(e) => handleEditFieldChange('residencyExpiryDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
@@ -4919,8 +6543,10 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Expiry</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.insuranceExpiry || ''}
-                          onChange={(e) => handleEditFieldChange('insuranceExpiry', e.target.value)}
+                          value={toDateInputString(
+                            selectedEmployeeForEdit.insuranceExpiryDate ?? selectedEmployeeForEdit.insuranceExpiry
+                          )}
+                          onChange={(e) => handleEditFieldChange('insuranceExpiryDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
@@ -4928,8 +6554,12 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Driving License Number</label>
                         <input
                           type="text"
-                          value={selectedEmployeeForEdit.drivingNumber || ''}
-                          onChange={(e) => handleEditFieldChange('drivingNumber', e.target.value)}
+                          value={
+                            selectedEmployeeForEdit.drivingLicenseNumber ??
+                            selectedEmployeeForEdit.drivingNumber ??
+                            ''
+                          }
+                          onChange={(e) => handleEditFieldChange('drivingLicenseNumber', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                           placeholder="Enter driving license number"
                         />
@@ -4938,8 +6568,10 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Driving License Expiry</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.drivingExpiry || ''}
-                          onChange={(e) => handleEditFieldChange('drivingExpiry', e.target.value)}
+                          value={toDateInputString(
+                            selectedEmployeeForEdit.drivingLicenseExpiryDate ?? selectedEmployeeForEdit.drivingExpiry
+                          )}
+                          onChange={(e) => handleEditFieldChange('drivingLicenseExpiryDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
@@ -4947,8 +6579,12 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Labour Card Number</label>
                         <input
                           type="text"
-                          value={selectedEmployeeForEdit.labourNumber || ''}
-                          onChange={(e) => handleEditFieldChange('labourNumber', e.target.value)}
+                          value={
+                            selectedEmployeeForEdit.labourIdNumber ??
+                            selectedEmployeeForEdit.labourNumber ??
+                            ''
+                          }
+                          onChange={(e) => handleEditFieldChange('labourIdNumber', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                           placeholder="Enter labour card number"
                         />
@@ -4957,8 +6593,10 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Labour Card Expiry</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.labourExpiry || ''}
-                          onChange={(e) => handleEditFieldChange('labourExpiry', e.target.value)}
+                          value={toDateInputString(
+                            selectedEmployeeForEdit.labourIdExpiryDate ?? selectedEmployeeForEdit.labourExpiry
+                          )}
+                          onChange={(e) => handleEditFieldChange('labourIdExpiryDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                       </div>
@@ -5068,22 +6706,38 @@ export default function Employees() {
                     {/* Documents List */}
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <h6 className="text-lg font-semibold text-gray-900">Uploaded Documents</h6>
+                        <h6 className="text-lg font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                          Uploaded Documents
+                          {mergedEditDocuments.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <CheckCircleIcon className="h-4 w-4" aria-hidden />
+                              {mergedEditDocuments.length} on file
+                            </span>
+                          )}
+                        </h6>
                         <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">ID: {selectedEmployeeForEdit?.id}</span>
                       </div>
                       <div className="space-y-3">
-                        {employeeDocuments[selectedEmployeeForEdit?.id]?.length > 0 ? (
-                          employeeDocuments[selectedEmployeeForEdit?.id]?.map((doc, index) => (
-                            <div key={index} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 rounded-lg">
+                        {mergedEditDocuments.length > 0 ? (
+                          mergedEditDocuments.map((doc) => (
+                            <div key={doc.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
                                   <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-gray-900">{doc.name}</p>
-                                  <p className="text-sm text-gray-500">{doc.type} • {doc.uploadDate} • {doc.fileSize}</p>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                                    <CheckCircleIcon className="h-5 w-5 text-emerald-500 flex-shrink-0" title="Uploaded" aria-hidden />
+                                    <span className="truncate">{doc.name}</span>
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {doc.type}
+                                    {' • '}
+                                    {doc.uploadDate}
+                                    {doc.fileSize ? ` • ${doc.fileSize}` : ''}
+                                  </p>
                                   {doc.expiryDate && (
                                     <p className={`text-xs ${new Date(doc.expiryDate) < new Date() ? 'text-red-600' : 'text-orange-600'}`}>
                                       Expires: {doc.expiryDate}
@@ -5091,35 +6745,40 @@ export default function Employees() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button 
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <button
+                                  type="button"
                                   onClick={() => handleViewDocument(doc)}
                                   className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="View Document"
+                                  title={doc.url ? 'Open document' : 'No link available'}
                                 >
                                   <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                   </svg>
                                 </button>
-                                <button 
+                                <button
+                                  type="button"
                                   onClick={() => handleDownloadDocument(doc)}
                                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                  title="Download Document"
+                                  title={doc.url ? 'Download' : 'No link available'}
                                 >
                                   <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                   </svg>
                                 </button>
-                                <button 
-                                  onClick={() => handleDeleteDocument(selectedEmployeeForEdit.id, doc.id)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Delete Document"
-                                >
-                                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
+                                {doc.source !== 'directory' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteDocument(selectedEmployeeForEdit.id, doc.id)}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Remove from list"
+                                  >
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ))
@@ -5160,7 +6819,7 @@ export default function Employees() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Exit Date</label>
                         <input
                           type="date"
-                          value={selectedEmployeeForEdit.exitDate || ''}
+                          value={toDateInputString(selectedEmployeeForEdit.exitDate)}
                           onChange={(e) => handleEditFieldChange('exitDate', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         />
@@ -5185,20 +6844,41 @@ export default function Employees() {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 flex-shrink-0">
-              <div className="flex items-center justify-between">
+            {/* Footer — reason here so it stays visible above Update (not the same as Employee ID / employee number fields) */}
+            <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 flex-shrink-0 space-y-4">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                <label className="block text-sm font-semibold text-amber-900 mb-1">
+                  Reason for this update <span className="text-red-600">*</span>
+                </label>
+                <p className="text-xs text-amber-800 mb-2">
+                  Required for every save (Employee History audit). Example: &quot;Corrected employee number per HR request.&quot; This is separate from Employee ID or any field you changed.
+                </p>
+                <textarea
+                  value={employeeEditChangeReason}
+                  onChange={(e) => setEmployeeEditChangeReason(e.target.value)}
+                  rows={2}
+                  className="w-full px-4 py-3 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-white text-sm"
+                  placeholder="Why are you saving these changes?"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="text-sm text-gray-600">
-                  <span className="font-semibold">Employee ID:</span> {selectedEmployeeForEdit.id}
+                  <span className="font-semibold">Record ID:</span>{' '}
+                  <span className="font-mono text-xs">{selectedEmployeeForEdit.id}</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 justify-end">
                   <button
-                    onClick={() => setShowEditModal(false)}
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEmployeeEditChangeReason('');
+                    }}
                     className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors font-semibold border border-gray-300 rounded-xl hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={handleUpdateEmployee}
                     className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
@@ -5224,4 +6904,4 @@ export default function Employees() {
 
     </div>
   );
-} 
+}

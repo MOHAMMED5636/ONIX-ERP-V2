@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useWelcomeBannerExtras } from "../context/WelcomeBannerExtrasContext";
 import DocumentManagement from "../components/DocumentManagement";
+import onixLogo from "../assets/onix-logo.png";
+import { resolveProfilePhotoUrl } from "../utils/profilePhotoUrl";
 import {
   HomeIcon,
   UsersIcon,
@@ -15,7 +18,6 @@ import {
   Bars3Icon,
   XMarkIcon,
   ChatBubbleLeftRightIcon,
-  BriefcaseIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   BuildingOfficeIcon,
@@ -24,21 +26,17 @@ import {
   StarIcon,
   BanknotesIcon,
   CurrencyDollarIcon,
+  MoonIcon,
+  QuestionMarkCircleIcon,
+  ClockIcon,
+  SparklesIcon,
+  InboxStackIcon,
 } from "@heroicons/react/24/outline";
 
 const navItems = [
   { key: "dashboard", icon: HomeIcon, label: { en: "Dashboard", ar: "لوحة التحكم" }, path: "/dashboard" },
-  // Removed Workplace Hub dropdown (Employees, Departments, Working Locations) to avoid duplication
-  // Company Resources dropdown menu
-  {
-    key: "company-resources-menu",
-    icon: BuildingOfficeIcon,
-    label: { en: "Company Resources", ar: "موارد الشركة" },
-    dropdown: true,
-    submenus: [
-      { key: "companies", label: { en: "Companies", ar: "الشركات" }, path: "/companies" },
-    ],
-  },
+  // Single Company entry for ADMIN/HR (companies list + org structure from there — no duplicate building icon)
+  { key: "companies", icon: BuildingOfficeIcon, label: { en: "Company", ar: "الشركة" }, path: "/companies", roles: ["ADMIN", "HR"] },
   // Workplace Hub dropdown menu
   {
     key: "workplace-hub-menu",
@@ -47,8 +45,14 @@ const navItems = [
     dropdown: true,
     submenus: [
       { key: "company-policy", label: { en: "Company Policy", ar: "سياسة الشركة" }, path: "/workplace/company-policy" },
-      { key: "my-attendance", label: { en: "My Attendance", ar: "حضوري" }, path: "/workplace/my-attendance" },
-      { key: "leaves", label: { en: "Leaves", ar: "الإجازات" }, path: "/workplace/leaves" },
+      { key: "my-attendance", label: { en: "My Attendance", ar: "حضوري" }, path: "/workplace/my-attendance", hideForRoles: ["ADMIN"] },
+      { key: "my-leaves", label: { en: "Team Leaves", ar: "إجازات الفريق" }, path: "/workplace/leaves" },
+      {
+        key: "team-leaves",
+        label: { en: "Team Leave Management", ar: "إدارة إجازات الفريق" },
+        path: "/workplace/leaves/team",
+        showForRoles: ["MANAGER", "PROJECT_MANAGER"],
+      },
       { key: "feedbacks-survey", label: { en: "Feedbacks & Survey", ar: "التغذية الراجعة والاستبيان" }, path: "/workplace/feedbacks-survey" },
     ],
   },
@@ -78,21 +82,57 @@ const navItems = [
     submenus: [
       { key: "project-overview", label: { en: "Project Overview", ar: "نظرة عامة على المشروع" }, path: "/team-project-tracker/overview" },
       { key: "task-management", label: { en: "Project Management", ar: "إدارة المشاريع" }, path: "/team-project-tracker/tasks" },
-      { key: "team-members", label: { en: "Team Members", ar: "أعضاء الفريق" }, path: "/team-project-tracker/members" },
+      { key: "team-members", label: { en: "Team Members", ar: "أعضاء الفريق" }, path: "/team-project-tracker/members", hideForRoles: ["MANAGER", "PROJECT_MANAGER"] },
       { key: "progress-tracking", label: { en: "Progress Tracking", ar: "تتبع التقدم" }, path: "/team-project-tracker/progress" },
       { key: "reports", label: { en: "Reports", ar: "التقارير" }, path: "/team-project-tracker/reports" },
     ],
   },
-  { key: "companies", icon: BriefcaseIcon, label: { en: "Companies", ar: "الشركات" }, path: "/companies" },
   { key: "contractors", icon: UsersIcon, label: { en: "Contractors & Suppliers", ar: "المقاولون والموردون" }, path: "/contractors" },
-  { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/attendance" },
-  { key: "leaves", icon: DocumentTextIcon, label: { en: "Leaves", ar: "الإجازات" }, path: "/leaves" },
-  { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance" },
-  { key: "bank-reconciliation", icon: BanknotesIcon, label: { en: "Bank Reconciliation", ar: "التوفيق المصرفي" }, path: "/bank-reconciliation" },
-  { key: "payroll", icon: CurrencyDollarIcon, label: { en: "Payroll", ar: "الرواتب" }, path: "/payroll", roles: ["ADMIN", "HR"] },
-  { key: "it-support", icon: ComputerDesktopIcon, label: { en: "IT Support", ar: "دعم تكنولوجيا المعلومات" }, path: "/it-support" },
+  // Admin/HR attendance list (all employees by date) — not for PROJECT_MANAGER
+  { key: "attendance", icon: CalendarDaysIcon, label: { en: "Attendance", ar: "الحضور" }, path: "/attendance", roles: ["ADMIN", "HR"] },
+  {
+    key: "employee-activity-calendar",
+    icon: ClockIcon,
+    label: { en: "Employee Activity Calendar", ar: "تقويم نشاط الموظفين" },
+    path: "/employee-activity-calendar",
+    roles: ["ADMIN", "HR"],
+  },
+  {
+    key: "system-feedback-admin",
+    icon: InboxStackIcon,
+    label: { en: "System feedback", ar: "ملاحظات النظام" },
+    path: "/admin/system-feedback",
+    roles: ["ADMIN"],
+  },
+  { key: "balance", icon: ChartPieIcon, label: { en: "Balance", ar: "الميزانية" }, path: "/balance", hideForRoles: ["MANAGER", "PROJECT_MANAGER"] },
+  { key: "bank-reconciliation", icon: BanknotesIcon, label: { en: "Bank Reconciliation", ar: "التوفيق المصرفي" }, path: "/bank-reconciliation", hideForRoles: ["MANAGER", "PROJECT_MANAGER"] },
+  { key: "salary-management", icon: CurrencyDollarIcon, label: { en: "Salary Management", ar: "إدارة الرواتب" }, path: "/salary", roles: ["ADMIN", "HR"] },
+  { key: "employee-salary-setup", icon: UsersIcon, label: { en: "Employee Salary Setup", ar: "إعداد رواتب الموظفين" }, path: "/salary/employee-setup", roles: ["ADMIN", "HR"] },
+  { key: "salary-deductions", icon: DocumentTextIcon, label: { en: "Deductions", ar: "الاستقطاعات" }, path: "/salary/deductions", roles: ["ADMIN", "HR"] },
+  { key: "salary-increments", icon: ChartPieIcon, label: { en: "Increments", ar: "الزيادات" }, path: "/salary/increments", roles: ["ADMIN", "HR"] },
+  { key: "payroll", icon: CurrencyDollarIcon, label: { en: "Payroll Processing", ar: "معالجة الرواتب" }, path: "/payroll", roles: ["ADMIN", "HR"] },
+  { key: "my-salary", icon: CurrencyDollarIcon, label: { en: "My Salary", ar: "راتبي" }, path: "/my-salary", roles: ["MANAGER", "PROJECT_MANAGER"] },
+  {
+    key: "email-management-menu",
+    icon: InboxStackIcon,
+    label: { en: "Email Management", ar: "إدارة البريد الإلكتروني" },
+    dropdown: true,
+    roles: ["ADMIN", "HR"],
+    submenus: [
+      { key: "email-templates", label: { en: "Email Templates", ar: "قوالب البريد" }, path: "/emails/templates" },
+      { key: "email-triggers", label: { en: "Email Triggers", ar: "مشغلات البريد" }, path: "/emails/triggers" },
+      { key: "email-logs", label: { en: "Email Logs", ar: "سجلات البريد" }, path: "/emails/logs" },
+      { key: "email-queue", label: { en: "Email Queue", ar: "قائمة الانتظار" }, path: "/emails/queue" },
+    ],
+  },
+  {
+    key: "it-support-menu",
+    icon: ComputerDesktopIcon,
+    label: { en: "IT Support", ar: "دعم تكنولوجيا المعلومات" },
+    path: "/it-support",
+  },
   { key: "ai-employee-evaluations", icon: StarIcon, label: { en: "AI Employee Evaluations", ar: "تقييم الموظفين بالذكاء الاصطناعي" }, path: "/ai-employee-evaluations" },
-  { key: "settings", icon: Cog6ToothIcon, label: { en: "Settings", ar: "الإعدادات" }, path: "/settings" },
+  { key: "settings", icon: Cog6ToothIcon, label: { en: "Settings", ar: "الإعدادات" }, path: "/settings", hideForRoles: ["MANAGER", "PROJECT_MANAGER"] },
 ];
 
 const submenuIcons = {
@@ -110,13 +150,21 @@ const submenuIcons = {
   'company-policy': DocumentTextIcon,
   'my-attendance': CalendarDaysIcon,
   'feedbacks-survey': ChatBubbleLeftRightIcon,
-  'leaves': DocumentTextIcon,
+  'my-leaves': DocumentTextIcon,
+  'team-leaves': UsersIcon,
+  'email-templates': InboxStackIcon,
+  'email-triggers': InboxStackIcon,
+  'email-logs': InboxStackIcon,
+  'email-queue': InboxStackIcon,
   // Team Project Tracker nested submenu icons
   'project-overview': ChartPieIcon,
   'task-management': ClipboardDocumentListIcon,
   'team-members': UsersIcon,
   'progress-tracking': ChartPieIcon,
   'reports': DocumentTextIcon,
+  'it-support-home': ComputerDesktopIcon,
+  'dark-mode': MoonIcon,
+  'help-support': QuestionMarkCircleIcon,
 };
 
 function Tooltip({ label, children }) {
@@ -129,7 +177,7 @@ function Tooltip({ label, children }) {
     >
       {children}
       {show && (
-        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-50 hidden lg:block">
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-2 py-1 bg-white text-gray-800 text-xs rounded shadow-lg whitespace-nowrap z-50 hidden lg:block border border-gray-200">
           {label}
         </div>
       )}
@@ -144,11 +192,38 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 280 });
   const profileButtonRef = useRef(null);
+  const dropdownButtonRefs = useRef({});
   const navigate = useNavigate();
   // Get user from AuthContext - MUST be called before any conditional returns
   const { user: authUser, logout: handleLogout } = useAuth();
+  const { welcomeBannerDismissed, restoreWelcomeBanner } = useWelcomeBannerExtras();
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+
+  // Persist dropdown open state across navigation/session
+  React.useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("sidebarOpenDropdownKey");
+      if (saved) setOpenDropdown(saved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      if (openDropdown) sessionStorage.setItem("sidebarOpenDropdownKey", String(openDropdown));
+      else sessionStorage.removeItem("sidebarOpenDropdownKey");
+    } catch {
+      /* ignore */
+    }
+  }, [openDropdown]);
+
+  React.useEffect(() => {
+    setAvatarLoadError(false);
+  }, [authUser?.photo]);
 
   React.useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -210,35 +285,104 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
     return roleMap[authUser.role] || authUser.role;
   };
 
-  // Helper function to get photo URL with cache busting
-  const getPhotoUrl = (photo) => {
-    if (!photo) {
-      return null;
-    }
-    // If it's already a full URL, add cache busting
-    if (photo.startsWith('http://') || photo.startsWith('https://')) {
-      const separator = photo.includes('?') ? '&' : '?';
-      return `${photo}${separator}t=${Date.now()}`;
-    }
-    // If it's a relative path, construct full URL
-    let fullUrl;
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
-    if (photo.startsWith('/uploads/')) {
-      fullUrl = `${backendUrl}${photo}`;
-    } else {
-      // If it's just a filename, construct full URL
-      fullUrl = `${backendUrl}/uploads/photos/${photo}`;
-    }
-    // Add cache busting
-    const separator = fullUrl.includes('?') ? '&' : '?';
-    return `${fullUrl}${separator}t=${Date.now()}`;
+  /** Hide submenu entries for specific roles (e.g. My Attendance for ADMIN). */
+  const filterSubmenusByRole = (submenus) => {
+    if (!Array.isArray(submenus)) return [];
+    return submenus.filter((sub) => {
+      if (sub.hideForRoles && authUser?.role && sub.hideForRoles.includes(authUser.role)) {
+        return false;
+      }
+      if (sub.roles && authUser?.role && !sub.roles.includes(authUser.role)) {
+        return false;
+      }
+      if (sub.showForRoles?.length && authUser?.role && !sub.showForRoles.includes(authUser.role)) {
+        return false;
+      }
+      return true;
+    });
   };
 
-  // Dynamic user data for sidebar
-  console.log('[Sidebar] authUser:', authUser);
-  console.log('[Sidebar] authUser?.photo:', authUser?.photo);
-  const photoUrl = authUser?.photo ? getPhotoUrl(authUser.photo) : null;
-  console.log('[Sidebar] Final photoUrl:', photoUrl);
+  const handleToggleDarkMode = () => {
+    const root = document.documentElement;
+    const nextDark = !root.classList.contains('dark');
+    if (nextDark) {
+      root.classList.add('dark');
+      try {
+        localStorage.setItem('onix-theme', 'dark');
+      } catch (_) {}
+    } else {
+      root.classList.remove('dark');
+      try {
+        localStorage.setItem('onix-theme', 'light');
+      } catch (_) {}
+    }
+    setOpenDropdown(null);
+  };
+
+  const handleOpenHelp = () => {
+    setShowHelpModal(true);
+    setOpenDropdown(null);
+  };
+
+  /** Active state for Workplace Hub leave links (My Leaves vs Team). */
+  const submenuPathIsActive = (path) => {
+    if (path === '/workplace/leaves/team') return location.pathname.startsWith('/workplace/leaves/team');
+    if (path === '/workplace/leaves') return location.pathname === '/workplace/leaves';
+    return location.pathname === path;
+  };
+
+  /** Single submenu row: route link or action (dark mode / help) — matches Manager-style IT Support menu. */
+  const renderLeafSubmenu = (submenu, variant) => {
+    const SubIcon = submenuIcons[submenu.key] || FolderIcon;
+    const isMobile = variant === 'mobile';
+    const itemClass = isMobile
+      ? 'flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border-b border-gray-100 last:border-b-0 w-full text-left'
+      : 'flex items-center gap-3 px-4 py-2 text-sm text-gray-700 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 w-full text-left';
+    let active = '';
+    if (submenu.path) {
+      if (submenu.path === '/workplace/leaves/team') {
+        if (location.pathname.startsWith('/workplace/leaves/team')) {
+          active = ' font-bold text-indigo-600 bg-indigo-50';
+        }
+      } else if (submenu.path === '/workplace/leaves') {
+        if (location.pathname === '/workplace/leaves') {
+          active = ' font-bold text-indigo-600 bg-indigo-50';
+        }
+      } else if (location.pathname === submenu.path) {
+        active = ' font-bold text-indigo-600 bg-indigo-50';
+      }
+    }
+
+    if (submenu.action === 'toggleDarkMode') {
+      return (
+        <button type="button" className={itemClass + active} onClick={handleToggleDarkMode}>
+          <SubIcon className="h-5 w-5 text-indigo-400 flex-shrink-0" />
+          <span>{submenu.label[lang]}</span>
+        </button>
+      );
+    }
+    if (submenu.action === 'openHelp') {
+      return (
+        <button type="button" className={itemClass + active} onClick={handleOpenHelp}>
+          <SubIcon className="h-5 w-5 text-cyan-500 flex-shrink-0" />
+          <span>{submenu.label[lang]}</span>
+        </button>
+      );
+    }
+    return (
+      <Link
+        to={submenu.path}
+        className={itemClass + active}
+        onClick={() => setOpenDropdown(null)}
+      >
+        <SubIcon className="h-5 w-5 text-indigo-400 flex-shrink-0" />
+        <span>{submenu.label[lang]}</span>
+      </Link>
+    );
+  };
+
+  const photoUrl = authUser?.photo ? resolveProfilePhotoUrl(authUser.photo) : null;
+  const showSidebarPhoto = Boolean(photoUrl && !avatarLoadError);
   const user = {
     name: getUserDisplayName().split(' ')[0], // First name only for sidebar
     avatar: photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName())}&background=6366f1&color=fff`,
@@ -246,7 +390,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
   };
 
   // Dynamic admin profile data
-  const adminPhotoUrl = authUser?.photo ? getPhotoUrl(authUser.photo) : null;
+  const adminPhotoUrl = photoUrl;
   const admin = authUser ? {
     name: getUserDisplayName(),
     jobTitle: authUser.jobTitle || getRoleDisplayName(),
@@ -353,12 +497,12 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
       >
         {/* Top: ONIX GROUP Logo */}
         <div className="flex flex-col items-center gap-2 pt-4 pb-2">
-          <div className="flex flex-col items-center justify-center mb-1 px-2 bg-black/90 rounded-lg py-2 px-3">
-            <div className="text-xs font-bold uppercase tracking-tight">
-              <span className="text-red-600">ONIX</span>
-              <span className="text-white"> GROUP</span>
-            </div>
-            <div className="w-full h-0.5 mt-1 bg-gradient-to-r from-white via-white to-red-600"></div>
+          <div className="flex flex-col items-center justify-center mb-1 px-2">
+            <img
+              src={onixLogo}
+              alt="Onix Group"
+              className={`${collapsed ? "h-10 w-10" : "h-12 w-12"} object-contain rounded-lg shadow-md`}
+            />
           </div>
           {/* User Mini-Profile Card */}
           <div className="sidebar-profile w-full flex flex-col items-center mb-2 relative z-50" onClick={e => e.stopPropagation()}>
@@ -367,23 +511,24 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
               onClick={() => setShowProfileMenu((v) => !v)} 
               className="flex flex-col items-center gap-1 w-full px-1 py-1 rounded-xl bg-white/80 shadow border border-indigo-100 hover:bg-indigo-50 transition relative z-10"
             >
-              {photoUrl ? (
-                <img 
-                  src={photoUrl} 
-                  alt={user.name} 
-                  className="h-7 w-7 rounded-full border-2 border-indigo-200 shadow object-cover"
-                  onError={(e) => {
-                    // Fallback to avatar if image fails to load
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              {!photoUrl && (
-                <div className="h-7 w-7 rounded-full border-2 border-indigo-200 shadow bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
-                  {getUserDisplayName().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                </div>
-              )}
+              <div className="h-7 w-7 rounded-full border-2 border-indigo-200 shadow bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                {showSidebarPhoto ? (
+                  <img
+                    key={authUser?.photo || "avatar"}
+                    src={photoUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={() => setAvatarLoadError(true)}
+                  />
+                ) : (
+                  getUserDisplayName()
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .substring(0, 2)
+                    .toUpperCase()
+                )}
+              </div>
               <span className="font-bold text-indigo-700 text-xs mt-1">{user.name}</span>
               <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold"><span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> {user.status}</span>
               <svg className="h-3 w-3 text-indigo-400 absolute right-1 top-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
@@ -402,13 +547,24 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                 {/* Header Section */}
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
                   <div className="flex items-center gap-2">
-                    {photoUrl ? (
-                      <img src={photoUrl} alt={user.name} className="h-8 w-8 rounded-full border-2 border-indigo-200 object-cover" />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                        {getUserDisplayName().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                      </div>
-                    )}
+                    <div className="h-8 w-8 rounded-full border-2 border-indigo-200 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
+                      {showSidebarPhoto ? (
+                        <img
+                          key={(authUser?.photo || "") + "-menu"}
+                          src={photoUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={() => setAvatarLoadError(true)}
+                        />
+                      ) : (
+                        getUserDisplayName()
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .substring(0, 2)
+                          .toUpperCase()
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm truncate">{getUserDisplayName()}</p>
                       <p className="text-xs text-gray-500 truncate">{authUser?.role === 'ADMIN' ? 'Administrator' : authUser?.jobTitle || 'User'}</p>
@@ -421,26 +577,53 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                   <button 
                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 text-left group"
                     onClick={() => {
-                      setShowAdminModal(true);
-                      setShowProfileMenu(false);
+                      if (authUser?.role === "MANAGER" || authUser?.role === "PROJECT_MANAGER") {
+                        setShowProfileMenu(false);
+                        navigate("/profile");
+                      } else {
+                        setShowAdminModal(true);
+                        setShowProfileMenu(false);
+                      }
                     }}
                   >
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
                       <UserCircleIcon className="w-4 h-4 text-indigo-600" />
                     </div>
-                    <span className="font-medium text-gray-700 group-hover:text-indigo-700">Admin Profile</span>
+                    <span className="font-medium text-gray-700 group-hover:text-indigo-700">
+                      {authUser?.role === "MANAGER" || authUser?.role === "PROJECT_MANAGER" ? "Profile" : "Admin Profile"}
+                    </span>
                   </button>
 
-                  <Link 
-                    to="/settings" 
-                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 text-left group block"
-                    onClick={() => setShowProfileMenu(false)}
-                  >
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                      <Cog6ToothIcon className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <span className="font-medium text-gray-700 group-hover:text-gray-900">Settings</span>
-                  </Link>
+                  {(authUser?.role === "MANAGER" || authUser?.role === "PROJECT_MANAGER") && (
+                    <button
+                      type="button"
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 text-left group"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        navigate("/preferences");
+                      }}
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                        <Cog6ToothIcon className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <span className="font-medium text-gray-700 group-hover:text-indigo-700">
+                        Customization & Preferences
+                      </span>
+                    </button>
+                  )}
+
+                  {authUser?.role !== "MANAGER" && authUser?.role !== "PROJECT_MANAGER" && (
+                    <Link 
+                      to="/settings" 
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200 text-left group block"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                        <Cog6ToothIcon className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <span className="font-medium text-gray-700 group-hover:text-gray-900">Settings</span>
+                    </Link>
+                  )}
                 </div>
 
                 {/* Divider */}
@@ -463,9 +646,12 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
           </div>
         </div>
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col gap-2 mt-2 px-2 lg:px-0 lg:items-center">
+        <nav className="flex-1 min-h-0 overflow-y-auto sidebar-nav-scroll flex flex-col gap-2 mt-2 px-2 lg:px-0 lg:items-center">
           <div className="mb-2 border-b border-indigo-100 w-full" />
           {navItems.filter((item) => {
+            if (item.hideForRoles && authUser?.role && item.hideForRoles.includes(authUser.role)) {
+              return false;
+            }
             // If item has roles restriction, check if user role matches
             if (item.roles && authUser?.role) {
               return item.roles.includes(authUser.role);
@@ -474,11 +660,20 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
             return true;
           }).map((item, idx) => {
             if (item.dropdown) {
+              const visibleSubmenus = filterSubmenusByRole(item.submenus || []);
+              if (visibleSubmenus.length === 0) {
+                return null;
+              }
               const Icon = item.icon;
               const isOpen = openDropdown === item.key;
+              const dropdownBtnEl = dropdownButtonRefs.current[item.key] || null;
+              const dropdownBtnRect = dropdownBtnEl ? dropdownBtnEl.getBoundingClientRect() : null;
               return (
                 <div key={item.key} className="w-full flex flex-col items-center mb-2 relative sidebar-dropdown" onClick={e => e.stopPropagation()}>
                   <button
+                    ref={(el) => {
+                      if (el) dropdownButtonRefs.current[item.key] = el;
+                    }}
                     className={`flex items-center justify-center w-full lg:w-12 h-12 rounded-xl transition text-indigo-500 hover:bg-indigo-100 hover:scale-105 nav-pop ${isOpen ? "text-indigo-600 font-bold bg-indigo-100" : ""} ${collapsed ? "lg:flex-col" : "lg:flex-row lg:gap-2 lg:px-3"}`}
                     title={item.label[lang]}
                     onClick={() => setOpenDropdown(isOpen ? null : item.key)}
@@ -492,7 +687,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                     <>
                       {/* Mobile dropdown - full width */}
                       <div className="lg:hidden w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
-                        {item.submenus.map((submenu) => {
+                        {visibleSubmenus.map((submenu) => {
                           const SubIcon = submenuIcons[submenu.key] || FolderIcon;
                           if (submenu.dropdown && submenu.submenus) {
                             // Nested dropdown (like Departments under Company Resources)
@@ -502,7 +697,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                                   <SubIcon className="h-5 w-5 text-indigo-400" />
                                   <span>{submenu.label[lang]}</span>
                                 </div>
-                                {submenu.submenus.map((nestedSubmenu) => {
+                                {filterSubmenusByRole(submenu.submenus || []).map((nestedSubmenu) => {
                                   const NestedIcon = submenuIcons[nestedSubmenu.key] || FolderIcon;
                                   return (
                                     <Link
@@ -524,7 +719,7 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                               <Link
                                 key={submenu.key}
                                 to={submenu.path}
-                                className={`flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border-b border-gray-100 last:border-b-0 ${location.pathname === submenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                className={`flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border-b border-gray-100 last:border-b-0 ${submenuPathIsActive(submenu.path) ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
                                 onClick={() => setOpenDropdown(null)}
                               >
                                 <SubIcon className="h-5 w-5 text-indigo-400" />
@@ -534,52 +729,65 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
                           }
                         })}
                       </div>
-                      {/* Desktop dropdown - floating */}
-                      <div className="hidden lg:block absolute left-full top-0 ml-2 bg-white shadow-2xl rounded-xl w-64 z-50 border border-gray-100 flex flex-col py-2 animate-fade-in" onClick={e => e.stopPropagation()}>
-                        {/* Arrow indicator */}
-                        <div className="absolute left-0 top-6 -ml-1 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white shadow-lg z-50" />
-                        {item.submenus.map((submenu) => {
-                          const SubIcon = submenuIcons[submenu.key] || FolderIcon;
-                          if (submenu.dropdown && submenu.submenus) {
-                            // Nested dropdown (like Departments under Company Resources)
-                            return (
-                              <div key={submenu.key} className="border-b border-gray-100 last:border-b-0">
-                                <div className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 font-semibold bg-gray-50">
-                                  <SubIcon className="h-5 w-5 text-indigo-400" />
-                                  <span>{submenu.label[lang]}</span>
-                                </div>
-                                {submenu.submenus.map((nestedSubmenu) => {
-                                  const NestedIcon = submenuIcons[nestedSubmenu.key] || FolderIcon;
-                                  return (
-                                    <Link
-                                      key={nestedSubmenu.key}
-                                      to={nestedSubmenu.path}
-                                      className={`flex items-center gap-3 px-8 py-2 text-sm text-gray-600 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === nestedSubmenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
-                                      onClick={() => setOpenDropdown(null)}
-                                    >
-                                      <NestedIcon className="h-4 w-4 text-indigo-400" />
-                                      <span>{nestedSubmenu.label[lang]}</span>
-                                    </Link>
-                                  );
-                                })}
-                              </div>
-                            );
-                          } else {
-                            // Regular submenu item
-                            return (
-                              <Link
-                                key={submenu.key}
-                                to={submenu.path}
-                                className={`flex items-center gap-3 px-4 py-2 text-sm text-gray-700 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === submenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
-                                onClick={() => setOpenDropdown(null)}
-                              >
-                                <SubIcon className="h-5 w-5 text-indigo-400" />
-                                <span>{submenu.label[lang]}</span>
-                              </Link>
-                            );
-                          }
-                        })}
-                      </div>
+                      {/* Desktop dropdown - floating (portal, outside sidebar scroll) */}
+                      {dropdownBtnRect &&
+                        createPortal(
+                          <div
+                            className="hidden lg:block fixed bg-white shadow-2xl rounded-xl w-64 z-[9999] border border-gray-100 flex flex-col py-2 animate-fade-in dropdown-flyout-scroll"
+                            style={{
+                              top: `${Math.max(8, Math.min(dropdownBtnRect.top, window.innerHeight - 120))}px`,
+                              left: `${Math.max(8, Math.min(dropdownBtnRect.right + 8, window.innerWidth - 280))}px`,
+                              maxHeight: "70vh",
+                              overflowY: "auto",
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Arrow indicator */}
+                            <div className="absolute left-0 top-6 -ml-1 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white shadow-lg z-50" />
+                            {visibleSubmenus.map((submenu) => {
+                              const SubIcon = submenuIcons[submenu.key] || FolderIcon;
+                              if (submenu.dropdown && submenu.submenus) {
+                                // Nested dropdown (like Departments under Company Resources)
+                                return (
+                                  <div key={submenu.key} className="border-b border-gray-100 last:border-b-0">
+                                    <div className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 font-semibold bg-gray-50">
+                                      <SubIcon className="h-5 w-5 text-indigo-400" />
+                                      <span>{submenu.label[lang]}</span>
+                                    </div>
+                                    {filterSubmenusByRole(submenu.submenus || []).map((nestedSubmenu) => {
+                                      const NestedIcon = submenuIcons[nestedSubmenu.key] || FolderIcon;
+                                      return (
+                                        <Link
+                                          key={nestedSubmenu.key}
+                                          to={nestedSubmenu.path}
+                                          className={`flex items-center gap-3 px-8 py-2 text-sm text-gray-600 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${location.pathname === nestedSubmenu.path ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                          onClick={() => setOpenDropdown(null)}
+                                        >
+                                          <NestedIcon className="h-4 w-4 text-indigo-400" />
+                                          <span>{nestedSubmenu.label[lang]}</span>
+                                        </Link>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              } else {
+                                // Regular submenu item
+                                return (
+                                  <Link
+                                    key={submenu.key}
+                                    to={submenu.path}
+                                    className={`flex items-center gap-3 px-4 py-2 text-sm text-gray-700 rounded-lg transition hover:bg-indigo-50 hover:text-indigo-600 ${submenuPathIsActive(submenu.path) ? "font-bold text-indigo-600 bg-indigo-50" : ""}`}
+                                    onClick={() => setOpenDropdown(null)}
+                                  >
+                                    <SubIcon className="h-5 w-5 text-indigo-400" />
+                                    <span>{submenu.label[lang]}</span>
+                                  </Link>
+                                );
+                              }
+                            })}
+                          </div>,
+                          document.body
+                        )}
                     </>
                   )}
                 </div>
@@ -603,18 +811,52 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
             }
           })}
         </nav>
-        {/* Bottom: Quick Action, Theme Toggle, Help */}
+        {/* Bottom: optional Quick Add (admin/HR only), Theme Toggle, Help */}
         <div className="flex flex-col items-center gap-4 pb-6 mt-4">
-          {/* Quick Action + Button */}
-          <button className="bg-gradient-to-br from-indigo-500 to-cyan-400 text-white rounded-full shadow-lg w-9 h-9 flex items-center justify-center text-2xl hover:scale-110 transition-all fab-pop mb-2" title="Quick Add">
-            +
-          </button>
-          {/* Theme Toggle (placeholder) */}
-          <button className="w-8 h-8 rounded-full bg-white/80 shadow border border-indigo-100 flex items-center justify-center hover:bg-indigo-50 transition" title="Toggle Theme">
+          {!['MANAGER', 'PROJECT_MANAGER'].includes(authUser?.role || '') && (
+            <button
+              type="button"
+              className="bg-gradient-to-br from-indigo-500 to-cyan-400 text-white rounded-full shadow-lg w-9 h-9 flex items-center justify-center text-2xl hover:scale-110 transition-all fab-pop mb-2"
+              title="Quick Add"
+            >
+              +
+            </button>
+          )}
+          {welcomeBannerDismissed && (
+            <button
+              type="button"
+              onClick={restoreWelcomeBanner}
+              className={
+                collapsed
+                  ? "w-8 h-8 rounded-full bg-indigo-100/90 shadow border border-indigo-200 flex items-center justify-center hover:bg-indigo-200 transition"
+                  : "w-full px-2 py-2 rounded-xl bg-indigo-100/90 border border-indigo-200 text-indigo-800 text-xs font-semibold text-center hover:bg-indigo-200 transition shadow-sm max-w-[11rem]"
+              }
+              title={lang === "ar" ? "إظهار شريط الترحيب" : "Show welcome banner again"}
+            >
+              {collapsed ? (
+                <SparklesIcon className="h-5 w-5 text-indigo-600" aria-hidden />
+              ) : (
+                <>
+                  <SparklesIcon className="inline h-4 w-4 text-indigo-600 mr-1 align-text-bottom" aria-hidden />
+                  {lang === "ar" ? "إظهار الترحيب" : "Show welcome"}
+                </>
+              )}
+            </button>
+          )}
+          {/* Theme Toggle */}
+          <button
+            className="w-8 h-8 rounded-full bg-white/80 shadow border border-indigo-100 flex items-center justify-center hover:bg-indigo-50 transition"
+            title="Toggle Theme"
+            onClick={handleToggleDarkMode}
+          >
             <svg className="h-5 w-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 5.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z" /></svg>
           </button>
           {/* Help Button */}
-          <button className="w-8 h-8 rounded-full bg-white/80 shadow border border-indigo-100 flex items-center justify-center hover:bg-indigo-50 transition" title="Help & Support">
+          <button
+            className="w-8 h-8 rounded-full bg-white/80 shadow border border-indigo-100 flex items-center justify-center hover:bg-indigo-50 transition"
+            title="Help & Support"
+            onClick={handleOpenHelp}
+          >
             <svg className="h-5 w-5 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 14v.01M12 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0 0v4m0 4h.01" /></svg>
           </button>
         </div>
@@ -626,6 +868,10 @@ export default function Sidebar({ collapsed, onToggle, dir }) {
           @keyframes fabPop { from { transform: scale(0.7);} to { transform: scale(1);} }
           .nav-pop { transition: box-shadow 0.2s, transform 0.2s; }
           .nav-pop:hover, .nav-pop:focus { box-shadow: 0 2px 8px 0 #a5b4fc33; }
+          .sidebar-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+          .sidebar-nav-scroll::-webkit-scrollbar { width: 0px; height: 0px; }
+          .dropdown-flyout-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+          .dropdown-flyout-scroll::-webkit-scrollbar { width: 0px; height: 0px; }
         `}</style>
       </aside>
       {showAdminModal && (

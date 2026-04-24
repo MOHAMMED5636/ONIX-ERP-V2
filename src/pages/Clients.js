@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   MagnifyingGlassIcon, 
   PlusIcon, 
@@ -15,15 +16,73 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   StarIcon,
-  TrophyIcon
+  TrophyIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import ClientsAPI from '../services/clientsAPI';
 import DocumentUploadForm, { DOCUMENT_TYPES_MASTER } from '../components/DocumentUploadForm';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  PHONE_DIAL_CODE_OPTIONS,
+  DEFAULT_PHONE_OPTION_VALUE,
+  dialCodeFromPhoneOption,
+  phoneOptionFromDialCode,
+  parseInternationalPhone,
+  formatInternationalPhone,
+} from '../utils/phoneDialCodes';
+
+const CLIENT_VIEW_ONLY_ROLES = ['MANAGER', 'PROJECT_MANAGER'];
+/** Same as Contracts page — these roles cannot open Create Contract */
+const CONTRACT_CREATE_BLOCKED_ROLES = ['MANAGER', 'PROJECT_MANAGER'];
 
 // Mock data - replace with API call
 const mockClients = [];
 
+/** Same options as Add Client form (rank, lead source, nationality) */
+const CLIENT_RANK_OPTIONS = ['Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze'];
+const CLIENT_LEAD_SOURCE_OPTIONS = [
+  'Social Media',
+  'Company Website',
+  'Friends',
+  'Referral',
+];
+const CLIENT_NATIONALITY_OPTIONS = [
+  'Afghan', 'Albanian', 'Algerian', 'American', 'Argentine', 'Armenian', 'Australian', 'Austrian',
+  'Azerbaijani', 'Bahraini', 'Bangladeshi', 'Belgian', 'Brazilian', 'British', 'Bulgarian', 'Burmese',
+  'Cambodian', 'Canadian', 'Chilean', 'Chinese', 'Colombian', 'Croatian', 'Cypriot', 'Czech', 'Danish',
+  'Dutch', 'Egyptian', 'Estonian', 'Ethiopian', 'Filipino', 'Finnish', 'French', 'Georgian', 'German',
+  'Ghanaian', 'Greek', 'Hungarian', 'Icelandic', 'Indian', 'Indonesian', 'Iranian', 'Iraqi', 'Irish',
+  'Israeli', 'Italian', 'Japanese', 'Jordanian', 'Kazakhstani', 'Kenyan', 'Korean', 'Kuwaiti', 'Latvian',
+  'Lebanese', 'Libyan', 'Lithuanian', 'Luxembourgish', 'Malaysian', 'Maltese', 'Mexican', 'Moroccan',
+  'Nepalese', 'New Zealander', 'Nigerian', 'Norwegian', 'Omani', 'Pakistani', 'Palestinian', 'Peruvian',
+  'Polish', 'Portuguese', 'Qatari', 'Romanian', 'Russian', 'Saudi Arabian', 'Singaporean', 'Slovak',
+  'Slovenian', 'South African', 'Spanish', 'Sri Lankan', 'Sudanese', 'Swedish', 'Swiss', 'Syrian', 'Thai',
+  'Tunisian', 'Turkish', 'Ukrainian', 'Emirati', 'Uruguayan', 'Venezuelan', 'Vietnamese', 'Yemeni',
+  'Zimbabwean',
+];
+
+/** Nationality dropdown shared by Add + Edit client (shows legacy value if not in list) */
+function ClientNationalitySelect({ value, onChange, className }) {
+  const v = value || '';
+  const legacy = v && !CLIENT_NATIONALITY_OPTIONS.includes(v);
+  return (
+    <select value={v} onChange={onChange} className={className}>
+      <option value="">Select nationality</option>
+      {legacy ? <option value={v}>{v}</option> : null}
+      {CLIENT_NATIONALITY_OPTIONS.map((n) => (
+        <option key={n} value={n}>
+          {n}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 const Clients = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isClientViewOnly = CLIENT_VIEW_ONLY_ROLES.includes(user?.role);
+  const canCreateContract = !CONTRACT_CREATE_BLOCKED_ROLES.includes(user?.role);
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +90,8 @@ const Clients = () => {
   const [filterCorporate, setFilterCorporate] = useState('all');
   const [filterLeadSource, setFilterLeadSource] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  // Fetch a large page so the table shows all clients (backend caps at 5000).
+  const [itemsPerPage] = useState(5000);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -54,6 +114,14 @@ const Clients = () => {
     { id: 1, documentType: '', file: null, fileName: '' },
   ]);
   const [clientType, setClientType] = useState('');
+  const [undertakingConfirmed, setUndertakingConfirmed] = useState(false);
+  const [editUndertakingConfirmed, setEditUndertakingConfirmed] = useState(false);
+  const [addClientPhoneOption, setAddClientPhoneOption] = useState(DEFAULT_PHONE_OPTION_VALUE);
+  const [editClientPhoneOption, setEditClientPhoneOption] = useState(DEFAULT_PHONE_OPTION_VALUE);
+  /** After successful add: show next-step modal (Create Contract / Contracts / Stay) */
+  const [postCreateClientPrompt, setPostCreateClientPrompt] = useState(null);
+  const [importingClients, setImportingClients] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [clientFormData, setClientFormData] = useState({
     name: '',
     email: '',
@@ -65,7 +133,7 @@ const Clients = () => {
     idNumber: '',
     idExpiryDate: '',
     passportNumber: '',
-    birthDate: ''
+    birthDate: '',
   });
   const [companyInfo, setCompanyInfo] = useState({
     corporateName: '',
@@ -76,6 +144,60 @@ const Clients = () => {
     trnNumber: '',
     ibanNumber: ''
   });
+
+  const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await ClientsAPI.downloadClientTemplate();
+      downloadBlob(blob, 'client-import-template.xlsx');
+    } catch (e) {
+      alert(e.message || 'Failed to download template');
+    }
+  };
+
+  const handleExportClients = async () => {
+    try {
+      const blob = await ClientsAPI.exportClientsExcel();
+      downloadBlob(blob, 'clients-export.xlsx');
+    } catch (e) {
+      alert(e.message || 'Failed to export clients');
+    }
+  };
+
+  const handleImportClients = async (file) => {
+    try {
+      setImportingClients(true);
+      const res = await ClientsAPI.importClientsExcel(file);
+      setImportResult(res?.data || null);
+      // refresh list after import
+      fetchClients(1);
+    } catch (e) {
+      alert(e.message || 'Import failed');
+    } finally {
+      setImportingClients(false);
+    }
+  };
+
+  const downloadErrorReport = () => {
+    if (!importResult?.errorReportBase64) return;
+    const byteCharacters = atob(importResult.errorReportBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    downloadBlob(blob, 'client-import-errors.xlsx');
+  };
 
   // Extract fetchClients as a reusable function
   const fetchClients = async (page = currentPage) => {
@@ -118,6 +240,13 @@ const Clients = () => {
   useEffect(() => {
     fetchClients();
   }, [currentPage, searchQuery, filterCorporate, filterLeadSource, itemsPerPage]);
+
+  useEffect(() => {
+    if (!isClientViewOnly) return;
+    setShowAddModal(false);
+    setViewModalEditMode(false);
+    setEditFormData(null);
+  }, [isClientViewOnly]);
 
   // Initial load effect to ensure loading state is properly managed
   useEffect(() => {
@@ -181,20 +310,24 @@ const Clients = () => {
   };
 
   const handleStartEditClient = () => {
+    if (isClientViewOnly) return;
     if (!selectedClient) return;
+    setEditUndertakingConfirmed(false);
     const c = selectedClient;
     const formatDate = (d) => {
       if (!d) return '';
       const date = new Date(d);
       return isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
     };
+    const parsedPhone = parseInternationalPhone(c.phone || '');
+    setEditClientPhoneOption(phoneOptionFromDialCode(parsedPhone.code || '+971'));
     setEditFormData({
       name: c.name || '',
       referenceNumber: c.referenceNumber || '',
       isCorporate: c.isCorporate || 'Person',
       rank: c.rank || '',
       email: c.email || '',
-      phone: c.phone || '',
+      phone: parsedPhone.code ? parsedPhone.nationalNumber : (c.phone || ''),
       address: c.address || '',
       nationality: c.nationality || '',
       idNumber: c.idNumber || '',
@@ -234,10 +367,17 @@ const Clients = () => {
     setEditFormData(null);
     setEditDocumentRows([]);
     setEditError('');
+    setEditUndertakingConfirmed(false);
+    setEditClientPhoneOption(DEFAULT_PHONE_OPTION_VALUE);
   };
 
   const handleSaveEdit = async () => {
+    if (isClientViewOnly) return;
     if (!selectedClient || !editFormData) return;
+    if (!editUndertakingConfirmed) {
+      setEditError('Please confirm the undertaking checkbox before saving changes.');
+      return;
+    }
     setSavingClient(true);
     setEditError('');
     try {
@@ -247,7 +387,7 @@ const Clients = () => {
         leadSource: editFormData.leadSource || null,
         rank: editFormData.rank || null,
         email: editFormData.email?.trim() || null,
-        phone: editFormData.phone?.trim() || null,
+        phone: formatInternationalPhone(dialCodeFromPhoneOption(editClientPhoneOption), editFormData.phone || '').trim() || null,
         address: editFormData.address?.trim() || null,
         nationality: editFormData.nationality || null,
         idNumber: editFormData.idNumber?.trim() || null,
@@ -293,6 +433,10 @@ const Clients = () => {
   };
 
   const handleEditClient = (client) => {
+    if (isClientViewOnly) {
+      handleViewClient(client);
+      return;
+    }
     setSelectedClient(client);
     setShowViewModal(true);
     setViewModalEditMode(false);
@@ -302,7 +446,8 @@ const Clients = () => {
 
   const handleAddClient = async (e) => {
     e.preventDefault();
-    
+    if (isClientViewOnly) return;
+
     // Validate required fields
     if (!clientFormData.name || !clientFormData.name.trim()) {
       alert('Client name is required');
@@ -336,6 +481,11 @@ const Clients = () => {
       }
     }
 
+    if (!undertakingConfirmed) {
+      alert('Please confirm the undertaking checkbox before adding the client.');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -344,7 +494,7 @@ const Clients = () => {
         name: clientFormData.name.trim(),
         isCorporate: clientType,
         email: clientFormData.email.trim(),
-        phone: clientFormData.phone.trim(),
+        phone: formatInternationalPhone(dialCodeFromPhoneOption(addClientPhoneOption), clientFormData.phone).trim(),
         address: clientFormData.address?.trim() || null,
         leadSource: clientFormData.leadSource || null,
         rank: clientFormData.rank || null,
@@ -353,6 +503,25 @@ const Clients = () => {
         idExpiryDate: clientFormData.idExpiryDate || null,
         passportNumber: clientFormData.passportNumber?.trim() || null,
         birthDate: clientFormData.birthDate || null,
+        representativeName: null,
+        representativeEmail: null,
+        representativePhone: null,
+        representativeNationality: null,
+        representativeIdNumber: null,
+        representativeIdExpiryDate: null,
+        representativePassportNumber: null,
+        representativeBirthDate: null,
+        representativeAddress: null,
+        representativeType: null,
+        representativeLeadSource: null,
+        representativeRank: null,
+        representativeCorporateName: null,
+        representativeWebsite: null,
+        representativeLicenseNumber: null,
+        representativeCompanyAddress: null,
+        representativeCompanyDescription: null,
+        representativeTrnNumber: null,
+        representativeIbanNumber: null,
       };
 
       // Build FormData: client fields + multiple documents (table form like Contract)
@@ -374,6 +543,10 @@ const Clients = () => {
       console.log('Client creation response:', response);
       
       if (response && response.success) {
+        const created = response.data;
+        const didCreateUser = createUserAccount;
+        const uploadedDocCount = rowsWithFiles.length;
+
         // Close modal and reset form first
         setShowAddModal(false);
         setCreateUserAccount(false);
@@ -393,7 +566,7 @@ const Clients = () => {
           idNumber: '',
           idExpiryDate: '',
           passportNumber: '',
-          birthDate: ''
+          birthDate: '',
         });
         setCompanyInfo({
           corporateName: '',
@@ -404,14 +577,30 @@ const Clients = () => {
           trnNumber: '',
           ibanNumber: ''
         });
-        
-        // Show success message
-        const message = 'Client created successfully!' + 
-          (createUserAccount ? ' User account has been created and credentials will be sent via email.' : '') +
-          (rowsWithFiles.length > 0 ? ` ${rowsWithFiles.length} document(s) uploaded.` : '');
-        alert(message);
+        setUndertakingConfirmed(false);
+        setAddClientPhoneOption(DEFAULT_PHONE_OPTION_VALUE);
+
+        if (created?.id) {
+          setPostCreateClientPrompt({
+            id: created.id,
+            name: created.name || '',
+            referenceNumber: created.referenceNumber || '',
+            userAccountCreated: didCreateUser,
+            uploadedDocCount,
+          });
+        } else {
+          const fallbackMsg =
+            'Client created successfully!' +
+            (didCreateUser ? ' User account has been created and credentials will be sent via email.' : '') +
+            (uploadedDocCount > 0 ? ` ${uploadedDocCount} document(s) uploaded.` : '');
+          alert(fallbackMsg);
+        }
         
         // Refresh clients list by calling fetchClients
+        // Clear filters/search so the newly created client is visible immediately.
+        setSearchQuery('');
+        setFilterCorporate('all');
+        setFilterLeadSource('all');
         // Reset to page 1 to see the new client
         setCurrentPage(1);
         // Wait a bit for the database to be updated, then refresh
@@ -437,6 +626,8 @@ const Clients = () => {
     setUploadedDocuments([]);
     setClientDocumentRows([{ id: 1, documentType: '', file: null, fileName: '' }]);
     setClientType('');
+    setUndertakingConfirmed(false);
+    setAddClientPhoneOption(DEFAULT_PHONE_OPTION_VALUE);
     setClientFormData({
       name: '',
       email: '',
@@ -448,7 +639,7 @@ const Clients = () => {
       idNumber: '',
       idExpiryDate: '',
       passportNumber: '',
-      birthDate: ''
+      birthDate: '',
     });
     setCompanyInfo({
       corporateName: '',
@@ -601,6 +792,7 @@ const Clients = () => {
   };
 
   const handleDeleteClient = async (clientId) => {
+    if (isClientViewOnly) return;
     if (window.confirm('Are you sure you want to delete this client?')) {
       try {
         // Try API call first
@@ -652,7 +844,9 @@ const Clients = () => {
     friends: safeClients.filter(client => client?.leadSource === 'Friends').length
   };
 
-  if (loading) {
+  // Don't unmount the whole page during search/filter fetches (it steals input focus).
+  // Only show the full-screen spinner on the very first load.
+  if (loading && safeClients.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -670,13 +864,47 @@ const Clients = () => {
               <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
               <p className="text-sm text-gray-600 mt-1">Manage your client database</p>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <PlusIcon className="w-5 h-5" />
-              Add Client
-            </button>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              {!isClientViewOnly ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold"
+                  >
+                    Download Client Template
+                  </button>
+                  <label className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold cursor-pointer">
+                    {importingClients ? 'Importing…' : 'Import Clients'}
+                    <input
+                      type="file"
+                      accept=".xlsx"
+                      className="hidden"
+                      disabled={importingClients}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImportClients(f);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleExportClients}
+                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold"
+                  >
+                    Export Clients
+                  </button>
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                    Add Client
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -913,20 +1141,17 @@ const Clients = () => {
                           >
                             <EyeIcon className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleEditClient(client)}
-                            className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded transition-colors"
-                            title="Edit"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClient(client.id)}
-                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
-                            title="Delete"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
+                          {!isClientViewOnly && (
+                            <>
+                              <button
+                                onClick={() => handleDeleteClient(client.id)}
+                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1001,7 +1226,7 @@ const Clients = () => {
       </div>
 
       {/* Add Client Modal */}
-      {showAddModal && (
+      {showAddModal && !isClientViewOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleCloseAddModal}></div>
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -1023,15 +1248,15 @@ const Clients = () => {
               </button>
             </div>
             
-            <div className="p-6 max-h-[calc(95vh-120px)] overflow-y-auto">
-              <form className="space-y-6" onSubmit={handleAddClient}>
-                {/* Basic Information */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <UserIcon className="w-5 h-5 text-blue-600" />
-                    Basic Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="overflow-y-auto max-h-[calc(90vh-88px)] p-6">
+                <form className="space-y-6" onSubmit={handleAddClient}>
+                  {/* Client information */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <UserIcon className="w-5 h-5 text-blue-600" />
+                      Client Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
                       <input
@@ -1073,10 +1298,9 @@ const Clients = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select source</option>
-                        <option value="Social Media">Social Media</option>
-                        <option value="Company Website">Company Website</option>
-                        <option value="Friends">Friends</option>
-                        <option value="Referral">Referral</option>
+                        {CLIENT_LEAD_SOURCE_OPTIONS.map((ls) => (
+                          <option key={ls} value={ls}>{ls}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1087,10 +1311,9 @@ const Clients = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select rank</option>
-                        <option value="Gold">Gold</option>
-                        <option value="Diamond">Diamond</option>
-                        <option value="Silver">Silver</option>
-                        <option value="VIP">VIP</option>
+                        {CLIENT_RANK_OPTIONS.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1106,14 +1329,25 @@ const Clients = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-                      <input
-                        type="tel"
-                        value={clientFormData.phone}
-                        onChange={(e) => setClientFormData({...clientFormData, phone: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="+971 50 123 4567"
-                        required
-                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={addClientPhoneOption}
+                          onChange={(e) => setAddClientPhoneOption(e.target.value)}
+                          className="min-w-[min(100%,16rem)] max-w-[min(100%,20rem)] px-2 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          {PHONE_DIAL_CODE_OPTIONS.map((opt) => (
+                            <option key={`${opt.code}-${opt.name}`} value={`${opt.code}|${opt.name}`}>{opt.label}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          value={clientFormData.phone}
+                          onChange={(e) => setClientFormData({...clientFormData, phone: e.target.value})}
+                          className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="50 123 4567"
+                          required
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
@@ -1220,107 +1454,13 @@ const Clients = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                      <select 
+                      <ClientNationalitySelect
                         value={clientFormData.nationality}
-                        onChange={(e) => setClientFormData({...clientFormData, nationality: e.target.value})}
+                        onChange={(e) =>
+                          setClientFormData({ ...clientFormData, nationality: e.target.value })
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select nationality</option>
-                        <option value="Afghan">Afghan</option>
-                        <option value="Albanian">Albanian</option>
-                        <option value="Algerian">Algerian</option>
-                        <option value="American">American</option>
-                        <option value="Argentine">Argentine</option>
-                        <option value="Armenian">Armenian</option>
-                        <option value="Australian">Australian</option>
-                        <option value="Austrian">Austrian</option>
-                        <option value="Azerbaijani">Azerbaijani</option>
-                        <option value="Bahraini">Bahraini</option>
-                        <option value="Bangladeshi">Bangladeshi</option>
-                        <option value="Belgian">Belgian</option>
-                        <option value="Brazilian">Brazilian</option>
-                        <option value="British">British</option>
-                        <option value="Bulgarian">Bulgarian</option>
-                        <option value="Burmese">Burmese</option>
-                        <option value="Cambodian">Cambodian</option>
-                        <option value="Canadian">Canadian</option>
-                        <option value="Chilean">Chilean</option>
-                        <option value="Chinese">Chinese</option>
-                        <option value="Colombian">Colombian</option>
-                        <option value="Croatian">Croatian</option>
-                        <option value="Cypriot">Cypriot</option>
-                        <option value="Czech">Czech</option>
-                        <option value="Danish">Danish</option>
-                        <option value="Dutch">Dutch</option>
-                        <option value="Egyptian">Egyptian</option>
-                        <option value="Estonian">Estonian</option>
-                        <option value="Ethiopian">Ethiopian</option>
-                        <option value="Filipino">Filipino</option>
-                        <option value="Finnish">Finnish</option>
-                        <option value="French">French</option>
-                        <option value="Georgian">Georgian</option>
-                        <option value="German">German</option>
-                        <option value="Ghanaian">Ghanaian</option>
-                        <option value="Greek">Greek</option>
-                        <option value="Hungarian">Hungarian</option>
-                        <option value="Icelandic">Icelandic</option>
-                        <option value="Indian">Indian</option>
-                        <option value="Indonesian">Indonesian</option>
-                        <option value="Iranian">Iranian</option>
-                        <option value="Iraqi">Iraqi</option>
-                        <option value="Irish">Irish</option>
-                        <option value="Israeli">Israeli</option>
-                        <option value="Italian">Italian</option>
-                        <option value="Japanese">Japanese</option>
-                        <option value="Jordanian">Jordanian</option>
-                        <option value="Kazakhstani">Kazakhstani</option>
-                        <option value="Kenyan">Kenyan</option>
-                        <option value="Korean">Korean</option>
-                        <option value="Kuwaiti">Kuwaiti</option>
-                        <option value="Latvian">Latvian</option>
-                        <option value="Lebanese">Lebanese</option>
-                        <option value="Libyan">Libyan</option>
-                        <option value="Lithuanian">Lithuanian</option>
-                        <option value="Luxembourgish">Luxembourgish</option>
-                        <option value="Malaysian">Malaysian</option>
-                        <option value="Maltese">Maltese</option>
-                        <option value="Mexican">Mexican</option>
-                        <option value="Moroccan">Moroccan</option>
-                        <option value="Nepalese">Nepalese</option>
-                        <option value="New Zealander">New Zealander</option>
-                        <option value="Nigerian">Nigerian</option>
-                        <option value="Norwegian">Norwegian</option>
-                        <option value="Omani">Omani</option>
-                        <option value="Pakistani">Pakistani</option>
-                        <option value="Palestinian">Palestinian</option>
-                        <option value="Peruvian">Peruvian</option>
-                        <option value="Polish">Polish</option>
-                        <option value="Portuguese">Portuguese</option>
-                        <option value="Qatari">Qatari</option>
-                        <option value="Romanian">Romanian</option>
-                        <option value="Russian">Russian</option>
-                        <option value="Saudi Arabian">Saudi Arabian</option>
-                        <option value="Singaporean">Singaporean</option>
-                        <option value="Slovak">Slovak</option>
-                        <option value="Slovenian">Slovenian</option>
-                        <option value="South African">South African</option>
-                        <option value="Spanish">Spanish</option>
-                        <option value="Sri Lankan">Sri Lankan</option>
-                        <option value="Sudanese">Sudanese</option>
-                        <option value="Swedish">Swedish</option>
-                        <option value="Swiss">Swiss</option>
-                        <option value="Syrian">Syrian</option>
-                        <option value="Thai">Thai</option>
-                        <option value="Tunisian">Tunisian</option>
-                        <option value="Turkish">Turkish</option>
-                        <option value="Ukrainian">Ukrainian</option>
-                        <option value="Emirati">Emirati</option>
-                        <option value="Uruguayan">Uruguayan</option>
-                        <option value="Venezuelan">Venezuelan</option>
-                        <option value="Vietnamese">Vietnamese</option>
-                        <option value="Yemeni">Yemeni</option>
-                        <option value="Zimbabwean">Zimbabwean</option>
-                      </select>
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
@@ -1531,6 +1671,34 @@ const Clients = () => {
                   <p className="text-xs text-gray-500 mt-2">PDF, Word, Excel, images. Max 10MB per file. Add multiple rows for multiple documents.</p>
                 </div>
 
+                {/* Undertaking Letter */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <DocumentTextIcon className="w-5 h-5 text-gray-700" />
+                    Undertaking Letter
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Upload the undertaking letter for taking the client project.
+                  </p>
+                  <label className="flex items-start gap-3 mb-4 bg-white rounded-lg border border-gray-200 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={undertakingConfirmed}
+                      onChange={(e) => setUndertakingConfirmed(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-900">
+                        I confirm the undertaking for this client.
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        Required before you can add the client.
+                      </div>
+                    </div>
+                  </label>
+                  <p className="text-xs text-gray-500">No file upload is required here.</p>
+                </div>
+
                 {/* Form Actions */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                   <button
@@ -1542,12 +1710,13 @@ const Clients = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={!undertakingConfirmed}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add Client
                   </button>
                 </div>
-              </form>
+                </form>
             </div>
           </div>
         </div>
@@ -1561,7 +1730,7 @@ const Clients = () => {
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Client Details</h2>
               <div className="flex items-center gap-2">
-                {!viewModalEditMode ? (
+                {!isClientViewOnly && !viewModalEditMode ? (
                   <button
                     onClick={handleStartEditClient}
                     className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -1602,7 +1771,21 @@ const Clients = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Rank</label>
-                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.rank} onChange={(e) => handleEditFormChange('rank', e.target.value)} />
+                        <select
+                          className="w-full text-sm px-3 py-2 rounded border border-gray-200"
+                          value={editFormData.rank || ''}
+                          onChange={(e) => handleEditFormChange('rank', e.target.value)}
+                        >
+                          <option value="">Select rank</option>
+                          {editFormData.rank && !CLIENT_RANK_OPTIONS.includes(editFormData.rank) ? (
+                            <option value={editFormData.rank}>{editFormData.rank}</option>
+                          ) : null}
+                          {CLIENT_RANK_OPTIONS.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">ID Number</label>
@@ -1614,7 +1797,11 @@ const Clients = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Nationality</label>
-                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.nationality} onChange={(e) => handleEditFormChange('nationality', e.target.value)} />
+                        <ClientNationalitySelect
+                          className="w-full text-sm px-3 py-2 rounded border border-gray-200"
+                          value={editFormData.nationality}
+                          onChange={(e) => handleEditFormChange('nationality', e.target.value)}
+                        />
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Passport Number</label>
@@ -1635,7 +1822,24 @@ const Clients = () => {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Phone</label>
-                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.phone} onChange={(e) => handleEditFormChange('phone', e.target.value)} />
+                        <div className="flex gap-2 w-full overflow-hidden">
+                          <select
+                            value={editClientPhoneOption}
+                            onChange={(e) => setEditClientPhoneOption(e.target.value)}
+                            className="shrink-0 w-44 max-w-[11rem] text-sm px-2 py-2 rounded border border-gray-200 bg-white"
+                          >
+                            {PHONE_DIAL_CODE_OPTIONS.map((opt) => (
+                              <option key={`${opt.code}-${opt.name}`} value={`${opt.code}|${opt.name}`}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="tel"
+                            className="flex-1 min-w-0 w-full text-sm px-3 py-2 rounded border border-gray-200"
+                            value={editFormData.phone}
+                            onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                            placeholder="National number"
+                          />
+                        </div>
                       </div>
                       <div className="col-span-2">
                         <label className="text-sm font-medium text-gray-700">Address</label>
@@ -1648,7 +1852,22 @@ const Clients = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-gray-700">Lead Source</label>
-                        <input type="text" className="w-full text-sm px-3 py-2 rounded border border-gray-200" value={editFormData.leadSource} onChange={(e) => handleEditFormChange('leadSource', e.target.value)} />
+                        <select
+                          className="w-full text-sm px-3 py-2 rounded border border-gray-200"
+                          value={editFormData.leadSource || ''}
+                          onChange={(e) => handleEditFormChange('leadSource', e.target.value)}
+                        >
+                          <option value="">Select source</option>
+                          {editFormData.leadSource &&
+                          !CLIENT_LEAD_SOURCE_OPTIONS.includes(editFormData.leadSource) ? (
+                            <option value={editFormData.leadSource}>{editFormData.leadSource}</option>
+                          ) : null}
+                          {CLIENT_LEAD_SOURCE_OPTIONS.map((ls) => (
+                            <option key={ls} value={ls}>
+                              {ls}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -1731,9 +1950,35 @@ const Clients = () => {
                     </div>
                     <p className="text-xs text-gray-500 mt-2">Add or replace documents. Existing files are kept until you remove the row or upload a new file.</p>
                   </div>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <DocumentTextIcon className="w-5 h-5 text-gray-700" />
+                      Undertaking Confirmation
+                    </h3>
+                    <label className="flex items-start gap-3 bg-white rounded-lg border border-gray-200 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={editUndertakingConfirmed}
+                        onChange={(e) => setEditUndertakingConfirmed(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900">
+                          I confirm the undertaking for this client.
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Required before you can save changes.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
                   <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                     <button type="button" onClick={handleCancelEdit} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancel</button>
-                    <button type="submit" disabled={savingClient} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                    <button
+                      type="submit"
+                      disabled={savingClient || !editUndertakingConfirmed}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       {savingClient ? 'Saving...' : 'Save'}
                     </button>
                   </div>
@@ -1906,6 +2151,92 @@ const Clients = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success + next-step actions after creating a client */}
+      {postCreateClientPrompt && (
+        <div
+          className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="client-created-title"
+          onClick={() => setPostCreateClientPrompt(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <CheckCircleIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 id="client-created-title" className="text-lg font-bold text-white">
+                  Client created successfully
+                </h2>
+                <p className="text-sm text-emerald-50 mt-1">
+                  Next step: Create a contract for this client.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-900">{postCreateClientPrompt.name}</span>
+                {postCreateClientPrompt.referenceNumber ? (
+                  <span className="text-gray-500"> · Ref. {postCreateClientPrompt.referenceNumber}</span>
+                ) : null}
+              </p>
+              {postCreateClientPrompt.userAccountCreated ? (
+                <p className="text-xs text-gray-500">User account created — credentials will be sent by email where applicable.</p>
+              ) : null}
+              {postCreateClientPrompt.uploadedDocCount > 0 ? (
+                <p className="text-xs text-gray-500">
+                  {postCreateClientPrompt.uploadedDocCount} document(s) uploaded with this client.
+                </p>
+              ) : null}
+              {!canCreateContract ? (
+                <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+                  New contracts cannot be started from your role. Use &quot;Go to Contracts&quot; to open the contracts list.
+                </p>
+              ) : null}
+            </div>
+            <div className="px-6 pb-6 flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setPostCreateClientPrompt(null)}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 order-3 sm:order-1"
+              >
+                Stay Here
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPostCreateClientPrompt(null);
+                  navigate('/contracts');
+                }}
+                className="px-4 py-2.5 rounded-xl border border-indigo-200 text-indigo-700 font-medium hover:bg-indigo-50 order-2"
+              >
+                Go to Contracts
+              </button>
+              {canCreateContract ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = postCreateClientPrompt.id;
+                    const name = postCreateClientPrompt.name;
+                    setPostCreateClientPrompt(null);
+                    navigate(`/contracts/create?clientId=${encodeURIComponent(id)}`, {
+                      state: { preselectClientId: id, preselectClientName: name },
+                    });
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold hover:from-indigo-700 hover:to-violet-700 shadow-md order-1 sm:order-3"
+                >
+                  Create Contract
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

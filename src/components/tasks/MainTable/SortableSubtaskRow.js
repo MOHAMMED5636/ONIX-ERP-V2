@@ -3,14 +3,20 @@ import { Bars3Icon } from "@heroicons/react/24/outline";
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const SortableSubtaskRow = ({ sub, subIdx, task, children }) => {
+const SortableSubtaskRow = ({ sub, subIdx, task, isNextExecutable, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   
   return (
     <tr
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`subtask-row bg-white transition-all duration-200 ${isDragging ? "bg-blue-50 shadow-lg z-10" : "hover:bg-gray-50/50"}`}
+      className={`subtask-row transition-all duration-200 ${
+        isDragging
+          ? "bg-blue-50 shadow-lg z-10"
+          : isNextExecutable
+            ? "bg-green-50/80 border-l-4 border-green-400"
+            : "bg-white hover:bg-gray-50/50"
+      }`}
       {...attributes}
     >
       {/* Drag handle cell */}

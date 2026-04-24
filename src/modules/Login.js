@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./ForgotPassword";
 import { UserCircleIcon, LockClosedIcon, GlobeAltIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 import { getRoleRedirectPath } from "../utils/auth";
+import { enrichUserFromToken } from "../utils/jwtPayload";
 import { login as apiLogin, requestLoginOtp, verifyLoginOtp } from "../services/authAPI";
 import { useAuth } from "../contexts/AuthContext";
 import * as authStorage from "../utils/authStorage";
@@ -121,13 +122,13 @@ export default function Login() {
     if (isAuthenticated && user) {
       // Check if password change is required first
       if (user.forcePasswordChange) {
-        navigate('/change-password', { state: { lang, dir } });
+        navigate('/change-password', { state: { lang, dir }, replace: true });
         return;
       }
       
       // Redirect based on user role - TENDER_ENGINEER goes to tender dashboard
       const redirectPath = getRoleRedirectPath(user.role);
-      navigate(redirectPath, { state: { lang, dir } });
+      navigate(redirectPath, { state: { lang, dir }, replace: true });
     }
   }, [isAuthenticated, user, navigate, lang, dir]);
 
@@ -209,27 +210,34 @@ export default function Login() {
       
       if (response.success && response.data) {
         if (response.requiresPasswordChange) {
-          if (response.data.token) {
-            authStorage.setToken(response.data.token);
+          try {
+            if (response.data.token) {
+              const snapshot = enrichUserFromToken(response.data.user, response.data.token);
+              await setAuthUser(response.data.token, snapshot);
+            }
+            setLoading(false);
+            navigate('/change-password', {
+              state: {
+                message: response.message || 'Password change required',
+                lang,
+                dir,
+              },
+              replace: true,
+            });
+          } catch (err) {
+            setLoading(false);
+            setLoginError(lang === 'en' ? 'Failed to load user profile.' : 'فشل تحميل ملف المستخدم.');
           }
-          setLoading(false);
-          navigate('/change-password', { 
-            state: { 
-              message: response.message || 'Password change required',
-              lang,
-              dir 
-            } 
-          });
           return;
         }
-        
+
         if (response.data.token) {
           try {
-            await setAuthUser(response.data.token);
+            const snapshot = enrichUserFromToken(response.data.user, response.data.token);
+            await setAuthUser(response.data.token, snapshot);
             setLoading(false);
-            const userRole = response.data.user?.role;
-            const redirectPath = getRoleRedirectPath(userRole);
-            navigate(redirectPath, { state: { lang, dir } });
+            const redirectPath = getRoleRedirectPath(snapshot?.role);
+            navigate(redirectPath, { state: { lang, dir }, replace: true });
           } catch (err) {
             setLoading(false);
             setLoginError(lang === "en" ? "Failed to load user profile." : "فشل تحميل ملف المستخدم.");
@@ -296,27 +304,34 @@ export default function Login() {
       
       if (response.success && response.data) {
         if (response.requiresPasswordChange) {
-          if (response.data.token) {
-            authStorage.setToken(response.data.token);
+          try {
+            if (response.data.token) {
+              const snapshot = enrichUserFromToken(response.data.user, response.data.token);
+              await setAuthUser(response.data.token, snapshot);
+            }
+            setLoading(false);
+            navigate('/change-password', {
+              state: {
+                message: response.message || 'Password change required',
+                lang,
+                dir,
+              },
+              replace: true,
+            });
+          } catch (err) {
+            setLoading(false);
+            setLoginError(lang === 'en' ? 'Failed to load user profile.' : 'فشل تحميل ملف المستخدم.');
           }
-          setLoading(false);
-          navigate('/change-password', { 
-            state: { 
-              message: response.message || 'Password change required',
-              lang,
-              dir 
-            } 
-          });
           return;
         }
-        
+
         if (response.data.token) {
           try {
-            await setAuthUser(response.data.token);
+            const snapshot = enrichUserFromToken(response.data.user, response.data.token);
+            await setAuthUser(response.data.token, snapshot);
             setLoading(false);
-            const userRole = response.data.user?.role;
-            const redirectPath = getRoleRedirectPath(userRole);
-            navigate(redirectPath, { state: { lang, dir } });
+            const redirectPath = getRoleRedirectPath(snapshot?.role);
+            navigate(redirectPath, { state: { lang, dir }, replace: true });
           } catch (err) {
             setLoading(false);
             setLoginError(lang === "en" ? "Failed to load user profile." : "فشل تحميل ملف المستخدم.");

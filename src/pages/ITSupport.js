@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
   ComputerDesktopIcon,
   WifiIcon,
@@ -12,13 +14,16 @@ import {
   UserIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  SparklesIcon,
   DocumentTextIcon,
   ArrowUpTrayIcon,
   PaperClipIcon
 } from '@heroicons/react/24/outline';
 
 const ITSupport = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const role = user?.role;
+  const canViewHistory = role === 'ADMIN' || role === 'HR';
   // Form state
   const [formData, setFormData] = useState({
     category: '',
@@ -32,16 +37,6 @@ const ITSupport = () => {
     },
     attachments: []
   });
-
-  // AI Assistant state
-  const [aiSuggestions, setAiSuggestions] = useState({
-    category: '',
-    priority: '',
-    troubleshootingSteps: [],
-    confidence: 0
-  });
-  const [showAIAssistant, setShowAIAssistant] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Tickets state
   const [tickets, setTickets] = useState([
@@ -96,85 +91,6 @@ const ITSupport = () => {
     detectDeviceInfo();
   }, []);
 
-  // AI Analysis function
-  const analyzeDescription = async (description) => {
-    if (!description.trim()) {
-      setShowAIAssistant(false);
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setShowAIAssistant(true);
-
-    // Simulate AI analysis
-    setTimeout(() => {
-      const suggestions = generateAISuggestions(description);
-      setAiSuggestions(suggestions);
-      setIsAnalyzing(false);
-    }, 1500);
-  };
-
-  // AI suggestion generator (simulated)
-  const generateAISuggestions = (description) => {
-    const lowerDesc = description.toLowerCase();
-    
-    let category = '';
-    let priority = 'Medium';
-    let troubleshootingSteps = [];
-    let confidence = 0.7;
-
-    // Category detection
-    if (lowerDesc.includes('laptop') || lowerDesc.includes('desktop') || lowerDesc.includes('computer')) {
-      category = 'Laptop/Desktop';
-      confidence = 0.9;
-    } else if (lowerDesc.includes('wifi') || lowerDesc.includes('internet') || lowerDesc.includes('network')) {
-      category = 'Network/Internet';
-      confidence = 0.9;
-    } else if (lowerDesc.includes('email') || lowerDesc.includes('outlook') || lowerDesc.includes('mail')) {
-      category = 'Outlook/Email';
-      confidence = 0.8;
-    } else if (lowerDesc.includes('server') || lowerDesc.includes('admin')) {
-      category = 'Admin/Server';
-      confidence = 0.8;
-    } else if (lowerDesc.includes('software') || lowerDesc.includes('application') || lowerDesc.includes('app')) {
-      category = 'Software/Application';
-      confidence = 0.7;
-    }
-
-    // Priority detection
-    if (lowerDesc.includes('urgent') || lowerDesc.includes('critical') || lowerDesc.includes('down')) {
-      priority = 'High';
-    } else if (lowerDesc.includes('minor') || lowerDesc.includes('small') || lowerDesc.includes('low')) {
-      priority = 'Low';
-    }
-
-    // Troubleshooting steps
-    if (category === 'Laptop/Desktop') {
-      troubleshootingSteps = [
-        'Restart the computer',
-        'Check power connections',
-        'Run hardware diagnostics',
-        'Contact IT if issue persists'
-      ];
-    } else if (category === 'Network/Internet') {
-      troubleshootingSteps = [
-        'Check WiFi connection',
-        'Restart router/modem',
-        'Test with different device',
-        'Contact network administrator'
-      ];
-    } else if (category === 'Outlook/Email') {
-      troubleshootingSteps = [
-        'Restart Outlook application',
-        'Check server connection',
-        'Clear Outlook cache',
-        'Contact IT support'
-      ];
-    }
-
-    return { category, priority, troubleshootingSteps, confidence };
-  };
-
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -190,7 +106,7 @@ const ITSupport = () => {
     };
 
     setTickets(prev => [newTicket, ...prev]);
-    
+
     // Reset form
     setFormData({
       category: '',
@@ -199,14 +115,6 @@ const ITSupport = () => {
       deviceInfo: { deviceType: '', os: '', ip: '', browser: '' },
       attachments: []
     });
-    
-    setAiSuggestions({ category: '', priority: '', troubleshootingSteps: [], confidence: 0 });
-    setShowAIAssistant(false);
-  };
-
-  // Handle AI suggestion acceptance
-  const acceptAISuggestion = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   // Handle file upload
@@ -279,6 +187,39 @@ const ITSupport = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* Admin shortcut: System Feedback */}
+        {role === 'ADMIN' && (
+          <div className="bg-white shadow-lg rounded-lg p-6 border border-indigo-100">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <QuestionMarkCircleIcon className="w-6 h-6 text-indigo-600" />
+                  System Feedback
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Quick access for Ramiz to collect feedback and review submissions.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-system-feedback'))}
+                  className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow"
+                >
+                  Submit feedback
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/system-feedback')}
+                  className="px-5 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 font-medium hover:bg-indigo-50"
+                >
+                  Review feedback inbox
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Ticket Submission Form */}
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -327,70 +268,11 @@ const ITSupport = () => {
                 value={formData.description}
                 onChange={(e) => {
                   setFormData(prev => ({ ...prev, description: e.target.value }));
-                  analyzeDescription(e.target.value);
                 }}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 rows="4"
                 placeholder="Describe the issue in detail..."
               />
-              
-              {/* AI Assistant */}
-              {showAIAssistant && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <SparklesIcon className="w-5 h-5 text-purple-500" />
-                    <span className="font-medium text-gray-800">AI Assistant</span>
-                    {isAnalyzing && (
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                        Analyzing...
-                      </div>
-                    )}
-                  </div>
-                  
-                  {!isAnalyzing && aiSuggestions.category && (
-                    <div className="space-y-3">
-                      {aiSuggestions.category && (
-                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                          <span className="text-sm text-gray-700">Suggested Category:</span>
-                          <button
-                            onClick={() => acceptAISuggestion('category', aiSuggestions.category)}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          >
-                            {aiSuggestions.category} ✓
-                          </button>
-                        </div>
-                      )}
-                      
-                      {aiSuggestions.priority && (
-                        <div className="flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
-                          <span className="text-sm text-gray-700">Suggested Priority:</span>
-                          <button
-                            onClick={() => acceptAISuggestion('priority', aiSuggestions.priority)}
-                            className="text-yellow-600 hover:text-yellow-800 text-sm font-medium"
-                          >
-                            {aiSuggestions.priority} ✓
-                          </button>
-                        </div>
-                      )}
-                      
-                      {aiSuggestions.troubleshootingSteps.length > 0 && (
-                        <div className="p-2 bg-green-50 rounded-lg">
-                          <span className="text-sm text-gray-700 block mb-2">Suggested Steps:</span>
-                          <ul className="text-sm text-green-700 space-y-1">
-                            {aiSuggestions.troubleshootingSteps.map((step, index) => (
-                              <li key={index} className="flex items-start gap-2">
-                                <span className="text-green-500 mt-0.5">•</span>
-                                {step}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Priority Selection */}
@@ -504,8 +386,6 @@ const ITSupport = () => {
                     deviceInfo: { deviceType: '', os: '', ip: '', browser: '' },
                     attachments: []
                   });
-                  setAiSuggestions({ category: '', priority: '', troubleshootingSteps: [], confidence: 0 });
-                  setShowAIAssistant(false);
                 }}
                 className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
               >
@@ -526,7 +406,8 @@ const ITSupport = () => {
           </form>
         </div>
 
-        {/* Ticket History & Status */}
+        {/* Ticket History & Status — only Admin/HR can see full history */}
+        {canViewHistory && (
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
             <ClockIcon className="w-6 h-6 text-green-500" />
@@ -642,6 +523,7 @@ const ITSupport = () => {
             </table>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

@@ -21,7 +21,8 @@ import {
   BoltIcon,
   ClipboardDocumentListIcon
 } from "@heroicons/react/24/outline";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../LanguageContext";
 import { format } from "date-fns";
 import TabBar from "./TabBar";
@@ -66,6 +67,11 @@ export default function TaskList() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const employeeProjectFilterId =
+    user?.role === "EMPLOYEE" && location.pathname.startsWith("/employee/tasks")
+      ? new URLSearchParams(location.search).get("projectId")
+      : null;
   const [showSearch, setShowSearch] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showAIChatbot, setShowAIChatbot] = useState(false);
@@ -79,6 +85,7 @@ export default function TaskList() {
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const DASHBOARD_TASK_SEARCH_KEY = "onix-dashboard-search";
   const [filters, setFilters] = useState({
     global: '',
     name: '',
@@ -93,6 +100,21 @@ export default function TaskList() {
   // Refs for popup handling
   const popupRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // If user came from a dashboard search, prefill TaskList search.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DASHBOARD_TASK_SEARCH_KEY);
+      if (!stored) return;
+
+      const onTasksRoute =
+        location.pathname.startsWith("/employee/tasks") || location.pathname.startsWith("/tasks");
+      if (!onTasksRoute) return;
+
+      setSearchTerm(stored);
+      localStorage.removeItem(DASHBOARD_TASK_SEARCH_KEY);
+    } catch (_) {}
+  }, [location.pathname]);
 
   // Demo data for dropdowns
   const demoPlans = ["All Plans", "Ref#1234", "Ref#5678", "Ref#9012", "Ref#3456", "Ref#7890"];
@@ -254,19 +276,19 @@ export default function TaskList() {
   }, []);
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden h-full w-full">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden w-full">
-      {/* Enhanced Header Bar */}
-      <header className="flex-shrink-0 w-full bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 flex items-center px-3 sm:px-6 py-4 z-40 relative min-h-0">
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden h-full w-full min-w-0">
+      {/* Main Content — generous inline-end padding + min-w-0 so nested flex does not clip off-screen */}
+      <div className="flex-1 flex flex-col overflow-hidden w-full min-w-0 pe-4 sm:pe-8 md:pe-[1.5cm] box-border max-w-full">
+      {/* Enhanced Header Bar — top row scrolls horizontally if buttons exceed width (avoid overflow-hidden clip) */}
+      <header className="flex-shrink-0 w-full max-w-full bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 flex items-center ps-3 pe-3 sm:ps-6 sm:pe-6 py-4 z-40 relative min-h-0 min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-gutter:stable]">
         {/* Animated background elements */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5"></div>
-        <div className="absolute top-0 left-1/4 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-0 right-1/4 w-24 h-24 bg-purple-400/10 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5 pointer-events-none"></div>
+        <div className="absolute top-0 left-1/4 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl animate-pulse pointer-events-none"></div>
+        <div className="absolute top-0 right-1/4 w-24 h-24 bg-purple-400/10 rounded-full blur-2xl animate-pulse delay-1000 pointer-events-none"></div>
         
-        <div className="relative z-10 flex items-center w-full gap-4">
+        <div className="relative z-10 flex w-max min-w-full min-h-[2.5rem] items-center gap-2 sm:gap-3 md:gap-4 flex-nowrap pr-2 sm:pr-3">
           {/* Left section: Title */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="flex items-center gap-2">
               <div>
                 <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -851,8 +873,8 @@ export default function TaskList() {
        <div className="flex-1 flex flex-col min-h-0 overflow-hidden h-full">
         {/* Stats Dashboard */}
         {!isLoading && (
-          <div className="flex-shrink-0 p-4 bg-white/60 backdrop-blur-sm border-b border-white/20 overflow-hidden">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-full">
+          <div className="flex-shrink-0 p-4 bg-white/60 backdrop-blur-sm border-b border-white/20 overflow-x-auto overflow-y-hidden min-w-0">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-full min-w-0 [&>*]:min-w-0">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-3 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 min-w-0">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
@@ -892,6 +914,30 @@ export default function TaskList() {
                   <ExclamationTriangleIcon className="h-6 w-6 text-red-200 flex-shrink-0 ml-2" />
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Employee: opened from My Projects with ?projectId= */}
+        {employeeProjectFilterId && (
+          <div className="flex-shrink-0 px-4 py-2.5 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-indigo-900">
+              Showing <strong>My Tasks</strong> for this project only.
+            </p>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/employee/projects"
+                className="text-sm font-medium text-indigo-700 hover:text-indigo-900 underline"
+              >
+                Back to My Projects
+              </Link>
+              <button
+                type="button"
+                onClick={() => navigate("/employee/tasks")}
+                className="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg"
+              >
+                Show all projects
+              </button>
             </div>
           </div>
         )}

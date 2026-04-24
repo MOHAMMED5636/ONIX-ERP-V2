@@ -1,15 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
+import { isSocketClientEnabled, getSocketBaseUrl } from '../utils/socketConfig';
 
-const useSocket = (url = 'http://localhost:3001') => {
+const useSocket = (url) => {
+  const baseUrl = url || getSocketBaseUrl();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const socketRef = useRef(null);
 
   useEffect(() => {
-    // Initialize socket connection
-    const newSocket = io(url, {
+    if (!isSocketClientEnabled()) {
+      socketRef.current = null;
+      setSocket(null);
+      setIsConnected(false);
+      return undefined;
+    }
+
+    const newSocket = io(baseUrl, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
@@ -56,7 +64,7 @@ const useSocket = (url = 'http://localhost:3001') => {
         socketRef.current = null;
       }
     };
-  }, [url]);
+  }, [baseUrl]);
 
   // Helper function to emit events
   const emit = (event, data) => {

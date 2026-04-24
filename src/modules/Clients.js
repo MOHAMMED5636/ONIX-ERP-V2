@@ -3,7 +3,7 @@ import { UserIcon, BriefcaseIcon, CalendarIcon, EnvelopeIcon, PhoneIcon, UsersIc
 import { useNavigate } from 'react-router-dom';
 
 const leadSources = ["Company Website", "Social Media", "Referral", "Friends"];
-const ranks = ["Gold", "Diamond", "Silver", "VIP"];
+const ranks = ["Diamond", "Platinum", "Gold", "Silver", "Bronze"];
 // Nationality options for dropdown
 const nationalities = [
   "Afghan", "Albanian", "Algerian", "American", "Argentine", "Armenian", "Australian", "Austrian", "Azerbaijani",

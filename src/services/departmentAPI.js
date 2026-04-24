@@ -6,9 +6,10 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
 /**
  * Get all departments for a company
  * @param {number|string} companyId - The company ID
+ * @param {Object} [params] - optional query: { status: 'ACTIVE' | 'INACTIVE' | 'all' }
  * @returns {Promise} Departments data with success flag
  */
-export const getCompanyDepartments = async (companyId) => {
+export const getCompanyDepartments = async (companyId, params = {}) => {
   try {
     const token = getToken();
     
@@ -16,7 +17,12 @@ export const getCompanyDepartments = async (companyId) => {
       throw new Error('No token found. Please login again.');
     }
 
-    const url = `${API_BASE_URL}/companies/${companyId}/departments`;
+    const q = new URLSearchParams();
+    if (params.status && String(params.status) !== 'all') {
+      q.set('status', String(params.status));
+    }
+    const qs = q.toString();
+    const url = `${API_BASE_URL}/companies/${companyId}/departments${qs ? `?${qs}` : ''}`;
     
     console.log('📡 Fetching departments from:', url);
 
@@ -47,7 +53,8 @@ export const getCompanyDepartments = async (companyId) => {
     return {
       success: true,
       data: data.data || data || [],
-      message: data.message
+      message: data.message,
+      companyEmployeeSummary: data.companyEmployeeSummary ?? null,
     };
   } catch (error) {
     console.error('❌ Error fetching departments:', error);
@@ -572,6 +579,56 @@ export const deleteSubDepartment = async (subDepartmentId) => {
 // ============================================
 
 /**
+ * Get all positions (org-wide) for job title management and directory dropdowns.
+ * @param {Object} params - optional { status: 'ACTIVE' | 'INACTIVE' | 'all' }
+ */
+export const getAllPositions = async (params = {}) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No token found. Please login again.');
+    }
+    const q = new URLSearchParams();
+    if (params.status && params.status !== 'all') {
+      q.set('status', String(params.status));
+    }
+    const qs = q.toString();
+    const url = `${API_BASE_URL}/positions${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    const data = await response.json();
+    return {
+      success: true,
+      data: Array.isArray(data.data) ? data.data : [],
+      message: data.message,
+    };
+  } catch (error) {
+    console.error('❌ Error fetching all positions:', error);
+    return {
+      success: false,
+      data: [],
+      message: error.message || 'Failed to fetch positions',
+    };
+  }
+};
+
+/**
  * Get all positions for a sub-department
  * @param {string} subDepartmentId - The sub-department ID
  * @returns {Promise} Positions data with success flag
@@ -786,7 +843,9 @@ export const updatePosition = async (positionId, positionData) => {
     return {
       success: true,
       data: data.data || data,
-      message: data.message || 'Position updated successfully'
+      message: data.message || 'Position updated successfully',
+      employeesJobTitleSynced:
+        typeof data.employeesJobTitleSynced === 'number' ? data.employeesJobTitleSynced : 0,
     };
   } catch (error) {
     console.error('❌ Error updating position:', error);

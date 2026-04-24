@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   DocumentTextIcon,
@@ -16,10 +16,16 @@ import {
 import PayrollAPI from '../../services/payrollAPI';
 import PayrollLineItem from './PayrollLineItem';
 import ApprovalWorkflow from './ApprovalWorkflow';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PayrollRunDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const role = user?.role;
+  const canManagePayroll = role === 'ADMIN' || role === 'HR';
+  const basePath = location.pathname.startsWith('/employee/payroll') ? '/employee/payroll' : '/payroll';
   const [payrollRun, setPayrollRun] = useState(null);
   const [payrollLines, setPayrollLines] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +129,19 @@ const PayrollRunDetails = () => {
   };
 
   const isLocked = payrollRun?.status === 'LOCKED';
-  const canEdit = payrollRun?.status === 'DRAFT' || payrollRun?.status === 'HR_APPROVED' || payrollRun?.status === 'FINANCE_APPROVED';
+  const canEditStatus =
+    payrollRun?.status === 'DRAFT' ||
+    payrollRun?.status === 'HR_APPROVED' ||
+    payrollRun?.status === 'FINANCE_APPROVED';
+  const canEdit = canEditStatus && canManagePayroll;
+
+  const visiblePayrollLines =
+    role === 'EMPLOYEE'
+      ? payrollLines.filter((line) => {
+          const empId = line.employeeId || line.employee?.id || line.snapshotEmployeeId;
+          return empId === user?.id;
+        })
+      : payrollLines;
 
   if (loading) {
     return (
@@ -142,7 +160,7 @@ const PayrollRunDetails = () => {
         <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg border border-gray-200 p-6 text-center">
           <p className="text-gray-600">Payroll run not found</p>
           <button
-            onClick={() => navigate('/payroll')}
+            onClick={() => navigate(basePath)}
             className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Back to Payroll List
@@ -160,7 +178,7 @@ const PayrollRunDetails = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/payroll')}
+                onClick={() => navigate(basePath)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
@@ -233,7 +251,7 @@ const PayrollRunDetails = () => {
         </div>
 
         {/* Approval Workflow */}
-        {payrollRun.status !== 'LOCKED' && (
+        {canManagePayroll && payrollRun.status !== 'LOCKED' && (
           <ApprovalWorkflow
             payrollRun={payrollRun}
             onApprovalChange={loadPayrollRun}
@@ -245,11 +263,11 @@ const PayrollRunDetails = () => {
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-900">Employee Payroll Lines</h2>
             <p className="text-sm text-gray-600 mt-1">
-              {payrollLines.length} employee{payrollLines.length !== 1 ? 's' : ''} in this payroll run
+              {visiblePayrollLines.length} employee{visiblePayrollLines.length !== 1 ? 's' : ''} in this payroll run
             </p>
           </div>
 
-          {payrollLines.length === 0 ? (
+          {visiblePayrollLines.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-gray-600">No payroll lines found</p>
             </div>
@@ -267,7 +285,7 @@ const PayrollRunDetails = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {payrollLines.map((line) => (
+                  {visiblePayrollLines.map((line) => (
                     <PayrollLineItem
                       key={line.id}
                       line={line}

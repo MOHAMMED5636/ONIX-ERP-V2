@@ -125,6 +125,62 @@ export async function rejectLeave(leaveId, reason) {
   }
 }
 
+/** Line manager: list direct reports’ leave requests */
+export async function listTeamLeaves(params = {}) {
+  try {
+    const sp = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') sp.append(k, String(v));
+    });
+    const url = `${API_BASE_URL}/leaves/team${sp.toString() ? `?${sp.toString()}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Failed to list team leaves');
+    const list = data.data?.leaves ?? data.data ?? (Array.isArray(data.data) ? data.data : []);
+    return { success: true, data: Array.isArray(list) ? list : [], pagination: data.pagination };
+  } catch (error) {
+    console.error('listTeamLeaves error:', error);
+    return { success: false, data: [], message: error.message };
+  }
+}
+
+export async function managerApproveLeave(leaveId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/leaves/${leaveId}/manager-approve`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Failed to approve leave');
+    return { success: true, data: data.data || data };
+  } catch (error) {
+    console.error('managerApproveLeave error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+export async function managerRejectLeave(leaveId, reason) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/leaves/${leaveId}/manager-reject`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ reason: reason || '' }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Failed to reject leave');
+    return { success: true, data: data.data || data };
+  } catch (error) {
+    console.error('managerRejectLeave error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
 /**
  * Get leave policies (for UI and leave type options)
  * @returns {Promise} { success, data: policies[] }

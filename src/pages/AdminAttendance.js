@@ -19,11 +19,65 @@ function formatHours(hours) {
   return `${Number(hours).toFixed(1)}h`;
 }
 
+/** Office window on the attendance calendar day (local timezone). */
+const OFFICE_START_HOUR = 8;
+const OFFICE_START_MINUTE = 0;
+const OFFICE_END_HOUR = 18;
+const OFFICE_END_MINUTE = 30;
+
+/**
+ * @param {string} ymd - YYYY-MM-DD
+ * @returns {{ officeStart: Date, officeEnd: Date }}
+ */
+function officeWindowLocal(ymd) {
+  const [y, m, d] = ymd.split("-").map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  const officeStart = new Date(y, m - 1, d, OFFICE_START_HOUR, OFFICE_START_MINUTE, 0, 0);
+  const officeEnd = new Date(y, m - 1, d, OFFICE_END_HOUR, OFFICE_END_MINUTE, 0, 0);
+  return { officeStart, officeEnd };
+}
+
+/**
+ * Extra time = minutes before 8:00 AM (early check-in) + minutes after 6:30 PM (late stay).
+ * Uses the same local calendar day as the admin date filter.
+ */
+function computeExtraTimeMinutes(checkInIso, checkOutIso, ymd) {
+  const win = officeWindowLocal(ymd);
+  if (!win) return null;
+  const { officeStart, officeEnd } = win;
+  const ci = checkInIso ? new Date(checkInIso) : null;
+  const co = checkOutIso ? new Date(checkOutIso) : null;
+  let extraMs = 0;
+  if (ci && !Number.isNaN(ci.getTime()) && ci < officeStart) {
+    extraMs += officeStart.getTime() - ci.getTime();
+  }
+  if (co && !Number.isNaN(co.getTime()) && co > officeEnd) {
+    extraMs += co.getTime() - officeEnd.getTime();
+  }
+  return extraMs / 60000;
+}
+
+function formatExtraTime(minutes) {
+  if (minutes == null || minutes <= 0) return "—";
+  const total = Math.round(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+/** Admin date picker value must match employee local calendar days (not UTC from toISOString). */
+function localDateYYYYMMDD() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function AdminAttendance() {
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
+  const [selectedDate, setSelectedDate] = useState(() => localDateYYYYMMDD());
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,6 +117,12 @@ export default function AdminAttendance() {
             <p className="text-sm text-slate-500 mt-1">
               Select a date to view that day&apos;s attendance.
             </p>
+            <p className="text-xs text-slate-500 mt-3 leading-relaxed border-t border-slate-100 pt-3">
+              Standard office hours:{" "}
+              <span className="font-medium text-slate-700">8:00 AM – 6:30 PM</span>.
+              Extra time in the table counts early check-in before 8:00 AM and any time
+              worked after 6:30 PM (based on check-out).
+            </p>
             <label className="block mt-4 text-sm font-medium text-slate-700">
               Date
             </label>
@@ -93,6 +153,7 @@ export default function AdminAttendance() {
               </h3>
               <p className="text-sm text-slate-500 mt-0.5">
                 Data from Employee module. Refreshes when you change the date or click Refresh.
+                Extra time uses office hours 8:00 AM–6:30 PM on the selected date (see sidebar).
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -126,6 +187,9 @@ export default function AdminAttendance() {
                         Total Working Hours
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Extra Time
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                         Attendance Date
                       </th>
                     </tr>
@@ -133,12 +197,18 @@ export default function AdminAttendance() {
                   <tbody className="bg-white divide-y divide-slate-200">
                     {data.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500 text-sm">
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
                           No attendance records for this date.
                         </td>
                       </tr>
                     ) : (
-                      data.map((row, idx) => (
+                      data.map((row, idx) => {
+                        const extraMin = computeExtraTimeMinutes(
+                          row.checkInTime,
+                          row.checkOutTime,
+                          selectedDate
+                        );
+                        return (
                         <tr key={idx} className="hover:bg-slate-50">
                           <td className="px-4 py-3 text-sm text-slate-800 whitespace-nowrap">
                             {row.employeeName || "—"}
@@ -155,11 +225,15 @@ export default function AdminAttendance() {
                           <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                             {formatHours(row.totalWorkingHours)}
                           </td>
+                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap font-medium">
+                            {formatExtraTime(extraMin)}
+                          </td>
                           <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                             {formatDate(row.attendanceDate)}
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

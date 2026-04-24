@@ -4,8 +4,10 @@
 // ============================================
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { getCurrentUser, logout as apiLogout, getToken } from '../services/authAPI';
 import * as authStorage from '../utils/authStorage';
+import { enrichUserFromToken } from '../utils/jwtPayload';
 
 const AuthContext = createContext(null);
 
@@ -30,8 +32,10 @@ export const AuthProvider = ({ children }) => {
 
       const response = await getCurrentUser(token);
       if (response.success && response.data) {
-        setUser(response.data);
-        setError(null);
+        flushSync(() => {
+          setUser(response.data);
+          setError(null);
+        });
         authStorage.setAuthItem('currentUser', response.data);
         authStorage.setAuthItem('isAuthenticated', 'true');
         authStorage.setAuthItem('userRole', response.data.role);
@@ -54,15 +58,56 @@ export const AuthProvider = ({ children }) => {
     fetchUserProfile();
   }, []);
 
-  // Login function - stores token in sessionStorage (this tab only) and fetches user profile
-  const login = async (token) => {
+  /**
+   * Stores token and loads full profile from GET /auth/me.
+   * Optional `snapshotUser` from the login response is applied synchronously so PrivateRoute
+   * does not redirect back to /login before React commits context (fixes HR/admin login flash).
+   * If /me fails after a successful login (network/500), we keep the snapshot session instead of
+   * clearing the token — getCurrentUser otherwise called clearAuth() and locked everyone out.
+   */
+  const login = async (token, snapshotUser = null) => {
     try {
       authStorage.clearAuth();
       authStorage.setToken(token);
-      await fetchUserProfile();
+      const mergedUser = enrichUserFromToken(snapshotUser, token);
+      const hasSnapshot = mergedUser && mergedUser.role != null;
+      if (hasSnapshot) {
+        flushSync(() => {
+          setUser(mergedUser);
+          setError(null);
+          setLoading(false);
+        });
+        authStorage.setAuthItem('currentUser', mergedUser);
+        authStorage.setAuthItem('isAuthenticated', 'true');
+        authStorage.setAuthItem('userRole', mergedUser.role);
+      }
+      try {
+        const response = await getCurrentUser(getToken(), {
+          clearStorageOnError: !hasSnapshot,
+        });
+        if (response.success && response.data) {
+          flushSync(() => {
+            setUser(response.data);
+            setError(null);
+          });
+          authStorage.setAuthItem('currentUser', response.data);
+          authStorage.setAuthItem('isAuthenticated', 'true');
+          authStorage.setAuthItem('userRole', response.data.role);
+        }
+      } catch (meErr) {
+        console.error('GET /auth/me after login failed:', meErr);
+        if (!hasSnapshot) {
+          authStorage.clearAuth();
+          setUser(null);
+          throw meErr;
+        }
+        setError(meErr.message || 'Could not sync full profile; you are still signed in.');
+      }
     } catch (err) {
       console.error('Login error:', err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
 

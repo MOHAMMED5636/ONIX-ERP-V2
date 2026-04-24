@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+const OUTPUT_SIZE = 400;
+// Keep zoom in the 0.00–1.00 range (cap at 1.00x).
+// Note: true 0 would collapse image dimensions, so we use a tiny minimum.
+const ZOOM_MIN = 0.01;
+const ZOOM_MAX = 1;
+const VIEWPORT_RADIUS_RATIO = 0.45; // fraction of min(container W, H)
 
 const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape = 'circle' }) => {
   const [preview, setPreview] = useState(null);
@@ -6,13 +13,15 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
   const [imageError, setImageError] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   const [cropImage, setCropImage] = useState(null);
-  const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 200, height: 200 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [photoKey, setPhotoKey] = useState(0); // Force re-render when photo changes
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const draggingRef = useRef(false);
+  const dragRef = useRef({ startX: 0, startY: 0, panX: 0, panY: 0 });
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const containerRef = useRef(null);
+  const [photoKey, setPhotoKey] = useState(0);
 
   const sizeClasses = {
     sm: 'w-16 h-16',
@@ -20,7 +29,6 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
     lg: 'w-48 h-48',
   };
 
-  // Helper function to get photo URL
   const getPhotoUrl = (photo) => {
     if (!photo) return null;
     if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:')) {
@@ -39,55 +47,88 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
     return `${BACKEND_URL}/uploads/photos/${photo}`;
   };
 
+  /** Image layout: cover-scale * zoom, centered + pan, clamped so viewport stays on image */
+  const computeLayout = useCallback(() => {
+    const container = containerRef.current;
+    const nw = natural.w;
+    const nh = natural.h;
+    if (!container || !nw || !nh) {
+      return {
+        W: 0,
+        H: 0,
+        cx: 0,
+        cy: 0,
+        R: 0,
+        iw: 0,
+        ih: 0,
+        px: 0,
+        py: 0,
+        coverScale: 1,
+      };
+    }
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+    const cx = W / 2;
+    const cy = H / 2;
+    const R =
+      shape === 'circle'
+        ? Math.min(W, H) * VIEWPORT_RADIUS_RATIO
+        : Math.min(W, H) * 0.4;
+    const coverScale = Math.max(W / nw, H / nh);
+    const s = coverScale * zoom;
+    const iw = nw * s;
+    const ih = nh * s;
+    let px = (W - iw) / 2 + pan.x;
+    let py = (H - ih) / 2 + pan.y;
+
+    const pxMin = cx + R - iw;
+    const pxMax = cx - R;
+    if (pxMin <= pxMax) {
+      px = Math.max(pxMin, Math.min(pxMax, px));
+    } else {
+      px = (W - iw) / 2;
+    }
+    const pyMin = cy + R - ih;
+    const pyMax = cy - R;
+    if (pyMin <= pyMax) {
+      py = Math.max(pyMin, Math.min(pyMax, py));
+    } else {
+      py = (H - ih) / 2;
+    }
+
+    return { W, H, cx, cy, R, iw, ih, px, py, coverScale };
+  }, [natural.w, natural.h, zoom, pan.x, pan.y, shape]);
+
+  const resetAdjustState = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setNatural({ w: 0, h: 0 });
+  };
+
   useEffect(() => {
-    console.log('[PhotoUploadEnhanced] currentPhoto changed:', currentPhoto);
-    console.log('[PhotoUploadEnhanced] currentPhoto type:', typeof currentPhoto);
-    console.log('[PhotoUploadEnhanced] currentPhoto is File:', currentPhoto instanceof File);
     setImageError(false);
-    
     if (currentPhoto) {
       if (currentPhoto instanceof File) {
-        // If it's a File object, show it directly
-        console.log('[PhotoUploadEnhanced] Loading File object as preview');
         const reader = new FileReader();
-        reader.onloadend = () => {
-          console.log('[PhotoUploadEnhanced] File preview loaded');
-          setPreview(reader.result);
-        };
-        reader.onerror = () => {
-          console.error('[PhotoUploadEnhanced] Error reading file');
-          setImageError(true);
-        };
+        reader.onloadend = () => setPreview(reader.result);
+        reader.onerror = () => setImageError(true);
         reader.readAsDataURL(currentPhoto);
       } else if (typeof currentPhoto === 'string') {
-        // If it's a string (URL/path), get the URL with cache busting
         const photoUrl = getPhotoUrl(currentPhoto);
         if (photoUrl) {
-          // Add cache-busting timestamp to photo URL - use a new timestamp each time
           const separator = photoUrl.includes('?') ? '&' : '?';
           const timestamp = Date.now();
           const cacheBustedUrl = `${photoUrl}${separator}t=${timestamp}`;
-          console.log('[PhotoUploadEnhanced] Setting preview URL:', cacheBustedUrl);
-          console.log('[PhotoUploadEnhanced] Original photo:', currentPhoto);
-          
-          // Force component to re-render by updating key
           setPhotoKey(timestamp);
-          
-          // Reset preview first, then set new URL to force reload
           setPreview(null);
-          setTimeout(() => {
-            setPreview(cacheBustedUrl);
-          }, 50);
+          setTimeout(() => setPreview(cacheBustedUrl), 50);
         } else {
-          console.warn('[PhotoUploadEnhanced] No photo URL generated from:', currentPhoto);
           setPreview(null);
         }
       } else {
-        console.warn('[PhotoUploadEnhanced] Unexpected photo type:', typeof currentPhoto, currentPhoto);
         setPreview(null);
       }
     } else {
-      console.log('[PhotoUploadEnhanced] No currentPhoto provided - showing placeholder');
       setPreview(null);
     }
   }, [currentPhoto]);
@@ -99,23 +140,19 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
         alert('Please select an image file (JPEG, PNG, GIF, or WebP)');
         return;
       }
-
       if (selectedFile.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
         return;
       }
-
-      // Notify parent immediately so "Save photo" appears even before crop
       if (onPhotoChange) {
         onPhotoChange(selectedFile);
       }
       setFile(selectedFile);
       const previewUrl = URL.createObjectURL(selectedFile);
       setPreview(previewUrl);
-
-      // Load image for cropping (user can optionally crop, or just save as-is)
       const reader = new FileReader();
       reader.onloadend = () => {
+        resetAdjustState();
         setCropImage(reader.result);
         setShowCropModal(true);
       };
@@ -124,255 +161,160 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
     e.target.value = '';
   };
 
-  const initializeCropArea = () => {
-    if (imageRef.current && containerRef.current) {
-      const img = imageRef.current;
-      const container = containerRef.current;
-      const containerWidth = container.offsetWidth;
-      const containerHeight = container.offsetHeight;
-      
-      const imgAspect = img.naturalWidth / img.naturalHeight;
-      const containerAspect = containerWidth / containerHeight;
-      
-      let displayWidth, displayHeight, offsetX = 0, offsetY = 0;
-      
-      if (imgAspect > containerAspect) {
-        displayHeight = containerHeight;
-        displayWidth = displayHeight * imgAspect;
-        offsetX = (containerWidth - displayWidth) / 2;
-      } else {
-        displayWidth = containerWidth;
-        displayHeight = displayWidth / imgAspect;
-        offsetY = (containerHeight - displayHeight) / 2;
-      }
-      
-      const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
-      const cropX = offsetX + (displayWidth - cropSize) / 2;
-      const cropY = offsetY + (displayHeight - cropSize) / 2;
-      
-      setCropArea({
-        x: cropX,
-        y: cropY,
-        width: cropSize,
-        height: cropSize,
-      });
-    }
+  const onCropImageLoad = (e) => {
+    const img = e.currentTarget;
+    setNatural({ w: img.naturalWidth, h: img.naturalHeight });
   };
+
+  const handleWheelNative = useCallback((e) => {
+    e.preventDefault();
+    const delta = -e.deltaY;
+    const factor = delta > 0 ? 1.08 : 1 / 1.08;
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z * factor)));
+  }, []);
 
   useEffect(() => {
-    if (showCropModal && imageRef.current) {
-      imageRef.current.onload = initializeCropArea;
-      if (imageRef.current.complete) {
-        initializeCropArea();
-      }
-    }
-  }, [showCropModal, cropImage]);
+    const el = containerRef.current;
+    if (!el || !showCropModal) return;
+    el.addEventListener('wheel', handleWheelNative, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheelNative);
+  }, [showCropModal, handleWheelNative]);
 
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - cropArea.x,
-      y: e.clientY - cropArea.y,
+  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, z * 1.15));
+  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, z / 1.15));
+
+  const handlePointerDown = (e) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    draggingRef.current = true;
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+    };
+  };
+
+  const handlePointerMove = (e) => {
+    if (!draggingRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setPan({
+      x: dragRef.current.panX + dx,
+      y: dragRef.current.panY + dy,
     });
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging || !containerRef.current) return;
-    
-    const container = containerRef.current;
-    const rect = container.getBoundingClientRect();
-    const newX = e.clientX - rect.left - dragStart.x;
-    const newY = e.clientY - rect.top - dragStart.y;
-    
-    const maxX = container.offsetWidth - cropArea.width;
-    const maxY = container.offsetHeight - cropArea.height;
-    
-    setCropArea({
-      ...cropArea,
-      x: Math.max(0, Math.min(newX, maxX)),
-      y: Math.max(0, Math.min(newY, maxY)),
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleResize = (direction, e) => {
-    e.stopPropagation();
-    const container = containerRef.current;
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    let newCropArea = { ...cropArea };
-    
-    if (direction.includes('right')) {
-      newCropArea.width = Math.max(100, mouseX - cropArea.x);
+  const handlePointerUp = (e) => {
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
     }
-    if (direction.includes('bottom')) {
-      newCropArea.height = Math.max(100, mouseY - cropArea.y);
-    }
-    if (direction.includes('left')) {
-      const diff = cropArea.x - mouseX;
-      newCropArea.x = Math.max(0, mouseX);
-      newCropArea.width = cropArea.width + diff;
-    }
-    if (direction.includes('top')) {
-      const diff = cropArea.y - mouseY;
-      newCropArea.y = Math.max(0, mouseY);
-      newCropArea.height = cropArea.height + diff;
-    }
-    
-    // Maintain square aspect ratio for circle shape
-    if (shape === 'circle') {
-      const size = Math.min(newCropArea.width, newCropArea.height);
-      newCropArea.width = size;
-      newCropArea.height = size;
-    }
-    
-    setCropArea(newCropArea);
+    draggingRef.current = false;
   };
 
   const cropAndResizeImage = () => {
-    if (!cropImage || !canvasRef.current || !imageRef.current || !containerRef.current) {
-      console.error('Missing required refs for cropping');
+    if (!cropImage || !canvasRef.current || !natural.w || !containerRef.current) {
+      alert('Image is still loading. Please wait a moment.');
       return;
     }
-    
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    
+
     img.onload = () => {
       try {
+        const layout = computeLayout();
+        const { W, H, cx, cy, R, iw, ih, px, py } = layout;
+        if (!W || !H) {
+          alert('Could not read editor size.');
+          return;
+        }
+
+        const off = document.createElement('canvas');
+        off.width = W;
+        off.height = H;
+        const octx = off.getContext('2d');
+        octx.drawImage(img, 0, 0, natural.w, natural.h, px, py, iw, ih);
+
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const container = containerRef.current;
-        const displayedImg = imageRef.current;
-        
-        // Get actual displayed image dimensions (considering object-contain)
-        const containerWidth = container.offsetWidth;
-        const containerHeight = container.offsetHeight;
-        const imgAspect = img.naturalWidth / img.naturalHeight;
-        const containerAspect = containerWidth / containerHeight;
-        
-        let displayedWidth, displayedHeight, offsetX = 0, offsetY = 0;
-        
-        if (imgAspect > containerAspect) {
-          // Image is wider - fit to height
-          displayedHeight = containerHeight;
-          displayedWidth = displayedHeight * imgAspect;
-          offsetX = (containerWidth - displayedWidth) / 2;
-        } else {
-          // Image is taller - fit to width
-          displayedWidth = containerWidth;
-          displayedHeight = displayedWidth / imgAspect;
-          offsetY = (containerHeight - displayedHeight) / 2;
-        }
-        
-        // Calculate scale factors based on actual displayed size
-        const scaleX = img.naturalWidth / displayedWidth;
-        const scaleY = img.naturalHeight / displayedHeight;
-        
-        // Adjust crop coordinates to account for image offset
-        const adjustedCropX = cropArea.x - offsetX;
-        const adjustedCropY = cropArea.y - offsetY;
-        
-        // Calculate crop coordinates in original image
-        const sourceX = Math.max(0, adjustedCropX * scaleX);
-        const sourceY = Math.max(0, adjustedCropY * scaleY);
-        const sourceWidth = Math.min(cropArea.width * scaleX, img.naturalWidth - sourceX);
-        const sourceHeight = Math.min(cropArea.height * scaleY, img.naturalHeight - sourceY);
-        
-        // Set canvas size (output size)
-        const outputSize = 400;
-        canvas.width = outputSize;
-        canvas.height = outputSize;
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, outputSize, outputSize);
-        
-        // Draw cropped and resized image
+        canvas.width = OUTPUT_SIZE;
+        canvas.height = OUTPUT_SIZE;
+        ctx.clearRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+
+        const side = R * 2;
+        const sx = cx - R;
+        const sy = cy - R;
+
         if (shape === 'circle') {
           ctx.beginPath();
-          ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, 2 * Math.PI);
+          ctx.arc(OUTPUT_SIZE / 2, OUTPUT_SIZE / 2, OUTPUT_SIZE / 2, 0, Math.PI * 2);
           ctx.clip();
         }
-        
-        ctx.drawImage(
-          img,
-          sourceX,
-          sourceY,
-          sourceWidth,
-          sourceHeight,
-          0,
-          0,
-          outputSize,
-          outputSize
+
+        ctx.drawImage(off, sx, sy, side, side, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              alert('Failed to process image. Please try again.');
+              return;
+            }
+            const croppedFile = new File([blob], 'profile-photo.jpg', { type: 'image/jpeg' });
+            setFile(croppedFile);
+            const previewUrl = URL.createObjectURL(blob);
+            setPreview(previewUrl);
+            setShowCropModal(false);
+            setCropImage(null);
+            resetAdjustState();
+            if (onPhotoChange) {
+              onPhotoChange(croppedFile);
+            }
+          },
+          'image/jpeg',
+          0.92
         );
-        
-        // Convert to blob
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            console.error('Failed to create blob from canvas');
-            alert('Failed to process image. Please try again.');
-            return;
-          }
-          
-          const croppedFile = new File([blob], 'profile-photo.jpg', { type: 'image/jpeg' });
-          setFile(croppedFile);
-          const previewUrl = URL.createObjectURL(blob);
-          setPreview(previewUrl);
-          setShowCropModal(false);
-          setCropImage(null);
-          
-          if (onPhotoChange) {
-            onPhotoChange(croppedFile);
-          }
-        }, 'image/jpeg', 0.92);
-      } catch (error) {
-        console.error('Error during image cropping:', error);
+      } catch (err) {
+        console.error(err);
         alert('Error processing image. Please try again.');
       }
     };
-    
-    img.onerror = () => {
-      console.error('Failed to load image for cropping');
-      alert('Failed to load image. Please try again.');
-    };
-    
+
+    img.onerror = () => alert('Failed to load image. Please try again.');
     img.src = cropImage;
   };
 
   const cancelCrop = () => {
     setShowCropModal(false);
     setCropImage(null);
+    resetAdjustState();
   };
+
+  const layout = showCropModal && natural.w ? computeLayout() : null;
 
   return (
     <div className="photo-upload">
       <div className={`photo-preview ${sizeClasses[size]} mx-auto mb-4`}>
         {preview && !imageError ? (
           <img
-            key={photoKey} // Force re-render when photo changes
+            key={photoKey}
             src={preview}
             alt="Profile preview"
             className={`${sizeClasses[size]} ${shape === 'circle' ? 'rounded-full' : 'rounded-lg'} object-cover border-2 border-gray-300`}
-            onError={(e) => {
-              console.error('[PhotoUploadEnhanced] Failed to load image:', preview);
-              setImageError(true);
-            }}
-            onLoad={() => {
-              console.log('[PhotoUploadEnhanced] Image loaded successfully:', preview);
-              setImageError(false);
-            }}
+            onError={() => setImageError(true)}
+            onLoad={() => setImageError(false)}
           />
         ) : (
-          <div className={`${sizeClasses[size]} ${shape === 'circle' ? 'rounded-full' : 'rounded-lg'} bg-gray-200 flex items-center justify-center border-2 border-gray-300`}>
+          <div
+            className={`${sizeClasses[size]} ${shape === 'circle' ? 'rounded-full' : 'rounded-lg'} bg-gray-200 flex items-center justify-center border-2 border-gray-300`}
+          >
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
             </svg>
           </div>
         )}
@@ -392,93 +334,97 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
         </p>
       )}
 
-      {/* Crop Modal */}
       {showCropModal && cropImage && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
-            <h3 className="text-lg font-semibold mb-4">Adjust Image</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Drag the image to adjust position. Resize using the corners.
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-xl">
+            <h3 className="text-lg font-semibold mb-1">Adjust Image</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              <strong>Drag</strong> the photo to reposition. <strong>Scroll</strong> or use <strong>+ / −</strong> to zoom.
+              Align your face inside the {shape === 'circle' ? 'circle' : 'frame'}.
             </p>
-            
+
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <button
+                type="button"
+                onClick={zoomOut}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-sm"
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={zoomIn}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-sm"
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+              <span className="text-xs text-gray-500 ml-1">
+                Zoom: {zoom < 1 ? zoom.toFixed(2) : zoom.toFixed(2)}×
+              </span>
+            </div>
+
             <div
               ref={containerRef}
-              className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden mb-4"
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
+              className="relative w-full h-96 bg-gray-900 rounded-lg overflow-hidden mb-4 select-none touch-none cursor-grab active:cursor-grabbing"
+              style={{ touchAction: 'none' }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             >
               <img
                 ref={imageRef}
                 src={cropImage}
-                alt="Crop"
-                className="absolute inset-0 w-full h-full object-contain"
+                alt="Adjust crop"
+                className="absolute pointer-events-none"
                 draggable={false}
-              />
-              
-              {/* Crop Overlay */}
-              <div
-                className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-20 cursor-move"
-                style={{
-                  left: `${cropArea.x}px`,
-                  top: `${cropArea.y}px`,
-                  width: `${cropArea.width}px`,
-                  height: `${cropArea.height}px`,
-                  borderRadius: shape === 'circle' ? '50%' : '0',
-                }}
-                onMouseDown={handleMouseDown}
-              >
-                {/* Resize Handles */}
-                {shape === 'square' && (
-                  <>
-                    <div
-                      className="absolute -top-1 -left-1 w-4 h-4 bg-blue-500 rounded-full cursor-nwse-resize"
-                      onMouseDown={(e) => handleResize('top-left', e)}
-                    />
-                    <div
-                      className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full cursor-nesw-resize"
-                      onMouseDown={(e) => handleResize('top-right', e)}
-                    />
-                    <div
-                      className="absolute -bottom-1 -left-1 w-4 h-4 bg-blue-500 rounded-full cursor-nesw-resize"
-                      onMouseDown={(e) => handleResize('bottom-left', e)}
-                    />
-                    <div
-                      className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full cursor-nwse-resize"
-                      onMouseDown={(e) => handleResize('bottom-right', e)}
-                    />
-                  </>
-                )}
-              </div>
-              
-              {/* Dark Overlay */}
-              <div
-                className="absolute inset-0 pointer-events-none"
+                onLoad={onCropImageLoad}
                 style={
-                  shape === 'circle'
+                  layout
                     ? {
-                        background: `radial-gradient(circle at ${cropArea.x + cropArea.width / 2}px ${cropArea.y + cropArea.height / 2}px, transparent ${cropArea.width / 2}px, rgba(0,0,0,0.5) ${cropArea.width / 2 + 20}px)`,
+                        left: `${layout.px}px`,
+                        top: `${layout.py}px`,
+                        width: `${layout.iw}px`,
+                        height: `${layout.ih}px`,
                       }
-                    : {
-                        background: `linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) ${cropArea.y}px, transparent ${cropArea.y}px, transparent ${cropArea.y + cropArea.height}px, rgba(0,0,0,0.5) ${cropArea.y + cropArea.height}px, rgba(0,0,0,0.5) 100%),
-                                    linear-gradient(to right, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) ${cropArea.x}px, transparent ${cropArea.x}px, transparent ${cropArea.x + cropArea.width}px, rgba(0,0,0,0.5) ${cropArea.x + cropArea.width}px, rgba(0,0,0,0.5) 100%)`,
-                      }
+                    : { visibility: 'hidden' }
                 }
               />
+
+              {layout && (
+                <>
+                  <div
+                    className="absolute pointer-events-none z-10 border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
+                    style={{
+                      left: `${layout.cx - layout.R}px`,
+                      top: `${layout.cy - layout.R}px`,
+                      width: `${layout.R * 2}px`,
+                      height: `${layout.R * 2}px`,
+                      borderRadius: shape === 'circle' ? '50%' : '12px',
+                      boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+                    }}
+                  />
+                </>
+              )}
             </div>
-            
+
             <canvas ref={canvasRef} className="hidden" />
-            
-            <div className="flex gap-3">
+
+            <div className="flex gap-3 justify-end">
               <button
+                type="button"
                 onClick={cancelCrop}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={cropAndResizeImage}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                disabled={!natural.w}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
               >
                 Apply
               </button>
@@ -491,4 +437,3 @@ const PhotoUploadEnhanced = ({ currentPhoto, onPhotoChange, size = 'md', shape =
 };
 
 export default PhotoUploadEnhanced;
-

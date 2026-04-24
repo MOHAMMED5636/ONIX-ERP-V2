@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FolderIcon } from "@heroicons/react/24/outline";
+import { FolderIcon, ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 import { getToken } from "../../services/authAPI";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
@@ -47,29 +47,53 @@ export default function EmployeeProjects() {
     );
   }
 
+  const tasksUrlForProject = (projectId) =>
+    `/employee/tasks?projectId=${encodeURIComponent(projectId)}`;
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">My Projects</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">My Projects</h1>
+        <Link
+          to="/employee/tasks"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold shadow-md hover:bg-indigo-700 hover:shadow-lg transition"
+        >
+          <ClipboardDocumentListIcon className="h-5 w-5 shrink-0" />
+          My Tasks
+        </Link>
+      </div>
       {projects.length === 0 ? (
         <p className="text-slate-600">You have no assigned projects.</p>
       ) : (
         <ul className="space-y-3">
           {projects.map((p) => (
-            <li key={p.id}>
+            <li
+              key={p.id}
+              className="flex items-stretch gap-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-200 transition overflow-hidden"
+            >
               <Link
-                to={`/employee/projects/${p.id}`}
-                className="flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-200 transition"
+                to={tasksUrlForProject(p.id)}
+                className="flex flex-1 items-center gap-4 p-4 min-w-0 hover:bg-slate-50/80 transition"
+                title="Open My Tasks for this project"
               >
                 <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                   <FolderIcon className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-left">
                   <p className="font-semibold text-slate-800 truncate">{p.name}</p>
                   <p className="text-sm text-slate-500">
                     {p.referenceNumber || p.id.slice(0, 8)} · {p.status || "—"}
                   </p>
                 </div>
               </Link>
+              <div className="flex items-center pr-3 pl-1">
+                <Link
+                  to={tasksUrlForProject(p.id)}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-900 shadow-sm whitespace-nowrap"
+                >
+                  View tasks
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

@@ -15,25 +15,14 @@ import {
   ArrowRightIcon
 } from "@heroicons/react/24/outline";
 import { getCompanies, deleteCompany as deleteCompanyAPI, getCompanyStats } from "../../services/companiesAPI";
+import { resolvePublicUploadUrl } from "../../utils/publicUploadUrl";
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Helper function to get full image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    // If it's a relative path, construct full URL
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-    // Remove leading slash if present to avoid double slashes
-    const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    return `${baseUrl}${cleanPath}`;
-  };
+  const getImageUrl = (imagePath) => resolvePublicUploadUrl(imagePath);
   const [stats, setStats] = useState({
     totalCompanies: 0,
     activeCompanies: 0,
@@ -69,6 +58,11 @@ export default function CompaniesPage() {
       const response = await getCompanies(filters);
       
       if (response.success && response.data) {
+        const formatYmd = (d) => {
+          if (!d) return '';
+          const dt = new Date(d);
+          return isNaN(dt.getTime()) ? '' : dt.toLocaleDateString();
+        };
         // Map backend data to frontend format
         const mappedCompanies = response.data.map(company => ({
           id: company.id,
@@ -85,10 +79,19 @@ export default function CompaniesPage() {
           logo: company.logo,
           header: company.header,
           footer: company.footer,
-          employees: company.employees || 0,
+          // Live count from API (User.company matches company name); fallback to stored field
+          employees:
+            typeof company.activeEmployeeCount === 'number'
+              ? company.activeEmployeeCount
+              : company.employees || 0,
           status: company.status?.toLowerCase() || 'active',
           industry: company.industry || '',
-          founded: company.founded || '',
+          // Show Commercial License Issue Date under "Founded" (requested)
+          founded:
+            formatYmd(company.licenseIssueDate) ||
+            formatYmd(company.issueDate) ||
+            company.founded ||
+            '',
           licenseExpiry: company.licenseExpiry || '',
           licenseStatus: company.licenseStatus?.toLowerCase() || 'active'
         }));

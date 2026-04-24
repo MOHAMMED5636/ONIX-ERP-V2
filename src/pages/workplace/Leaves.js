@@ -28,6 +28,7 @@ import {
   getEmployeeBalances,
   getLeaveReportExport,
 } from "../../services/leaveAPI";
+import { formatLeaveWorkflowStatus } from "../../utils/leaveWorkflow";
 
 const LEAVE_TYPES = [
   { value: "ANNUAL", label: "Annual Leave" },
@@ -41,7 +42,8 @@ const LEAVE_TYPES = [
 
 export default function Leaves() {
   const { user } = useAuth();
-  const isAdminOrManager = ["ADMIN", "HR", "PROJECT_MANAGER"].includes(user?.role || "");
+  /** Admin/HR only: org-wide list, dashboard, certificates, approve/reject. Managers use self-service leave only. */
+  const isHrLeaveDashboard = ["ADMIN", "HR"].includes(user?.role || "");
 
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [leaveBalance, setLeaveBalance] = useState({
@@ -85,6 +87,7 @@ export default function Leaves() {
   const [employeeBalances, setEmployeeBalances] = useState([]);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleDates, setRescheduleDates] = useState({ startDate: "", endDate: "" });
+  const [requestValidationError, setRequestValidationError] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -96,7 +99,7 @@ export default function Leaves() {
         ...(filterType !== "all" && { type: filterType }),
         ...(dateFrom && { dateFrom }),
         ...(dateTo && { dateTo }),
-        ...(isAdminOrManager && employeeSearch?.trim() && { search: employeeSearch.trim() }),
+        ...(isHrLeaveDashboard && employeeSearch?.trim() && { search: employeeSearch.trim() }),
       };
       const [balanceRes, listRes] = await Promise.all([
         getLeaveBalance(),
@@ -121,34 +124,37 @@ export default function Leaves() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterType, dateFrom, dateTo, employeeSearch, isAdminOrManager]);
+  }, [filterStatus, filterType, dateFrom, dateTo, employeeSearch, isHrLeaveDashboard]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    if (isAdminOrManager) {
-      getHRDashboard().then((res) => {
-        if (res?.success && res.data) {
-          setHrDashboard(res.data);
-          setEmployeeBalances(res.data.employeeBalances || []);
-        }
-      });
+    if (!isHrLeaveDashboard) {
+      setHrView("list");
+      return;
     }
-  }, [isAdminOrManager]);
+    getHRDashboard().then((res) => {
+      if (res?.success && res.data) {
+        setHrDashboard(res.data);
+        setEmployeeBalances(res.data.employeeBalances || []);
+      }
+    });
+  }, [isHrLeaveDashboard]);
 
   const handleRequestLeave = async () => {
     if (!newRequest.type || !newRequest.fromDate || !newRequest.toDate || !newRequest.reason?.trim()) {
-      setToast({ message: "Please fill in all required fields", type: "error" });
+      setRequestValidationError("Please fill in all required fields.");
       return;
     }
     if (newRequest.type === "BEREAVEMENT" && !newRequest.relationOrContext) {
-      setToast({ message: "Please select relation for bereavement leave", type: "error" });
+      setRequestValidationError("Please select relation for bereavement leave.");
       return;
     }
     setActionLoading(true);
     setToast(null);
+    setRequestValidationError("");
     try {
       const res = await createLeave({
         type: newRequest.type,
@@ -163,10 +169,10 @@ export default function Leaves() {
         setToast({ message: "Leave request submitted successfully", type: "success" });
         loadData();
       } else {
-        setToast({ message: res?.message || "Submit failed", type: "error" });
+        setRequestValidationError(res?.message || "Submit failed");
       }
     } catch (err) {
-      setToast({ message: err.message || "Submit failed", type: "error" });
+      setRequestValidationError(err.message || "Submit failed");
     } finally {
       setActionLoading(false);
     }
@@ -381,7 +387,7 @@ export default function Leaves() {
           
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            {isAdminOrManager && hrDashboard?.totalEmployees != null && (
+            {isHrLeaveDashboard && hrDashboard?.totalEmployees != null && (
               <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
@@ -495,7 +501,7 @@ export default function Leaves() {
           </div>
         </div>
         {/* HR: Leave statistics and per-employee balance summary */}
-        {isAdminOrManager && hrDashboard?.stats && (
+        {isHrLeaveDashboard && hrDashboard?.stats && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">HR Leave Statistics ({hrDashboard.year})</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
@@ -531,7 +537,7 @@ export default function Leaves() {
           </div>
         )}
 
-        {toast && (
+        {toast && !showRequestModal && (
           <div className={`mb-4 p-3 rounded-lg ${toast.type === "error" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
             {toast.message}
           </div>
@@ -585,7 +591,7 @@ export default function Leaves() {
             </div>
             
             <div className="flex items-center gap-3 flex-wrap">
-              {isAdminOrManager && (
+              {isHrLeaveDashboard && (
                 <>
                   <input
                     type="text"
@@ -640,7 +646,7 @@ export default function Leaves() {
         </div>
 
         {/* HR: Certificates view */}
-        {isAdminOrManager && hrView === "certificates" && (
+        {isHrLeaveDashboard && hrView === "certificates" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">All leave documents (certificates / proofs)</h2>
             {certificatesList.length === 0 ? (
@@ -688,7 +694,7 @@ export default function Leaves() {
         )}
 
         {/* HR: Reports view */}
-        {isAdminOrManager && hrView === "reports" && (
+        {isHrLeaveDashboard && hrView === "reports" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Leave report</h2>
             <div className="flex items-center gap-2 mb-4">
@@ -764,6 +770,12 @@ export default function Leaves() {
                   filteredRequests.map((request) => {
                     const status = (request.status || "").toUpperCase();
                     const isPending = status === "PENDING";
+                    const mas = request.managerApprovalStatus || "NOT_REQUIRED";
+                    const hrCanAct =
+                      isHrLeaveDashboard &&
+                      isPending &&
+                      mas !== "PENDING";
+                    const workflowLabel = formatLeaveWorkflowStatus(request);
                     return (
                       <tr key={request.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
@@ -796,7 +808,7 @@ export default function Leaves() {
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
                             {getStatusIcon(request.status)}
-                            <span className="ml-1">{status === "PENDING" ? "Pending" : status === "APPROVED" ? "Approved" : "Rejected"}</span>
+                            <span className="ml-1">{workflowLabel}</span>
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
@@ -811,7 +823,7 @@ export default function Leaves() {
                             >
                               <EyeIcon className="h-4 w-4" />
                             </button>
-                            {isAdminOrManager && isPending && (
+                            {hrCanAct && (
                               <>
                                 <button
                                   onClick={() => handleApprove(request)}
@@ -838,6 +850,11 @@ export default function Leaves() {
                                   <ArrowPathIcon className="h-4 w-4" />
                                 </button>
                               </>
+                            )}
+                            {isHrLeaveDashboard && isPending && mas === "PENDING" && (
+                              <span className="text-[10px] text-amber-700 max-w-[7rem] leading-tight" title="Waiting for line manager">
+                                Awaiting manager
+                              </span>
                             )}
                           </div>
                         </td>
@@ -879,7 +896,7 @@ export default function Leaves() {
       {/* Request Leave Modal */}
       {showRequestModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 relative">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Request Leave</h2>
               <button
@@ -890,6 +907,18 @@ export default function Leaves() {
               </button>
             </div>
             
+            {newRequest.type === "ANNUAL" && (
+              <p className="mb-4 text-xs sm:text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                Annual leave must be submitted at least 30 days in advance.
+              </p>
+            )}
+
+            {requestValidationError && (
+              <p className="mb-4 text-xs sm:text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                {requestValidationError}
+              </p>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1008,10 +1037,20 @@ export default function Leaves() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedRequest.status)}`}>
                     {getStatusIcon(selectedRequest.status)}
-                    <span className="ml-1">{(selectedRequest.status || "").toUpperCase()}</span>
+                    <span className="ml-1">{formatLeaveWorkflowStatus(selectedRequest)}</span>
                   </span>
                 </div>
               </div>
+              {selectedRequest.managerApprovalStatus === "APPROVED" && selectedRequest.managerActionBy && (
+                <div className="bg-indigo-50 p-3 rounded-lg text-sm">
+                  <span className="font-medium text-indigo-800">Manager approved and forwarded to HR</span>
+                  <p className="text-indigo-900 mt-1">
+                    {selectedRequest.managerActionBy.firstName} {selectedRequest.managerActionBy.lastName}
+                    {selectedRequest.managerActionAt &&
+                      ` · ${new Date(selectedRequest.managerActionAt).toLocaleString()}`}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>

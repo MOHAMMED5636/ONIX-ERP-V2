@@ -34,7 +34,8 @@ const Filters = ({
   handleAddColumn,
   handleShowAddColumnMenu,
   selectedTaskIds,
-  tasks
+  tasks,
+  employees = []
 }) => {
   const { user } = useAuth();
   const isEmployee = user?.role === 'EMPLOYEE';
@@ -61,21 +62,21 @@ const Filters = ({
       alert('Please select a project first');
     }
   };
-  // Demo data for dropdowns
-  const demoPlans = ["All Plans", "Ref#1234", "Ref#5678", "Ref#9012", "Ref#3456", "Ref#7890"];
-  const demoUsers = ["All Users", "MN", "SA", "AH", "MA"];
-  const demoCategories = ["All Categories", "Design", "Development", "Testing", "Review"];
-  const demoStatuses = ["All Statuses", "pending", "working", "done", "cancelled", "suspended"];
-  const demoDates = [
-    "2023-07-01",
-    "2023-07-05",
-    "2023-07-10",
-    "2023-07-12",
-    "2023-07-15",
-    "2023-07-20",
-    "2023-07-22",
-    "2023-07-25",
-  ];
+  // Dynamic filter options derived from current tasks
+  const unique = (arr) => Array.from(new Set(arr.filter(Boolean)));
+  // Build assignee list from real employees first, fallback to tasks if needed
+  const employeeNames = employees.map((e) =>
+    [e.firstName, e.lastName].filter(Boolean).join(' ').trim() || e.email || e.employeeId || e.id
+  );
+  const assigneeOptions = unique(
+    employeeNames.length > 0
+      ? employeeNames
+      : (tasks || []).map((t) => t.owner || t.assignedTo || t.assignedEmployeeName)
+  );
+  const categoryOptions = unique((tasks || []).map((t) => t.category));
+  const statusOptions = unique(
+    (tasks || []).map((t) => (t.status || '').toLowerCase())
+  );
 
   // Column type options for the add column menu
   const COLUMN_TYPE_OPTIONS = [
@@ -188,7 +189,7 @@ const Filters = ({
               <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline text-sm font-medium">{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
               <span className="sm:hidden font-medium">{showFilters ? 'Hide' : 'Show'}</span>
-              {getActiveFilterCount && getActiveFilterCount() > 0 && (
+         ``     {getActiveFilterCount && getActiveFilterCount() > 0 && (
                 <span className="ml-1 px-1.5 sm:px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
                   {getActiveFilterCount()}
                 </span>
@@ -237,11 +238,11 @@ const Filters = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="working">Working</option>
-                <option value="done">Done</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="suspended">Suspended</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -254,10 +255,11 @@ const Filters = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value="">All Users</option>
-                <option value="MN">MN</option>
-                <option value="SA">SA</option>
-                <option value="AH">AH</option>
-                <option value="MA">MA</option>
+                {assigneeOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -270,10 +272,11 @@ const Filters = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value="">All Categories</option>
-                <option value="Design">Design</option>
-                <option value="Development">Development</option>
-                <option value="Testing">Testing</option>
-                <option value="Review">Review</option>
+                {categoryOptions.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
 

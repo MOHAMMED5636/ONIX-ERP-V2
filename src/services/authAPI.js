@@ -1,7 +1,8 @@
 // Authentication API service for backend connection
 import * as authStorage from '../utils/authStorage';
+import { getApiBaseUrl, getBackendOrigin } from '../config/apiBaseUrl';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper function to add timeout to fetch requests
 const fetchWithTimeout = (url, options, timeout = 10000) => {
@@ -41,6 +42,10 @@ export const login = async (email, password) => {
       } catch (e) {
         errorMessage = `Server error: ${response.status} ${response.statusText}`;
       }
+      if (response.status === 404) {
+        errorMessage =
+          'Login API not found (404). Point REACT_APP_API_URL at the Onix Node server (port 3001), e.g. http://192.168.1.10:3001/api — not :8000. Or remove REACT_APP_API_URL in development to use /api proxy. Restart npm start after changing .env.';
+      }
       throw new Error(errorMessage);
     }
 
@@ -59,7 +64,7 @@ export const login = async (email, password) => {
     if (error.message.includes('timeout')) {
       throw new Error('Connection timeout - please check if backend is running on port 3001');
     } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      const backendUrl = getBackendOrigin();
       throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
     }
     throw error;
@@ -68,9 +73,12 @@ export const login = async (email, password) => {
 
 /**
  * Get current authenticated user from backend
+ * @param {string|null} token - Bearer token (optional; uses sessionStorage if omitted)
+ * @param {{ clearStorageOnError?: boolean }} [options] - If false, failed /me does not wipe session (used right after login when a snapshot user exists)
  * @returns {Promise} User data
  */
-export const getCurrentUser = async (token = null) => {
+export const getCurrentUser = async (token = null, options = {}) => {
+  const { clearStorageOnError = true } = options;
   try {
     const authToken = token !== null && token !== undefined ? token : authStorage.getToken();
 
@@ -90,7 +98,9 @@ export const getCurrentUser = async (token = null) => {
     const data = await response.json();
 
     if (!response.ok) {
-      authStorage.clearAuth();
+      if (clearStorageOnError) {
+        authStorage.clearAuth();
+      }
       throw new Error(data.message || 'Failed to get current user');
     }
 
@@ -544,7 +554,7 @@ export const requestLoginOtp = async (email) => {
     if (error.message.includes('timeout')) {
       throw new Error('Connection timeout - please check if backend is running');
     } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      const backendUrl = getBackendOrigin();
       throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
     }
     throw error;
@@ -596,7 +606,7 @@ export const verifyLoginOtp = async (email, otp) => {
     if (error.message.includes('timeout')) {
       throw new Error('Connection timeout - please check if backend is running');
     } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      const backendUrl = getBackendOrigin();
       throw new Error(`Cannot connect to server - make sure backend is running on ${backendUrl}`);
     }
     throw error;

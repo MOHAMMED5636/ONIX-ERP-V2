@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   CalendarIcon, 
   UserGroupIcon, 
@@ -11,18 +11,30 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import ContractsAPI from '../../services/contractsAPI';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getCompanies } from '../../services/companiesAPI';
 import { getToken } from '../../services/authAPI';
 import ClientsAPI from '../../services/clientsAPI';
 import { getEmployees } from '../../services/employeeAPI';
 import { usePreferences } from '../../context/PreferencesContext';
+import {
+  PHONE_DIAL_CODE_OPTIONS,
+  DEFAULT_PHONE_OPTION_VALUE,
+  dialCodeFromPhoneOption,
+  phoneOptionFromDialCode,
+  parseInternationalPhone,
+  formatInternationalPhone,
+} from '../../utils/phoneDialCodes';
 
-const CreateContract = () => {
+export const ContractForm = ({ mode = 'create', contractId = null, initialContract = null } = {}) => {
   const navigate = useNavigate();
-  const { toBase, currencyCode, preferences } = usePreferences();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const preselectClientAppliedRef = useRef(false);
+  const { toBase, toDisplay, currencyCode, preferences } = usePreferences();
   const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
   const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
+  const isEditMode = mode === 'edit';
   
   // Format currency using preferences
   const formatCurrency = (amount) => {
@@ -110,9 +122,123 @@ const CreateContract = () => {
     attachments: []
   });
 
+  // Prefill for Edit mode (exactly same form structure as Create)
+  useEffect(() => {
+    if (!isEditMode || !initialContract) return;
+
+    const c = initialContract;
+
+    const safeDisplay = (value, type) => {
+      if (value == null || value === '') return '';
+      const v = toDisplay(value, type);
+      return (v != null && Number.isFinite(Number(v))) ? String(Number(v)) : '';
+    };
+
+    const mappedFees = Array.isArray(c.contractFees) && c.contractFees.length > 0
+      ? c.contractFees.map((fee, index) => {
+          const installments = Array.isArray(fee.installments) ? fee.installments : null;
+          const hasInstallments = !!(installments && installments.length);
+          return {
+            id: index + 1,
+            name: fee.name || '',
+            amount: fee.amount != null ? String(fee.amount) : '',
+            type: fee.type || 'fixed',
+            squareFeetPrice: fee.squareFeetPrice != null ? String(fee.squareFeetPrice) : '',
+            sizeInSquareFeet: fee.sizeInSquareFeet != null ? String(fee.sizeInSquareFeet) : '',
+            profitPercentage: fee.profitPercentage != null ? Number(fee.profitPercentage) : 0,
+            months: fee.months != null ? Number(fee.months) : 1,
+            quarters: fee.quarters != null ? Number(fee.quarters) : 1,
+            paymentPeriod: fee.period || fee.paymentPeriod || 'One-Time',
+            dueDate: fee.dueDate ? String(fee.dueDate).split('T')[0] : '',
+            calculatedAmount: Number(fee.calculatedAmount ?? fee.amount ?? 0),
+            generateInvoice: !!fee.generateInvoice,
+            customInstallments: hasInstallments,
+            numberOfInstallments: hasInstallments ? installments.length : 1,
+            installments: hasInstallments
+              ? installments.map((inst, instIdx) => ({
+                  id: inst.id ?? instIdx + 1,
+                  installmentNumber: inst.installmentNumber ?? instIdx + 1,
+                  amount: Number(inst.amount ?? 0),
+                  dueDate: inst.dueDate ? String(inst.dueDate).split('T')[0] : '',
+                }))
+              : [
+                  {
+                    id: 1,
+                    installmentNumber: 1,
+                    amount: 0,
+                    dueDate: '',
+                  },
+                ],
+          };
+        })
+      : null;
+
+    setFormData((prev) => ({
+      ...prev,
+      projectTypes: Array.isArray(c.projectNature) ? c.projectNature : (Array.isArray(c.projectTypes) ? c.projectTypes : []),
+      selectedPhases: Array.isArray(c.selectedPhases) ? c.selectedPhases : prev.selectedPhases,
+      referenceNumber: c.referenceNumber || prev.referenceNumber || '',
+      contractCategory: c.contractCategory || c.contractType || prev.contractCategory || '',
+      company: c.companyId || c.companyName || prev.company || '',
+      selectedClients: Array.isArray(c.selectedClients) && c.selectedClients.length
+        ? c.selectedClients
+        : (c.clientId ? [c.clientId] : prev.selectedClients),
+      projectManagerId: c.assignedManagerId || prev.projectManagerId || '',
+      projectManagerName: c.projectManagerName || prev.projectManagerName || '',
+      projectManagerInputMode: prev.projectManagerInputMode || 'dropdown',
+      startDate: c.startDate ? String(c.startDate).split('T')[0] : prev.startDate,
+      makaniNumber: c.makaniNumber || '',
+      latitude: c.latitude || '',
+      longitude: c.longitude || '',
+      region: c.region || '',
+      plotNumber: c.plotNumber || '',
+      devNumber: c.developerName || c.devNumber || '',
+      authorityApproval: c.authorityApprovalStatus || '',
+      community: c.community || '',
+      numberOfFloors: c.numberOfFloors != null ? String(c.numberOfFloors) : '',
+      buildingCost: safeDisplay(c.buildingCost, 'currency'),
+      builtUpArea: safeDisplay(c.builtUpArea, 'area'),
+      buildingHeight: safeDisplay(c.buildingHeight, 'height'),
+      structuralSystem: c.structuralSystem || '',
+      buildingType: c.buildingType || '',
+      fees: mappedFees || prev.fees,
+      description: c.description || '',
+      attachments: Array.isArray(c.attachments) ? c.attachments : prev.attachments,
+    }));
+  }, [isEditMode, initialContract, toDisplay]);
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  
+  // Client Representative Details (saved into the selected Client record)
+  const [repType, setRepType] = useState('Person'); // 'Person' | 'Company'
+  const [repLinkExistingClient, setRepLinkExistingClient] = useState(false);
+  const [repLinkedClientId, setRepLinkedClientId] = useState('');
+  const [repClientSearch, setRepClientSearch] = useState('');
+  const [newClientPhoneOption, setNewClientPhoneOption] = useState(DEFAULT_PHONE_OPTION_VALUE);
+  const [repPersonPhoneOption, setRepPersonPhoneOption] = useState(DEFAULT_PHONE_OPTION_VALUE);
+  const [repCompanyPhoneOption, setRepCompanyPhoneOption] = useState(DEFAULT_PHONE_OPTION_VALUE);
+  const [repPerson, setRepPerson] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    idNumber: '',
+    notes: '',
+  });
+  const [repCompany, setRepCompany] = useState({
+    companyName: '',
+    tradeLicenseNumber: '',
+    email: '',
+    phone: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    country: '',
+    contactPersonName: '',
+    notes: '',
+  });
+
   const [newClient, setNewClient] = useState({
     name: '',
     email: '',
@@ -162,6 +288,64 @@ const CreateContract = () => {
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
   const [loadingManagers, setLoadingManagers] = useState(false);
+
+  const addRepresentativeAttachmentsToContract = (files) => {
+    const list = Array.from(files || []);
+    if (!list.length) return;
+    const newFiles = list.map((file) => ({
+      id: Date.now() + Math.random(),
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      systemRef: `REP-${Date.now()}`,
+      category: 'Client Representative',
+      uploadedOn: new Date().toLocaleDateString(),
+    }));
+    setFormData((prev) => ({ ...prev, attachments: [...prev.attachments, ...newFiles] }));
+  };
+
+  const repLinkedClientOptions = () => {
+    const q = repClientSearch.trim().toLowerCase();
+    return (clients || []).filter((c) => {
+      if (!q) return true;
+      const name = (c?.name || '').toLowerCase();
+      const email = (c?.email || '').toLowerCase();
+      const ref = (c?.referenceNumber || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || ref.includes(q);
+    });
+  };
+
+  const fillRepFromClient = (client, nextType) => {
+    if (!client) return;
+    const baseName = client?.name || '';
+    const baseEmail = client?.email || '';
+    const basePhone = client?.phone || '';
+    const baseAddr = client?.address || '';
+    const baseId = client?.idNumber || '';
+    const { code: parsedCode, nationalNumber: parsedNumber } = parseInternationalPhone(basePhone);
+
+    if ((nextType || repType) === 'Person') {
+      if (parsedCode) setRepPersonPhoneOption(phoneOptionFromDialCode(parsedCode));
+      setRepPerson((p) => ({
+        ...p,
+        fullName: baseName,
+        email: baseEmail,
+        phone: parsedNumber || basePhone,
+        idNumber: baseId,
+        notes: baseAddr,
+      }));
+    } else {
+      if (parsedCode) setRepCompanyPhoneOption(phoneOptionFromDialCode(parsedCode));
+      setRepCompany((c) => ({
+        ...c,
+        companyName: baseName,
+        email: baseEmail,
+        phone: parsedNumber || basePhone,
+        addressLine1: baseAddr,
+      }));
+    }
+  };
 
   const regions = [
     'Dubai',
@@ -401,7 +585,7 @@ const CreateContract = () => {
       name: newClient.name.trim(),
       email: newClient.email.trim(),
       type: newClient.type,
-      phone: newClient.phone.trim()
+      phone: formatInternationalPhone(dialCodeFromPhoneOption(newClientPhoneOption), newClient.phone).trim()
     };
 
     setClients(prev => [...prev, newClientData]);
@@ -419,6 +603,7 @@ const CreateContract = () => {
       type: 'Person',
       phone: ''
     });
+    setNewClientPhoneOption(DEFAULT_PHONE_OPTION_VALUE);
     setShowNewClientModal(false);
   };
 
@@ -826,6 +1011,44 @@ const CreateContract = () => {
     };
   }, [fetchClients]);
 
+  // Pre-select client from Clients page (?clientId=) or navigation state (redirect after "Create Contract")
+  useEffect(() => {
+    if (isEditMode || preselectClientAppliedRef.current) return;
+    const rawId = searchParams.get('clientId') || location.state?.preselectClientId;
+    if (!rawId) return;
+    preselectClientAppliedRef.current = true;
+    const idStr = String(rawId);
+    const hadQueryClientId = Boolean(searchParams.get('clientId'));
+    const hadStatePreselect = Boolean(location.state?.preselectClientId);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await ClientsAPI.getClient(idStr);
+        const c = res?.success && res?.data ? res.data : null;
+        if (cancelled || !c?.id) return;
+        setClients((prev) => (prev.some((x) => String(x.id) === String(c.id)) ? prev : [...prev, c]));
+        setFormData((prev) => {
+          const ids = prev.selectedClients.map(String);
+          if (ids.includes(String(c.id))) return prev;
+          return { ...prev, selectedClients: [...prev.selectedClients, c.id] };
+        });
+      } catch (e) {
+        console.warn('Could not load client for pre-selection:', e);
+      }
+      if (!cancelled && hadQueryClientId) {
+        setSearchParams({}, { replace: true });
+      }
+      if (!cancelled && hadStatePreselect) {
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, searchParams, location.state, location.pathname, navigate, setSearchParams]);
+
   // Fetch managers (internal users with MANAGER role) for project manager dropdown
   const fetchManagers = useCallback(async (companyId = '') => {
     setLoadingManagers(true);
@@ -1097,6 +1320,60 @@ const CreateContract = () => {
     console.log('✅ Form validation passed, proceeding with submission');
     
     try {
+      // Optionally persist representative details to the first selected client
+      // (Client model holds representative fields; Contract model does not.)
+      if (formData.selectedClients && formData.selectedClients.length > 0) {
+        const targetClientId = formData.selectedClients[0];
+        const hasAnyRep =
+          (repType === 'Person'
+            ? (repPerson.fullName || repPerson.email || repPerson.phone || repPerson.idNumber || repPerson.notes)
+            : (repCompany.companyName || repCompany.tradeLicenseNumber || repCompany.email || repCompany.phone || repCompany.addressLine1 || repCompany.addressLine2 || repCompany.city || repCompany.country || repCompany.contactPersonName || repCompany.notes));
+
+        if (hasAnyRep || repLinkExistingClient) {
+          // If linking existing client, pull latest values from that client record
+          let linked = null;
+          if (repLinkExistingClient && repLinkedClientId) {
+            linked = (clients || []).find((c) => String(c.id) === String(repLinkedClientId)) || null;
+            if (linked) fillRepFromClient(linked, repType);
+          }
+
+          const repPayload =
+            repType === 'Person'
+              ? {
+                  representativeType: 'Person',
+                  representativeName: repPerson.fullName || null,
+                  representativeEmail: repPerson.email || null,
+                  representativePhone: formatInternationalPhone(dialCodeFromPhoneOption(repPersonPhoneOption), repPerson.phone) || null,
+                  representativeIdNumber: repPerson.idNumber || null,
+                  representativeAddress: repPerson.notes || null,
+                }
+              : {
+                  representativeType: 'Company',
+                  representativeCorporateName: repCompany.companyName || null,
+                  representativeLicenseNumber: repCompany.tradeLicenseNumber || null,
+                  representativeEmail: repCompany.email || null,
+                  representativePhone: formatInternationalPhone(dialCodeFromPhoneOption(repCompanyPhoneOption), repCompany.phone) || null,
+                  representativeCompanyAddress: [
+                    repCompany.addressLine1,
+                    repCompany.addressLine2,
+                    repCompany.city,
+                    repCompany.country,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || null,
+                  representativeName: repCompany.contactPersonName || null,
+                  representativeCompanyDescription: repCompany.notes || null,
+                };
+
+          // Best-effort: don't block contract creation if client update fails.
+          try {
+            await ClientsAPI.updateClient(targetClientId, repPayload);
+          } catch (e) {
+            console.warn('⚠️ Failed to update client representative details:', e?.message || e);
+          }
+        }
+      }
+
       // Map form data to backend API format
       // Ensure title is always provided (required by backend)
       const contractTitle = formData.referenceNumber?.trim() 
@@ -1109,7 +1386,9 @@ const CreateContract = () => {
         description: formData.description || null,
         contractCategory: formData.contractCategory || null,
         contractType: formData.contractCategory || null, // Use category as type
-        status: isDraft ? 'DRAFT' : 'PENDING_REVIEW',
+        status: isEditMode
+          ? (isDraft ? 'DRAFT' : (initialContract?.status || 'PENDING_REVIEW'))
+          : (isDraft ? 'DRAFT' : 'PENDING_REVIEW'),
         
         // Project Nature - map projectTypes array
         projectNature: formData.projectTypes && formData.projectTypes.length > 0 
@@ -1246,13 +1525,15 @@ const CreateContract = () => {
       console.log('Submitting contract data:', contractData);
       console.log('Attachment files:', attachmentFiles.length);
       
-      // Call API with all attachment files
-      const response = await ContractsAPI.createContract(contractData, contractDocument, attachmentFiles);
+      // Call API with all attachment files (create and edit behave identically)
+      const response = isEditMode
+        ? await ContractsAPI.updateContract(contractId, contractData, contractDocument, attachmentFiles)
+        : await ContractsAPI.createContract(contractData, contractDocument, attachmentFiles);
       
       if (response && (response.success === true || response.data)) {
         // Show success message
-        console.log('✅ Contract created successfully:', response.data);
-        alert(`Contract ${isDraft ? 'saved as draft' : 'created'} successfully!`);
+        console.log(`✅ Contract ${isEditMode ? 'updated' : 'created'} successfully:`, response.data);
+        alert(`Contract ${isDraft ? 'saved as draft' : (isEditMode ? 'updated' : 'created')} successfully!`);
         
         // Navigate to contracts list (contract detail view not implemented yet)
         // Use replace: false to allow browser back button, and add a small delay to ensure backend has processed
@@ -1262,8 +1543,8 @@ const CreateContract = () => {
           window.location.reload();
         }, 500);
         
-        // Reset form if not draft
-        if (!isDraft) {
+        // Reset form if not draft AND creating (never reset on edit)
+        if (!isDraft && !isEditMode) {
           setFormData({
             projectTypes: [],
             selectedPhases: [],
@@ -1316,7 +1597,7 @@ const CreateContract = () => {
           });
         }
       } else {
-        throw new Error(response?.message || 'Failed to create contract');
+        throw new Error(response?.message || `Failed to ${isEditMode ? 'update' : 'create'} contract`);
       }
     } catch (error) {
       console.error('❌ Error submitting contract:', error);
@@ -1358,7 +1639,7 @@ const CreateContract = () => {
               </div>
           <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Create Contract
+                  {isEditMode ? 'Edit Contract' : 'Create Contract'}
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">Design your project contract with precision</p>
               </div>
@@ -1955,6 +2236,285 @@ const CreateContract = () => {
                         <p className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
                           {errors.selectedClients}
                         </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Client Representative Details */}
+                  <div className="mb-8">
+                    <div className="flex items-center mb-6">
+                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg mr-4">
+                        <UserGroupIcon className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">Client Representative Details</h2>
+                        <p className="text-sm text-gray-600">Add representative info for the selected client</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200 shadow-lg space-y-6">
+                      {/* Representative Type toggle */}
+                      <div className="bg-white/80 rounded-xl border border-emerald-100 p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">Representative Type</p>
+                            <p className="text-xs text-gray-600">Choose Person or Company (one only)</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-emerald-50 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="repType"
+                                checked={repType === 'Person'}
+                                onChange={() => {
+                                  setRepType('Person');
+                                  const linked = repLinkedClientId ? (clients || []).find((c) => String(c.id) === String(repLinkedClientId)) : null;
+                                  if (repLinkExistingClient && linked) fillRepFromClient(linked, 'Person');
+                                }}
+                              />
+                              <span className="text-sm font-medium">Person</span>
+                            </label>
+                            <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-emerald-50 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="repType"
+                                checked={repType === 'Company'}
+                                onChange={() => {
+                                  setRepType('Company');
+                                  const linked = repLinkedClientId ? (clients || []).find((c) => String(c.id) === String(repLinkedClientId)) : null;
+                                  if (repLinkExistingClient && linked) fillRepFromClient(linked, 'Company');
+                                }}
+                              />
+                              <span className="text-sm font-medium">Company</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Optional: Link Existing Client */}
+                      <div className="bg-white/80 rounded-xl border border-emerald-100 p-4">
+                        <label className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={repLinkExistingClient}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setRepLinkExistingClient(checked);
+                              if (!checked) {
+                                setRepLinkedClientId('');
+                                setRepClientSearch('');
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span className="text-sm font-semibold text-gray-800">Link Existing Client (optional)</span>
+                        </label>
+                        {repLinkExistingClient && (
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                              <input
+                                value={repClientSearch}
+                                onChange={(e) => setRepClientSearch(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                                placeholder="Search by name, email, reference..."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Select Client</label>
+                              <select
+                                value={repLinkedClientId}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  setRepLinkedClientId(id);
+                                  const linked = (clients || []).find((c) => String(c.id) === String(id));
+                                  if (linked) fillRepFromClient(linked, repType);
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                              >
+                                <option value="">Select client</option>
+                                {repLinkedClientOptions().map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.referenceNumber ? `${c.referenceNumber} — ` : ''}{c.name}{c.email ? ` (${c.email})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Dynamic fields */}
+                      {repType === 'Person' ? (
+                        <div className="bg-white rounded-xl border border-emerald-100 p-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                              <input
+                                value={repPerson.fullName}
+                                onChange={(e) => setRepPerson((p) => ({ ...p, fullName: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                placeholder="Enter full name"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                              <input
+                                type="email"
+                                value={repPerson.email}
+                                onChange={(e) => setRepPerson((p) => ({ ...p, email: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                placeholder="rep@example.com"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                              <div className="flex gap-2">
+                                <select
+                                  value={repPersonPhoneOption}
+                                  onChange={(e) => setRepPersonPhoneOption(e.target.value)}
+                                  className="min-w-[min(100%,16rem)] max-w-[min(100%,20rem)] px-2 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                                >
+                                  {PHONE_DIAL_CODE_OPTIONS.map((opt) => (
+                                    <option key={`${opt.code}-${opt.name}`} value={`${opt.code}|${opt.name}`}>{opt.label}</option>
+                                  ))}
+                                </select>
+                                <input
+                                  value={repPerson.phone}
+                                  onChange={(e) => setRepPerson((p) => ({ ...p, phone: e.target.value }))}
+                                  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                  placeholder="50 123 4567"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">ID Number (optional)</label>
+                              <input
+                                value={repPerson.idNumber}
+                                onChange={(e) => setRepPerson((p) => ({ ...p, idNumber: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                placeholder="Enter ID number"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                              <textarea
+                                value={repPerson.notes}
+                                onChange={(e) => setRepPerson((p) => ({ ...p, notes: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[90px]"
+                                placeholder="Notes..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-xl border border-emerald-100 p-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                              <input
+                                value={repCompany.companyName}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, companyName: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Trade License Number</label>
+                              <input
+                                value={repCompany.tradeLicenseNumber}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, tradeLicenseNumber: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                              <input
+                                type="email"
+                                value={repCompany.email}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, email: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                              <div className="flex gap-2">
+                                <select
+                                  value={repCompanyPhoneOption}
+                                  onChange={(e) => setRepCompanyPhoneOption(e.target.value)}
+                                  className="min-w-[min(100%,16rem)] max-w-[min(100%,20rem)] px-2 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                                >
+                                  {PHONE_DIAL_CODE_OPTIONS.map((opt) => (
+                                    <option key={`${opt.code}-${opt.name}`} value={`${opt.code}|${opt.name}`}>{opt.label}</option>
+                                  ))}
+                                </select>
+                                <input
+                                  value={repCompany.phone}
+                                  onChange={(e) => setRepCompany((c) => ({ ...c, phone: e.target.value }))}
+                                  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                  placeholder="50 123 4567"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                              <input
+                                value={repCompany.addressLine1}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, addressLine1: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                              <input
+                                value={repCompany.addressLine2}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, addressLine2: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                              <input
+                                value={repCompany.city}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, city: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                              <input
+                                value={repCompany.country}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, country: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person Name</label>
+                              <input
+                                value={repCompany.contactPersonName}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, contactPersonName: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                              <textarea
+                                value={repCompany.notes}
+                                onChange={(e) => setRepCompany((c) => ({ ...c, notes: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg min-h-[90px]"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Attachments (optional)</label>
+                              <input
+                                type="file"
+                                multiple
+                                onChange={(e) => addRepresentativeAttachmentsToContract(e.target.files)}
+                                className="block text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Files will be added to contract attachments as “Client Representative”.</p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -3335,13 +3895,24 @@ const CreateContract = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
                   </label>
-                  <input
-                    type="tel"
-                    value={newClient.phone}
-                    onChange={(e) => handleNewClientChange('phone', e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                    placeholder="Enter phone number"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={newClientPhoneOption}
+                      onChange={(e) => setNewClientPhoneOption(e.target.value)}
+                      className="min-w-[min(100%,18rem)] max-w-[min(100%,22rem)] px-3 py-3 border-2 border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-sm"
+                    >
+                      {PHONE_DIAL_CODE_OPTIONS.map((opt) => (
+                        <option key={`${opt.code}-${opt.name}`} value={`${opt.code}|${opt.name}`}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={newClient.phone}
+                      onChange={(e) => handleNewClientChange('phone', e.target.value)}
+                      className="flex-1 w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                      placeholder="50 123 4567"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -3950,5 +4521,8 @@ const CreateContract = () => {
     </div>
   );
 };
+
+// Wrapper page for Create mode (keeps existing routing/imports working)
+const CreateContract = () => <ContractForm mode="create" />;
 
 export default CreateContract;

@@ -1,7 +1,6 @@
 // API service for contracts management
 import { getToken } from './authAPI';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { API_BASE_URL } from '../utils/apiClient';
 
 class ContractsAPI {
   // Get managers for project manager dropdown (internal users with MANAGER role)
@@ -254,25 +253,41 @@ class ContractsAPI {
   }
 
   // Update an existing contract
-  static async updateContract(id, contractData, contractDocument = null) {
+  static async updateContract(id, contractData, contractDocument = null, attachmentFiles = []) {
     try {
       const token = getToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-      // Check if we have a document to upload
-      const isFormData = contractDocument instanceof File;
+      // Check if we have files to upload (contractDocument or attachmentFiles)
+      const hasFiles = contractDocument instanceof File || (attachmentFiles && attachmentFiles.length > 0);
       
       let body;
       const headers = {
         'Authorization': `Bearer ${token}`,
       };
       
-      if (isFormData) {
+      if (hasFiles) {
         // Use FormData for file upload
         const formData = new FormData();
-        formData.append('contractDocument', contractDocument);
+        
+        // Add contract document (first file or contractDocument)
+        if (contractDocument instanceof File) {
+          formData.append('contractDocument', contractDocument);
+        } else if (attachmentFiles && attachmentFiles.length > 0) {
+          formData.append('contractDocument', attachmentFiles[0]);
+        }
+        
+        // Add all attachment files
+        if (attachmentFiles && attachmentFiles.length > 0) {
+          attachmentFiles.forEach((file, index) => {
+            // Skip first file if it was already added as contractDocument
+            if (index > 0 || !contractDocument) {
+              formData.append(`attachment_${index}`, file);
+            }
+          });
+        }
         
         // Append all other fields
         Object.keys(contractData).forEach(key => {
@@ -282,7 +297,7 @@ class ContractsAPI {
               // Stringify objects/arrays
               formData.append(key, JSON.stringify(value));
             } else {
-              formData.append(key, value);
+              formData.append(key, typeof value === 'number' ? String(value) : value);
             }
           }
         });

@@ -15,6 +15,9 @@ import ContractViewModal from './ContractViewModal';
 import AmendmentForm from './AmendmentForm';
 import ContractsAPI from '../../services/contractsAPI';
 import { usePreferences } from '../../context/PreferencesContext';
+import { useAuth } from '../../contexts/AuthContext';
+
+const CONTRACT_VIEW_ONLY_ROLES = ['MANAGER', 'PROJECT_MANAGER'];
 
 const demoContracts = [
   { 
@@ -161,6 +164,8 @@ const demoContracts = [
 
 export default function ContractList() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isContractViewOnly = CONTRACT_VIEW_ONLY_ROLES.includes(user?.role);
   const { toDisplay, currencyCode, preferences } = usePreferences();
   const areaLabel = (preferences?.areaUnit || 'sqm') === 'sqft' ? 'sq ft' : 'sqm';
   const heightLabel = (preferences?.heightUnit || 'meter') === 'feet' ? 'ft' : 'm';
@@ -393,12 +398,14 @@ export default function ContractList() {
     <div className="w-full h-full px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg sm:text-2xl font-bold text-gray-800">Contracts</h1>
-        <button
-          onClick={() => navigate("/contracts/create")}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow text-xs sm:text-base w-full sm:w-auto"
-        >
-          + Create Contract
-        </button>
+        {!isContractViewOnly && (
+          <button
+            onClick={() => navigate("/contracts/create")}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow text-xs sm:text-base w-full sm:w-auto"
+          >
+            + Create Contract
+          </button>
+        )}
       </div>
 
       {/* Contract Statistics */}
@@ -539,12 +546,14 @@ export default function ContractList() {
           <div className="text-center py-12">
             <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
             <p className="mt-4 text-gray-600">No contracts found</p>
-            <button
-              onClick={() => navigate("/contracts/create")}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Create First Contract
-            </button>
+            {!isContractViewOnly && (
+              <button
+                onClick={() => navigate("/contracts/create")}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Create First Contract
+              </button>
+            )}
           </div>
         ) : (
           <table className="min-w-full text-xs sm:text-sm">
@@ -589,42 +598,46 @@ export default function ContractList() {
                       >
                         View
                       </button>
-                      <button 
-                        onClick={() => handleLoadOut(c)}
-                        disabled={loadingOutContractId === c.id || c.projectId || c.project}
-                        className={`flex items-center gap-1 text-xs sm:text-sm transition-colors ${
-                          loadingOutContractId === c.id
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : c.projectId || c.project
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : 'text-purple-600 hover:underline hover:text-purple-800'
-                        }`}
-                        title={c.projectId || c.project ? 'Already linked to a project' : 'Create project from this contract'}
-                      >
-                        {loadingOutContractId === c.id ? (
-                          <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-600"></div>
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <ArrowRightIcon className="h-4 w-4" />
-                            Load Out
-                          </>
-                        )}
-                      </button>
-                      <button 
-                        onClick={() => handleCreateAmendment(c)}
-                        className="text-green-600 hover:underline text-xs sm:text-sm hover:text-green-800 transition-colors"
-                      >
-                        Create Amendment
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteContract(c)}
-                        className="text-red-600 hover:underline text-xs sm:text-sm hover:text-red-800 transition-colors"
-                      >
-                        Delete
-                      </button>
+                      {!isContractViewOnly && (
+                        <>
+                          <button 
+                            onClick={() => handleLoadOut(c)}
+                            disabled={loadingOutContractId === c.id || c.projectId || c.project}
+                            className={`flex items-center gap-1 text-xs sm:text-sm transition-colors ${
+                              loadingOutContractId === c.id
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : c.projectId || c.project
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-purple-600 hover:underline hover:text-purple-800'
+                            }`}
+                            title={c.projectId || c.project ? 'Already linked to a project' : 'Create project from this contract'}
+                          >
+                            {loadingOutContractId === c.id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-600"></div>
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ArrowRightIcon className="h-4 w-4" />
+                                Load Out
+                              </>
+                            )}
+                          </button>
+                          <button 
+                            onClick={() => handleCreateAmendment(c)}
+                            className="text-green-600 hover:underline text-xs sm:text-sm hover:text-green-800 transition-colors"
+                          >
+                            Create Amendment
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteContract(c)}
+                            className="text-red-600 hover:underline text-xs sm:text-sm hover:text-red-800 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -639,15 +652,20 @@ export default function ContractList() {
         isOpen={showViewModal}
         onClose={handleCloseModal}
         contract={selectedContract}
-        onSave={async (contractId, payload) => {
-          await ContractsAPI.updateContract(contractId, payload);
-          setContractsRaw(prev =>
-            prev.map(c => (c.id === contractId ? { ...c, ...payload } : c))
-          );
-          setSelectedContract(prev =>
-            prev && prev.id === contractId ? { ...prev, ...payload } : prev
-          );
-        }}
+        readOnly={isContractViewOnly}
+        onSave={
+          isContractViewOnly
+            ? undefined
+            : async (contractId, payload) => {
+                await ContractsAPI.updateContract(contractId, payload);
+                setContractsRaw(prev =>
+                  prev.map(c => (c.id === contractId ? { ...c, ...payload } : c))
+                );
+                setSelectedContract(prev =>
+                  prev && prev.id === contractId ? { ...prev, ...payload } : prev
+                );
+              }
+        }
       />
 
       {/* Amendment Form Modal */}

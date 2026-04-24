@@ -10,6 +10,7 @@ import {
   getLicenseStatusText, 
   formatFileSize 
 } from '../../utils';
+import { resolvePublicUploadUrl } from '../../../../../utils/publicUploadUrl';
 
 const ViewCompanyModal = ({ 
   isOpen, 
@@ -19,19 +20,7 @@ const ViewCompanyModal = ({
 }) => {
   if (!isOpen || !company) return null;
 
-  // Helper function to get full image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    // If it's a relative path, construct full URL
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-    // Remove leading slash if present to avoid double slashes
-    const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    return `${baseUrl}${cleanPath}`;
-  };
+  const getImageUrl = (imagePath) => resolvePublicUploadUrl(imagePath);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">

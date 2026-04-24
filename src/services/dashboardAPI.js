@@ -243,6 +243,64 @@ export const getDashboardCalendar = async (month, year) => {
   }
 };
 
+export const getMyDashboardWidgetPreferences = async () => {
+  const token = getToken();
+  if (!token) throw new Error('No token found');
+
+  const response = await fetchWithTimeout(`${API_BASE_URL}/dashboard/widgets/me`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  }, 10000);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch dashboard widget preferences');
+  }
+  return await response.json();
+};
+
+export const saveMyDashboardWidgetPreferences = async (config) => {
+  const token = getToken();
+  if (!token) throw new Error('No token found');
+
+  const response = await fetchWithTimeout(`${API_BASE_URL}/dashboard/widgets/me`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ config }),
+  }, 10000);
+
+  if (!response.ok) {
+    throw new Error('Failed to save dashboard widget preferences');
+  }
+  return await response.json();
+};
+
+export const resetMyDashboardWidgetPreferences = async () => {
+  const token = getToken();
+  if (!token) throw new Error('No token found');
+
+  const response = await fetchWithTimeout(`${API_BASE_URL}/dashboard/widgets/me`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  }, 10000);
+
+  if (!response.ok) {
+    throw new Error('Failed to reset dashboard widget preferences');
+  }
+  return await response.json();
+};
+
 export default {
   getDashboardSummary,
   getDashboardStats,
@@ -250,6 +308,9 @@ export default {
   getDashboardTasks,
   getDashboardTeam,
   getDashboardCalendar,
+  getMyDashboardWidgetPreferences,
+  saveMyDashboardWidgetPreferences,
+  resetMyDashboardWidgetPreferences,
 };
 
 

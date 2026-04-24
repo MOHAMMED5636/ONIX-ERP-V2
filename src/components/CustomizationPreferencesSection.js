@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../context/PreferencesContext';
-import { useAuth } from '../contexts/AuthContext';
 import { updatePreferences as updatePreferencesAPI } from '../services/authAPI';
 
 const CONFIRM_MESSAGE = 'Changing currency or measurement units will recalculate all contract and project values.';
 
 export default function CustomizationPreferencesSection() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
   const { preferences, options, loading, error, refreshPreferences } = usePreferences();
 
   const [form, setForm] = useState({
@@ -55,11 +52,6 @@ export default function CustomizationPreferencesSection() {
       <p className="text-sm text-gray-600 mb-6">
         Currency and measurement units applied app-wide (projects, buildings, contracts, BOQ, reports). Values are stored in base units; conversion is used for display and calculations.
       </p>
-      {!isAdmin && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
-          Only Admin can edit these settings. You have read-only access.
-        </p>
-      )}
       {loading && (
         <div className="flex items-center gap-2 text-gray-600 mb-6">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent" />
@@ -82,7 +74,6 @@ export default function CustomizationPreferencesSection() {
           <select
             value={form.defaultCurrency}
             onChange={(e) => setForm((prev) => ({ ...prev, defaultCurrency: e.target.value }))}
-            disabled={!isAdmin}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             {(options.currencies || ['AED', 'USD', 'EUR', 'INR', 'SAR']).map((c) => (
@@ -95,7 +86,6 @@ export default function CustomizationPreferencesSection() {
           <select
             value={form.lengthUnit}
             onChange={(e) => setForm((prev) => ({ ...prev, lengthUnit: e.target.value }))}
-            disabled={!isAdmin}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="meter">Meter (m)</option>
@@ -107,7 +97,6 @@ export default function CustomizationPreferencesSection() {
           <select
             value={form.areaUnit}
             onChange={(e) => setForm((prev) => ({ ...prev, areaUnit: e.target.value }))}
-            disabled={!isAdmin}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="sqm">Square meter (sqm)</option>
@@ -119,7 +108,6 @@ export default function CustomizationPreferencesSection() {
           <select
             value={form.volumeUnit}
             onChange={(e) => setForm((prev) => ({ ...prev, volumeUnit: e.target.value }))}
-            disabled={!isAdmin}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="m3">Cubic meter (m³)</option>
@@ -131,7 +119,6 @@ export default function CustomizationPreferencesSection() {
           <select
             value={form.heightUnit}
             onChange={(e) => setForm((prev) => ({ ...prev, heightUnit: e.target.value }))}
-            disabled={!isAdmin}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="meter">Meter</option>
@@ -143,7 +130,6 @@ export default function CustomizationPreferencesSection() {
           <select
             value={form.weightUnit}
             onChange={(e) => setForm((prev) => ({ ...prev, weightUnit: e.target.value }))}
-            disabled={!isAdmin}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="kg">kg</option>
@@ -151,18 +137,16 @@ export default function CustomizationPreferencesSection() {
           </select>
         </div>
       </div>
-      {isAdmin && (
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowConfirmModal(true)}
-            disabled={loading || saving}
-            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : 'Save Preferences'}
-          </button>
-        </div>
-      )}
+      <div className="mt-6 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowConfirmModal(true)}
+          disabled={loading || saving}
+          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Preferences'}
+        </button>
+      </div>
 
       {/* Confirmation modal */}
       {showConfirmModal && (

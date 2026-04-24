@@ -18,8 +18,8 @@ const ViewPolicyModal = ({
   if (!showViewModal || !policyToView) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-start justify-center z-50 px-4 py-6 sm:px-6 sm:py-8 overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[calc(100dvh-8rem)] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"></div>
@@ -44,7 +44,7 @@ const ViewPolicyModal = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0 pb-10">
           {/* Policy Header */}
           <div className="mb-8">
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100 shadow-sm">
@@ -154,29 +154,10 @@ const ViewPolicyModal = ({
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+        <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 shrink-0">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
               <span className="font-semibold">Policy ID:</span> #{policyToView.id}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => onDownload(policyToView)}
-                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                📥 Download Policy
-              </button>
-              {policyToView.status === 'pending' && (
-                <button
-                  onClick={() => {
-                    onAcknowledge(policyToView.id);
-                    onClose();
-                  }}
-                  className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  ✅ Acknowledge Policy
-                </button>
-              )}
             </div>
           </div>
         </div>

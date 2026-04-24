@@ -24,6 +24,7 @@ function DraggableDashboardCard({
   id, 
   title, 
   value, 
+  valueVariant = "big",
   icon, 
   accent, 
   gradient, 
@@ -52,7 +53,7 @@ function DraggableDashboardCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative rounded-2xl shadow-md p-4 sm:p-5 lg:p-7 flex flex-col items-start border border-gray-100 glass-card transition-all duration-300 animate-fade-in ${gradient} ${shadow} hover:scale-[1.04] hover:shadow-2xl group ${className} ${
+      className={`relative rounded-2xl shadow-md p-4 sm:p-5 lg:p-7 flex flex-col items-start border border-gray-100 glass-card transition-all duration-300 animate-fade-in ${gradient} ${shadow} hover:scale-[1.04] hover:shadow-2xl group ${className} min-h-[180px] ${
         dragging ? 'opacity-70 scale-105 shadow-2xl cursor-grabbing' : ''
       }`}
     >
@@ -77,7 +78,14 @@ function DraggableDashboardCard({
           <span className="ml-auto text-xs font-bold px-2 py-1 rounded-full bg-white/70 text-indigo-600 shadow badge-pop flex-shrink-0">{accent}</span>
         )}
       </div>
-      <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 w-full animate-bounce-in flex items-center gap-2">{value}</div>
+      <div
+        className={`w-full flex items-center gap-2 ${valueVariant === "compact"
+          ? "text-gray-900"
+          : "text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 animate-bounce-in"
+        }`}
+      >
+        {value}
+      </div>
       {children}
     </div>
   );

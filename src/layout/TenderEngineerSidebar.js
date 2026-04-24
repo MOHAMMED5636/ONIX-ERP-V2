@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../LanguageContext";
 import { useAuth } from "../contexts/AuthContext";
+import onixLogo from "../assets/onix-logo.png";
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -179,12 +180,12 @@ export default function TenderEngineerSidebar({ collapsed, onToggle }) {
       >
         {/* Top: ONIX GROUP Logo and User Profile */}
         <div className="flex flex-col items-center gap-2 pt-4 pb-2">
-          <div className="flex flex-col items-center justify-center mb-1 px-2 bg-black/90 rounded-lg py-2 px-3">
-            <div className="text-xs font-bold uppercase tracking-tight">
-              <span className="text-red-600">ONIX</span>
-              <span className="text-white"> GROUP</span>
-            </div>
-            <div className="w-full h-0.5 mt-1 bg-gradient-to-r from-white via-white to-red-600"></div>
+          <div className="flex flex-col items-center justify-center mb-1 px-2">
+            <img
+              src={onixLogo}
+              alt="Onix Group"
+              className={`${collapsed ? "h-10 w-10" : "h-12 w-12"} object-contain rounded-lg shadow-md`}
+            />
           </div>
           {/* User Mini-Profile Card */}
           <div className="sidebar-profile w-full flex flex-col items-center mb-2 relative" onClick={e => e.stopPropagation()}>

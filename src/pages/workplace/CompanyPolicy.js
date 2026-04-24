@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   DocumentTextIcon, 
-  EyeIcon, 
   ArrowDownTrayIcon, 
   CheckCircleIcon,
   PlusIcon,
@@ -10,205 +9,219 @@ import {
   FunnelIcon,
   DocumentIcon,
   ClockIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  EyeIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
+import * as policiesAPI from "../../services/policiesAPI";
+import { getCompanies } from "../../services/companiesAPI";
+import { getCompanyDepartments } from "../../services/departmentAPI";
+import { useCompanySelection } from "../../context/CompanySelectionContext";
+
+const POLICY_MANAGE_ROLES = ['ADMIN', 'HR'];
+/** Never treat these as policy publishers even if role string is misconfigured */
+const POLICY_NEVER_MANAGE_ROLES = ['MANAGER', 'PROJECT_MANAGER', 'EMPLOYEE'];
+
+const DEFAULT_DEPARTMENTS = [
+  "HR", "IT", "Finance", "Sales", "Marketing", "Operations",
+  "Legal", "Customer Support", "Research & Development", "All Departments"
+];
 
 export default function CompanyPolicy() {
   const { user } = useAuth();
-  const isEmployee = user?.role === 'EMPLOYEE';
+  const { selectedCompany } = useCompanySelection();
+  const roleUpper = String(user?.role || '').trim().toUpperCase();
+  const isEmployee = roleUpper === 'EMPLOYEE';
+  const canManagePolicies =
+    POLICY_MANAGE_ROLES.includes(roleUpper) && !POLICY_NEVER_MANAGE_ROLES.includes(roleUpper);
   
-  const [policies, setPolicies] = useState([
-    {
-      id: 1,
-      title: "Employee Handbook 2024",
-      description: "Comprehensive guide covering company policies, procedures, and employee rights",
-      department: "HR",
-      fileType: "PDF",
-      fileSize: "2.5 MB",
-      lastUpdated: "2024-01-15",
-      status: "acknowledged",
-      acknowledgedAt: "2024-01-20"
-    },
-    {
-      id: 2,
-      title: "Data Protection Policy",
-      description: "Guidelines for handling sensitive company and customer data",
-      department: "IT",
-      fileType: "PDF",
-      fileSize: "1.8 MB",
-      lastUpdated: "2024-02-01",
-      status: "pending"
-    },
-    {
-      id: 3,
-      title: "Remote Work Guidelines",
-      description: "Policies and procedures for remote work arrangements",
-      department: "HR",
-      fileType: "DOCX",
-      fileSize: "950 KB",
-      lastUpdated: "2024-01-30",
-      status: "acknowledged",
-      acknowledgedAt: "2024-02-05"
-    },
-    {
-      id: 4,
-      title: "Health and Safety Protocol",
-      description: "Workplace safety guidelines and emergency procedures",
-      department: "Operations",
-      fileType: "PDF",
-      fileSize: "3.2 MB",
-      lastUpdated: "2024-02-10",
-      status: "pending"
-    }
-  ]);
+  const [policies, setPolicies] = useState([]);
+  const [policiesLoading, setPoliciesLoading] = useState(true);
+  const [policiesError, setPoliciesError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDepartment, setFilterDepartment] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showCreateDepartmentModal, setShowCreateDepartmentModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [policyToView, setPolicyToView] = useState(null);
-  const [departments, setDepartments] = useState([
-    "HR", "IT", "Finance", "Sales", "Marketing", "Operations", 
-    "Legal", "Customer Support", "Research & Development", "All Departments"
-  ]);
-  const [newDepartment, setNewDepartment] = useState({
-    name: '',
-    description: '',
-    manager: ''
-  });
+  const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [departmentsError, setDepartmentsError] = useState(null);
   const [newPolicy, setNewPolicy] = useState({
     title: '',
     description: '',
-    department: '',
+    departments: [],
     file: null
   });
 
-  const handleAcknowledge = (policyId) => {
-    setPolicies(prev => prev.map(policy => 
-      policy.id === policyId 
-        ? { ...policy, status: 'acknowledged', acknowledgedAt: new Date().toISOString().split('T')[0] }
-        : policy
-    ));
+  useEffect(() => {
+    if (canManagePolicies) return;
+    setShowCreateModal(false);
+    setShowDeleteModal(false);
+  }, [canManagePolicies]);
+
+  const loadPolicies = useCallback(async () => {
+    setPoliciesError(null);
+    setPoliciesLoading(true);
+    try {
+      const res = await policiesAPI.fetchPolicies();
+      if (res?.success && Array.isArray(res.data?.policies)) {
+        setPolicies(res.data.policies);
+      } else {
+        setPolicies([]);
+      }
+    } catch (e) {
+      console.error(e);
+      setPoliciesError(e.message || 'Unable to load policies');
+      setPolicies([]);
+    } finally {
+      setPoliciesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPolicies();
+  }, [loadPolicies]);
+
+  useEffect(() => {
+    const fromApi = [...new Set(policies.map((p) => p.department).filter(Boolean))];
+    setDepartments(() => {
+      const next = new Set([...DEFAULT_DEPARTMENTS, ...fromApi]);
+      return Array.from(next);
+    });
+  }, [policies]);
+
+  const loadDepartmentsFromDirectory = useCallback(async () => {
+    setDepartmentsError(null);
+    setDepartmentsLoading(true);
+    try {
+      // Prefer the user's selected company (stored as name), else fallback to first available company.
+      const companiesRes = await getCompanies();
+      const companies = companiesRes?.data || companiesRes?.data?.companies || companiesRes?.companies || [];
+      const list = Array.isArray(companies) ? companies : [];
+      const byName = selectedCompany
+        ? list.find((c) => String(c?.name || '').trim().toLowerCase() === String(selectedCompany).trim().toLowerCase())
+        : null;
+      const company = byName || list[0] || null;
+      const companyId = company?.id;
+
+      if (!companyId) {
+        // Keep defaults if company list isn't available.
+        setDepartmentsLoading(false);
+        return;
+      }
+
+      const res = await getCompanyDepartments(companyId, { status: 'ACTIVE' });
+      const rows = res?.data || [];
+      const names = Array.isArray(rows)
+        ? rows.map((d) => d?.name).filter(Boolean)
+        : [];
+
+      if (names.length) {
+        setDepartments(() => {
+          const next = new Set([...names, "All Departments"]);
+          return Array.from(next);
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      setDepartmentsError(e.message || 'Failed to load departments');
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  }, [selectedCompany]);
+
+  useEffect(() => {
+    loadDepartmentsFromDirectory();
+  }, [loadDepartmentsFromDirectory]);
+
+  const handleAcknowledge = async (policyId) => {
+    try {
+      await policiesAPI.acknowledgePolicy(policyId);
+      await loadPolicies();
+    } catch (e) {
+      alert(e.message || 'Failed to acknowledge policy');
+    }
   };
 
-  const handleView = (policy) => {
-    setPolicyToView(policy);
-    setShowViewModal(true);
+  const handleDownload = async (policy) => {
+    try {
+      await policiesAPI.downloadPolicyFile(policy.id);
+    } catch (e) {
+      alert(e.message || 'Failed to download policy file');
+    }
   };
 
-  const handleDownload = (policy) => {
-    // Create a mock file content based on policy
-    const fileContent = `
-${policy.title}
-${'='.repeat(policy.title.length)}
+  const canViewPolicyDetails = !canManagePolicies; // employees/managers/PMs
 
-Description: ${policy.description}
-File Type: ${policy.fileType}
-File Size: ${policy.fileSize}
-Last Updated: ${policy.lastUpdated}
-Status: ${policy.status}
-${policy.status === 'acknowledged' ? `Acknowledged On: ${policy.acknowledgedAt}` : ''}
-
-POLICY CONTENT:
-This is a sample content for the ${policy.title}. In a real application, this would contain the actual policy document content.
-
-Key Points:
-• This policy outlines important guidelines and procedures
-• All employees must review and acknowledge this policy
-• Regular updates are made to ensure compliance
-• Contact HR for any questions or clarifications
-
-Effective Date: ${policy.lastUpdated}
-Review Date: ${new Date(new Date(policy.lastUpdated).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-
----
-Generated by Company Policy Management System
-    `.trim();
-
-    // Create blob and download
-    const blob = new Blob([fileContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${policy.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleCreatePolicy = () => {
-    if (!newPolicy.title.trim() || !newPolicy.description.trim() || !newPolicy.department.trim()) {
+  const handleCreatePolicy = async () => {
+    if (!canManagePolicies) return;
+    const selectedDepts = Array.isArray(newPolicy.departments) ? newPolicy.departments : [];
+    if (!newPolicy.title.trim() || !newPolicy.description.trim() || selectedDepts.length === 0) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const newPolicyObj = {
-      id: Date.now(),
-      title: newPolicy.title,
-      description: newPolicy.description,
-      department: newPolicy.department,
-      fileType: newPolicy.file ? newPolicy.file.name.split('.').pop().toUpperCase() : 'PDF',
-      fileSize: newPolicy.file ? `${(newPolicy.file.size / 1024 / 1024).toFixed(1)} MB` : '1.0 MB',
-      lastUpdated: new Date().toISOString().split('T')[0],
-      status: 'pending'
-    };
+    const file = newPolicy.file;
+    const fileName = file ? file.name : null;
+    const ext = file ? (file.name.split('.').pop() || '').toUpperCase() : 'PDF';
+    const fileSize = file ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : '—';
+    const departmentValue =
+      selectedDepts.includes('All Departments') || selectedDepts.length > 1
+        ? 'All Departments'
+        : String(selectedDepts[0] || '').trim();
 
-    setPolicies(prev => [newPolicyObj, ...prev]);
-    setNewPolicy({ title: '', description: '', department: '', file: null });
-    setShowCreateModal(false);
+    try {
+      await policiesAPI.createPolicy({
+        title: newPolicy.title.trim(),
+        description: newPolicy.description.trim(),
+        department: departmentValue,
+        fileType: ext || 'PDF',
+        fileSize,
+        file: file || undefined,
+      });
+      setNewPolicy({ title: '', description: '', departments: [], file: null });
+      setShowCreateModal(false);
+      await loadPolicies();
+    } catch (e) {
+      alert(e.message || 'Failed to create policy');
+    }
   };
 
-  const handleDeletePolicy = () => {
-    if (selectedPolicy) {
-      setPolicies(prev => prev.filter(policy => policy.id !== selectedPolicy.id));
+  const handleDeletePolicy = async () => {
+    if (!canManagePolicies) return;
+    if (!selectedPolicy) return;
+    try {
+      await policiesAPI.deletePolicy(selectedPolicy.id);
       setShowDeleteModal(false);
       setSelectedPolicy(null);
+      await loadPolicies();
+    } catch (e) {
+      alert(e.message || 'Failed to delete policy');
     }
-  };
-
-  const handleCreateDepartment = () => {
-    if (!newDepartment.name.trim()) {
-      alert("Please enter a department name");
-      return;
-    }
-
-    if (departments.includes(newDepartment.name)) {
-      alert("Department already exists");
-      return;
-    }
-
-    setDepartments(prev => [...prev, newDepartment.name]);
-    setNewDepartment({ name: '', description: '', manager: '' });
-    setShowCreateDepartmentModal(false);
-  };
-
-  const handleDeleteDepartment = (departmentName) => {
-    if (departmentName === "All Departments") {
-      alert("Cannot delete 'All Departments'");
-      return;
-    }
-
-    // Check if any policies are using this department
-    const policiesUsingDepartment = policies.filter(policy => policy.department === departmentName);
-    if (policiesUsingDepartment.length > 0) {
-      alert(`Cannot delete department. ${policiesUsingDepartment.length} policy(ies) are using this department.`);
-      return;
-    }
-
-    setDepartments(prev => prev.filter(dept => dept !== departmentName));
   };
 
   const filteredPolicies = policies.filter(policy => {
+    // Once acknowledged, policies should disappear for employees/managers/PMs,
+    // but remain visible for HR/Admin so they can track compliance.
+    if (!canManagePolicies && policy.status === 'acknowledged') return false;
+
     const matchesSearch = policy.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          policy.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || policy.status === filterStatus;
-    const matchesDepartment = filterDepartment === "all" || policy.department === filterDepartment;
+    const rawDept = String(policy.department || '').trim();
+    const deptParts = rawDept
+      ? rawDept.split(',').map((x) => x.trim()).filter(Boolean)
+      : [];
+    const matchesDepartment =
+      filterDepartment === "all" ||
+      rawDept === "All Departments" ||
+      rawDept === filterDepartment ||
+      deptParts.includes(filterDepartment);
     return matchesSearch && matchesStatus && matchesDepartment;
   });
 
@@ -236,6 +249,24 @@ Generated by Company Policy Management System
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6">
       <div className="max-w-7xl mx-auto">
+        {policiesError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-wrap items-center justify-between gap-3">
+            <p className="text-red-800 font-medium">Unable to load policies</p>
+            <button
+              type="button"
+              onClick={() => loadPolicies()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {policiesLoading && policies.length === 0 && !policiesError && (
+          <div className="mb-6 flex items-center justify-center py-12 text-gray-600">
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mr-3" />
+            <span>Loading policies…</span>
+          </div>
+        )}
         {/* Enhanced Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
@@ -246,7 +277,11 @@ Generated by Company Policy Management System
               <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 Company Policies
               </h1>
-              <p className="text-gray-600 mt-1">Manage and acknowledge company policies and procedures</p>
+              <p className="text-gray-600 mt-1">
+                {canManagePolicies
+                  ? 'Manage and acknowledge company policies and procedures'
+                  : 'View and acknowledge company policies and procedures'}
+              </p>
             </div>
           </div>
           
@@ -349,35 +384,28 @@ Generated by Company Policy Management System
                 </div>
             </div>
             
-                         <div className="flex items-center gap-3">
-               {/* Create Department Button - Hidden for employees */}
-               {!isEmployee && (
-                 <button
-                   onClick={() => setShowCreateDepartmentModal(true)}
-                   className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                 >
-                   <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                   </svg>
-                   Create Department
-                 </button>
+                         <div className="flex items-center gap-3 flex-wrap justify-end">
+               {canManagePolicies && (
+                 <>
+                   <button
+                     onClick={() => setShowCreateModal(true)}
+                     className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                   >
+                     <PlusIcon className="h-5 w-5 mr-2" />
+                     Create New Policy
+                   </button>
+                 </>
                )}
-               {/* Create Policy Button - Hidden for employees */}
-               {!isEmployee && (
-                 <button
-                   onClick={() => setShowCreateModal(true)}
-                   className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                   title={isEmployee ? "This content is maintained by management. Employees can only view." : ""}
-                 >
-                   <PlusIcon className="h-5 w-5 mr-2" />
-                   Create New Policy
-                 </button>
-               )}
-               {/* Tooltip for employees */}
                {isEmployee && (
                  <div className="text-sm text-gray-500 italic flex items-center gap-2">
                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
                    <span>This content is maintained by management. Employees can only view.</span>
+                 </div>
+               )}
+               {!isEmployee && !canManagePolicies && (
+                 <div className="text-sm text-gray-500 flex items-center gap-2">
+                   <ExclamationTriangleIcon className="h-5 w-5 text-indigo-400" />
+                   <span>Policies are created by Admin or HR. You can view, download, and acknowledge pending policies.</span>
                  </div>
                )}
              </div>
@@ -444,13 +472,19 @@ Generated by Company Policy Management System
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleView(policy)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="View Policy"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </button>
+                    {canViewPolicyDetails && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPolicyToView(policy);
+                          setShowViewModal(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="View Policy"
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </button>
+                    )}
                     <button 
                       onClick={() => handleDownload(policy)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -458,7 +492,7 @@ Generated by Company Policy Management System
                     >
                       <ArrowDownTrayIcon className="h-4 w-4" />
                     </button>
-                    {!isEmployee && (
+                    {canManagePolicies && (
                       <button 
                         onClick={() => {
                           setSelectedPolicy(policy);
@@ -503,10 +537,14 @@ Generated by Company Policy Management System
                          <p className="text-gray-500 mb-6">
                {searchTerm || filterStatus !== "all" || filterDepartment !== "all"
                  ? "Try adjusting your search or filter criteria."
-                 : "Get started by creating your first company policy."
+                 : policies.length === 0 && !policiesError
+                   ? "No policies available."
+                   : canManagePolicies
+                     ? "Get started by creating your first company policy."
+                     : "No policies match your filters, or none have been published yet."
                }
              </p>
-             {!searchTerm && filterStatus === "all" && filterDepartment === "all" && !isEmployee && (
+             {!searchTerm && filterStatus === "all" && filterDepartment === "all" && canManagePolicies && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -519,8 +557,75 @@ Generated by Company Policy Management System
         )}
       </div>
 
+      {/* View Policy Modal (read-only) - visible only for employees/managers/PMs */}
+      {showViewModal && policyToView && canViewPolicyDetails && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto"
+          onClick={() => setShowViewModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden mt-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-white shadow border border-indigo-100">
+                  <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{policyToView.title}</p>
+                  <p className="text-xs text-gray-600 truncate">{policyToView.department}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="p-2 rounded-lg text-gray-500 hover:bg-white/70 hover:text-gray-800"
+                onClick={() => setShowViewModal(false)}
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getFileTypeColor(policyToView.fileType)}`}>
+                  {policyToView.fileType}
+                </span>
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(policyToView.status)}`}>
+                  {policyToView.status === 'acknowledged' ? 'Acknowledged' : 'Pending'}
+                </span>
+                <span className="text-xs text-gray-500">File: {policyToView.fileSize || '—'}</span>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{policyToView.description}</p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownload(policyToView)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+              >
+                <ArrowDownTrayIcon className="h-5 w-5" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Policy Modal */}
-      {showCreateModal && (
+      {showCreateModal && canManagePolicies && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-6">
@@ -551,16 +656,72 @@ Generated by Company Policy Management System
                  <label className="block text-sm font-medium text-gray-700 mb-2">
                    Department *
                  </label>
-                                   <select
-                    value={newPolicy.department}
-                    onChange={(e) => setNewPolicy(prev => ({ ...prev, department: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
+                 {departmentsError && (
+                   <p className="text-xs text-amber-700 mb-2">
+                     Couldn’t load departments from Employee Directory. Using fallback list.
+                   </p>
+                 )}
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <p className="text-xs text-gray-500">
+                    {departmentsLoading ? 'Loading departments…' : 'Select one or more departments.'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewPolicy((p) => ({ ...p, departments: ['All Departments'] }))}
+                      className="text-xs px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewPolicy((p) => ({ ...p, departments: [] }))}
+                      className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border border-gray-300 rounded-lg p-3 max-h-44 overflow-y-auto bg-white">
+                  <div className="space-y-2">
+                    {departments.map((dept) => {
+                      const selected = Array.isArray(newPolicy.departments) && newPolicy.departments.includes(dept);
+                      const allSelected =
+                        Array.isArray(newPolicy.departments) && newPolicy.departments.includes('All Departments');
+                      const checked = dept === 'All Departments' ? allSelected : selected || allSelected;
+
+                      return (
+                        <label key={dept} className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setNewPolicy((prev) => {
+                                const prevArr = Array.isArray(prev.departments) ? prev.departments : [];
+                                // If All Departments is toggled
+                                if (dept === 'All Departments') {
+                                  return {
+                                    ...prev,
+                                    departments: prevArr.includes('All Departments') ? [] : ['All Departments'],
+                                  };
+                                }
+                                // If All Departments is active, turning on/off specific departments first disables All Departments
+                                const base = prevArr.filter((d) => d !== 'All Departments');
+                                const next = base.includes(dept)
+                                  ? base.filter((d) => d !== dept)
+                                  : [...base, dept];
+                                return { ...prev, departments: next };
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="select-none">{dept}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
                </div>
                
                <div>
@@ -597,7 +758,8 @@ Generated by Company Policy Management System
                 Cancel
               </button>
               <button
-                onClick={handleCreatePolicy}
+                type="button"
+                onClick={() => handleCreatePolicy()}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 Create Policy
@@ -608,7 +770,7 @@ Generated by Company Policy Management System
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedPolicy && (
+      {showDeleteModal && selectedPolicy && canManagePolicies && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-6">
@@ -643,306 +805,6 @@ Generated by Company Policy Management System
         </div>
       )}
 
-      {/* View Policy Modal */}
-      {showViewModal && policyToView && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            {/* Header */}
-            <div className="relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"></div>
-              <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-              <div className="relative flex items-center justify-between p-6 text-white">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
-                    <DocumentTextIcon className="h-7 w-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">Policy Details</h3>
-                    <p className="text-indigo-100 text-sm font-medium">{policyToView.title}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="p-3 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200 hover:scale-110"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-              {/* Policy Header */}
-              <div className="mb-8">
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100 shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
-                      <DocumentTextIcon className="h-8 w-8 text-white" />
-                    </div>
-                                         <div className="flex-1">
-                       <h4 className="text-xl font-bold text-gray-900 mb-1">{policyToView.title}</h4>
-                       <p className="text-gray-600 mb-2">{policyToView.description}</p>
-                       <div className="flex items-center gap-4 text-sm">
-                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                           {policyToView.department}
-                         </span>
-                         <span className={`px-3 py-1 rounded-full font-medium ${getStatusColor(policyToView.status)}`}>
-                           {policyToView.status === 'acknowledged' ? 'Acknowledged' : 'Pending'}
-                         </span>
-                         <span className="text-gray-500">ID: {policyToView.id}</span>
-                       </div>
-                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Policy Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* File Information */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-                      <DocumentIcon className="h-5 w-5 text-white" />
-                    </div>
-                    <h5 className="text-lg font-bold text-gray-900">File Information</h5>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
-                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getFileTypeColor(policyToView.fileType)}`}>
-                        {policyToView.fileType}
-                      </span>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">File Size</label>
-                      <p className="text-gray-900 font-medium">{policyToView.fileSize}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Updated</label>
-                      <p className="text-gray-900 font-medium">{policyToView.lastUpdated}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status Information */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
-                      <ClockIcon className="h-5 w-5 text-white" />
-                    </div>
-                    <h5 className="text-lg font-bold text-gray-900">Status Information</h5>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
-                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(policyToView.status)}`}>
-                        {policyToView.status === 'acknowledged' ? 'Acknowledged' : 'Pending'}
-                      </span>
-                    </div>
-                    {policyToView.status === 'acknowledged' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Acknowledged On</label>
-                        <p className="text-gray-900 font-medium">{policyToView.acknowledgedAt}</p>
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Policy ID</label>
-                      <p className="text-gray-900 font-medium">#{policyToView.id}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Policy Content Preview */}
-              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
-                    <EyeIcon className="h-5 w-5 text-white" />
-                  </div>
-                  <h5 className="text-lg font-bold text-gray-900">Policy Content Preview</h5>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                  <div className="prose max-w-none">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">{policyToView.title}</h3>
-                    <p className="text-gray-700 mb-4">{policyToView.description}</p>
-                    
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">Sample Policy Content:</h4>
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        This is a preview of the {policyToView.title}. In a real application, this would display the actual policy document content, including all sections, guidelines, and procedures that employees need to follow.
-                      </p>
-                      <p className="text-gray-600 text-sm leading-relaxed mt-3">
-                        The policy covers important aspects such as workplace conduct, data protection, health and safety protocols, and compliance requirements. All employees are required to review and acknowledge this policy to ensure understanding and compliance.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  <span className="font-semibold">Policy ID:</span> #{policyToView.id}
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleDownload(policyToView)}
-                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                  >
-                    📥 Download Policy
-                  </button>
-                  {policyToView.status === 'pending' && (
-                    <button
-                      onClick={() => {
-                        handleAcknowledge(policyToView.id);
-                        setShowViewModal(false);
-                      }}
-                      className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                    >
-                      ✅ Acknowledge Policy
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-                 </div>
-       )}
-
-       {/* Create Department Modal */}
-       {showCreateDepartmentModal && (
-         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-             {/* Header */}
-             <div className="relative overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600"></div>
-               <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-               <div className="relative flex items-center justify-between p-6 text-white">
-                 <div className="flex items-center gap-4">
-                   <div className="p-3 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
-                     <svg className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                     </svg>
-                   </div>
-                   <div>
-                     <h3 className="text-xl font-bold">Create New Department</h3>
-                     <p className="text-green-100 text-sm font-medium">Add a new department to the organization</p>
-                   </div>
-                 </div>
-                 <button
-                   onClick={() => setShowCreateDepartmentModal(false)}
-                   className="p-3 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200 hover:scale-110"
-                 >
-                   <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                   </svg>
-                 </button>
-               </div>
-             </div>
-
-             {/* Content */}
-             <div className="p-6">
-               <div className="space-y-6">
-                 {/* Department Name */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Department Name *
-                   </label>
-                   <input
-                     type="text"
-                     value={newDepartment.name}
-                     onChange={(e) => setNewDepartment(prev => ({ ...prev, name: e.target.value }))}
-                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                     placeholder="Enter department name"
-                   />
-                 </div>
-
-                 {/* Department Description */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Description
-                   </label>
-                   <textarea
-                     value={newDepartment.description}
-                     onChange={(e) => setNewDepartment(prev => ({ ...prev, description: e.target.value }))}
-                     rows={3}
-                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                     placeholder="Enter department description"
-                   />
-                 </div>
-
-                 {/* Department Manager */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Department Manager
-                   </label>
-                   <input
-                     type="text"
-                     value={newDepartment.manager}
-                     onChange={(e) => setNewDepartment(prev => ({ ...prev, manager: e.target.value }))}
-                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                     placeholder="Enter manager name"
-                   />
-                 </div>
-
-                 {/* Existing Departments */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                     Existing Departments
-                   </label>
-                   <div className="bg-gray-50 rounded-xl p-4 max-h-32 overflow-y-auto">
-                     <div className="grid grid-cols-2 gap-2">
-                       {departments.map(dept => (
-                         <div key={dept} className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200">
-                           <span className="text-sm font-medium text-gray-700">{dept}</span>
-                           {dept !== "All Departments" && (
-                             <button
-                               onClick={() => handleDeleteDepartment(dept)}
-                               className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-                               title="Delete Department"
-                             >
-                               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                               </svg>
-                             </button>
-                           )}
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </div>
-
-             {/* Footer */}
-             <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
-               <div className="flex items-center justify-between">
-                 <div className="text-sm text-gray-600">
-                   <span className="font-semibold">Total Departments:</span> {departments.length}
-                 </div>
-                 <div className="flex items-center gap-3">
-                   <button
-                     onClick={() => setShowCreateDepartmentModal(false)}
-                     className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors font-semibold border border-gray-300 rounded-xl hover:bg-gray-50"
-                   >
-                     Cancel
-                   </button>
-                   <button
-                     onClick={handleCreateDepartment}
-                     className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                   >
-                     ✅ Create Department
-                   </button>
-                 </div>
-               </div>
-             </div>
-           </div>
-         </div>
-       )}
      </div>
    );
  } 

@@ -23,6 +23,15 @@ body, #root {
   min-height: 100vh;
 }
 
+/* Baseline dark mode (toggle via Sidebar → IT Support → Dark Mode) */
+html.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+html.dark #root {
+  background-color: #0f172a;
+}
+
 /* Full screen styles for tasks */
 .tasks-full-screen {
   height: 100vh !important;

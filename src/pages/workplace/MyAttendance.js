@@ -170,6 +170,20 @@ export default function MyAttendance() {
     }
   }, [officeLocation, userCoords]);
 
+  const localYmd = () => {
+    const y = new Date();
+    return `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+  };
+
+  const recordYmd = (record) => {
+    if (!record?.date) return null;
+    const s =
+      typeof record.date === "string"
+        ? record.date
+        : new Date(record.date).toISOString();
+    return s.slice(0, 10);
+  };
+
   // Fetch today's attendance and stats
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
@@ -180,15 +194,42 @@ export default function MyAttendance() {
         getMyAttendance({ limit: 100 }),
       ]);
 
+      const logs = logsRes?.success && Array.isArray(logsRes.data) ? logsRes.data : [];
+      if (logsRes?.success && Array.isArray(logsRes.data)) {
+        setAttendanceLogs(logsRes.data);
+      }
+
+      const ymd = localYmd();
+      const logCheckInToday = logs.find((a) => a.type === "CHECK_IN" && recordYmd(a) === ymd);
+      const logCheckOutToday = logs.find((a) => a.type === "CHECK_OUT" && recordYmd(a) === ymd);
+
+      let clockedIn = false;
+      let nextClockInTime = null;
+
       if (todayRes?.success && todayRes.data) {
         setTodayData(todayRes.data);
         const hasCheckIn = !!todayRes.data.checkIn;
         const hasCheckOut = !!todayRes.data.checkOut;
-        setIsClockedIn(hasCheckIn && !hasCheckOut);
+        clockedIn = hasCheckIn && !hasCheckOut;
         if (todayRes.data.checkIn?.time) {
-          setClockInTime(new Date(todayRes.data.checkIn.time));
+          nextClockInTime = new Date(todayRes.data.checkIn.time);
         }
       }
+
+      // If /today missed the row (old server TZ vs browser day), infer from logs for local today
+      if (logCheckInToday && !logCheckOutToday) {
+        clockedIn = true;
+        if (!nextClockInTime && logCheckInToday.checkInTime) {
+          nextClockInTime = new Date(logCheckInToday.checkInTime);
+        }
+      }
+      if (logCheckOutToday) {
+        clockedIn = false;
+        nextClockInTime = null;
+      }
+
+      setIsClockedIn(clockedIn);
+      setClockInTime(nextClockInTime);
 
       if (statsRes?.success && statsRes.data) {
         setStats({
@@ -200,9 +241,6 @@ export default function MyAttendance() {
         });
       }
 
-      if (logsRes?.success && Array.isArray(logsRes.data)) {
-        setAttendanceLogs(logsRes.data);
-      }
     } catch (err) {
       console.error("Load attendance error:", err);
       setToast({ message: err.message || "Failed to load attendance", type: "error" });
@@ -485,7 +523,7 @@ export default function MyAttendance() {
               {Array.from({ length: daysInMonth }, (_, i) => {
                 const day = i + 1;
                 const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-                const dateStr = date.toISOString().split("T")[0];
+                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const dateMatch = (d) => d && String(d).slice(0, 10) === dateStr;
                 const checkInLog = attendanceLogs.find(
                   (a) => a.type === "CHECK_IN" && dateMatch(a.date)

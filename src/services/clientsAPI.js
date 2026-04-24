@@ -1,7 +1,8 @@
 // API service for clients management
 import { getToken } from './authAPI';
+import { getApiBaseUrl } from '../config/apiBaseUrl';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = getApiBaseUrl();
 
 class ClientsAPI {
   // Get all clients with optional search and pagination
@@ -10,7 +11,8 @@ class ClientsAPI {
       const queryParams = new URLSearchParams();
       
       if (params.search) queryParams.append('search', params.search);
-      if (params.corporate) queryParams.append('corporate', params.corporate);
+      // Backend expects `type` (legacy), but also accepts `corporate` as alias.
+      if (params.corporate) queryParams.append('type', params.corporate);
       if (params.leadSource) queryParams.append('leadSource', params.leadSource);
       if (params.page) queryParams.append('page', params.page);
 
@@ -201,6 +203,44 @@ class ClientsAPI {
       console.error('Error fetching client stats:', error);
       throw error;
     }
+  }
+
+  // Download dynamic Excel template for client import
+  static async downloadClientTemplate() {
+    const response = await fetch(`${API_BASE_URL}/clients/import/template`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${getToken()}` },
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.blob();
+  }
+
+  // Import clients from Excel (.xlsx)
+  static async importClientsExcel(file) {
+    const token = getToken();
+    if (!token) throw new Error('No authentication token found');
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/clients/import`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: form,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  }
+
+  // Export clients to Excel (.xlsx)
+  static async exportClientsExcel() {
+    const response = await fetch(`${API_BASE_URL}/clients/export`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${getToken()}` },
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.blob();
   }
 }
 

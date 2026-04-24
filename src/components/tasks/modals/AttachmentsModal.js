@@ -1,52 +1,107 @@
 import React, { useState, useCallback } from 'react';
 import { XMarkIcon, PlusIcon, TrashIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import DocumentUploadForm, { DOCUMENT_TYPES_MASTER } from '../../DocumentUploadForm';
+import { uploadDocument, getDocuments } from '../../../services/documentAPI';
 
 const AttachmentsModal = ({ open, onClose, attachments = [], onSave, defaultModule = '', projectReferenceNumber = '' }) => {
   const [localAttachments, setLocalAttachments] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Initialize local attachments when modal opens
   React.useEffect(() => {
-    if (open) {
-      setLocalAttachments([...attachments]);
-    }
-  }, [open, attachments]);
+    const loadExistingDocuments = async () => {
+      if (!open) return;
+      setLoading(true);
+      try {
+        // Use entityCode (project reference) + module to fetch documents for this project
+        const entityCode = projectReferenceNumber || '';
+        const module = defaultModule || 'PRJ';
+        const response = await getDocuments(null);
+        const docs = (response && response.data) || [];
 
-  const handleDocumentUpload = (documentData) => {
-    console.log('Document uploaded:', documentData);
-    
-    // Find the document type details from master table
-    const docType = DOCUMENT_TYPES_MASTER.find(
-      doc => doc.code === documentData.documentType && doc.module === documentData.module
-    );
-    
-    // Create new attachment entry with all the structured data
-    const newAttachment = {
-      id: Date.now() + Math.random(),
-      file: documentData.file,
-      fileName: documentData.fileName,
-      systemRef: documentData.referenceCode, // Use the generated reference code
-      documentTitle: documentData.file.name,
-      documentCategory: docType ? docType.label : 'General',
-      module: documentData.module,
-      entityCode: documentData.entityCode,
-      documentType: documentData.documentType,
-      year: documentData.year,
-      sequence: documentData.sequence,
-      size: documentData.file.size,
-      uploadedOn: documentData.uploadedOn,
-      description: docType ? docType.description : ''
+        const filtered = docs.filter(
+          (doc) =>
+            (!entityCode || doc.entityCode === entityCode) &&
+            (!module || doc.module === module)
+        );
+
+        const mapped = filtered.map((doc) => {
+          const docType = DOCUMENT_TYPES_MASTER.find(
+            (t) => t.code === doc.documentType && t.module === doc.module
+          );
+          return {
+            id: doc.id,
+            file: null,
+            fileName: doc.fileName,
+            systemRef: doc.referenceCode,
+            documentTitle: doc.fileName,
+            documentCategory: docType ? docType.label : 'General',
+            module: doc.module,
+            entityCode: doc.entityCode,
+            documentType: doc.documentType,
+            year: doc.year,
+            sequence: doc.sequence,
+            size: doc.fileSize,
+            uploadedOn: doc.uploadedAt,
+            description: docType ? docType.description : '',
+          };
+        });
+
+        setLocalAttachments(mapped);
+      } catch (err) {
+        console.error('Failed to load project documents:', err);
+        setLocalAttachments(attachments || []);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    console.log('Adding new attachment:', newAttachment);
-    setLocalAttachments(prev => {
-      const updated = [...prev, newAttachment];
-      console.log('Updated attachments:', updated);
-      return updated;
-    });
-    
-    // Optional: Show success message
-    console.log(`Document added with reference: ${documentData.referenceCode}`);
+
+    loadExistingDocuments();
+  }, [open, attachments, defaultModule, projectReferenceNumber]);
+
+  const handleDocumentUpload = async (documentData) => {
+    try {
+      setLoading(true);
+
+      const formData = new FormData();
+      formData.append('file', documentData.file);
+      formData.append('module', documentData.module || defaultModule || 'PRJ');
+      formData.append('entityCode', documentData.entityCode || projectReferenceNumber || '');
+      formData.append('documentType', documentData.documentType || 'DOC');
+      formData.append('year', String(documentData.year));
+      formData.append('sequence', documentData.sequence || 'XXX');
+
+      const response = await uploadDocument(formData);
+      const saved = response?.data;
+
+      const docType = DOCUMENT_TYPES_MASTER.find(
+        (doc) => doc.code === saved.documentType && doc.module === saved.module
+      );
+
+      const newAttachment = {
+        id: saved.id,
+        file: null,
+        fileName: saved.fileName,
+        systemRef: saved.referenceCode,
+        documentTitle: saved.fileName,
+        documentCategory: docType ? docType.label : 'General',
+        module: saved.module,
+        entityCode: saved.entityCode,
+        documentType: saved.documentType,
+        year: saved.year,
+        sequence: saved.sequence,
+        size: saved.fileSize,
+        uploadedOn: saved.uploadedAt,
+        description: docType ? docType.description : '',
+      };
+
+      setLocalAttachments((prev) => [...prev, newAttachment]);
+    } catch (error) {
+      console.error('Failed to upload document:', error);
+      alert(error.message || 'Failed to upload document. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeAttachment = (id) => {

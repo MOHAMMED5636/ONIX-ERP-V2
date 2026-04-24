@@ -102,8 +102,7 @@ export default function TenderEngineerLogin() {
           const user = response.data.user || response.data;
           
           if (response.data.token) {
-            // Use AuthContext login method to store token and fetch user profile
-            await setAuthUser(response.data.token);
+            await setAuthUser(response.data.token, response.data.user || user);
           }
           
           setLoading(false);

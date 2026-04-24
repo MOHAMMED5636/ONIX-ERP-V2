@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   DocumentTextIcon,
   CalendarIcon,
@@ -14,9 +14,16 @@ import {
   DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import PayrollAPI from '../../services/payrollAPI';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PayrollList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const role = user?.role;
+  const canManagePayroll = role === 'ADMIN' || role === 'HR';
+  const basePath = location.pathname.startsWith('/employee/payroll') ? '/employee/payroll' : '/payroll';
+
   const [payrollRuns, setPayrollRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -107,7 +114,7 @@ const PayrollList = () => {
   };
 
   const handleViewDetails = (runId) => {
-    navigate(`/payroll/runs/${runId}`);
+    navigate(`${basePath}/runs/${runId}`);
   };
 
   const handleGenerateRegister = async (runId, e) => {
@@ -134,22 +141,24 @@ const PayrollList = () => {
                 <p className="text-gray-600 mt-1">Manage payroll runs, approvals, and reports</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/payroll/settings')}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
-              >
-                <Cog6ToothIcon className="h-5 w-5" />
-                Settings
-              </button>
-              <button
-                onClick={() => navigate('/payroll/create')}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold transition-all shadow-md hover:shadow-lg"
-              >
-                <PlusIcon className="h-5 w-5" />
-                New Payroll Run
-              </button>
-            </div>
+            {canManagePayroll && (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate(`${basePath}/settings`)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+                >
+                  <Cog6ToothIcon className="h-5 w-5" />
+                  Settings
+                </button>
+                <button
+                  onClick={() => navigate(`${basePath}/create`)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold transition-all shadow-md hover:shadow-lg"
+                >
+                  <PlusIcon className="h-5 w-5" />
+                  New Payroll Run
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Filters */}
@@ -221,7 +230,7 @@ const PayrollList = () => {
               <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 text-lg">No payroll runs found</p>
               <button
-                onClick={() => navigate('/payroll/create')}
+                onClick={() => navigate(`${basePath}/create`)}
                 className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 Create First Payroll Run

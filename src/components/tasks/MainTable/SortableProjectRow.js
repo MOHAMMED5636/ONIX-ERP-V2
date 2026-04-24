@@ -92,11 +92,11 @@ const SortableProjectRow = ({
       case "referenceNumber":
         return (
           <input
-            className={`border rounded px-2 py-1 text-sm w-full ${inputClass}`}
+            className="border rounded px-2 py-1 text-sm w-full bg-gray-100 cursor-not-allowed"
             value={row.referenceNumber || ""}
-            onChange={e => !readOnly && onEdit("referenceNumber", e.target.value)}
-            readOnly={readOnly}
-            disabled={readOnly}
+            readOnly={true}
+            disabled={true}
+            title="Reference number is not editable"
           />
         );
       case "client":

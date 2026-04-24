@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Cog6ToothIcon,
   ArrowLeftIcon,
@@ -7,9 +7,15 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import PayrollAPI from '../../services/payrollAPI';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PayrollSettings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const role = user?.role;
+  const canManagePayroll = role === 'ADMIN' || role === 'HR';
+  const basePath = location.pathname.startsWith('/employee/payroll') ? '/employee/payroll' : '/payroll';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
@@ -117,7 +123,7 @@ const PayrollSettings = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/payroll')}
+                onClick={() => navigate(basePath)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeftIcon className="h-6 w-6 text-gray-600" />

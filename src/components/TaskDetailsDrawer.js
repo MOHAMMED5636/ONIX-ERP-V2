@@ -483,7 +483,7 @@ const TaskDetailsDrawer = ({ open, taskId, task, onClose, onTaskUpdate, onProjec
       title: newSubtaskTitle,
       assignee: newSubtaskAssignee || 'Unassigned',
       status: 'To Do',
-      priority: newSubtaskPriority
+      priority: newSubtaskPriority,
     };
     
     // Add to local subtasks state

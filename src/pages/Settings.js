@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 function Settings() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const canChangePassword = user?.role !== 'MANAGER' && user?.role !== 'PROJECT_MANAGER';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -37,25 +38,27 @@ function Settings() {
         )}
 
         {/* Additional Settings Sections (Optional) */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Account Settings</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Change Password
-              </label>
-              <p className="text-sm text-gray-600 mb-3">
-                To change your password, please use the password change feature available after login.
-              </p>
-              <a
-                href="/change-password"
-                className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
-              >
-                Change Password
-              </a>
+        {canChangePassword && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Account Settings</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Change Password
+                </label>
+                <p className="text-sm text-gray-600 mb-3">
+                  To change your password, please use the password change feature available after login.
+                </p>
+                <a
+                  href="/change-password"
+                  className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+                >
+                  Change Password
+                </a>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

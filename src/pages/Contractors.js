@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -17,7 +18,7 @@ const initialContractors = [
     name: "Aurora Contractors LLC",
     specialty: "Infrastructure",
     rating: "A",
-    status: "Open",
+    status: "Active",
     contact: "+971 4 456 8890",
     landline: "+971 4 234 5678",
     email: "info@auroracontractors.ae",
@@ -30,7 +31,7 @@ const initialContractors = [
     name: "Skyline Fit-Out",
     specialty: "Interior & Fit-out",
     rating: "B+",
-    status: "Not Open",
+    status: "Not Active",
     contact: "+971 50 222 1100",
     landline: "+971 4 345 6789",
     email: "contact@skylinefitout.com",
@@ -43,7 +44,7 @@ const initialContractors = [
     name: "Desert Foundations",
     specialty: "Civil Works",
     rating: "A-",
-    status: "Open",
+    status: "Active",
     contact: "+971 6 733 9080",
     landline: "+971 6 123 4567",
     email: null,
@@ -56,7 +57,7 @@ const initialContractors = [
     name: "Bluewave Electromechanical",
     specialty: "MEP",
     rating: "B",
-    status: "Not Open",
+    status: "Not Active",
     contact: "+971 2 445 7123",
     landline: "+971 2 567 8901",
     email: "sales@bluewave.ae",
@@ -66,13 +67,27 @@ const initialContractors = [
   },
 ];
 
+const RATING_OPTIONS = ["A+", "A-", "B+", "B-", "C+", "C-"];
+const STATUS_OPTIONS = ["Active", "Not Active"];
+
 export default function ContractorsPage() {
+  const { user } = useAuth();
+  const isReadOnly = user?.role === "PROJECT_MANAGER" || user?.role === "EMPLOYEE";
+
   // Load contractors from localStorage or use initial
   const loadContractorsFromStorage = () => {
     try {
       const savedContractors = localStorage.getItem('contractors');
       if (savedContractors) {
-        return JSON.parse(savedContractors);
+        const parsed = JSON.parse(savedContractors);
+        if (!Array.isArray(parsed)) return initialContractors;
+        // Backward compatibility: convert legacy "Open/Not Open" → "Active/Not Active"
+        return parsed.map((c) => {
+          const status = String(c?.status || '').trim();
+          const nextStatus =
+            status === 'Open' ? 'Active' : status === 'Not Open' ? 'Not Active' : status;
+          return { ...c, status: nextStatus };
+        });
       }
     } catch (error) {
       console.error('Error loading contractors from localStorage:', error);
@@ -122,6 +137,71 @@ export default function ContractorsPage() {
     instagram: "",
   });
   const [error, setError] = useState("");
+
+  const handleExportList = (rows) => {
+    const safe = Array.isArray(rows) ? rows : [];
+    const headers = [
+      "Contractor Name",
+      "Licensed Activities",
+      "Rating",
+      "Status",
+      "Engineer Listing",
+      "Classification",
+      "License Number",
+      "Manager",
+      "Primary Contact",
+      "Email",
+      "LinkedIn",
+      "Facebook",
+      "Twitter/X",
+      "Instagram",
+      "Scope of Work",
+    ];
+
+    const escapeCsv = (v) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      const needsQuotes = /[",\n]/.test(s);
+      const escaped = s.replace(/"/g, '""');
+      return needsQuotes ? `"${escaped}"` : escaped;
+    };
+
+    const lines = [
+      headers.join(","),
+      ...safe.map((c) =>
+        [
+          c.name,
+          c.specialty,
+          c.rating,
+          c.status,
+          c.engineerListing,
+          c.classification,
+          c.licenseNumber,
+          c.manager || "",
+          c.contact,
+          c.email || "",
+          c.linkedin || "",
+          c.facebook || "",
+          c.twitter || "",
+          c.instagram || "",
+          c.scopeOfWork || "",
+        ]
+          .map(escapeCsv)
+          .join(",")
+      ),
+    ];
+
+    // UTF-8 BOM for Excel compatibility
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contractors_suppliers_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
   const filteredContractors = contractors.filter((contractor) => {
     // Search filter
@@ -174,6 +254,7 @@ export default function ContractorsPage() {
 
   const handleAddContractor = (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     const requiredFields = ["name", "specialty", "rating", "status", "licenseNumber", "contact", "classification"];
     const missing = requiredFields.filter((field) => !contractorForm[field].trim());
     
@@ -211,6 +292,7 @@ export default function ContractorsPage() {
   };
 
   const handleDeleteContractor = (id) => {
+    if (isReadOnly) return;
     if (window.confirm("Are you sure you want to delete this contractor?")) {
       setContractors((prev) => prev.filter((c) => c.id !== id));
     }
@@ -222,6 +304,7 @@ export default function ContractorsPage() {
   };
 
   const handleEditContractor = (contractor) => {
+    if (isReadOnly) return;
     setSelectedContractor(contractor);
     setContractorForm({
       name: contractor.name,
@@ -246,6 +329,7 @@ export default function ContractorsPage() {
 
   const handleUpdateContractor = (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     const requiredFields = ["name", "specialty", "rating", "status", "licenseNumber", "contact", "classification"];
     const missing = requiredFields.filter((field) => !contractorForm[field].trim());
     
@@ -304,14 +388,21 @@ export default function ContractorsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            {!isReadOnly && (
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-5 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-2xl shadow hover:bg-indigo-500 transition flex items-center gap-2"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Add Contractor
+              </button>
+            )}
             <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="px-5 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-2xl shadow hover:bg-indigo-500 transition flex items-center gap-2"
+              type="button"
+              onClick={() => handleExportList(filteredContractors)}
+              className="px-5 py-3 border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl hover:border-indigo-200 hover:text-indigo-600 transition"
+              title="Export current list to CSV"
             >
-              <PlusIcon className="h-5 w-5" />
-              Add Contractor
-            </button>
-            <button className="px-5 py-3 border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl hover:border-indigo-200 hover:text-indigo-600 transition">
               Export List
             </button>
           </div>
@@ -384,9 +475,9 @@ export default function ContractorsPage() {
             {[
               { key: "name", label: "Contractor Name *", placeholder: "e.g. Horizon Builders" },
               { key: "specialty", label: "Licensed Activities *", placeholder: "e.g. Structural Works, MEP" },
-              { key: "rating", label: "Rating *", placeholder: "e.g. A, B+" },
-            { key: "status", label: "Status *", placeholder: "Open or Not Open", type: "select", options: ["Open", "Not Open"] },
-            { key: "engineerListing", label: "Engineer Listing *", placeholder: "Whitelisted or Blacklisted", type: "select", options: ["Whitelisted", "Blacklisted"] },
+              { key: "rating", label: "Rating *", placeholder: "Select rating...", type: "select", options: RATING_OPTIONS },
+            { key: "status", label: "Status *", placeholder: "Select status...", type: "select", options: STATUS_OPTIONS },
+            { key: "engineerListing", label: "Engineer Listing *", placeholder: "Select engineer listing...", type: "select", options: ["Whitelisted", "Blacklisted"] },
             { key: "classification", label: "Classification *", placeholder: "Select classification...", type: "select", options: ["Supplier", "Sub Contractor", "Main Contractor"] },
             { key: "licenseNumber", label: "License Number *", placeholder: "e.g. CN-2024-001234" },
             { key: "manager", label: "Manager", placeholder: "e.g. John Smith" },
@@ -408,6 +499,7 @@ export default function ContractorsPage() {
                     onChange={(e) =>
                       setContractorForm((prev) => ({ ...prev, [field.key]: e.target.value }))
                     }
+                    disabled={isReadOnly}
                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
                   >
                     <option value="">{field.placeholder || "Select..."}</option>
@@ -424,6 +516,7 @@ export default function ContractorsPage() {
                     onChange={(e) =>
                       setContractorForm((prev) => ({ ...prev, [field.key]: e.target.value }))
                     }
+                    disabled={isReadOnly}
                     rows={3}
                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200 resize-none"
                   />
@@ -435,6 +528,7 @@ export default function ContractorsPage() {
                     onChange={(e) =>
                       setContractorForm((prev) => ({ ...prev, [field.key]: e.target.value }))
                     }
+                    disabled={isReadOnly}
                     className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
                   />
                 )}
@@ -443,6 +537,7 @@ export default function ContractorsPage() {
             <div className="md:col-span-2 lg:col-span-3 flex gap-3">
               <button
                 type="submit"
+                disabled={isReadOnly}
                 className="px-5 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-2xl shadow hover:bg-indigo-500 transition"
               >
                 Add Contractor
@@ -856,20 +951,24 @@ export default function ContractorsPage() {
                       >
                         <EyeIcon className="h-5 w-5" />
                       </button>
-                      <button
-                        onClick={() => handleEditContractor(contractor)}
-                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
-                        title="Edit"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteContractor(contractor.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="Delete"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                      {!isReadOnly && (
+                        <>
+                          <button
+                            onClick={() => handleEditContractor(contractor)}
+                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            title="Edit"
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContractor(contractor.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1036,16 +1135,18 @@ export default function ContractorsPage() {
               >
                 Close
               </button>
-              <button
-                onClick={() => {
-                  setShowViewModal(false);
-                  handleEditContractor(selectedContractor);
-                }}
-                className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-500 transition flex items-center gap-2"
-              >
-                <PencilIcon className="h-4 w-4" />
-                Edit
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={() => {
+                    setShowViewModal(false);
+                    handleEditContractor(selectedContractor);
+                  }}
+                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-500 transition flex items-center gap-2"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Edit
+                </button>
+              )}
             </div>
           </div>
         </div>

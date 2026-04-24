@@ -47,4 +47,19 @@
 .calendar-attractive .react-calendar__tile--rangeEnd {
   background: #818cf8;
   color: #fff;
+}
+
+/* Days with saved meetings (dashboard) */
+.calendar-attractive .react-calendar__tile.dashboard-meeting-day {
+  background: #eef2ff;
+  box-shadow: inset 0 -3px 0 #6366f1;
+}
+.calendar-attractive .react-calendar__tile.dashboard-meeting-day:enabled:hover,
+.calendar-attractive .react-calendar__tile.dashboard-meeting-day:enabled:focus {
+  background: #e0e7ff;
+}
+.calendar-attractive .react-calendar__tile.dashboard-meeting-day.react-calendar__tile--active {
+  background: #6366f1;
+  color: #fff;
+  box-shadow: inset 0 -3px 0 #312e81;
 } 
